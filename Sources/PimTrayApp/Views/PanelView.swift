@@ -4,6 +4,7 @@ import PimTrayCore
 struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         @Bindable var model = model
@@ -30,15 +31,18 @@ struct PanelView: View {
                                        description: Text("Add an account to see your PIM roles."))
                     .frame(height: 160)
             } else {
+                // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
+                // to zero; size it from the measured content instead, capped so long lists scroll.
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(model.identities) { identity in
                             IdentitySection(identity: identity)
                         }
                     }
                     .padding(10)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }
-                .frame(maxHeight: 520)
+                .frame(height: min(max(contentHeight, 44), 520))
             }
             if model.selectMode {
                 Divider()

@@ -4,7 +4,7 @@ import PimTrayCore
 @main
 struct PimTrayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AppModel.live()
+    @State private var model: AppModel
 
     init() {
         // Bootstrap is owned by the app, not the panel view: closing the panel must not cancel it.
