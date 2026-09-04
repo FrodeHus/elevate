@@ -111,17 +111,125 @@ public struct AzureResourceProvider: PIMProvider {
         return Array(result.values)
     }
 
-    // Task 4 replaces these.
+    // MARK: Policy
+
+    struct PolicyRule: Decodable {
+        let id: String
+        let maximumDuration: String?
+        let enabledRules: [String]?
+        let setting: ApprovalSetting?
+        struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
+    }
+    struct PolicyProperties: Decodable { let roleDefinitionId: String?; let effectiveRules: [PolicyRule]? }
+    struct PolicyAssignment: Decodable { let name: String; let properties: PolicyProperties }
+
     public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
-        throw PIMError.unexpected(status: 501, body: "policy: Task 4")
+        guard case .azureResource(let scope, let roleDefinitionId) = role.key.scope else { throw PIMError.notEligible }
+        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleManagementPolicyAssignments")
+        let assignments = try await listAll(PolicyAssignment.self, identity: identity, tenantId: role.key.tenantId, url: url)
+        guard let match = assignments.first(where: { $0.properties.roleDefinitionId?.caseInsensitiveCompare(roleDefinitionId) == .orderedSame }),
+              let rules = match.properties.effectiveRules else { return .manualDefault }
+        var policy = RolePolicy.manualDefault
+        for rule in rules {
+            switch rule.id {
+            case "Expiration_EndUser_Assignment":
+                if let d = rule.maximumDuration.flatMap(ISO8601Duration.parse) { policy.maximumDuration = d; policy.defaultDuration = d }
+            case "Enablement_EndUser_Assignment":
+                let enabled = Set(rule.enabledRules ?? [])
+                policy.requiresJustification = enabled.contains("Justification")
+                policy.requiresTicket = enabled.contains("Ticketing")
+                policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
+            case "Approval_EndUser_Assignment":
+                policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
+            default: break
+            }
+        }
+        return policy
     }
+
+    // MARK: Activation
+
+    struct RoleDefinition: Decodable { let id: String; let properties: Props; struct Props: Decodable { let roleName: String? } }
+
+    /// Manual roles carry a role *name*; ARM wants the definition id at that scope.
+    func resolveRoleDefinitionId(_ nameOrId: String, scope: String, identity: Identity, tenantId: String) async throws -> String {
+        if nameOrId.contains("/") { return nameOrId }
+        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleDefinitions",
+                             apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(nameOrId)'"])
+        let defs = try await listAll(RoleDefinition.self, identity: identity, tenantId: tenantId, url: url)
+        guard let id = defs.first?.id else { throw PIMError.notEligible }
+        return id
+    }
+
+    /// Finds the caller's eligibility for a scope + role; ARM needs its principal id and schedule name to activate.
+    func eligibility(scope: String, roleDefinitionId: String, identity: Identity, tenantId: String) async throws -> (principalId: String, scheduleName: String) {
+        let url = try armURL("providers/Microsoft.Authorization/roleEligibilityScheduleInstances", query: ["$filter": "asTarget()"])
+        let items = try await listAll(Instance.self, identity: identity, tenantId: tenantId, url: url)
+        guard let match = items.first(where: {
+            $0.properties.scope.caseInsensitiveCompare(scope) == .orderedSame &&
+            $0.properties.roleDefinitionId.caseInsensitiveCompare(roleDefinitionId) == .orderedSame
+        }), let principal = match.properties.principalId, let schedule = match.properties.roleEligibilityScheduleId else {
+            throw PIMError.notEligible
+        }
+        return (principal, schedule.components(separatedBy: "/").last ?? schedule)
+    }
+
+    func requestURL(scope: String) throws -> URL {
+        try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/" + UUID().uuidString.lowercased())
+    }
+
     public func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment {
-        throw PIMError.unexpected(status: 501, body: "activate: Task 4")
+        guard case .azureResource(let scope, let nameOrId) = request.roleKey.scope else { throw PIMError.notEligible }
+        let tenantId = request.roleKey.tenantId
+        let roleDefinitionId = try await resolveRoleDefinitionId(nameOrId, scope: scope, identity: identity, tenantId: tenantId)
+        let elig = try await eligibility(scope: scope, roleDefinitionId: roleDefinitionId, identity: identity, tenantId: tenantId)
+        var props: [String: Any] = [
+            "principalId": elig.principalId,
+            "roleDefinitionId": roleDefinitionId,
+            "requestType": "SelfActivate",
+            "linkedRoleEligibilityScheduleId": elig.scheduleName,
+            "justification": request.justification,
+            "scheduleInfo": [
+                "startDateTime": GraphJSON.encoderDateString(.now),
+                "expiration": ["type": "AfterDuration", "duration": ISO8601Duration.format(request.duration)],
+            ],
+        ]
+        if let t = request.ticket { props["ticketInfo"] = ["ticketNumber": t.number, "ticketSystem": t.system] }
+        let body = try JSONSerialization.data(withJSONObject: ["properties": props])
+        let r = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes, body: body)
+        let created = try GraphJSON.decoder.decode(Instance.self, from: r.body)
+        let start = created.properties.scheduleInfo?.startDateTime ?? .now
+        let end = created.properties.scheduleInfo?.expiration?.endDateTime
+            ?? created.properties.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
+        let status: ActiveAssignment.Status = switch created.properties.status ?? "Provisioned" {
+        case "PendingApproval", "PendingAdminDecision", "PendingApprovalProvisioning": .pendingApproval
+        case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated", "Accepted", "PendingEvaluation", "ProvisioningStarted", "PendingExternalProvisioning": .pendingProvisioning
+        case "Denied", "Failed", "Canceled", "Revoked", "TimedOut", "Invalid", "AdminDenied", "FailedAsResourceIsLocked": .failed(created.properties.status ?? "Failed")
+        default: .active
+        }
+        return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.name, startDateTime: start,
+                                endDateTime: status == .active ? end : nil, status: status)
     }
+
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
-        throw PIMError.unexpected(status: 501, body: "deactivate: Task 4")
+        guard case .azureResource(let scope, let nameOrId) = assignment.roleKey.scope else { throw PIMError.notEligible }
+        let tenantId = assignment.roleKey.tenantId
+        let roleDefinitionId = try await resolveRoleDefinitionId(nameOrId, scope: scope, identity: identity, tenantId: tenantId)
+        let elig = try await eligibility(scope: scope, roleDefinitionId: roleDefinitionId, identity: identity, tenantId: tenantId)
+        let props: [String: Any] = [
+            "principalId": elig.principalId,
+            "roleDefinitionId": roleDefinitionId,
+            "requestType": "SelfDeactivate",
+            "linkedRoleEligibilityScheduleId": elig.scheduleName,
+        ]
+        _ = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes,
+                                    body: try JSONSerialization.data(withJSONObject: ["properties": props]))
     }
+
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
-        throw PIMError.unexpected(status: 501, body: "cancel: Task 4")
+        guard case .azureResource(let scope, _) = assignment.roleKey.scope, let name = assignment.assignmentId else { throw PIMError.notEligible }
+        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/\(name)/cancel")
+        _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId, url: url, scopes: scopes, body: Data())
     }
 }

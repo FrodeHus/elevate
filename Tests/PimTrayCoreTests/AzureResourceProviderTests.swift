@@ -54,4 +54,99 @@ import Foundation
             _ = try await p.eligibleRoles(identity: identity, tenant: tenant)
         }
     }
+
+    var contributor: EligibleRole {
+        EligibleRole(key: RoleKey(identityId: "id1", tenantId: "t1", scope: .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId)),
+                     displayName: "Contributor", detail: "Pay-As-You-Go · subscription", source: .discovered, policy: .manualDefault)
+    }
+
+    @Test func readsEndUserPolicyForTheMatchingRoleAtScope() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleManagementPolicyAssignments", body: Fixtures.data("arm-policy"))
+        let policy = try await p.policy(for: contributor, identity: identity)
+        #expect(policy.maximumDuration == .seconds(4 * 3600))
+        #expect(policy.defaultDuration == .seconds(4 * 3600))
+        #expect(policy.requiresJustification && policy.requiresMFA && policy.requiresTicket && policy.requiresApproval)
+        let req = await http.requests.first!
+        #expect(req.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicyAssignments"))
+    }
+
+    @Test func activateLooksUpEligibilityAndPutsSelfActivate() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
+        let a = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(7200), justification: "INC-1", ticket: TicketInfo(number: "42", system: "Jira")), identity: identity)
+        #expect(a.status == .active)
+        #expect(a.assignmentId == "fea7a502-9a96-4806-a26f-eee560e52045")
+        #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T11:00:00Z"))
+        let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        #expect(put.method == "PUT")
+        #expect(put.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/"))
+        let name = put.url.lastPathComponent
+        #expect(UUID(uuidString: name) != nil)
+        let body = try JSONSerialization.jsonObject(with: put.body!) as! [String: Any]
+        let props = body["properties"] as! [String: Any]
+        #expect(props["requestType"] as? String == "SelfActivate")
+        #expect(props["principalId"] as? String == "user-obj-1")
+        #expect(props["roleDefinitionId"] as? String == contributorId)
+        #expect(props["linkedRoleEligibilityScheduleId"] as? String == "b1477448-2cc6-4ceb-93b4-54a202a89413")
+        #expect(props["justification"] as? String == "INC-1")
+        #expect((props["ticketInfo"] as? [String: Any])?["ticketNumber"] as? String == "42")
+        let exp = (props["scheduleInfo"] as! [String: Any])["expiration"] as! [String: Any]
+        #expect(exp["type"] as? String == "AfterDuration")
+        #expect(exp["duration"] as? String == "PT2H")
+    }
+
+    @Test func manualRoleNameIsResolvedBeforeActivation() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleDefinitions?", body: Fixtures.data("arm-roledefinitions"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
+        let manualKey = RoleKey(identityId: "id1", tenantId: "t1", scope: .azureResource(scope: "/subscriptions/SUB-1", roleDefinitionId: "Contributor"))
+        let a = try await p.activate(ActivationRequest(roleKey: manualKey, duration: .seconds(3600), justification: "x"), identity: identity)
+        #expect(a.status == .active)
+        let defs = await http.requests(matching: "roleDefinitions?").first!
+        #expect(defs.url.absoluteString.contains("api-version=2022-04-01"))
+        #expect(defs.url.absoluteString.lowercased().contains("rolename%20eq%20'contributor'") || defs.url.absoluteString.lowercased().contains("rolename eq 'contributor'"))
+        let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
+        #expect(props["roleDefinitionId"] as? String == contributorId)
+    }
+
+    @Test func activateWithoutMatchingEligibilityIsNotEligible() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible-page2"))
+        let key = RoleKey(identityId: "id1", tenantId: "t1", scope: .azureResource(scope: "/subscriptions/sub-9", roleDefinitionId: contributorId))
+        await #expect(throws: PIMError.notEligible) {
+            _ = try await p.activate(ActivationRequest(roleKey: key, duration: .seconds(3600), justification: "x"), identity: identity)
+        }
+    }
+
+    @Test func deactivatePutsSelfDeactivate() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
+        let a = ActiveAssignment(roleKey: contributor.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        try await p.deactivate(a, identity: identity)
+        let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
+        #expect(props["requestType"] as? String == "SelfDeactivate")
+        #expect(props["linkedRoleEligibilityScheduleId"] as? String == "b1477448-2cc6-4ceb-93b4-54a202a89413")
+        #expect(props["scheduleInfo"] == nil)
+    }
+
+    @Test func cancelPostsToTheRequestAtItsScope() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("POST", "/cancel", status: 200, body: Data())
+        let key = RoleKey(identityId: "id1", tenantId: "t1", scope: .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId))
+        let a = ActiveAssignment(roleKey: key, assignmentId: "req-77", startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+        try await p.cancelPendingRequest(a, identity: identity)
+        let post = await http.requests.first!
+        #expect(post.method == "POST")
+        #expect(post.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-ops/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/req-77/cancel"))
+    }
 }
