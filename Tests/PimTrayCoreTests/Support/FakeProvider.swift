@@ -6,11 +6,13 @@ actor FakeProviderState {
     var failures: [PIMError] = []
     var activated: [ActivationRequest] = []
     var deactivated: [ActiveAssignment] = []
+    var cancelled: [ActiveAssignment] = []
     var order: [String] = []
     func pushFailure(_ e: PIMError) { failures.append(e) }
     func nextFailure() -> PIMError? { failures.isEmpty ? nil : failures.removeFirst() }
     func recordActivate(_ r: ActivationRequest) { activated.append(r); order.append("\(r.roleKey.tenantId):\(r.justification)") }
     func recordDeactivate(_ a: ActiveAssignment) { deactivated.append(a) }
+    func recordCancel(_ a: ActiveAssignment) { cancelled.append(a) }
 }
 
 struct FakeProvider: PIMProvider {
@@ -35,5 +37,10 @@ struct FakeProvider: PIMProvider {
     func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
         if let e = await state.nextFailure() { throw e }
         await state.recordDeactivate(assignment)
+    }
+
+    func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        if let e = await state.nextFailure() { throw e }
+        await state.recordCancel(assignment)
     }
 }

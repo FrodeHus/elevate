@@ -194,4 +194,12 @@ public struct EntraDirectoryProvider: PIMProvider {
                                      url: try url("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
     }
+
+    /// Withdraws a request still awaiting approval. Graph answers 204 with no body.
+    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        guard let requestId = assignment.assignmentId else { throw PIMError.notEligible }
+        _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
+                                     url: try url("/roleManagement/directory/roleAssignmentScheduleRequests/\(requestId)/cancel"),
+                                     scopes: scopes, body: Data())
+    }
 }

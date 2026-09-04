@@ -77,4 +77,13 @@ public final class ActivationCoordinator: Sendable {
             try await provider.deactivate(assignment, identity: identity)
         }
     }
+
+    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        guard let provider = providers[assignment.roleKey.scope.kind] else {
+            throw PIMError.unexpected(status: 501, body: "No provider for \(assignment.roleKey.scope.kind)")
+        }
+        try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: assignment.roleKey.tenantId, scopes: provider.scopes) {
+            try await provider.cancelPendingRequest(assignment, identity: identity)
+        }
+    }
 }

@@ -9,4 +9,6 @@ public protocol PIMProvider: Sendable {
     func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy
     func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment
     func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws
+    /// Withdraws a request that is still waiting for an approver.
+    func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws
 }

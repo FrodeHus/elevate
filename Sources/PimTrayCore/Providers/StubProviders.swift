@@ -14,6 +14,9 @@ public struct AzureResourceProvider: PIMProvider {
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
         throw PIMError.unexpected(status: 501, body: "Azure resource roles arrive in phase 2")
     }
+    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        throw PIMError.unexpected(status: 501, body: "Azure resource roles arrive in phase 2")
+    }
 }
 
 /// Phase 3. PIM for Groups.
@@ -28,6 +31,9 @@ public struct GroupProvider: PIMProvider {
         throw PIMError.unexpected(status: 501, body: "PIM for Groups arrives in phase 3")
     }
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        throw PIMError.unexpected(status: 501, body: "PIM for Groups arrives in phase 3")
+    }
+    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
         throw PIMError.unexpected(status: 501, body: "PIM for Groups arrives in phase 3")
     }
 }

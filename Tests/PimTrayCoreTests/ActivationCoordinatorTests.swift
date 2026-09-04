@@ -102,6 +102,17 @@ import Foundation
         #expect(await provider.state.deactivated.count == 1)
         #expect(await tokens.interactiveCalls.count == 1)
     }
+
+    @Test func cancelPendingRequestRetriesOnInteractionRequired() async throws {
+        let provider = FakeProvider(kind: .entraDirectory)
+        await provider.state.pushFailure(.interactionRequired)
+        let tokens = FakeTokenProvider()
+        let c = ActivationCoordinator(providers: [provider], tokens: tokens)
+        let a = ActiveAssignment(roleKey: key("t1", "r1"), assignmentId: "req-9", startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+        try await c.cancelPendingRequest(a, identity: identity)
+        #expect(await provider.state.cancelled.count == 1)
+        #expect(await tokens.interactiveCalls.count == 1)
+    }
 }
 
 actor ProgressSink {

@@ -143,4 +143,23 @@ import Foundation
         #expect(body["action"] as? String == "selfDeactivate")
         #expect(body["scheduleInfo"] == nil)
     }
+
+    @Test func cancelPendingRequestPostsToCancelEndpoint() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("POST", "roleAssignmentScheduleRequests/req-9/cancel", status: 204)
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "req-9", startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+        try await p.cancelPendingRequest(a, identity: identity)
+        let post = await http.requests(matching: "/cancel").first!
+        #expect(post.method == "POST")
+        #expect(post.url.absoluteString == "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests/req-9/cancel")
+        #expect(post.headers["Authorization"] == "Bearer token-t1")
+    }
+
+    @Test func cancelPendingRequestWithoutIdThrowsNotEligible() async throws {
+        let (p, _, _) = makeProvider()
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: nil, startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+        await #expect(throws: PIMError.notEligible) {
+            try await p.cancelPendingRequest(a, identity: identity)
+        }
+    }
 }
