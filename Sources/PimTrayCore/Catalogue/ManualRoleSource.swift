@@ -15,14 +15,26 @@ public struct ManualRole: Codable, Hashable, Sendable {
 public enum ManualRoleSource {
     public static func eligibleRoles(from manual: [ManualRole], tenantKey: TenantKey) -> [EligibleRole] {
         manual.filter { $0.tenantKey == tenantKey }.map {
-            EligibleRole(key: RoleKey(identityId: tenantKey.identityId, tenantId: tenantKey.tenantId, scope: $0.scope),
-                         displayName: $0.displayName, source: .manual, policy: .manualDefault)
+            let detail: String? = if case .azureResource(let scope, _) = $0.scope { scope } else { nil }
+            return EligibleRole(key: RoleKey(identityId: tenantKey.identityId, tenantId: tenantKey.tenantId, scope: $0.scope),
+                                displayName: $0.displayName, detail: detail, source: .manual, policy: .manualDefault)
         }
     }
 
-    /// Discovered roles win over manual entries with the same key; manual-only roles are appended.
+    /// Discovered roles win over manual entries with the same key; a manual Azure entry is also dropped when a
+    /// discovered Azure role has the same scope and display name (the manual entry names the role, ARM ids it).
     public static func merge(discovered: [EligibleRole], manual: [EligibleRole]) -> [EligibleRole] {
         let known = Set(discovered.map(\.key))
-        return discovered + manual.filter { !known.contains($0.key) }
+        let azureNames = Set(discovered.compactMap { role -> String? in
+            guard case .azureResource(let scope, _) = role.key.scope else { return nil }
+            return scope.lowercased() + "|" + role.displayName.lowercased()
+        })
+        return discovered + manual.filter { role in
+            guard !known.contains(role.key) else { return false }
+            if case .azureResource(let scope, _) = role.key.scope {
+                return !azureNames.contains(scope.lowercased() + "|" + role.displayName.lowercased())
+            }
+            return true
+        }
     }
 }

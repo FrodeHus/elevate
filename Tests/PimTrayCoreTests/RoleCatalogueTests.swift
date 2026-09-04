@@ -31,4 +31,33 @@ import Foundation
         let merged = ManualRoleSource.merge(discovered: [discovered], manual: [manual, other])
         #expect(merged.map(\.displayName) == ["Disc", "X"])
     }
+
+    @Test func manualAzureRoleCarriesScopeAsDetail() {
+        let tk = TenantKey(identityId: "i", tenantId: "t")
+        let manual = [ManualRole(tenantKey: tk, scope: .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: "Contributor"), displayName: "Contributor")]
+        let roles = ManualRoleSource.eligibleRoles(from: manual, tenantKey: tk)
+        #expect(roles[0].detail == "/subscriptions/sub-1")
+        #expect(roles[0].displayName == "Contributor")
+    }
+
+    @Test func mergeDropsManualAzureRoleMatchingDiscoveredByScopeAndName() {
+        let tk = TenantKey(identityId: "i", tenantId: "t")
+        let discovered = EligibleRole(key: RoleKey(identityId: "i", tenantId: "t", scope: .azureResource(scope: "/subscriptions/SUB-1", roleDefinitionId: "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac")),
+                                      displayName: "Contributor", detail: "Pay-As-You-Go · subscription", source: .discovered, policy: .manualDefault)
+        let manualSame = EligibleRole(key: RoleKey(identityId: "i", tenantId: "t", scope: .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: "contributor")),
+                                      displayName: "contributor", detail: "/subscriptions/sub-1", source: .manual, policy: .manualDefault)
+        let manualOther = EligibleRole(key: RoleKey(identityId: "i", tenantId: "t", scope: .azureResource(scope: "/subscriptions/sub-2", roleDefinitionId: "Reader")),
+                                       displayName: "Reader", detail: "/subscriptions/sub-2", source: .manual, policy: .manualDefault)
+        let merged = ManualRoleSource.merge(discovered: [discovered], manual: [manualSame, manualOther])
+        #expect(merged.map(\.displayName) == ["Contributor", "Reader"])
+        _ = tk
+    }
+
+    @Test func detailRoundTripsAndDefaultsToNil() throws {
+        let key = RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: "r", directoryScopeId: "/"))
+        let role = EligibleRole(key: key, displayName: "X", source: .discovered, policy: .manualDefault)
+        #expect(role.detail == nil)
+        let data = try JSONEncoder().encode(EligibleRole(key: key, displayName: "X", detail: "d", source: .manual, policy: .manualDefault))
+        #expect(try JSONDecoder().decode(EligibleRole.self, from: data).detail == "d")
+    }
 }

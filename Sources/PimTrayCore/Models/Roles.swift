@@ -28,13 +28,16 @@ public enum RoleSource: String, Codable, Hashable, Sendable { case discovered, m
 public struct EligibleRole: Codable, Hashable, Sendable, Identifiable {
     public let key: RoleKey
     public var displayName: String
+    /// Secondary caption, e.g. the Azure scope's display name and type. Nil for Entra roles.
+    public var detail: String?
     public var source: RoleSource
     public var policy: RolePolicy
     public var id: RoleKey { key }
 
-    public init(key: RoleKey, displayName: String, source: RoleSource, policy: RolePolicy) {
+    public init(key: RoleKey, displayName: String, detail: String? = nil, source: RoleSource, policy: RolePolicy) {
         self.key = key
         self.displayName = displayName
+        self.detail = detail
         self.source = source
         self.policy = policy
     }
