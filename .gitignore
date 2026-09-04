@@ -1,0 +1,5 @@
+.build/
+*.xcodeproj/
+DerivedData/
+PimTrayConfig.plist
+.DS_Store
