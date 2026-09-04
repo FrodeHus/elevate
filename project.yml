@@ -1,0 +1,67 @@
+name: PimTray
+options:
+  bundleIdPrefix: no.frodehus
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  PimTrayCore:
+    path: .
+  MSAL:
+    url: https://github.com/AzureAD/microsoft-authentication-library-for-objc
+    from: 2.15.0
+targets:
+  PimTrayApp:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/PimTrayApp
+      - path: PimTrayConfig.plist
+        optional: true
+        buildPhase: resources
+    dependencies:
+      - package: PimTrayCore
+        product: PimTrayCore
+      - package: MSAL
+        product: MSAL
+    info:
+      path: Sources/PimTrayApp/Info.plist
+      properties:
+        CFBundleDisplayName: PimTray
+        CFBundleName: PimTray
+        LSUIElement: true
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: ""
+        CFBundleURLTypes:
+          - CFBundleURLName: no.frodehus.pimtray.auth
+            CFBundleURLSchemes:
+              - msauth.no.frodehus.pimtray
+        LSApplicationQueriesSchemes:
+          - msauthv2
+          - msauthv3
+    entitlements:
+      path: Sources/PimTrayApp/PimTray.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.microsoft.identity.universalstorage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.pimtray
+        PRODUCT_NAME: PimTray
+        DEVELOPMENT_TEAM: 2VQ7HBD336
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        ENABLE_APP_SANDBOX: false
+        GENERATE_INFOPLIST_FILE: false
+schemes:
+  PimTrayApp:
+    build:
+      targets:
+        PimTrayApp: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: []
