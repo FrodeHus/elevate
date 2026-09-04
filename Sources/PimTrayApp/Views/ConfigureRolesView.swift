@@ -66,9 +66,15 @@ struct ConfigureRolesView: View {
             List($azure) { $row in
                 HStack {
                     TextField("Scope", text: $row.scope)
-                    Picker("", selection: $row.roleName) {
-                        ForEach(Self.azureRoleNames, id: \.self) { Text($0).tag($0) }
-                    }.frame(width: 220)
+                    TextField("Role name", text: $row.roleName).frame(width: 190)
+                    Menu {
+                        ForEach(Self.azureRoleNames, id: \.self) { name in
+                            Button(name) { $row.roleName.wrappedValue = name }
+                        }
+                    } label: { Image(systemName: "chevron.down") }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .accessibilityLabel("Suggested roles")
                     Button { azure.removeAll { $0.id == row.id } } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
                 }
             }

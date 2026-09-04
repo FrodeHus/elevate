@@ -20,6 +20,7 @@ struct IdentitySection: View {
                 } label: { Image(systemName: "ellipsis.circle") }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .accessibilityLabel("Account actions")
             }
             ForEach(model.tenants(for: identity.id)) { tenant in
                 TenantSection(tenant: tenant)

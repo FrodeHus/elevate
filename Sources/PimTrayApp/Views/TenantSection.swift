@@ -43,6 +43,7 @@ struct TenantSection: View {
                 } label: { Image(systemName: "ellipsis.circle") }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .accessibilityLabel("Tenant actions")
             }
         }
     }

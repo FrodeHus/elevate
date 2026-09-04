@@ -138,7 +138,16 @@ struct DurationPicker: View {
         Picker("Duration", selection: $duration) {
             ForEach(options, id: \.self) { d in Text(label(d)).tag(d) }
         }
-        .onAppear { if !options.contains(duration) { duration = options.last ?? .seconds(1800) } }
+        .onAppear { if !options.contains(duration) { duration = nearestOption(to: duration) } }
+    }
+
+    /// Snaps to the closest 30-minute step, never past the policy maximum.
+    private func nearestOption(to d: Duration) -> Duration {
+        let options = options
+        guard let first = options.first, let last = options.last else { return .seconds(1800) }
+        let minutes = Double(d.components.seconds) / 60
+        let snapped = Int((minutes / 30).rounded()) * 30
+        return .seconds(min(max(snapped * 60, Int(first.components.seconds)), Int(last.components.seconds)))
     }
 
     private func label(_ d: Duration) -> String {
