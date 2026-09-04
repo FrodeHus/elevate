@@ -37,6 +37,14 @@ struct RoleRow: View {
     }
 
     @ViewBuilder private var trailing: some View {
+        if model.inFlight.contains(role.key) {
+            ProgressView().controlSize(.small).help("Request in progress")
+        } else {
+            trailingForStatus
+        }
+    }
+
+    @ViewBuilder private var trailingForStatus: some View {
         switch assignment?.status {
         case .active:
             if let end = assignment?.endDateTime {
@@ -50,6 +58,7 @@ struct RoleRow: View {
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
         case .pendingProvisioning:
+            ProgressView().controlSize(.small)
             Text("provisioning").font(.caption).foregroundStyle(.secondary)
         case .failed(let m):
             Text(m).font(.caption).foregroundStyle(.red).lineLimit(1)

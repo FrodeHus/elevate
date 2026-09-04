@@ -13,6 +13,8 @@ final class AppModel {
     private(set) var busy: Set<TenantKey> = []
     private(set) var tenantErrors: [TenantKey: String] = [:]
     private(set) var progress: [RoleKey: ActivationOutcome.Result] = [:]
+    /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
+    private(set) var inFlight: Set<RoleKey> = []
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
     var selection: Set<RoleKey> = []
     var startupError: String?
@@ -326,7 +328,8 @@ final class AppModel {
 
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.
     func activate(_ requests: [ActivationRequest]) async {
-        for r in requests { progress[r.roleKey] = nil }
+        for r in requests { progress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
+        defer { for r in requests { inFlight.remove(r.roleKey) } }
         var deactivated: Set<RoleKey> = []
         var skipped: Set<RoleKey> = []
         for r in requests {
@@ -379,6 +382,8 @@ final class AppModel {
     }
 
     func deactivate(_ key: RoleKey) async {
+        inFlight.insert(key)
+        defer { inFlight.remove(key) }
         guard let a = active[key], let identity = self.identity(key.identityId) else { return }
         do {
             try await coordinator.deactivate(a, identity: identity)
