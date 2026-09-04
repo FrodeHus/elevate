@@ -81,6 +81,17 @@ import Foundation
         #expect(outcomes.allSatisfy { if case .failed = $0.result { true } else { false } })
     }
 
+    @Test func consentRequiredFailsWithoutInteractivePrompt() async throws {
+        let provider = FakeProvider(kind: .entraDirectory)
+        await provider.state.pushFailure(.consentRequired)
+        let tokens = FakeTokenProvider()
+        let c = ActivationCoordinator(providers: [provider], tokens: tokens)
+        let outcomes = await c.activate([ActivationRequest(roleKey: key("t1", "r1"), duration: .seconds(60), justification: "j")], identities: [identity]) { _ in }
+        #expect(outcomes[0].result == .failed(.consentRequired))
+        #expect(await tokens.interactiveCalls.isEmpty)
+        #expect(await provider.state.activated.isEmpty)
+    }
+
     @Test func deactivateRetriesOnInteractionRequired() async throws {
         let provider = FakeProvider(kind: .entraDirectory)
         await provider.state.pushFailure(.interactionRequired)

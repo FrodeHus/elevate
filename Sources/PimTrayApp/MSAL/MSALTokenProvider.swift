@@ -6,10 +6,33 @@ import PimTrayCore
 /// isolation domains, but the ObjC SDK does not annotate it as Sendable itself.
 extension MSALAccount: @unchecked @retroactive Sendable {}
 
+/// Serialises interactive MSAL sessions: MSAL refuses a second one with
+/// `MSALErrorInteractiveSessionAlreadyRunning`, so callers queue instead of failing.
+private actor InteractiveGate {
+    private var busy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func run<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+        await acquire()
+        defer { release() }
+        return try await body()
+    }
+
+    private func acquire() async {
+        guard busy else { busy = true; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    private func release() {
+        if waiters.isEmpty { busy = false } else { waiters.removeFirst().resume() }
+    }
+}
+
 /// Wraps MSAL for macOS behind `TokenProviding`. All interactive calls hop to the main actor.
 final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     private let app: MSALPublicClientApplication
     private let anchor: AuthAnchorWindow
+    private let gate = InteractiveGate()
 
     init(clientId: String, redirectUri: String, anchor: AuthAnchorWindow) throws {
         let authority = try MSALAADAuthority(url: URL(string: "https://login.microsoftonline.com/organizations")!)
@@ -21,20 +44,24 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     // MARK: TokenProviding
 
     func signIn() async throws -> Identity {
-        let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead], claims: nil, prompt: .selectAccount)
-        return Self.identity(from: result.account)
+        try await gate.run { [self] in
+            let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead], claims: nil, prompt: .selectAccount)
+            return Self.identity(from: result.account)
+        }
     }
 
     func signOut(_ identity: Identity) async throws {
         guard let account = try? app.account(forIdentifier: identity.id) else { return }
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            Task { @MainActor in
-                let web = MSALWebviewParameters(authPresentationViewController: anchor.present())
-                let params = MSALSignoutParameters(webviewParameters: web)
-                params.signoutFromBrowser = false
-                app.signout(with: account, signoutParameters: params) { _, error in
-                    Task { @MainActor in self.anchor.dismiss() }
-                    if let error { cont.resume(throwing: Self.map(error)) } else { cont.resume() }
+        try await gate.run { [self] in
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                Task { @MainActor in
+                    let web = MSALWebviewParameters(authPresentationViewController: anchor.present())
+                    let params = MSALSignoutParameters(webviewParameters: web)
+                    params.signoutFromBrowser = false
+                    app.signout(with: account, signoutParameters: params) { _, error in
+                        Task { @MainActor in self.anchor.dismiss() }
+                        if let error { cont.resume(throwing: Self.map(error)) } else { cont.resume() }
+                    }
                 }
             }
         }
@@ -58,8 +85,10 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     @discardableResult
     func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String {
         let account = try? app.account(forIdentifier: identity.id)
-        let result = try await interactive(account: account, tenantId: tenantId, scopes: scopes, claims: claims, prompt: .promptIfNecessary)
-        return result.accessToken
+        return try await gate.run { [self] in
+            let result = try await interactive(account: account, tenantId: tenantId, scopes: scopes, claims: claims, prompt: .promptIfNecessary)
+            return result.accessToken
+        }
     }
 
     // MARK: Helpers

@@ -15,7 +15,7 @@ final class AppModel {
     private(set) var progress: [RoleKey: ActivationOutcome.Result] = [:]
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
     var selection: Set<RoleKey> = []
-    var fatalError: String?
+    var startupError: String?
     var pendingExtend: RoleKey?
 
     private let tokens: any TokenProviding
@@ -23,29 +23,35 @@ final class AppModel {
     private let discovery: TenantDiscovery
     private let store: AppStateStore
     private let notifier: any ExpiryNotifying
+    private let clientId: String?
     private var refreshTimer: Task<Void, Never>?
+    /// Policies are stable per role; fetching them again on every refresh is wasted quota.
+    private var policyCache: [RoleKey: RolePolicy] = [:]
+    /// Mutation order for saves, so a slow write cannot land after a newer one.
+    private var saveGeneration: UInt64 = 0
 
-    init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying) {
+    init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying, clientId: String? = nil) {
         self.tokens = tokens
         self.store = store
         self.notifier = notifier
+        self.clientId = clientId
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(), GroupProvider()], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
     }
 
-    /// Production wiring. Errors surface through `fatalError` so the panel can show them.
+    /// Production wiring. Errors surface through `startupError` so the panel can show them.
     static func live() -> AppModel {
         let anchor = AuthAnchorWindow()
         do {
             let config = try AppConfig.load()
             let tokens = try MSALTokenProvider(clientId: config.clientId, redirectUri: config.redirectUri, anchor: anchor)
             let notifier = ExpiryNotifier()
-            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier)
+            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, clientId: config.clientId)
             notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
             return model
         } catch {
             let model = AppModel(tokens: UnavailableTokenProvider(), http: URLSessionHTTPClient(), store: AppStateStore(), notifier: NoopNotifier())
-            model.fatalError = error.localizedDescription
+            model.startupError = error.localizedDescription
             return model
         }
     }
@@ -63,14 +69,30 @@ final class AppModel {
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
 
     func adminConsentURL(tenantId: String) -> URL? {
-        guard let config = try? AppConfig.load() else { return nil }
-        return URL(string: "https://login.microsoftonline.com/\(tenantId)/adminconsent?client_id=\(config.clientId)")
+        guard let clientId else { return nil }
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "login.microsoftonline.com"
+        components.path = "/\(tenantId)/v2.0/adminconsent"
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "scope", value: GraphScopes.all.joined(separator: " ")),
+            URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
+        ]
+        return components.url
     }
 
     // MARK: Lifecycle
 
     func bootstrap() async {
-        if let loaded = try? await store.load() { state = loaded }
+        do {
+            state = try await store.load()
+        } catch {
+            // Never write over a file we could not read; move it aside first.
+            _ = try? await store.quarantineCorruptFile()
+            state = AppState()
+            startupError = "Saved state could not be read; it was moved to state.json.bak"
+        }
         // Reconcile with MSAL's cache: drop identities MSAL no longer knows.
         if let known = try? await tokens.identities() {
             let ids = Set(known.map(\.id))
@@ -86,15 +108,19 @@ final class AppModel {
         refreshTimer = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
-                guard let self, self.activeCount > 0 else { continue }
+                guard let self else { return }
+                // Pending approvals live in `active` too, and they need polling to flip to active.
+                guard !self.active.isEmpty else { continue }
                 await self.refreshAll()
             }
         }
     }
 
     private func persist() {
+        saveGeneration += 1
         let snapshot = state
-        Task { try? await store.save(snapshot) }
+        let generation = saveGeneration
+        Task { try? await store.save(snapshot, generation: generation) }
     }
 
     // MARK: Accounts
@@ -113,7 +139,7 @@ final class AppModel {
             persist()
             await refresh(homeKey)
         } catch {
-            fatalError = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            startupError = (error as? PIMError)?.userMessage ?? error.localizedDescription
         }
     }
 
@@ -199,25 +225,17 @@ final class AppModel {
         tenantErrors[key] = nil
 
         var discovered: [EligibleRole] = []
+        // A tenant without consent must not be prodded with interactive prompts on every refresh.
+        var consentBlocked = tenant.discoveryMode != .automatic
         if tenant.discoveryMode == .automatic {
             let tenantSnapshot = tenant
             do {
                 discovered = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
                     try await provider.eligibleRoles(identity: identity, tenant: tenantSnapshot)
                 }
-                discovered = await withTaskGroup(of: EligibleRole.self) { group in
-                    for role in discovered {
-                        group.addTask {
-                            var r = role
-                            r.policy = (try? await provider.policy(for: role, identity: identity)) ?? .manualDefault
-                            return r
-                        }
-                    }
-                    var out: [EligibleRole] = []
-                    for await r in group { out.append(r) }
-                    return out.sorted { $0.displayName < $1.displayName }
-                }
+                discovered = await applyPolicies(to: discovered, identity: identity, provider: provider)
             } catch PIMError.consentRequired {
+                consentBlocked = true
                 tenant.discoveryMode = .manualRoles
                 tenant.lastDiscoveryError = "Role discovery not permitted in this tenant. Configure known roles or ask an admin to consent."
                 state.upsertTenant(tenant)
@@ -231,15 +249,51 @@ final class AppModel {
 
         do {
             let tenantSnapshot = tenant
-            let current = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
-                try await provider.activeAssignments(identity: identity, tenant: tenantSnapshot)
+            let current: [ActiveAssignment]
+            if consentBlocked {
+                current = try await provider.activeAssignments(identity: identity, tenant: tenantSnapshot)
+            } else {
+                current = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+                    try await provider.activeAssignments(identity: identity, tenant: tenantSnapshot)
+                }
             }
             active = active.filter { $0.key.tenantKey != key }
             for a in current { active[a.roleKey] = a }
             await rescheduleNotifications()
+        } catch PIMError.interactionRequired where consentBlocked {
+            // No active data available for this tenant; `lastDiscoveryError` already explains why.
+        } catch PIMError.consentRequired where consentBlocked {
+            // Same: leave whatever we knew about this tenant in place.
         } catch {
             if tenantErrors[key] == nil { tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription }
         }
+    }
+
+    /// Fills in policies, reusing the cache and fetching at most four at a time.
+    /// A failed fetch keeps the cached policy when there is one, otherwise the manual default.
+    private func applyPolicies(to roles: [EligibleRole], identity: Identity, provider: any PIMProvider) async -> [EligibleRole] {
+        var pending = roles.filter { policyCache[$0.key] == nil }
+        let fetched = await withTaskGroup(of: (RoleKey, RolePolicy?).self) { group in
+            for _ in 0..<4 {
+                guard let role = pending.popLast() else { break }
+                group.addTask { (role.key, try? await provider.policy(for: role, identity: identity)) }
+            }
+            var out: [RoleKey: RolePolicy] = [:]
+            for await (roleKey, policy) in group {
+                if let policy { out[roleKey] = policy }
+                if let role = pending.popLast() {
+                    group.addTask { (role.key, try? await provider.policy(for: role, identity: identity)) }
+                }
+            }
+            return out
+        }
+        for (roleKey, policy) in fetched { policyCache[roleKey] = policy }
+        return roles.map { role in
+            var r = role
+            r.policy = policyCache[role.key] ?? .manualDefault
+            return r
+        }
+        .sorted { $0.displayName < $1.displayName }
     }
 
     private func rescheduleNotifications() async {
@@ -253,17 +307,30 @@ final class AppModel {
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.
     func activate(_ requests: [ActivationRequest]) async {
         for r in requests { progress[r.roleKey] = nil }
+        var deactivated: Set<RoleKey> = []
+        var skipped: Set<RoleKey> = []
         for r in requests {
-            if let existing = active[r.roleKey], existing.status == .active, let identity = self.identity(r.roleKey.identityId) {
-                try? await coordinator.deactivate(existing, identity: identity)
+            guard let existing = active[r.roleKey], existing.status == .active,
+                  let identity = self.identity(r.roleKey.identityId) else { continue }
+            do {
+                try await coordinator.deactivate(existing, identity: identity)
+                active[r.roleKey] = nil
+                deactivated.insert(r.roleKey)
+            } catch {
+                let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+                tenantErrors[r.roleKey.tenantKey] = message
+                progress[r.roleKey] = .failed(.unexpected(status: 0, body: "Could not deactivate before re-activating: \(message)"))
+                skipped.insert(r.roleKey)
             }
         }
-        let outcomes = await coordinator.activate(requests, identities: state.identities) { outcome in
+        let attempted = requests.filter { !skipped.contains($0.roleKey) }
+        let outcomes = await coordinator.activate(attempted, identities: state.identities) { outcome in
             Task { @MainActor in self.progress[outcome.roleKey] = outcome.result }
         }
+        var consentBlocked: Set<TenantKey> = []
         for outcome in outcomes {
             progress[outcome.roleKey] = outcome.result
-            guard let request = requests.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
+            guard let request = attempted.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
             switch outcome.result {
             case .activated(let a):
                 active[a.roleKey] = a
@@ -271,9 +338,20 @@ final class AppModel {
             case .pendingApproval:
                 active[request.roleKey] = ActiveAssignment(roleKey: request.roleKey, assignmentId: nil, startDateTime: .now, endDateTime: nil, status: .pendingApproval)
                 state.remember(roleKey: request.roleKey, justification: request.justification, duration: request.duration)
-            case .failed:
-                break
+            case .failed(let error):
+                active[request.roleKey] = nil
+                if deactivated.contains(request.roleKey) {
+                    progress[request.roleKey] = .failed(.unexpected(status: 0, body: "Deactivated, but re-activation failed: \(error.userMessage)"))
+                }
+                // Spec §8 step 4: an activation refused for consent puts the tenant in manual mode.
+                if error == .consentRequired { consentBlocked.insert(request.roleKey.tenantKey) }
             }
+        }
+        for tenantKey in consentBlocked {
+            guard var t = self.tenant(tenantKey) else { continue }
+            t.discoveryMode = .manualRoles
+            t.lastDiscoveryError = "Activation not permitted in this tenant until an admin consents."
+            state.upsertTenant(t)
         }
         persist()
         selectMode = false
