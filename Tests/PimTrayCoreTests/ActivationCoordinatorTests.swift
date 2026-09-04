@@ -69,7 +69,8 @@ import Foundation
         ], identities: [identity]) { _ in }
         let byKey = Dictionary(uniqueKeysWithValues: outcomes.map { ($0.roleKey, $0.result) })
         #expect(byKey[key("t1", "r1")] == .failed(.policyViolation("JustificationRule")))
-        #expect(byKey[key("t1", "r2")] == .pendingApproval)
+        guard case .pendingApproval(let a) = byKey[key("t1", "r2")] else { Issue.record("expected pendingApproval"); return }
+        #expect(a.assignmentId == "p")
     }
 
     @Test func unknownIdentityOrProviderFails() async throws {

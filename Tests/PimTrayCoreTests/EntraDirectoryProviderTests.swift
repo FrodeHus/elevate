@@ -120,6 +120,7 @@ import Foundation
         await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
         let a = try await p.activate(ActivationRequest(roleKey: globalReader.key, duration: .seconds(3600), justification: "x"), identity: identity)
         #expect(a.status == .pendingApproval)
+        #expect(a.assignmentId == "req-1")
     }
 
     @Test func activatePolicyFailureMapsToPolicyViolation() async throws {

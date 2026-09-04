@@ -116,7 +116,7 @@ final class AppModel {
             for identity in state.identities where !ids.contains(identity.id) { state.removeIdentity(identity.id) }
         }
         persist()
-        await refreshAll()
+        if isOnline { await refreshAll() }
         startTimer()
     }
 
@@ -281,7 +281,11 @@ final class AppModel {
                 tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription
             }
         }
-        let manual = ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: key)
+        let manual = ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: key).map { role -> EligibleRole in
+            var r = role
+            if let policy = policyCache[r.key] { r.policy = policy }
+            return r
+        }
         roles[key] = ManualRoleSource.merge(discovered: discovered, manual: manual)
 
         do {
@@ -380,8 +384,8 @@ final class AppModel {
             case .activated(let a):
                 active[a.roleKey] = a
                 state.remember(roleKey: request.roleKey, justification: request.justification, duration: request.duration)
-            case .pendingApproval:
-                active[request.roleKey] = ActiveAssignment(roleKey: request.roleKey, assignmentId: nil, startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+            case .pendingApproval(let a):
+                active[a.roleKey] = a
                 state.remember(roleKey: request.roleKey, justification: request.justification, duration: request.duration)
             case .failed(let error):
                 active[request.roleKey] = nil
@@ -392,7 +396,6 @@ final class AppModel {
                 if error == .consentRequired { consentBlocked.insert(request.roleKey.tenantKey) }
             }
         }
-        await learnPoliciesForManualRoles(outcomes)
         for tenantKey in consentBlocked {
             guard var t = self.tenant(tenantKey) else { continue }
             t.discoveryMode = .manualRoles
@@ -402,6 +405,9 @@ final class AppModel {
         persist()
         selectMode = false
         await rescheduleNotifications()
+        // Runs independently so a slow policy fetch cannot hold the activation spinner; it only
+        // updates cached policy/role data afterwards, never `inFlight`.
+        Task { await self.learnPoliciesForManualRoles(outcomes) }
     }
 
     /// A manual role has no policy until Entra accepts an activation; that is the moment we can read one.
