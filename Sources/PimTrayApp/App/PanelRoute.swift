@@ -15,6 +15,3 @@ protocol ExpiryNotifying: Sendable {
 struct NoopNotifier: ExpiryNotifying {
     func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String]) async {}
 }
-
-// TODO(Task 15): replace with the real ExpiryNotifier implementation and remove this alias.
-typealias ExpiryNotifier = NoopNotifier

@@ -39,7 +39,10 @@ final class AppModel {
         do {
             let config = try AppConfig.load()
             let tokens = try MSALTokenProvider(clientId: config.clientId, redirectUri: config.redirectUri, anchor: anchor)
-            return AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: ExpiryNotifier())
+            let notifier = ExpiryNotifier()
+            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier)
+            notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
+            return model
         } catch {
             let model = AppModel(tokens: UnavailableTokenProvider(), http: URLSessionHTTPClient(), store: AppStateStore(), notifier: NoopNotifier())
             model.fatalError = error.localizedDescription
