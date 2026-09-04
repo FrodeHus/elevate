@@ -1,21 +1,11 @@
 import Foundation
 
 public enum GraphJSON {
-    nonisolated(unsafe) private static let fractional: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-    nonisolated(unsafe) private static let plain: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-
     public static func parseDate(_ s: String) -> Date? {
         // Graph emits up to 7 fractional digits; ISO8601DateFormatter accepts at most 3, so trim.
         let trimmed = s.replacing(/\.(\d{3})\d+/) { "." + String($0.output.1) }
-        return fractional.date(from: trimmed) ?? plain.date(from: trimmed)
+        return (try? Date(trimmed, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+            ?? (try? Date(trimmed, strategy: Date.ISO8601FormatStyle()))
     }
 
     public static var decoder: JSONDecoder {
@@ -34,7 +24,7 @@ public enum GraphJSON {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .custom { date, encoder in
             var c = encoder.singleValueContainer()
-            try c.encode(plain.string(from: date))
+            try c.encode(date.formatted(Date.ISO8601FormatStyle()))
         }
         return e
     }
