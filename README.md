@@ -8,6 +8,9 @@ macOS 26 menu bar app for activating Microsoft Entra PIM roles across several ac
 2. An Entra app registration (multi-tenant, public client):
    - Authentication → Add a platform → iOS/macOS, bundle ID `no.frodehus.pimtray`.
      The redirect URI becomes `msauth.no.frodehus.pimtray://auth`.
+   - Authentication → Add a platform → Web, redirect URI
+     `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
+     admin-consent link the app hands out lands on a valid page.
    - Authentication → Advanced settings → Allow public client flows: Yes.
    - API permissions (delegated, Microsoft Graph): `User.Read`,
      `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,

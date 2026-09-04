@@ -39,6 +39,9 @@ public struct GraphTransport: Sendable {
             return .interactionRequired
         case 403:
             return .consentRequired
+        case 429:
+            let retryAfter = r.header("Retry-After").map { "\($0)s" } ?? "a few seconds"
+            return .network("Throttled by Microsoft Graph; retry in \(retryAfter)")
         case 400:
             let text = r.bodyText
             if text.contains("RoleAssignmentRequestPolicyValidationFailed") || text.contains("RoleAssignmentRequestAcrsValidationFailed") {
