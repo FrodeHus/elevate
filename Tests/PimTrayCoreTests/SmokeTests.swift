@@ -18,6 +18,12 @@ import Foundation
 }
 
 @Suite struct GraphTransportErrorTests {
+    @Test func earlyDeactivationMapsToClearPolicyMessage() {
+        let body = Data(#"{"error":{"code":"ActiveDurationTooShort","message":"The role assignment cannot be deactivated within 5 minutes of activation."}}"#.utf8)
+        let r = HTTPResponse(status: 400, headers: [:], body: body)
+        #expect(GraphTransport.mapError(r) == .policyViolation("Entra requires a role to stay active for 5 minutes before it can be deactivated"))
+    }
+
     @Test func throttlingMapsToNetworkErrorWithRetryAfter() {
         let r = HTTPResponse(status: 429, headers: ["Retry-After": "12"], body: Data())
         #expect(GraphTransport.mapError(r) == .network("Throttled by Microsoft Graph; retry in 12s"))

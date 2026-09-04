@@ -44,6 +44,9 @@ public struct GraphTransport: Sendable {
             return .network("Throttled by Microsoft Graph; retry in \(retryAfter)")
         case 400:
             let text = r.bodyText
+            if text.contains("ActiveDurationTooShort") || text.localizedCaseInsensitiveContains("within 5 minutes") || text.localizedCaseInsensitiveContains("within five minutes") {
+                return .policyViolation("Entra requires a role to stay active for 5 minutes before it can be deactivated")
+            }
             if text.contains("RoleAssignmentRequestPolicyValidationFailed") || text.contains("RoleAssignmentRequestAcrsValidationFailed") {
                 if text.contains("MfaRule") || text.contains("Acrs") {
                     // Graph did not hand us a claims header; ask the caller for a fresh interactive sign-in.

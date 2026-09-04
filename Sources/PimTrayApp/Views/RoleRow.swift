@@ -47,14 +47,19 @@ struct RoleRow: View {
     @ViewBuilder private var trailingForStatus: some View {
         switch assignment?.status {
         case .active:
-            if let end = assignment?.endDateTime {
-                TimelineView(.periodic(from: .now, by: 1)) { ctx in
+            // Entra refuses deactivation within 5 minutes of activation; hold the button until then.
+            let start = assignment?.startDateTime ?? .distantPast
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                let lockedFor = 300 - ctx.date.timeIntervalSince(start)
+                if let end = assignment?.endDateTime {
                     Text(Countdown.remaining(until: end, now: ctx.date).map(Countdown.label) ?? "expired")
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                 }
+                Button("Deactivate") { Task { await model.deactivate(role.key) } }
+                    .controlSize(.small)
+                    .disabled(lockedFor > 0)
+                    .help(lockedFor > 0 ? "Can be deactivated in \(Int(lockedFor.rounded(.up))) s (Entra enforces 5 minutes)" : "Deactivate this role now")
             }
-            Button("Deactivate") { Task { await model.deactivate(role.key) } }
-                .controlSize(.small)
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
         case .pendingProvisioning:
