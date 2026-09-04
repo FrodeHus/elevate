@@ -23,6 +23,7 @@ private actor InteractiveGate {
 
     private func acquire() async throws {
         guard busy else { busy = true; return }
+        guard !Task.isCancelled else { throw CancellationError() }
         let id = UUID()
         let owned = await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in

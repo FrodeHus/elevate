@@ -81,6 +81,7 @@ struct PanelView: View {
             Button { Task { await model.refreshAll() } } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh")
                 .accessibilityLabel("Refresh")
+                .disabled(!model.isOnline)
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)

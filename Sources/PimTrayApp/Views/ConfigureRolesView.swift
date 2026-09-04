@@ -75,7 +75,9 @@ struct ConfigureRolesView: View {
                         .menuStyle(.borderlessButton)
                         .fixedSize()
                         .accessibilityLabel("Suggested roles")
-                    Button { azure.removeAll { $0.id == row.id } } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                    Button { azure.removeAll { $0.id == row.id } } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove row")
                 }
             }
             Button("Add row") { azure.append(AzureRow()) }
@@ -90,7 +92,9 @@ struct ConfigureRolesView: View {
                     TextField("Group id", text: $row.groupId)
                     TextField("Display name", text: $row.displayName)
                     Picker("", selection: $row.access) { Text("Member").tag(GroupAccess.member); Text("Owner").tag(GroupAccess.owner) }.frame(width: 110)
-                    Button { groups.removeAll { $0.id == row.id } } label: { Image(systemName: "minus.circle") }.buttonStyle(.borderless)
+                    Button { groups.removeAll { $0.id == row.id } } label: { Image(systemName: "minus.circle") }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove row")
                 }
             }
             Button("Add row") { groups.append(GroupRow()) }
@@ -125,8 +129,11 @@ struct ConfigureRolesView: View {
                 ?? templateId
             manual.append(ManualRole(tenantKey: tenantKey, scope: .entraDirectory(roleDefinitionId: templateId, directoryScopeId: "/"), displayName: displayName))
         }
-        for row in azure where !row.scope.trimmingCharacters(in: .whitespaces).isEmpty {
-            manual.append(ManualRole(tenantKey: tenantKey, scope: .azureResource(scope: row.scope.trimmingCharacters(in: .whitespaces), roleDefinitionId: row.roleName), displayName: "\(row.roleName) · \(row.scope)"))
+        for row in azure {
+            let scope = row.scope.trimmingCharacters(in: .whitespaces)
+            let roleName = row.roleName.trimmingCharacters(in: .whitespaces)
+            guard !scope.isEmpty, !roleName.isEmpty else { continue }
+            manual.append(ManualRole(tenantKey: tenantKey, scope: .azureResource(scope: scope, roleDefinitionId: roleName), displayName: "\(roleName) · \(scope)"))
         }
         for row in groups where !row.groupId.trimmingCharacters(in: .whitespaces).isEmpty {
             manual.append(ManualRole(tenantKey: tenantKey, scope: .group(groupId: row.groupId.trimmingCharacters(in: .whitespaces), accessId: row.access),
