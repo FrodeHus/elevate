@@ -90,14 +90,105 @@ public struct EntraDirectoryProvider: PIMProvider {
         return Array(result.values)
     }
 
-    // Policy, activate and deactivate are implemented in Task 6.
+    // MARK: Policy
+
+    struct PolicyRule: Decodable {
+        let id: String
+        let isExpirationRequired: Bool?
+        let maximumDuration: String?
+        let enabledRules: [String]?
+        let setting: ApprovalSetting?
+        struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
+    }
+    struct Policy: Decodable { let id: String; let rules: [PolicyRule]? }
+    struct PolicyAssignment: Decodable { let id: String; let roleDefinitionId: String?; let policy: Policy? }
+
     public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
-        throw PIMError.unexpected(status: 501, body: "policy: implemented in Task 6")
+        guard case .entraDirectory(let roleDefinitionId, _) = role.key.scope else { throw PIMError.notEligible }
+        let filter = "scopeId eq '/' and scopeType eq 'DirectoryRole' and roleDefinitionId eq '\(roleDefinitionId)'"
+        let encoded = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? filter
+        let r = try await transport.get(identity: identity, tenantId: role.key.tenantId,
+                                        url: url("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
+                                        scopes: scopes)
+        let assignments = try GraphJSON.decoder.decode(Collection<PolicyAssignment>.self, from: r.body).value
+        guard let rules = assignments.first?.policy?.rules else { return .manualDefault }
+        var policy = RolePolicy.manualDefault
+        for rule in rules {
+            switch rule.id {
+            case "Expiration_EndUser_Assignment":
+                if let d = rule.maximumDuration.flatMap(ISO8601Duration.parse) {
+                    policy.maximumDuration = d
+                    policy.defaultDuration = d
+                }
+            case "Enablement_EndUser_Assignment":
+                let enabled = Set(rule.enabledRules ?? [])
+                policy.requiresJustification = enabled.contains("Justification")
+                policy.requiresTicket = enabled.contains("Ticketing")
+                policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
+            case "Approval_EndUser_Assignment":
+                policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
+            default:
+                break
+            }
+        }
+        return policy
     }
+
+    // MARK: Activate / deactivate
+
+    struct Me: Decodable { let id: String }
+
+    func principalId(identity: Identity, tenantId: String) async throws -> String {
+        let r = try await transport.get(identity: identity, tenantId: tenantId, url: url("/me?$select=id"), scopes: scopes)
+        return try GraphJSON.decoder.decode(Me.self, from: r.body).id
+    }
+
     public func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment {
-        throw PIMError.unexpected(status: 501, body: "activate: implemented in Task 6")
+        guard case .entraDirectory(let roleDefinitionId, let directoryScopeId) = request.roleKey.scope else { throw PIMError.notEligible }
+        let principal = try await principalId(identity: identity, tenantId: request.roleKey.tenantId)
+        var body: [String: Any] = [
+            "action": "selfActivate",
+            "principalId": principal,
+            "roleDefinitionId": roleDefinitionId,
+            "directoryScopeId": directoryScopeId,
+            "justification": request.justification,
+            "scheduleInfo": [
+                "startDateTime": GraphJSON.encoderDateString(.now),
+                "expiration": ["type": "afterDuration", "duration": ISO8601Duration.format(request.duration)],
+            ],
+        ]
+        if let t = request.ticket {
+            body["ticketInfo"] = ["ticketNumber": t.number, "ticketSystem": t.system]
+        }
+        let r = try await transport.post(identity: identity, tenantId: request.roleKey.tenantId,
+                                         url: url("/roleManagement/directory/roleAssignmentScheduleRequests"),
+                                         scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
+        let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
+        let start = created.scheduleInfo?.startDateTime ?? .now
+        let end = created.scheduleInfo?.expiration?.endDateTime
+            ?? created.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
+        let status: ActiveAssignment.Status = switch created.status {
+        case "PendingApproval", "PendingAdminDecision": .pendingApproval
+        case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated": .pendingProvisioning
+        case "Denied", "Failed", "Canceled", "Revoked": .failed(created.status)
+        default: .active
+        }
+        return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
+                                endDateTime: status == .active ? end : nil, status: status)
     }
+
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
-        throw PIMError.unexpected(status: 501, body: "deactivate: implemented in Task 6")
+        guard case .entraDirectory(let roleDefinitionId, let directoryScopeId) = assignment.roleKey.scope else { throw PIMError.notEligible }
+        let principal = try await principalId(identity: identity, tenantId: assignment.roleKey.tenantId)
+        let body: [String: Any] = [
+            "action": "selfDeactivate",
+            "principalId": principal,
+            "roleDefinitionId": roleDefinitionId,
+            "directoryScopeId": directoryScopeId,
+        ]
+        _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
+                                     url: url("/roleManagement/directory/roleAssignmentScheduleRequests"),
+                                     scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
     }
 }

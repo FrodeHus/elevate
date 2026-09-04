@@ -65,4 +65,82 @@ import Foundation
             _ = try await p.eligibleRoles(identity: identity, tenant: tenant)
         }
     }
+
+    var globalReader: EligibleRole {
+        EligibleRole(key: RoleKey(identityId: "id1", tenantId: "t1",
+                                  scope: .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/")),
+                     displayName: "Global Reader", source: .discovered, policy: .manualDefault)
+    }
+
+    @Test func readsEndUserActivationPolicy() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleManagementPolicyAssignments", body: Fixtures.data("entra-policy"))
+        let policy = try await p.policy(for: globalReader, identity: identity)
+        #expect(policy.maximumDuration == .seconds(4 * 3600))
+        #expect(policy.defaultDuration == .seconds(4 * 3600))
+        #expect(policy.requiresJustification)
+        #expect(policy.requiresMFA)
+        #expect(!policy.requiresTicket)
+        #expect(policy.requiresApproval)
+        let req = await http.requests.first!
+        #expect(req.url.absoluteString.contains("roleDefinitionId%20eq%20'f2ef992c-3afb-46b9-b7cf-a126ee74c451'")
+                || req.url.absoluteString.contains("roleDefinitionId eq 'f2ef992c-3afb-46b9-b7cf-a126ee74c451'"))
+    }
+
+    @Test func activatePostsSelfActivateAndComputesEnd() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("entra-activate-response"))
+        let request = ActivationRequest(roleKey: globalReader.key, duration: .seconds(7200), justification: "Ticket 42")
+        let a = try await p.activate(request, identity: identity)
+        #expect(a.status == .active)
+        #expect(a.assignmentId == "req-1")
+        #expect(a.startDateTime == GraphJSON.parseDate("2026-09-04T09:00:00Z"))
+        #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T11:00:00Z"))
+
+        let post = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
+        #expect(body["action"] as? String == "selfActivate")
+        #expect(body["principalId"] as? String == "user-obj-1")
+        #expect(body["roleDefinitionId"] as? String == "f2ef992c-3afb-46b9-b7cf-a126ee74c451")
+        #expect(body["directoryScopeId"] as? String == "/")
+        #expect(body["justification"] as? String == "Ticket 42")
+        let sched = body["scheduleInfo"] as! [String: Any]
+        let exp = sched["expiration"] as! [String: Any]
+        #expect(exp["type"] as? String == "afterDuration")
+        #expect(exp["duration"] as? String == "PT2H")
+        #expect(body["ticketInfo"] == nil)
+    }
+
+    @Test func activateReportsPendingApproval() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("entra-activate-response")) as! [String: Any]
+        json["status"] = "PendingApproval"
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let a = try await p.activate(ActivationRequest(roleKey: globalReader.key, duration: .seconds(3600), justification: "x"), identity: identity)
+        #expect(a.status == .pendingApproval)
+    }
+
+    @Test func activatePolicyFailureMapsToPolicyViolation() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 400,
+                      body: Data(#"{"error":{"code":"RoleAssignmentRequestPolicyValidationFailed","message":"The following policy rules failed: [\"JustificationRule\"]"}}"#.utf8))
+        await #expect(throws: PIMError.policyViolation(#"The following policy rules failed: ["JustificationRule"]"#)) {
+            _ = try await p.activate(ActivationRequest(roleKey: globalReader.key, duration: .seconds(3600), justification: ""), identity: identity)
+        }
+    }
+
+    @Test func deactivatePostsSelfDeactivate() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("entra-activate-response"))
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        try await p.deactivate(a, identity: identity)
+        let post = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
+        #expect(body["action"] as? String == "selfDeactivate")
+        #expect(body["scheduleInfo"] == nil)
+    }
 }

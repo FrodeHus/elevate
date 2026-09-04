@@ -1,0 +1,18 @@
+{
+  "value": [
+    {
+      "id": "DirectoryRole_t1_abc_f2ef992c-3afb-46b9-b7cf-a126ee74c451",
+      "policyId": "DirectoryRole_t1_abc", "scopeId": "/", "scopeType": "DirectoryRole",
+      "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451",
+      "policy": {
+        "id": "DirectoryRole_t1_abc",
+        "rules": [
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyExpirationRule", "id": "Expiration_EndUser_Assignment", "isExpirationRequired": true, "maximumDuration": "PT4H" },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyEnablementRule", "id": "Enablement_EndUser_Assignment", "enabledRules": ["MultiFactorAuthentication", "Justification"] },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyApprovalRule", "id": "Approval_EndUser_Assignment", "setting": { "isApprovalRequired": true, "approvalStages": [] } },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyExpirationRule", "id": "Expiration_Admin_Eligibility", "isExpirationRequired": false, "maximumDuration": "P365D" }
+        ]
+      }
+    }
+  ]
+}

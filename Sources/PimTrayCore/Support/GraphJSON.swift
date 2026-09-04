@@ -20,6 +20,10 @@ public enum GraphJSON {
         return d
     }
 
+    public static func encoderDateString(_ date: Date) -> String {
+        date.formatted(Date.ISO8601FormatStyle())
+    }
+
     public static var encoder: JSONEncoder {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .custom { date, encoder in
