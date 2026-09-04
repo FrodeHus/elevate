@@ -13,9 +13,3 @@ struct RouteWindow: View {
         }
     }
 }
-
-// Temporary placeholders, replaced in Task 14.
-struct ActivationView: View { let keys: [RoleKey]; var body: some View { Text("Activate \(keys.count)").padding() } }
-struct ConfigureRolesView: View { let tenantKey: TenantKey; var body: some View { Text("Configure").padding() } }
-struct AddTenantView: View { let identityId: String; var body: some View { Text("Add tenant").padding() } }
-struct DiscoverTenantsView: View { let identityId: String; var body: some View { Text("Discover").padding() } }
