@@ -48,7 +48,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.pimtray
         PRODUCT_NAME: PimTray
-        DEVELOPMENT_TEAM: 2VQ7HBD336
+        DEVELOPMENT_TEAM: VLJKN96D7N
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete

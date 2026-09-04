@@ -14,7 +14,7 @@
 
 - Minimum deployment target: macOS 26.0. Swift language mode 6, strict concurrency complete.
 - `PimTrayCore` never imports MSAL, AppKit, or SwiftUI. Only Foundation.
-- Bundle ID `no.frodehus.pimtray`; redirect URI `msauth.no.frodehus.pimtray://auth`; keychain group `com.microsoft.identity.universalstorage`; development team `2VQ7HBD336`.
+- Bundle ID `no.frodehus.pimtray`; redirect URI `msauth.no.frodehus.pimtray://auth`; keychain group `com.microsoft.identity.universalstorage`; development team `VLJKN96D7N`.
 - Client ID is read at runtime from `PimTrayConfig.plist` (git-ignored); `PimTrayConfig.plist.example` is committed.
 - Graph delegated scopes (fully qualified): `https://graph.microsoft.com/User.Read`, `https://graph.microsoft.com/RoleEligibilitySchedule.Read.Directory`, `https://graph.microsoft.com/RoleAssignmentSchedule.ReadWrite.Directory`, `https://graph.microsoft.com/RoleManagementPolicy.Read.Directory`. ARM scope: `https://management.azure.com/user_impersonation`.
 - Manual-role default policy: default duration 1 h, maximum 8 h, justification required, no ticket, no approval.
@@ -2438,7 +2438,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.pimtray
         PRODUCT_NAME: PimTray
-        DEVELOPMENT_TEAM: 2VQ7HBD336
+        DEVELOPMENT_TEAM: VLJKN96D7N
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
