@@ -1,0 +1,18 @@
+{
+  "value": [
+    {
+      "id": "req-9", "status": "PendingApproval", "action": "selfActivate",
+      "principalId": "user-obj-1",
+      "roleDefinitionId": "fe930be7-5e62-47db-91af-98c3a49a38b1", "directoryScopeId": "/",
+      "createdDateTime": "2026-09-04T09:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-04T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": null } }
+    },
+    {
+      "id": "req-8", "status": "Provisioned", "action": "selfActivate",
+      "principalId": "user-obj-1",
+      "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+      "createdDateTime": "2026-09-04T08:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-04T08:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT8H", "endDateTime": null } }
+    }
+  ]
+}

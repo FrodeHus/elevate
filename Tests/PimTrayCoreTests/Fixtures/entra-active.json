@@ -1,0 +1,18 @@
+{
+  "value": [
+    {
+      "id": "inst-1", "principalId": "user-obj-1",
+      "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+      "assignmentType": "Activated", "memberType": "Direct",
+      "startDateTime": "2026-09-04T08:00:00.1234567Z", "endDateTime": "2026-09-04T16:00:00Z",
+      "roleDefinition": { "id": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "displayName": "Global Reader" }
+    },
+    {
+      "id": "inst-2", "principalId": "user-obj-1",
+      "roleDefinitionId": "62e90394-69f5-4237-9190-012177145e10", "directoryScopeId": "/",
+      "assignmentType": "Assigned", "memberType": "Direct",
+      "startDateTime": "2026-01-01T00:00:00Z", "endDateTime": null,
+      "roleDefinition": { "id": "62e90394-69f5-4237-9190-012177145e10", "displayName": "Global Administrator" }
+    }
+  ]
+}
