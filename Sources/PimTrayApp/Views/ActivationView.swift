@@ -66,6 +66,7 @@ struct ActivationView: View {
                             Text(item.role.displayName)
                             Spacer()
                             DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration).frame(width: 150)
+                            approvalLabel(for: item.role).frame(width: 80)
                             progressLabel(for: item.role.key).frame(width: 120, alignment: .trailing)
                         }
                     }
@@ -78,6 +79,14 @@ struct ActivationView: View {
         var seen: [TenantKey] = []
         for i in items where !seen.contains(i.role.key.tenantKey) { seen.append(i.role.key.tenantKey) }
         return seen
+    }
+
+    @ViewBuilder private func approvalLabel(for role: EligibleRole) -> some View {
+        if role.policy.requiresApproval {
+            Label("approval", systemImage: "person.badge.clock").font(.caption)
+        } else {
+            EmptyView()
+        }
     }
 
     @ViewBuilder private func progressLabel(for key: RoleKey) -> some View {

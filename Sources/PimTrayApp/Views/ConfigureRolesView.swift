@@ -7,6 +7,7 @@ struct ConfigureRolesView: View {
     let tenantKey: TenantKey
 
     @State private var catalogue: [CatalogueRole] = []
+    @State private var catalogueError: String?
     @State private var search = ""
     @State private var selectedEntra: Set<String> = []          // template ids
     @State private var azure: [AzureRow] = []
@@ -40,6 +41,9 @@ struct ConfigureRolesView: View {
     private var entraTab: some View {
         VStack {
             TextField("Search roles", text: $search)
+            if let catalogueError {
+                Text(catalogueError).font(.caption).foregroundStyle(.red)
+            }
             List(filtered) { role in
                 Toggle(isOn: Binding(get: { selectedEntra.contains(role.templateId) },
                                      set: { on in if on { selectedEntra.insert(role.templateId) } else { selectedEntra.remove(role.templateId) } })) {
@@ -89,7 +93,12 @@ struct ConfigureRolesView: View {
     }
 
     private func load() {
-        catalogue = (try? RoleCatalogue.entraBuiltInRoles()) ?? []
+        do {
+            catalogue = try RoleCatalogue.entraBuiltInRoles()
+        } catch {
+            catalogue = []
+            catalogueError = "Could not load the built-in role catalogue: \(error.localizedDescription)"
+        }
         for m in model.manualRoles(for: tenantKey) {
             switch m.scope {
             case .entraDirectory(let id, _): selectedEntra.insert(id)
@@ -101,8 +110,14 @@ struct ConfigureRolesView: View {
 
     private func save() {
         var manual: [ManualRole] = []
-        for role in catalogue where selectedEntra.contains(role.templateId) {
-            manual.append(ManualRole(tenantKey: tenantKey, scope: .entraDirectory(roleDefinitionId: role.templateId, directoryScopeId: "/"), displayName: role.displayName))
+        let existingEntra = model.manualRoles(for: tenantKey).reduce(into: [String: String]()) { dict, role in
+            if case .entraDirectory(let id, _) = role.scope { dict[id] = role.displayName }
+        }
+        for templateId in selectedEntra {
+            let displayName = catalogue.first { $0.templateId == templateId }?.displayName
+                ?? existingEntra[templateId]
+                ?? templateId
+            manual.append(ManualRole(tenantKey: tenantKey, scope: .entraDirectory(roleDefinitionId: templateId, directoryScopeId: "/"), displayName: displayName))
         }
         for row in azure where !row.scope.trimmingCharacters(in: .whitespaces).isEmpty {
             manual.append(ManualRole(tenantKey: tenantKey, scope: .azureResource(scope: row.scope.trimmingCharacters(in: .whitespaces), roleDefinitionId: row.roleName), displayName: "\(row.roleName) · \(row.scope)"))
