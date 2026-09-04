@@ -53,6 +53,10 @@ public final class URLSessionHTTPClient: HTTPClient {
             return HTTPResponse(status: http.statusCode, headers: headers, body: data)
         } catch let e as PIMError {
             throw e
+        } catch let e as URLError where e.code == .cancelled {
+            throw CancellationError()
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw PIMError.network(error.localizedDescription)
         }

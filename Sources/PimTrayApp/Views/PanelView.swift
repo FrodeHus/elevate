@@ -10,6 +10,18 @@ struct PanelView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if let notice = model.notice {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+                    Text(notice).font(.caption).textSelection(.enabled)
+                    Spacer()
+                    Button { model.notice = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.borderless).help("Dismiss")
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(.orange.opacity(0.12))
+                Divider()
+            }
             if let fatal = model.startupError {
                 ContentUnavailableView("PimTray cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
                     .frame(height: 200)

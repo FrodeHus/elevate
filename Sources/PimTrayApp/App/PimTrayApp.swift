@@ -6,11 +6,18 @@ struct PimTrayApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel.live()
 
+    init() {
+        // Bootstrap is owned by the app, not the panel view: closing the panel must not cancel it.
+        let model = AppModel.live()
+        _model = State(initialValue: model)
+        Task { @MainActor in await model.bootstrap() }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             PanelView()
                 .environment(model)
-                .task { await model.bootstrap() }
+                .onAppear { model.panelOpened() }
         } label: {
             MenuBarLabel()
                 .environment(model)

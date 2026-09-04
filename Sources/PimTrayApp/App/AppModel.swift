@@ -16,6 +16,10 @@ final class AppModel {
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
     var selection: Set<RoleKey> = []
     var startupError: String?
+    /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.
+    var notice: String?
+    private var bootstrapped = false
+    private var lastRefresh: Date = .distantPast
     var pendingExtend: RoleKey?
 
     private let tokens: any TokenProviding
@@ -85,13 +89,15 @@ final class AppModel {
     // MARK: Lifecycle
 
     func bootstrap() async {
+        guard !bootstrapped else { return }
+        bootstrapped = true
         do {
             state = try await store.load()
         } catch {
             // Never write over a file we could not read; move it aside first.
             _ = try? await store.quarantineCorruptFile()
             state = AppState()
-            startupError = "Saved state could not be read; it was moved to state.json.bak"
+            notice = "Saved state could not be read; it was moved to state.json.bak"
         }
         // Reconcile with MSAL's cache: drop identities MSAL no longer knows.
         if let known = try? await tokens.identities() {
@@ -139,7 +145,7 @@ final class AppModel {
             persist()
             await refresh(homeKey)
         } catch {
-            startupError = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            notice = (error as? PIMError)?.userMessage ?? error.localizedDescription
         }
     }
 
@@ -208,7 +214,14 @@ final class AppModel {
 
     // MARK: Refresh
 
+    /// Called when the menu bar panel opens. Runs in its own task so closing the panel cannot cancel it.
+    func panelOpened() {
+        guard bootstrapped, !identities.isEmpty, Date().timeIntervalSince(lastRefresh) > 30 else { return }
+        Task { await self.refreshAll() }
+    }
+
     func refreshAll() async {
+        lastRefresh = .now
         let keys = state.tenants.map(\.id)
         await withTaskGroup(of: Void.self) { group in
             for key in keys {
@@ -220,11 +233,13 @@ final class AppModel {
     func refresh(_ key: TenantKey) async {
         guard let identity = self.identity(key.identityId), var tenant = self.tenant(key),
               let provider = coordinator.provider(for: .entraDirectory) else { return }
+        guard !busy.contains(key) else { return }
         busy.insert(key)
         defer { busy.remove(key) }
         tenantErrors[key] = nil
 
-        var discovered: [EligibleRole] = []
+        // Start from what we already know so a transient failure never blanks the list.
+        var discovered: [EligibleRole] = roles(for: key).filter { $0.source == .discovered }
         // A tenant without consent must not be prodded with interactive prompts on every refresh.
         var consentBlocked = tenant.discoveryMode != .automatic
         if tenant.discoveryMode == .automatic {
@@ -235,11 +250,14 @@ final class AppModel {
                 }
                 discovered = await applyPolicies(to: discovered, identity: identity, provider: provider)
             } catch PIMError.consentRequired {
+                discovered = []
                 consentBlocked = true
                 tenant.discoveryMode = .manualRoles
                 tenant.lastDiscoveryError = "Role discovery not permitted in this tenant. Configure known roles or ask an admin to consent."
                 state.upsertTenant(tenant)
                 persist()
+            } catch is CancellationError {
+                return
             } catch {
                 tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription
             }
@@ -264,6 +282,8 @@ final class AppModel {
             // No active data available for this tenant; `lastDiscoveryError` already explains why.
         } catch PIMError.consentRequired where consentBlocked {
             // Same: leave whatever we knew about this tenant in place.
+        } catch is CancellationError {
+            return
         } catch {
             if tenantErrors[key] == nil { tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription }
         }
