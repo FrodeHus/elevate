@@ -220,8 +220,8 @@ for tests) and the `TokenProviding` instance. Errors are normalised to
   Reads `unifiedRoleManagementPolicyExpirationRule` (`Expiration_EndUser_Assignment`)
   for max duration and `unifiedRoleManagementPolicyEnablementRule`
   (`Enablement_EndUser_Assignment`) for justification, MFA, ticket flags.
-  Default duration is the max unless the policy is shorter than 8 h, in
-  which case it is the max; user-chosen last duration overrides.
+  Default duration equals the policy maximum, matching the portal; the
+  last duration the user chose for that role overrides it.
 - Activate: `POST /roleManagement/directory/roleAssignmentScheduleRequests`
   with `action: selfActivate`, `principalId` (from `/me`), `roleDefinitionId`,
   `directoryScopeId`, `justification`, `scheduleInfo.expiration
