@@ -17,7 +17,7 @@ struct PanelView: View {
                     Text(notice).font(.caption).textSelection(.enabled)
                     Spacer()
                     Button { model.notice = nil } label: { Image(systemName: "xmark") }
-                        .buttonStyle(.borderless).help("Dismiss")
+                        .buttonStyle(.borderless).help("Dismiss").accessibilityLabel("Dismiss")
                 }
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .background(.orange.opacity(0.12))
@@ -67,12 +67,20 @@ struct PanelView: View {
         @Bindable var model = model
         return HStack {
             Text("PimTray").font(.headline)
+            if !model.isOnline {
+                Text("offline").font(.caption2).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(.gray.opacity(0.25), in: Capsule())
+                    .help("No network connection; refreshes and requests are paused")
+            }
             Spacer()
             Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
                 .toggleStyle(.button)
                 .help("Select several roles to activate together")
+                .accessibilityLabel("Select roles")
             Button { Task { await model.refreshAll() } } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh")
+                .accessibilityLabel("Refresh")
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)

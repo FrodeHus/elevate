@@ -9,6 +9,8 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
 
     /// Set by the app on launch; receives the role to re-activate.
     @MainActor var onExtend: ((RoleKey) -> Void)?
+    /// Called when the user has refused notification permission, so the panel can explain the silence.
+    @MainActor var onAuthorizationDenied: (() -> Void)?
 
     override init() {
         super.init()
@@ -16,10 +18,13 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
         center.delegate = self
         let extend = UNNotificationAction(identifier: Self.extendAction, title: "Extend", options: [.foreground])
         center.setNotificationCategories([UNNotificationCategory(identifier: Self.categoryId, actions: [extend], intentIdentifiers: [])])
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
+            guard !granted else { return }
+            Task { @MainActor in self?.onAuthorizationDenied?() }
+        }
     }
 
-    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String]) async {
+    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String], tenantNames: [TenantKey: String]) async {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
         for a in assignments where a.status == .active {
@@ -29,7 +34,7 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
             guard delay > 1 else { continue }
             let content = UNMutableNotificationContent()
             content.title = "\(names[a.roleKey] ?? "PIM role") expires in 5 minutes"
-            content.body = "Tenant \(a.roleKey.tenantId)"
+            content.body = "Tenant \(tenantNames[a.roleKey.tenantKey] ?? a.roleKey.tenantId)"
             content.categoryIdentifier = Self.categoryId
             content.sound = .default
             if let data = try? JSONEncoder().encode(a.roleKey) { content.userInfo = ["roleKey": String(decoding: data, as: UTF8.self)] }

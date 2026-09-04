@@ -9,9 +9,9 @@ enum PanelRoute: Codable, Hashable {
 }
 
 protocol ExpiryNotifying: Sendable {
-    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String]) async
+    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String], tenantNames: [TenantKey: String]) async
 }
 
 struct NoopNotifier: ExpiryNotifying {
-    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String]) async {}
+    func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String], tenantNames: [TenantKey: String]) async {}
 }

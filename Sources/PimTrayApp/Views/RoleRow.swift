@@ -57,11 +57,15 @@ struct RoleRow: View {
                 }
                 Button("Deactivate") { Task { await model.deactivate(role.key) } }
                     .controlSize(.small)
-                    .disabled(lockedFor > 0)
+                    .disabled(lockedFor > 0 || !model.isOnline)
                     .help(lockedFor > 0 ? "Can be deactivated in \(Int(lockedFor.rounded(.up))) s (Entra enforces 5 minutes)" : "Deactivate this role now")
             }
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
+            Button("Cancel") { Task { await model.cancelPending(role.key) } }
+                .controlSize(.small)
+                .disabled(!model.isOnline)
+                .help("Withdraw this request")
         case .pendingProvisioning:
             ProgressView().controlSize(.small)
             Text("provisioning").font(.caption).foregroundStyle(.secondary)
@@ -74,6 +78,7 @@ struct RoleRow: View {
                     NSApp.activate(ignoringOtherApps: true)
                 }
                 .controlSize(.small)
+                .disabled(!model.isOnline)
             }
         }
     }

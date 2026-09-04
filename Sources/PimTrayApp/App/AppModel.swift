@@ -29,6 +29,7 @@ final class AppModel {
     private let discovery: TenantDiscovery
     private let store: AppStateStore
     private let notifier: any ExpiryNotifying
+    private let network: NetworkMonitor
     private let clientId: String?
     private var refreshTimer: Task<Void, Never>?
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
@@ -36,10 +37,12 @@ final class AppModel {
     /// Mutation order for saves, so a slow write cannot land after a newer one.
     private var saveGeneration: UInt64 = 0
 
-    init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying, clientId: String? = nil) {
+    init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
+         network: NetworkMonitor = NetworkMonitor(), clientId: String? = nil) {
         self.tokens = tokens
         self.store = store
         self.notifier = notifier
+        self.network = network
         self.clientId = clientId
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(), GroupProvider()], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
@@ -52,11 +55,15 @@ final class AppModel {
             let config = try AppConfig.load()
             let tokens = try MSALTokenProvider(clientId: config.clientId, redirectUri: config.redirectUri, anchor: anchor)
             let notifier = ExpiryNotifier()
-            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, clientId: config.clientId)
+            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier,
+                                 network: NetworkMonitor(), clientId: config.clientId)
             notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
+            notifier.onAuthorizationDenied = { [weak model] in
+                model?.notice = "Notifications are off for PimTray; enable them in System Settings to get expiry alerts."
+            }
             return model
         } catch {
-            let model = AppModel(tokens: UnavailableTokenProvider(), http: URLSessionHTTPClient(), store: AppStateStore(), notifier: NoopNotifier())
+            let model = AppModel(tokens: UnavailableTokenProvider(), http: URLSessionHTTPClient(), store: AppStateStore(), notifier: NoopNotifier(), network: NetworkMonitor())
             model.startupError = error.localizedDescription
             return model
         }
@@ -65,6 +72,8 @@ final class AppModel {
     // MARK: Derived
 
     var identities: [Identity] { state.identities }
+    /// False when the machine has no usable network path; reads and requests are held back.
+    var isOnline: Bool { network.isOnline }
     var activeCount: Int { active.values.filter { $0.status == .active }.count }
     func tenants(for identityId: String) -> [TenantContext] { state.tenants(for: identityId) }
     func roles(for tenantKey: TenantKey) -> [EligibleRole] { roles[tenantKey] ?? [] }
@@ -118,10 +127,15 @@ final class AppModel {
                 try? await Task.sleep(for: .seconds(60))
                 guard let self else { return }
                 // Pending approvals live in `active` too, and they need polling to flip to active.
-                guard !self.active.isEmpty else { continue }
+                guard self.isOnline, !self.active.isEmpty else { continue }
                 await self.refreshAll()
             }
         }
+    }
+
+    /// Policies belong to the role they were fetched for; drop them when that role can no longer be trusted.
+    private func dropPolicies(where matches: (RoleKey) -> Bool) {
+        for key in policyCache.keys where matches(key) { policyCache[key] = nil }
     }
 
     private func persist() {
@@ -157,6 +171,7 @@ final class AppModel {
             state.removeIdentity(identity.id)
             for key in roles.keys where key.identityId == identity.id { roles[key] = nil }
             active = active.filter { $0.key.identityId != identity.id }
+            dropPolicies { $0.identityId == identity.id }
             persist()
         }
     }
@@ -202,6 +217,7 @@ final class AppModel {
         state.removeTenant(key)
         roles[key] = nil
         active = active.filter { $0.key.tenantKey != key }
+        dropPolicies { $0.tenantKey == key }
         persist()
     }
 
@@ -209,6 +225,7 @@ final class AppModel {
         guard var t = self.tenant(key) else { return }
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
+        dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
         persist()
         await refresh(key)
@@ -218,7 +235,7 @@ final class AppModel {
 
     /// Called when the menu bar panel opens. Runs in its own task so closing the panel cannot cancel it.
     func panelOpened() {
-        guard bootstrapped, !identities.isEmpty, Date().timeIntervalSince(lastRefresh) > 30 else { return }
+        guard bootstrapped, isOnline, !identities.isEmpty, Date().timeIntervalSince(lastRefresh) > 30 else { return }
         Task { await self.refreshAll() }
     }
 
@@ -321,7 +338,9 @@ final class AppModel {
     private func rescheduleNotifications() async {
         var names: [RoleKey: String] = [:]
         for list in roles.values { for r in list { names[r.key] = r.displayName } }
-        await notifier.reschedule(assignments: Array(active.values), names: names)
+        var tenantNames: [TenantKey: String] = [:]
+        for t in state.tenants { tenantNames[t.id] = t.displayName }
+        await notifier.reschedule(assignments: Array(active.values), names: names, tenantNames: tenantNames)
     }
 
     // MARK: Activation
@@ -348,7 +367,10 @@ final class AppModel {
         }
         let attempted = requests.filter { !skipped.contains($0.roleKey) }
         let outcomes = await coordinator.activate(attempted, identities: state.identities) { outcome in
-            Task { @MainActor in self.progress[outcome.roleKey] = outcome.result }
+            // This hop can land after the final loop below, which is authoritative; only fill a gap.
+            Task { @MainActor in
+                if self.progress[outcome.roleKey] == nil { self.progress[outcome.roleKey] = outcome.result }
+            }
         }
         var consentBlocked: Set<TenantKey> = []
         for outcome in outcomes {
@@ -370,6 +392,7 @@ final class AppModel {
                 if error == .consentRequired { consentBlocked.insert(request.roleKey.tenantKey) }
             }
         }
+        await learnPoliciesForManualRoles(outcomes)
         for tenantKey in consentBlocked {
             guard var t = self.tenant(tenantKey) else { continue }
             t.discoveryMode = .manualRoles
@@ -379,6 +402,35 @@ final class AppModel {
         persist()
         selectMode = false
         await rescheduleNotifications()
+    }
+
+    /// A manual role has no policy until Entra accepts an activation; that is the moment we can read one.
+    private func learnPoliciesForManualRoles(_ outcomes: [ActivationOutcome]) async {
+        for outcome in outcomes {
+            guard case .activated = outcome.result,
+                  let role = self.role(for: outcome.roleKey), role.source == .manual,
+                  let identity = self.identity(outcome.roleKey.identityId),
+                  let provider = coordinator.provider(for: outcome.roleKey.scope.kind),
+                  let policy = try? await provider.policy(for: role, identity: identity) else { continue }
+            policyCache[outcome.roleKey] = policy
+            let tenantKey = outcome.roleKey.tenantKey
+            guard let index = roles[tenantKey]?.firstIndex(where: { $0.key == outcome.roleKey }) else { continue }
+            roles[tenantKey]?[index].policy = policy
+        }
+    }
+
+    /// Withdraws a request that is still waiting for an approver.
+    func cancelPending(_ key: RoleKey) async {
+        inFlight.insert(key)
+        defer { inFlight.remove(key) }
+        guard let a = active[key], let identity = self.identity(key.identityId) else { return }
+        do {
+            try await coordinator.cancelPendingRequest(a, identity: identity)
+            active[key] = nil
+            await rescheduleNotifications()
+        } catch {
+            tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+        }
     }
 
     func deactivate(_ key: RoleKey) async {
