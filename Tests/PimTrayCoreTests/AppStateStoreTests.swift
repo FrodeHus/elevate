@@ -30,6 +30,30 @@ import Foundation
         #expect(back.memory(for: key)?.lastDuration == .seconds(1800))
     }
 
+    @Test func olderGenerationDoesNotOverwriteNewerState() async throws {
+        let store = AppStateStore(directory: tempDir())
+        var newer = AppState()
+        newer.identities = [Identity(id: "new", upn: "new@x", displayName: "New", homeTenantId: "t")]
+        var older = AppState()
+        older.identities = [Identity(id: "old", upn: "old@x", displayName: "Old", homeTenantId: "t")]
+        try await store.save(newer, generation: 2)
+        try await store.save(older, generation: 1)
+        let back = try await store.load()
+        #expect(back.identities.map(\.id) == ["new"])
+    }
+
+    @Test func quarantineMovesUnreadableFileAside() async throws {
+        let dir = tempDir()
+        let file = dir.appendingPathComponent("state.json")
+        try Data("not json".utf8).write(to: file)
+        let store = AppStateStore(directory: dir)
+        await #expect(throws: (any Error).self) { try await store.load() }
+        let backup = try await store.quarantineCorruptFile()
+        #expect(backup?.lastPathComponent == "state.json.bak")
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(try await store.load() == AppState())
+    }
+
     @Test func rememberOverwritesPerKey() {
         var s = AppState()
         let key = RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: "r", directoryScopeId: "/"))
