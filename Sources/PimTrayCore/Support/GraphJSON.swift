@@ -2,8 +2,10 @@ import Foundation
 
 public enum GraphJSON {
     public static func parseDate(_ s: String) -> Date? {
-        // Graph emits up to 7 fractional digits; ISO8601DateFormatter accepts at most 3, so trim.
-        let trimmed = s.replacing(/\.(\d{3})\d+/) { "." + String($0.output.1) }
+        // Graph emits 1-7 fractional digits; the ISO8601 style accepts exactly 3, so normalise.
+        let trimmed = s.replacing(/\.(\d+)/) { match in
+            "." + String(match.output.1.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0)
+        }
         return (try? Date(trimmed, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
             ?? (try? Date(trimmed, strategy: Date.ISO8601FormatStyle()))
     }

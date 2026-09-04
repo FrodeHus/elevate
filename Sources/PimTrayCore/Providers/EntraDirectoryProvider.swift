@@ -33,19 +33,22 @@ public struct EntraDirectoryProvider: PIMProvider {
     }
     struct Collection<T: Decodable>: Decodable { let value: [T] }
 
-    func url(_ path: String) -> URL {
+    func url(_ path: String) throws -> URL {
         if let u = URL(string: GraphTransport.graphBase.absoluteString + path) {
             return u
         }
         let encoded = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
-        return URL(string: GraphTransport.graphBase.absoluteString + encoded)!
+        guard let u = URL(string: GraphTransport.graphBase.absoluteString + encoded) else {
+            throw PIMError.unexpected(status: 0, body: "Bad URL")
+        }
+        return u
     }
 
     // MARK: Reads
 
     public func eligibleRoles(identity: Identity, tenant: TenantContext) async throws -> [EligibleRole] {
         let r = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                        url: url("/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
+                                        url: try url("/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
                                         scopes: scopes)
         let items = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: r.body).value
         var seen = Set<RoleScope>()
@@ -62,10 +65,10 @@ public struct EntraDirectoryProvider: PIMProvider {
 
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
         let instances = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                                url: url("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
+                                                url: try url("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
                                                 scopes: scopes)
         let requests = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                               url: url("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"),
+                                               url: try url("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"),
                                                scopes: scopes)
         let activated = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: instances.body).value
             .filter { $0.assignmentType == "Activated" }
@@ -108,7 +111,7 @@ public struct EntraDirectoryProvider: PIMProvider {
         let filter = "scopeId eq '/' and scopeType eq 'DirectoryRole' and roleDefinitionId eq '\(roleDefinitionId)'"
         let encoded = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? filter
         let r = try await transport.get(identity: identity, tenantId: role.key.tenantId,
-                                        url: url("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
+                                        url: try url("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
                                         scopes: scopes)
         let assignments = try GraphJSON.decoder.decode(Collection<PolicyAssignment>.self, from: r.body).value
         guard let rules = assignments.first?.policy?.rules else { return .manualDefault }
@@ -139,7 +142,7 @@ public struct EntraDirectoryProvider: PIMProvider {
     struct Me: Decodable { let id: String }
 
     func principalId(identity: Identity, tenantId: String) async throws -> String {
-        let r = try await transport.get(identity: identity, tenantId: tenantId, url: url("/me?$select=id"), scopes: scopes)
+        let r = try await transport.get(identity: identity, tenantId: tenantId, url: try url("/me?$select=id"), scopes: scopes)
         return try GraphJSON.decoder.decode(Me.self, from: r.body).id
     }
 
@@ -161,7 +164,7 @@ public struct EntraDirectoryProvider: PIMProvider {
             body["ticketInfo"] = ["ticketNumber": t.number, "ticketSystem": t.system]
         }
         let r = try await transport.post(identity: identity, tenantId: request.roleKey.tenantId,
-                                         url: url("/roleManagement/directory/roleAssignmentScheduleRequests"),
+                                         url: try url("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                          scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
         let start = created.scheduleInfo?.startDateTime ?? .now
@@ -188,7 +191,7 @@ public struct EntraDirectoryProvider: PIMProvider {
             "directoryScopeId": directoryScopeId,
         ]
         _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
-                                     url: url("/roleManagement/directory/roleAssignmentScheduleRequests"),
+                                     url: try url("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
     }
 }

@@ -21,7 +21,11 @@ struct ActivationView: View {
     private var isBulk: Bool { keys.count > 1 }
     private var needsTicket: Bool { items.contains { $0.role.policy.requiresTicket } }
     private var justificationRequired: Bool { items.contains { $0.role.policy.requiresJustification } }
-    private var canSubmit: Bool { !running && !items.isEmpty && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty) }
+    private var canSubmit: Bool {
+        !running && !items.isEmpty
+            && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
+            && (!needsTicket || !ticketNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

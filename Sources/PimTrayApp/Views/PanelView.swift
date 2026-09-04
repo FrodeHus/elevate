@@ -10,7 +10,7 @@ struct PanelView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            if let fatal = model.fatalError {
+            if let fatal = model.startupError {
                 ContentUnavailableView("PimTray cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
                     .frame(height: 200)
             } else if model.identities.isEmpty {

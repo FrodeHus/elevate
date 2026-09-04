@@ -35,7 +35,10 @@ public struct TenantDiscovery: Sendable {
         if input.wholeMatch(of: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/) != nil {
             return input.lowercased()
         }
-        let url = URL(string: "https://login.microsoftonline.com/\(input)/v2.0/.well-known/openid-configuration")!
+        guard let escaped = input.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "https://login.microsoftonline.com/\(escaped)/v2.0/.well-known/openid-configuration") else {
+            throw PIMError.unexpected(status: 0, body: "Invalid tenant '\(input)'")
+        }
         let r = try await http.send(HTTPRequest(method: "GET", url: url))
         guard r.status == 200 else { throw PIMError.unexpected(status: r.status, body: "Unknown tenant '\(input)'") }
         struct Config: Decodable { let issuer: String }
