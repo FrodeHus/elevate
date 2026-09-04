@@ -44,7 +44,7 @@ final class AppModel {
         self.notifier = notifier
         self.network = network
         self.clientId = clientId
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(), GroupProvider()], tokens: tokens)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider()], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
     }
 
