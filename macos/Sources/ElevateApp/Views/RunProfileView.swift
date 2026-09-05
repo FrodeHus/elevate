@@ -4,6 +4,7 @@ import ElevateCore
 struct RunProfileView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.controlActiveState) private var activeState
     let profileId: UUID
     @State private var items: [ProfilePlanItem] = []
     @State private var justification = ""
@@ -63,6 +64,11 @@ struct RunProfileView: View {
         }
         .padding(16).frame(width: 560)
         .onAppear(perform: load)
+        // WindowGroup(for:) refocuses an existing window for the same value, so
+        // .onAppear does not re-fire; re-plan when the reused window becomes key.
+        .onChange(of: activeState) { _, state in
+            if state == .key && !running { load() }
+        }
     }
 
     @ViewBuilder private func row(_ item: Binding<ProfilePlanItem>) -> some View {
@@ -99,7 +105,8 @@ struct RunProfileView: View {
 
     private func load() {
         items = model.plan(for: profileId)
-        justification = profile?.lastJustification ?? ""
+        if finished || justification.isEmpty { justification = profile?.lastJustification ?? "" }
+        finished = false
         model.clearProgress(items.map(\.roleKey))
     }
 

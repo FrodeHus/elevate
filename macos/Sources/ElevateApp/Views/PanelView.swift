@@ -113,7 +113,7 @@ struct PanelView: View {
                         }
                         .disabled(model.selection.isEmpty)
                     } else {
-                        Button("Save as profile…") { open(.saveProfile(Array(model.selection))) }
+                        Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
                             .disabled(model.selection.isEmpty)
                     }
                     Button {

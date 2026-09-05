@@ -10,27 +10,33 @@ struct ManageProfilesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Profiles").font(.title3.weight(.semibold))
-            List {
-                ForEach(model.profiles) { p in
-                    HStack(spacing: 8) {
-                        Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
-                        TextField("Name", text: Binding(get: { names[p.id] ?? p.name }, set: { names[p.id] = $0 }))
-                            .textFieldStyle(.plain)
-                            .onSubmit { commit(p.id) }
-                        Text(ProfileSummary.caption(entries: p.entries)).font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Run") { open(.runProfile(p.id)) }.controlSize(.small)
-                        Button("Edit") { model.beginEditing(profileId: p.id); dismiss() }.controlSize(.small)
-                            .help("Reopens the selection in the panel; use \"Update profile\" when done")
-                        Button(role: .destructive) { model.deleteProfile(id: p.id) } label: { Image(systemName: "trash") }
-                            .controlSize(.small).accessibilityLabel("Delete \(p.name)")
-                    }
-                }
-                .onMove { from, to in model.moveProfile(fromOffsets: from, toOffset: to) }
-            }
-            .frame(minHeight: 160)
             if model.profiles.isEmpty {
-                Text("No profiles yet. Select roles in the panel and choose \"Save as profile…\".").font(.caption).foregroundStyle(.secondary)
+                VStack {
+                    Text("No profiles yet. Select roles in the panel and choose \"Save as profile…\".")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 160)
+            } else {
+                List {
+                    ForEach(model.profiles) { p in
+                        HStack(spacing: 8) {
+                            Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
+                            TextField("Name", text: Binding(get: { names[p.id] ?? p.name }, set: { names[p.id] = $0 }))
+                                .textFieldStyle(.plain)
+                                .onSubmit { commit(p.id) }
+                            Text(ProfileSummary.caption(entries: p.entries)).font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Run") { commitAll(); open(.runProfile(p.id)) }.controlSize(.small)
+                            Button("Edit") { commitAll(); model.beginEditing(profileId: p.id); dismiss() }.controlSize(.small)
+                                .help("Reopens the selection in the panel; use \"Update profile\" when done")
+                            Button(role: .destructive) { model.deleteProfile(id: p.id) } label: { Image(systemName: "trash") }
+                                .controlSize(.small).accessibilityLabel("Delete \(p.name)")
+                        }
+                    }
+                    .onMove { from, to in model.moveProfile(fromOffsets: from, toOffset: to) }
+                }
+                .frame(minHeight: 160)
             }
             HStack { Spacer(); Button("Done") { commitAll(); dismiss() }.keyboardShortcut(.defaultAction) }
         }

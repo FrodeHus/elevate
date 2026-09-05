@@ -47,7 +47,7 @@ struct FlowLayout: Layout {
     var spacing: CGFloat = 6
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? PanelMetrics.width - 24
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? (PanelMetrics.width - 24)
         var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
         for s in subviews {
             let size = s.sizeThatFits(.unspecified)
