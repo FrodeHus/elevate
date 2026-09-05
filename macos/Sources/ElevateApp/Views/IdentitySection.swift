@@ -12,7 +12,7 @@ struct IdentityHeader: View {
 
     private var activeCount: Int {
         guard let t = soleTenant else { return 0 }
-        return model.roles(for: t.id).filter { model.assignment(for: $0.key)?.status == .active }.count
+        return model.roles(for: t.id, tab: model.panelTab).filter { model.assignment(for: $0.key)?.status == .active }.count
     }
 
     var body: some View {
