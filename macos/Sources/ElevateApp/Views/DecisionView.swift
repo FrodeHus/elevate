@@ -11,8 +11,9 @@ struct DecisionView: View {
     @State private var justification = ""
     @State private var running = false
 
-    /// The live row: it disappears once decided elsewhere or dropped by a refresh.
-    private var request: ApprovalRequest? { model.approvalsOrdered.first { $0.id == requestId } }
+    /// The live row: it disappears once decided elsewhere or dropped by a refresh. Looked up in the
+    /// unfiltered set so an active panel search never hides the request the sheet is showing.
+    private var request: ApprovalRequest? { model.approval(id: requestId) }
 
     /// Denying a request has to say why; approving may be wordless.
     private var canSubmit: Bool {

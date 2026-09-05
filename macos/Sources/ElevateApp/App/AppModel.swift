@@ -323,6 +323,10 @@ final class AppModel {
 
     private var allApprovals: [ApprovalRequest] { approvals.values.flatMap { $0.values.flatMap { $0 } } }
 
+    /// Looks up a single request by id in the unfiltered set, so a request that falls outside the
+    /// panel's current search still resolves for a sheet that is already showing it.
+    func approval(id: String) -> ApprovalRequest? { allApprovals.first { $0.id == id } }
+
     func approvalTenantName(_ request: ApprovalRequest) -> String {
         tenant(request.tenantKey)?.displayName ?? request.tenantKey.tenantId
     }
@@ -769,7 +773,7 @@ final class AppModel {
         // `kinds` already excludes Entra and groups for a first-party sign-in, so those accounts
         // read only the Azure approvals.
         var readApprovals: [RoleScopeKind: [ApprovalRequest]] = [:]
-        for kind in kinds where !(kind == .azureResource && azureOff) {
+        for kind in kinds where !(kind == .azureResource && azureOff) && !(kind == .entraDirectory && consentBlocked) {
             guard let provider = approvalProviders[kind] else { continue }
             let snapshot = tenant
             if let found = try? await acquire(provider.scopes, { @Sendable in
@@ -804,11 +808,14 @@ final class AppModel {
     /// here would forget their ids and re-notify them a moment later. `refreshAll` prunes instead.
     private func announceNewApprovals() async {
         let all = allApprovals
-        for r in ApprovalDiff.newRequests(previousIds: settings.seenApprovalIds, current: all) {
+        let newRequests = ApprovalDiff.newRequests(previousIds: settings.seenApprovalIds, current: all)
+        // Mark every currently pending id as seen before the first await below, so a concurrently
+        // refreshing tenant reading `settings.seenApprovalIds` cannot re-announce these same requests.
+        settings.seenApprovalIds.formUnion(all.map(\.id))
+        for r in newRequests {
             await notifier.notify(title: "Approval requested",
                                   body: "\(r.targetName) for \(r.requesterName), \(approvalTenantName(r))")
         }
-        settings.seenApprovalIds.formUnion(all.map(\.id))
     }
 
     /// After a full sweep every tenant's list is current, so the seen set can be cut back to what is
@@ -839,7 +846,10 @@ final class AppModel {
                                            scopes: provider.scopes) { @Sendable in
                 try await provider.decide(request, approve: approve, justification: justification, identity: identity)
             }
-            guard generation == configGeneration else { return false }
+            guard generation == configGeneration else {
+                approvalErrors[request.id] = "Decision not completed; refresh and try again"
+                return false
+            }
             // Drop the row now; the follow-up refresh re-lists it if a further approval stage remains.
             approvals[request.tenantKey]?[request.kind]?.removeAll { $0.id == request.id }
             approvalErrors[request.id] = nil
@@ -847,7 +857,10 @@ final class AppModel {
             Task { await self.refresh(request.tenantKey, kinds: [request.kind]) }
             return true
         } catch {
-            guard generation == configGeneration else { return false }
+            guard generation == configGeneration else {
+                approvalErrors[request.id] = "Decision not completed; refresh and try again"
+                return false
+            }
             approvalErrors[request.id] = (error as? PIMError)?.userMessage ?? error.localizedDescription
             return false
         }
