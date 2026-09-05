@@ -62,8 +62,10 @@ public struct GroupProvider: PIMProvider {
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
         let instances = try await transport.listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
                                           url: try transport.graphURL("\(Self.base)/assignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
+        // Widened past PendingApproval so a booked-ahead request, which the service has already
+        // turned into a schedule, is the source for the `.scheduled` rows below.
         let requests = try await transport.listAll(ScheduleRequest.self, identity: identity, tenantId: tenant.tenantId,
-                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"), scopes: scopes)
+                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"), scopes: scopes)
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.assignmentType?.caseInsensitiveCompare("activated") == .orderedSame {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: i.groupId, accessId: Self.access(i.accessId)))
@@ -76,6 +78,15 @@ public struct GroupProvider: PIMProvider {
             result[key] = ActiveAssignment(roleKey: key, assignmentId: r.id,
                                            startDateTime: r.scheduleInfo?.startDateTime ?? r.createdDateTime ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
+        }
+        for u in requests where !ScheduledStart.isSettledOrPending(u.status) {
+            guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
+            let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: u.groupId, accessId: Self.access(u.accessId)))
+            guard result[key] == nil else { continue }
+            let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
+                                         duration: u.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
+            result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
+                                           endDateTime: end, status: .scheduled)
         }
         return Array(result.values)
     }
@@ -136,7 +147,7 @@ public struct GroupProvider: PIMProvider {
             "accessId": access == .owner ? "owner" : "member",
             "justification": request.justification,
             "scheduleInfo": [
-                "startDateTime": GraphJSON.encoderDateString(.now),
+                "startDateTime": GraphJSON.encoderDateString(request.startDateTime ?? .now),
                 "expiration": ["type": "afterDuration", "duration": ISO8601Duration.format(request.duration)],
             ],
         ]
@@ -145,13 +156,14 @@ public struct GroupProvider: PIMProvider {
                                          url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests"),
                                          scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
-        let start = created.scheduleInfo?.startDateTime ?? .now
-        let end = created.scheduleInfo?.expiration?.endDateTime
-            ?? created.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
-            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
-        let status = Self.status(created.status)
+        let start = ScheduledStart.effective(response: created.scheduleInfo?.startDateTime, requested: request.startDateTime)
+        let end = ScheduledStart.end(explicit: created.scheduleInfo?.expiration?.endDateTime,
+                                     duration: created.scheduleInfo?.expiration?.duration, start: start, fallback: request.duration)
+        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
+        let reported = Self.status(created.status)
+        let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
-                                endDateTime: status == .active ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {

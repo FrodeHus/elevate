@@ -13,6 +13,13 @@
       "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
       "createdDateTime": "2026-09-04T08:00:00Z",
       "scheduleInfo": { "startDateTime": "2026-09-04T08:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT8H", "endDateTime": null } }
+    },
+    {
+      "id": "req-7", "status": "ScheduleCreated", "action": "selfActivate",
+      "principalId": "user-obj-1",
+      "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+      "createdDateTime": "2026-09-04T10:00:00Z",
+      "scheduleInfo": { "startDateTime": "2099-01-01T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": "2099-01-01T11:00:00Z" } }
     }
   ]
 }

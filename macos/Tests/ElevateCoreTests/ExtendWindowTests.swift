@@ -23,4 +23,9 @@ import Foundation
         policy.requiresApproval = true
         #expect(!ExtendWindow.canExtend(a(.active, end: 300), policy: policy, now: now))
     }
+
+    @Test func scheduledNeverExtends() {
+        #expect(!ExtendWindow.canExtend(a(.scheduled, end: 300), policy: .manualDefault, now: now))
+        #expect(!ExtendWindow.canExtend(a(.scheduled, end: 900), policy: .manualDefault, now: now))
+    }
 }

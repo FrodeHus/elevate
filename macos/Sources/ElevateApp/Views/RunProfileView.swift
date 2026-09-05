@@ -11,6 +11,8 @@ struct RunProfileView: View {
     @State private var ticketSystem = ""
     @State private var running = false
     @State private var finished = false
+    @State private var scheduleStart = false
+    @State private var startAt = Date.now.addingTimeInterval(3600)
 
     private var profile: ActivationProfile? { model.profiles.first { $0.id == profileId } }
     private var toActivate: [ProfilePlanItem] { items.filter { $0.disposition == .activate } }
@@ -20,6 +22,8 @@ struct RunProfileView: View {
         !running && !finished && !toActivate.isEmpty
             && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
             && (!needsTicket || !ticketNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+            // A start that has slipped into the past while the sheet sat open is not submittable.
+            && !(scheduleStart && startAt <= Date.now)
     }
     private var groupedTenantKeys: [TenantKey] {
         var seen: [TenantKey] = []
@@ -43,6 +47,7 @@ struct RunProfileView: View {
                 }
             }
             if !finished {
+                startAtRow
                 TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
                 if needsTicket {
                     HStack { TextField("Ticket number", text: $ticketNumber); TextField("Ticket system", text: $ticketSystem) }
@@ -67,6 +72,18 @@ struct RunProfileView: View {
         // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
         .onChange(of: model.runRequests[profileId]) { _, _ in
             if !running { load() }
+        }
+    }
+
+    /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
+    @ViewBuilder private var startAtRow: some View {
+        let notBefore = Date.now
+        HStack(spacing: 8) {
+            Toggle("Start at", isOn: $scheduleStart)
+            if scheduleStart {
+                DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+            }
         }
     }
 
@@ -98,6 +115,7 @@ struct RunProfileView: View {
     @ViewBuilder private func statusLabel(for it: ProfilePlanItem) -> some View {
         switch model.progress[it.roleKey] {
         case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+        case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
         case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.yellow).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil:
@@ -111,13 +129,19 @@ struct RunProfileView: View {
         items = model.plan(for: profileId)
         if finished || justification.isEmpty { justification = profile?.lastJustification ?? "" }
         finished = false
+        // The sheet is reused: a stale toggle or a start time from the last run must not carry over.
+        scheduleStart = false
+        startAt = Date.now.addingTimeInterval(3600)
         model.clearProgress(items.map(\.roleKey))
     }
 
     private func submit() async {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
-        await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket)
+        // Two minutes of headroom: a start the service sees as "now" would activate immediately.
+        let start: Date? = scheduleStart ? max(startAt, Date.now.addingTimeInterval(120)) : nil
+        await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
+                               startDateTime: start)
         running = false
         finished = true
     }

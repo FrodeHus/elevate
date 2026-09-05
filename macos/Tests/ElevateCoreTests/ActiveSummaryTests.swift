@@ -23,4 +23,16 @@ import Foundation
         let ids = ActiveSummary.order(input).map(\.assignmentId)
         #expect(ids == ["soon", "late", "noend", "pend1", "pend2", "prov"])
     }
+
+    @Test func scheduledSortsAfterActiveAndBeforePending() {
+        let input = [
+            a("pend", .pendingApproval, start: 5),
+            a("sched2", .scheduled, start: 200),
+            a("active", .active, end: 600),
+            a("sched1", .scheduled, start: 100),
+            a("prov", .pendingProvisioning, start: 7),
+        ]
+        let ids = ActiveSummary.order(input).map(\.assignmentId)
+        #expect(ids == ["active", "sched1", "sched2", "pend", "prov"])
+    }
 }

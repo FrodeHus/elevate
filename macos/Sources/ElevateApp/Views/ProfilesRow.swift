@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ElevateCore
 
 /// One chip per saved profile under the tab picker; hidden when there are none.
@@ -16,7 +17,11 @@ struct ProfilesRow: View {
                 }
                 FlowLayout(spacing: 6) {
                     ForEach(model.profiles) { p in
-                        Button { model.requestRun(p.id); open(.runProfile(p.id)) } label: {
+                        Button {
+                            if NSEvent.modifierFlags.contains(.option) {
+                                Task { if await !model.quickRun(profileId: p.id) { model.requestRun(p.id); open(.runProfile(p.id)) } }
+                            } else { model.requestRun(p.id); open(.runProfile(p.id)) }
+                        } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.accentColor)
                                 Text(p.name).font(.caption.weight(.medium)).lineLimit(1)
@@ -28,7 +33,7 @@ struct ProfilesRow: View {
                             .overlay(Capsule().strokeBorder(.quaternary))
                         }
                         .buttonStyle(.plain)
-                        .help("Run \(p.name)")
+                        .help("Run \(p.name). Option-click to run with the last reason and durations")
                     }
                 }
             }

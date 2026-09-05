@@ -52,4 +52,11 @@ import Foundation
                                         memory: [:], loadedTenants: loaded)
         #expect(items.map(\.disposition) == [.activate])
     }
+
+    @Test func scheduledAssignmentPlansAsPending() {
+        let profile = ActivationProfile(name: "p", entries: [.init(roleKey: k1)])
+        let items = ProfilePlanner.plan(profile, roles: [k1: role(k1)], active: [k1: assignment(k1, .scheduled)],
+                                        memory: [:], loadedTenants: loaded)
+        #expect(items.map(\.disposition) == [.pending])
+    }
 }

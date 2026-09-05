@@ -17,20 +17,29 @@ struct ActivationView: View {
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
+    @State private var scheduleStart = false
+    @State private var startAt = Date.now.addingTimeInterval(3600)
 
     private var isBulk: Bool { keys.count > 1 }
+    /// Extend re-activates by deactivating first, so a scheduled start would revoke access now and
+    /// hand it back later. The row is hidden — and scheduling forced off — whenever anything in the
+    /// sheet is already active.
+    private var hasActiveItem: Bool { items.contains { model.assignment(for: $0.role.key)?.status == .active } }
     private var needsTicket: Bool { items.contains { $0.role.policy.requiresTicket } }
     private var justificationRequired: Bool { items.contains { $0.role.policy.requiresJustification } }
     private var canSubmit: Bool {
         !running && !items.isEmpty
             && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
             && (!needsTicket || !ticketNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+            // A start that has slipped into the past while the sheet sat open is not submittable.
+            && !(isScheduling && startAt <= Date.now)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role")).font(.title3.weight(.semibold))
             if isBulk { bulkTable } else { singleDuration }
+            startAtRow
             TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
             if needsTicket {
                 HStack {
@@ -49,6 +58,23 @@ struct ActivationView: View {
         .frame(width: isBulk ? 560 : 380)
         .onAppear(perform: load)
     }
+
+    /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
+    @ViewBuilder private var startAtRow: some View {
+        if !hasActiveItem {
+            let notBefore = Date.now
+            HStack(spacing: 8) {
+                Toggle("Start at", isOn: $scheduleStart)
+                if scheduleStart {
+                    DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden()
+                }
+            }
+        }
+    }
+
+    /// The toggle's value only counts while the row is offered.
+    private var isScheduling: Bool { scheduleStart && !hasActiveItem }
 
     private var singleDuration: some View {
         Group {
@@ -101,6 +127,7 @@ struct ActivationView: View {
     @ViewBuilder private func progressLabel(for key: RoleKey) -> some View {
         switch model.progress[key] {
         case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+        case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
         case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.yellow).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil: running ? AnyView(ProgressView().controlSize(.small)) : AnyView(EmptyView())
@@ -115,15 +142,21 @@ struct ActivationView: View {
             return Item(role: role, duration: d)
         }
         justification = keys.compactMap { model.remembered(for: $0)?.justification }.first ?? ""
+        // The sheet is reused: a stale toggle or a start time from the last run must not carry over.
+        scheduleStart = false
+        startAt = Date.now.addingTimeInterval(3600)
         model.clearProgress(keys)
     }
 
     private func submit() async {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
+        // Two minutes of headroom: a start the service sees as "now" would activate immediately.
+        let start: Date? = isScheduling ? max(startAt, Date.now.addingTimeInterval(120)) : nil
         let requests = items.map {
             ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket,
-                              authenticationContext: $0.role.policy.authenticationContext)
+                              authenticationContext: $0.role.policy.authenticationContext,
+                              startDateTime: start)
         }
         await model.activate(requests)
         running = false

@@ -28,4 +28,11 @@ import Foundation
         #expect(!PanelStatus.compute([assignment("a", status: .active, endsIn: nil)], now: now).expiringSoon)
         #expect(!PanelStatus.compute([assignment("a", status: .pendingApproval, endsIn: 10)], now: now).expiringSoon)
     }
+
+    @Test func scheduledIsPendingAndNotActive() {
+        let s = PanelStatus.compute([assignment("a", status: .scheduled, endsIn: 60)], now: now)
+        #expect(s.activeCount == 0)
+        #expect(s.pendingApproval)
+        #expect(!s.expiringSoon)
+    }
 }

@@ -19,4 +19,13 @@ import Foundation
         let r = Countdown.remaining(until: now.addingTimeInterval(125.9), now: now)
         #expect(r == .seconds(125))
     }
+
+    @Test func untilLabels() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(Countdown.until(now.addingTimeInterval(2 * 3600 + 15 * 60), now: now) == "2 h 15 m")
+        #expect(Countdown.until(now.addingTimeInterval(15 * 60 + 59), now: now) == "15 m")
+        #expect(Countdown.until(now.addingTimeInterval(3600), now: now) == "1 h")
+        #expect(Countdown.until(now.addingTimeInterval(30), now: now) == "now")
+        #expect(Countdown.until(now.addingTimeInterval(-5), now: now) == "now")
+    }
 }

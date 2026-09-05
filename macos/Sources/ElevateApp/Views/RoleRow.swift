@@ -43,6 +43,7 @@ struct RoleRow: View {
     @ViewBuilder private var statusDot: some View {
         switch assignment?.status {
         case .active: Circle().fill(.green).frame(width: 8, height: 8)
+        case .scheduled: Circle().fill(.blue).frame(width: 8, height: 8)
         case .pendingApproval, .pendingProvisioning: Circle().fill(.yellow).frame(width: 8, height: 8)
         case .failed: Circle().fill(.red).frame(width: 8, height: 8)
         case nil: Circle().stroke(.secondary).frame(width: 8, height: 8)

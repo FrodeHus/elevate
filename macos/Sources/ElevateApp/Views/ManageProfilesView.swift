@@ -6,6 +6,9 @@ struct ManageProfilesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openWindow) private var openWindow
     @State private var names: [UUID: String] = [:]
+    /// Name of the profile the last "Edit" loaded. The work happens in the menu bar panel, which is
+    /// closed while this window is up, so say so instead of leaving the button looking inert.
+    @State private var editingHint: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -28,8 +31,13 @@ struct ManageProfilesView: View {
                             Text(ProfileSummary.caption(entries: p.entries)).font(.caption).foregroundStyle(.secondary)
                             Spacer()
                             Button("Run") { commitAll(); model.requestRun(p.id); open(.runProfile(p.id)) }.controlSize(.small)
-                            Button("Edit") { commitAll(); model.beginEditing(profileId: p.id); dismiss() }.controlSize(.small)
-                                .help("Reopens the selection in the panel; use \"Update profile\" when done")
+                            Button("Edit") {
+                                commitAll()
+                                model.beginEditing(profileId: p.id)
+                                editingHint = names[p.id] ?? p.name
+                            }
+                            .controlSize(.small)
+                            .help("Reopens the selection in the panel; use \"Update profile\" when done")
                             Button(role: .destructive) { model.deleteProfile(id: p.id) } label: { Image(systemName: "trash") }
                                 .controlSize(.small).accessibilityLabel("Delete \(p.name)")
                         }
@@ -37,6 +45,11 @@ struct ManageProfilesView: View {
                     .onMove { from, to in model.moveProfile(fromOffsets: from, toOffset: to) }
                 }
                 .frame(minHeight: 160)
+            }
+            if let editingHint {
+                Text("\"\(editingHint)\" is loaded into the panel's selection. Open the Elevate menu, adjust the ticks across the Entra, Azure and Groups tabs, then press Update profile.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack { Spacer(); Button("Done") { commitAll(); dismiss() }.keyboardShortcut(.defaultAction) }
         }

@@ -30,6 +30,16 @@ renames profiles, reorders them by dragging, deletes them, and Edit reopens the 
 in the panel so you can add or remove entries — "Update profile" saves the change. Profiles are
 stored with the rest of the app state in `state.json`.
 
+**Shortcuts.** Option-click on Activate, Extend or a profile chip activates immediately with the
+last reason and duration, skipping the dialog; the dialog still opens when a reason is missing, a
+ticket is required, approval is required (single roles), or a profile's roles have not loaded. A
+notification reports the outcome. "Start at" in the activation dialog and the run sheet schedules
+the activation for a future time; scheduled entries appear in Active now with "starts in …" and a
+Cancel button, and the menu bar shows the clock badge. Settings → Global shortcut: record a key
+combination (at least one of ⌘ ⌃ ⌥) and pick a profile; pressing it runs the profile like
+Option-clicking its chip, or opens the run sheet when input is needed. macOS offers no supported
+way to open a menu bar panel from a shortcut, so the shortcut runs a profile instead.
+
 ## Sign-in methods
 
 > **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports Azure resource roles only**: Elevate does not call the Graph PIM APIs for it at all, so no Entra roles are discovered or activated and no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.

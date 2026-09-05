@@ -30,7 +30,7 @@ public enum ProfilePlanner {
             else if let a = active[entry.roleKey] {
                 switch a.status {
                 case .active: disposition = .alreadyActive
-                case .pendingApproval, .pendingProvisioning: disposition = .pending
+                case .pendingApproval, .pendingProvisioning, .scheduled: disposition = .pending
                 case .failed: disposition = .activate
                 }
             } else { disposition = .activate }

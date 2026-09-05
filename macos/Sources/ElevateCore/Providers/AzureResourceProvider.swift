@@ -111,6 +111,17 @@ public struct AzureResourceProvider: PIMProvider {
                                            startDateTime: r.properties.scheduleInfo?.startDateTime ?? r.properties.createdOn ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
         }
+        // The requests list is unfiltered, so a booked-ahead request is already in hand.
+        for u in requests where !ScheduledStart.isSettledOrPending(u.properties.status) {
+            let props = u.properties
+            guard let start = props.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
+            let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: props.scope, roleDefinitionId: props.roleDefinitionId))
+            guard result[key] == nil else { continue }
+            let end = ScheduledStart.end(explicit: props.scheduleInfo?.expiration?.endDateTime,
+                                         duration: props.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
+            result[key] = ActiveAssignment(roleKey: key, assignmentId: u.name, startDateTime: start,
+                                           endDateTime: end, status: .scheduled)
+        }
         return Array(result.values)
     }
 
@@ -182,7 +193,7 @@ public struct AzureResourceProvider: PIMProvider {
             "linkedRoleEligibilityScheduleId": elig.scheduleName,
             "justification": request.justification,
             "scheduleInfo": [
-                "startDateTime": GraphJSON.encoderDateString(.now),
+                "startDateTime": GraphJSON.encoderDateString(request.startDateTime ?? .now),
                 "expiration": ["type": "AfterDuration", "duration": ISO8601Duration.format(request.duration)],
             ],
         ]
@@ -190,21 +201,22 @@ public struct AzureResourceProvider: PIMProvider {
         let body = try JSONSerialization.data(withJSONObject: ["properties": props])
         let r = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes, body: body)
         let created = try GraphJSON.decoder.decode(Instance.self, from: r.body)
-        let start = created.properties.scheduleInfo?.startDateTime ?? .now
-        let end = created.properties.scheduleInfo?.expiration?.endDateTime
-            ?? created.properties.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
-            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
-        let status: ActiveAssignment.Status = switch created.properties.status ?? "Provisioned" {
+        let start = ScheduledStart.effective(response: created.properties.scheduleInfo?.startDateTime, requested: request.startDateTime)
+        let end = ScheduledStart.end(explicit: created.properties.scheduleInfo?.expiration?.endDateTime,
+                                     duration: created.properties.scheduleInfo?.expiration?.duration, start: start, fallback: request.duration)
+        let reported: ActiveAssignment.Status = switch created.properties.status ?? "Provisioned" {
         case "PendingApproval", "PendingAdminDecision", "PendingApprovalProvisioning": .pendingApproval
         case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated", "Accepted", "PendingEvaluation", "ProvisioningStarted", "PendingExternalProvisioning": .pendingProvisioning
         case "Denied", "Failed", "Canceled", "Revoked", "TimedOut", "Invalid", "AdminDenied", "FailedAsResourceIsLocked": .failed(created.properties.status ?? "Failed")
         default: .active
         }
+        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
+        let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         // A manual role is keyed by role name; key the assignment by the id ARM resolved it to.
         let resolvedKey = RoleKey(identityId: request.roleKey.identityId, tenantId: tenantId,
                                   scope: .azureResource(scope: scope, roleDefinitionId: roleDefinitionId))
         return ActiveAssignment(roleKey: resolvedKey, assignmentId: created.name, startDateTime: start,
-                                endDateTime: status == .active ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {

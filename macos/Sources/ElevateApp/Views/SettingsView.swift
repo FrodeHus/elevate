@@ -8,6 +8,10 @@ struct SettingsView: View {
     @State private var error: String?
     @State private var confirmReplace = false
     @State private var saved = false
+    @State private var hotKey: HotKeyBinding?
+    @State private var hotKeyProfileId: UUID?
+    /// Set once `onAppear` has mirrored settings, so the initial fill does not re-register the hot key.
+    @State private var hotKeyLoaded = false
 
     var body: some View {
         Form {
@@ -26,6 +30,27 @@ struct SettingsView: View {
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
                 if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }
             }
+            Section("Global shortcut") {
+                LabeledContent("Shortcut") {
+                    HStack {
+                        HotKeyRecorder(binding: $hotKey)
+                        if hotKey != nil {
+                            Button("Clear") { hotKey = nil }
+                        }
+                    }
+                }
+                Picker("Runs profile", selection: $hotKeyProfileId) {
+                    Text("None").tag(UUID?.none)
+                    ForEach(model.profiles) { profile in
+                        Text(profile.name).tag(UUID?.some(profile.id))
+                    }
+                }
+                Text("Runs the profile like Option-clicking its chip; opens the run sheet if input is needed.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let hotKeyError = model.hotKeyError {
+                    Text(hotKeyError).font(.caption).foregroundStyle(.red)
+                }
+            }
             HStack {
                 Spacer()
                 Button("Save") { save() }
@@ -37,6 +62,9 @@ struct SettingsView: View {
         .frame(width: 480)
         .onAppear {
             draft = model.settings.clientId
+            hotKey = model.settings.hotKey
+            hotKeyProfileId = model.settings.hotKeyProfileId
+            hotKeyLoaded = true
             // A menu bar app (LSUIElement) is not activated when a window opens, so Settings can land behind other apps.
             NSApp.activate(ignoringOtherApps: true)
             DispatchQueue.main.async {
@@ -44,12 +72,21 @@ struct SettingsView: View {
             }
         }
         .onChange(of: draft) { saved = false }
+        .onChange(of: hotKey) { applyHotKey() }
+        .onChange(of: hotKeyProfileId) { applyHotKey() }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
             Button("Sign out and change", role: .destructive) { apply() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it; you will add them again. Azure CLI and Azure PowerShell accounts are unaffected.")
         }
+    }
+
+    private func applyHotKey() {
+        guard hotKeyLoaded else { return }
+        model.settings.hotKey = hotKey
+        model.settings.hotKeyProfileId = hotKeyProfileId
+        model.applyHotKey()
     }
 
     private var isSaveable: Bool {

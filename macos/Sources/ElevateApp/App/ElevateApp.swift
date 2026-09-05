@@ -58,6 +58,12 @@ struct MenuBarLabel: View {
             NSApp.activate(ignoringOtherApps: true)
             model.pendingExtend = nil
         }
+        .onChange(of: model.pendingProfileRun) { _, id in
+            guard let id else { return }
+            openWindow(value: PanelRoute.runProfile(id))
+            NSApp.activate(ignoringOtherApps: true)
+            model.pendingProfileRun = nil
+        }
     }
 
     static func symbol(for s: PanelStatus) -> String {

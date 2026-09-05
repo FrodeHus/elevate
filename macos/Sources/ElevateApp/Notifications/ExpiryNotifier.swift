@@ -60,6 +60,16 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
         }
     }
 
+    /// Immediate, untriggered notification reporting the outcome of a quick activation.
+    func notify(title: String, body: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        try? await UNUserNotificationCenter.current().add(request)
+    }
+
     private func add(_ center: UNUserNotificationCenter, id: String, title: String, body: String, category: String, key: RoleKey, at fireAt: Date) async {
         let delay = fireAt.timeIntervalSinceNow
         guard delay > 1 else { return }

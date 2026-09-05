@@ -53,7 +53,7 @@ public struct EligibleRole: Codable, Hashable, Sendable, Identifiable {
 
 public struct ActiveAssignment: Codable, Hashable, Sendable, Identifiable {
     public enum Status: Codable, Hashable, Sendable {
-        case active, pendingApproval, pendingProvisioning, failed(String)
+        case active, pendingApproval, pendingProvisioning, scheduled, failed(String)
     }
     public let roleKey: RoleKey
     public var assignmentId: String?
@@ -84,14 +84,17 @@ public struct ActivationRequest: Codable, Hashable, Sendable, Identifiable {
     public var ticket: TicketInfo?
     /// Authentication context the role's policy demands; the coordinator asks for a token carrying it.
     public var authenticationContext: String?
+    /// When the activation should begin; nil means immediately.
+    public var startDateTime: Date?
     public var id: RoleKey { roleKey }
 
     public init(roleKey: RoleKey, duration: Duration, justification: String, ticket: TicketInfo? = nil,
-                authenticationContext: String? = nil) {
+                authenticationContext: String? = nil, startDateTime: Date? = nil) {
         self.roleKey = roleKey
         self.duration = duration
         self.justification = justification
         self.ticket = ticket
         self.authenticationContext = authenticationContext
+        self.startDateTime = startDateTime
     }
 }

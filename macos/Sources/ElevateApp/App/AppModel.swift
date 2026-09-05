@@ -52,6 +52,18 @@ final class AppModel {
     func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
     var selection: Set<RoleKey> = []
     var selectionCount: Int { selection.count }
+    /// Per-kind counts of the bulk selection, for the cross-tab hint in the bulk bar.
+    var selectionBreakdown: (entra: Int, azure: Int, groups: Int) {
+        var entra = 0, azure = 0, groups = 0
+        for key in selection {
+            switch key.scope.kind {
+            case .entraDirectory: entra += 1
+            case .azureResource: azure += 1
+            case .group: groups += 1
+            }
+        }
+        return (entra, azure, groups)
+    }
     /// Noun for the bulk bar: roles and groups can be selected together across tabs.
     var selectionNoun: String {
         let kinds = Set(selection.map(\.scope.kind))
@@ -64,6 +76,12 @@ final class AppModel {
     private var bootstrapped = false
     private var lastRefresh: Date = .distantPast
     var pendingExtend: RoleKey?
+    /// Set when the global hot key's profile needs input; `MenuBarLabel` opens the Run sheet for it.
+    var pendingProfileRun: UUID?
+    /// Why the global shortcut could not be registered, shown in Settings.
+    var hotKeyError: String?
+    /// One global hot key, created with the model and reconfigured by `applyHotKey()`.
+    private let hotKeys = HotKeyCenter()
 
     let settings: AppSettings
     private(set) var tokens: any TokenProviding
@@ -338,6 +356,34 @@ final class AppModel {
         persist()
         if isOnline { await refreshAll() }
         startTimer()
+        applyHotKey()
+    }
+
+    // MARK: Global shortcut
+
+    /// Re-registers the global shortcut from settings. Registering unregisters first, so calling
+    /// this after every Settings change cannot leave a stale hot key behind.
+    func applyHotKey() {
+        hotKeys.unregister()
+        hotKeyError = nil
+        guard let binding = settings.hotKey, settings.hotKeyProfileId != nil else {
+            hotKeys.onFire = nil
+            return
+        }
+        hotKeys.onFire = { [weak self] in
+            Task { @MainActor in
+                guard let self, let id = self.settings.hotKeyProfileId else { return }
+                if await self.quickRun(profileId: id) { return }
+                // Needs a justification, ticket or duration: open the Run sheet instead.
+                self.requestRun(id)
+                self.pendingProfileRun = id
+            }
+        }
+        do {
+            try hotKeys.register(binding)
+        } catch {
+            hotKeyError = error.localizedDescription
+        }
     }
 
     /// Coarse "now" for views that must not drive their own timers (the menu bar label); ticks every 30 s.
@@ -783,7 +829,10 @@ final class AppModel {
     // MARK: Activation
 
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.
-    func activate(_ requests: [ActivationRequest]) async {
+    /// Returns the coordinator's outcomes so callers can report on them; empty when the run was
+    /// abandoned because the configuration changed under it.
+    @discardableResult
+    func activate(_ requests: [ActivationRequest]) async -> [ActivationOutcome] {
         let generation = configGeneration
         for r in requests { progress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
         defer { for r in requests { inFlight.remove(r.roleKey) } }
@@ -794,11 +843,11 @@ final class AppModel {
                   let identity = self.identity(r.roleKey.identityId) else { continue }
             do {
                 try await coordinator.deactivate(existing, identity: identity)
-                guard generation == configGeneration else { return }
+                guard generation == configGeneration else { return [] }
                 active[r.roleKey] = nil
                 deactivated.insert(r.roleKey)
             } catch {
-                guard generation == configGeneration else { return }
+                guard generation == configGeneration else { return [] }
                 let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
                 tenantErrors[r.roleKey.tenantKey] = message
                 progress[r.roleKey] = .failed(.unexpected(status: 0, body: "Could not deactivate before re-activating: \(message)"))
@@ -813,13 +862,13 @@ final class AppModel {
                 if self.progress[outcome.roleKey] == nil { self.progress[outcome.roleKey] = outcome.result }
             }
         }
-        guard generation == configGeneration else { return }
+        guard generation == configGeneration else { return [] }
         var consentBlocked: Set<TenantKey> = []
         for outcome in outcomes {
             progress[outcome.roleKey] = outcome.result
             guard let request = attempted.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
             switch outcome.result {
-            case .activated(let a), .pendingApproval(let a):
+            case .activated(let a), .pendingApproval(let a), .scheduled(let a):
                 // A manual Azure role is keyed by role name; the provider answers with the resolved
                 // definition id, so move the stored role, its memory and its row onto that key.
                 if a.roleKey != request.roleKey { rekey(from: request.roleKey, to: a.roleKey) }
@@ -862,6 +911,42 @@ final class AppModel {
         // Runs independently so a slow policy fetch cannot hold the activation spinner; it only
         // updates cached policy/role data afterwards, never `inFlight`.
         Task { await self.learnPoliciesForManualRoles(outcomes) }
+        return outcomes
+    }
+
+    // MARK: Quick activate
+
+    /// Option-click path. Returns false when the dialog is needed; the caller opens it.
+    /// Nothing opens a dialog while offline or while the same role is already being activated:
+    /// returning true says the click was handled.
+    func quickActivate(_ key: RoleKey) async -> Bool {
+        guard isOnline, !inFlight.contains(key) else { return true }
+        guard let role = role(for: key) else { return false }
+        guard case .ready(let requests) = QuickActivate.decide(role: role, memory: remembered(for: key)) else { return false }
+        let outcomes = await activate(requests)
+        await notifyOutcome(title: role.displayName, outcomes: outcomes, attempted: requests.count)
+        return true
+    }
+
+    func quickRun(profileId: UUID) async -> Bool {
+        guard isOnline else { return true }
+        guard let profile = state.profile(id: profileId) else { return false }
+        let items = plan(for: profileId)
+        guard case .ready(let requests) = QuickActivate.decide(items: items, justification: profile.lastJustification) else { return false }
+        guard !requests.contains(where: { inFlight.contains($0.roleKey) }) else { return true }
+        let outcomes = await runProfile(id: profileId, items: items, justification: requests.first?.justification ?? "", ticket: nil)
+        await notifyOutcome(title: profile.name, outcomes: outcomes, attempted: requests.count)
+        return true
+    }
+
+    /// Reports on the outcomes the activation returned rather than on `progress`, which a later
+    /// refresh may already have cleared or moved onto a rekeyed role. `attempted` is the number of
+    /// requests the run set out to make, so an empty outcome list can be told apart from having had
+    /// nothing to do at all.
+    private func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
+        await notifier.notify(title: title,
+                              body: ActivationSummary.body(outcomes: outcomes, attempted: attempted,
+                                                           names: summaryName(for:)))
     }
 
     /// Moves a manual role from the key the user typed to the key the provider resolved it to.
@@ -931,7 +1016,17 @@ final class AppModel {
         defer { inFlight.remove(key) }
         guard let a = active[key], let identity = self.identity(key.identityId) else { return }
         do {
-            try await coordinator.deactivate(a, identity: identity)
+            // A booked-ahead activation is still only a request: withdraw it. Providers differ on
+            // whether cancel is accepted once the schedule exists, so fall back to a deactivation.
+            if a.status == .scheduled {
+                do {
+                    try await coordinator.cancelPendingRequest(a, identity: identity)
+                } catch {
+                    try await coordinator.deactivate(a, identity: identity)
+                }
+            } else {
+                try await coordinator.deactivate(a, identity: identity)
+            }
             guard generation == configGeneration else { return }
             active[key] = nil
             if key.scope.kind == .group { refreshRolesAfterGroupChange([key.tenantKey]) }
@@ -1013,7 +1108,15 @@ final class AppModel {
         p.name = trimmed; state.upsertProfile(p); persist()
     }
 
-    func deleteProfile(id: UUID) { state.removeProfile(id: id); persist() }
+    func deleteProfile(id: UUID) {
+        state.removeProfile(id: id)
+        persist()
+        // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
+        if settings.hotKeyProfileId == id {
+            settings.hotKeyProfileId = nil
+            applyHotKey()
+        }
+    }
     func moveProfile(fromOffsets: IndexSet, toOffset: Int) { state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist() }
 
     /// Edit = reopen the selection. The bulk bar offers "Update profile" while `editingProfileId` is set.
@@ -1037,13 +1140,17 @@ final class AppModel {
     }
 
     /// Activates the plan's `.activate` items, then remembers the reason and each duration on the profile.
-    func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?) async {
+    /// Returns the outcomes of that activation so callers can report on them.
+    @discardableResult
+    func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?,
+                    startDateTime: Date? = nil) async -> [ActivationOutcome] {
         let requests = items.filter { $0.disposition == .activate }.map {
             ActivationRequest(roleKey: $0.roleKey, duration: $0.duration, justification: justification, ticket: ticket,
-                              authenticationContext: $0.role?.policy.authenticationContext)
+                              authenticationContext: $0.role?.policy.authenticationContext,
+                              startDateTime: startDateTime)
         }
-        if !requests.isEmpty { await activate(requests) }
-        guard var p = state.profile(id: id) else { return }
+        let outcomes = requests.isEmpty ? [] : await activate(requests)
+        guard var p = state.profile(id: id) else { return outcomes }
         p.lastJustification = justification
         for item in items where item.disposition != .notEligible && item.disposition != .notLoaded {
             // `rekey` may have moved a manual Azure entry onto the key the provider resolved, so the
@@ -1060,6 +1167,7 @@ final class AppModel {
             if let i = index { p.entries[i].lastDuration = item.duration }
         }
         state.upsertProfile(p); persist()
+        return outcomes
     }
 
     // MARK: Manual roles
