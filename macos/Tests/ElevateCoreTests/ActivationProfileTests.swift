@@ -1,0 +1,46 @@
+import Testing
+import Foundation
+@testable import ElevateCore
+
+@Suite struct ActivationProfileTests {
+    func key(_ n: String, kind: RoleScopeKind = .entraDirectory) -> RoleKey {
+        switch kind {
+        case .entraDirectory: RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: n, directoryScopeId: "/"))
+        case .azureResource: RoleKey(identityId: "i", tenantId: "t", scope: .azureResource(scope: "/subscriptions/s", roleDefinitionId: n))
+        case .group: RoleKey(identityId: "i", tenantId: "t", scope: .group(groupId: n, accessId: .member))
+        }
+    }
+
+    @Test func stateWithoutProfilesDecodes() throws {
+        let json = #"{"identities":[],"tenants":[],"manualRoles":[],"memory":[]}"#
+        let s = try JSONDecoder().decode(AppState.self, from: Data(json.utf8))
+        #expect(s.profiles.isEmpty)
+        let minimal = try JSONDecoder().decode(AppState.self, from: Data("{}".utf8))
+        #expect(minimal.identities.isEmpty && minimal.profiles.isEmpty)
+    }
+
+    @Test func profilesRoundTripAndHelpers() throws {
+        var s = AppState()
+        let p = ActivationProfile(name: "Ops", entries: [.init(roleKey: key("a"), lastDuration: .seconds(3600))], lastJustification: "INC")
+        s.upsertProfile(p)
+        s.upsertProfile(ActivationProfile(name: "Second", entries: []))
+        let decoded = try JSONDecoder().decode(AppState.self, from: JSONEncoder().encode(s))
+        #expect(decoded.profiles.count == 2)
+        #expect(decoded.profile(id: p.id)?.entries.first?.lastDuration == .seconds(3600))
+        var renamed = p; renamed.name = "Ops 2"
+        s.upsertProfile(renamed)
+        #expect(s.profiles.count == 2 && s.profile(id: p.id)?.name == "Ops 2")
+        s.moveProfile(fromOffsets: IndexSet(integer: 1), toOffset: 0)
+        #expect(s.profiles.first?.name == "Second")
+        s.removeProfile(id: p.id)
+        #expect(s.profiles.count == 1)
+    }
+
+    @Test func summaryCaption() {
+        #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil)]) == "1 role")
+        #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil), .init(roleKey: key("b", kind: .azureResource), lastDuration: nil)]) == "2 roles")
+        #expect(ProfileSummary.caption(entries: [.init(roleKey: key("g", kind: .group), lastDuration: nil)]) == "1 group")
+        #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil), .init(roleKey: key("g", kind: .group), lastDuration: nil), .init(roleKey: key("h", kind: .group), lastDuration: nil)]) == "1 role · 2 groups")
+        #expect(ProfileSummary.caption(entries: []) == "empty")
+    }
+}
