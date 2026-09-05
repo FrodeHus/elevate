@@ -37,6 +37,9 @@ final class AppModel {
     /// can swap the MSAL half without disturbing the first-party providers (and their keychain items).
     private var msal: MSALTokenProvider?
     private var loopback: [SignInMethod: LoopbackTokenProvider] = [:]
+    /// One interactive gate for every provider, so an MSAL webview and a browser sign-in queue
+    /// instead of racing each other. `applyClientId` hands it to the replacement MSAL provider.
+    private let gate: InteractiveGate
     private var refreshTimer: Task<Void, Never>?
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
     private var policyCache: [RoleKey: RolePolicy] = [:]
@@ -59,10 +62,12 @@ final class AppModel {
 
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
-         msal: MSALTokenProvider? = nil, loopback: [SignInMethod: LoopbackTokenProvider] = [:]) {
+         msal: MSALTokenProvider? = nil, loopback: [SignInMethod: LoopbackTokenProvider] = [:],
+         gate: InteractiveGate = InteractiveGate()) {
         self.tokens = tokens
         self.msal = msal
         self.loopback = loopback
+        self.gate = gate
         self.http = http
         self.store = store
         self.notifier = notifier
@@ -80,22 +85,23 @@ final class AppModel {
         let anchor = AuthAnchorWindow()
         let notifier = ExpiryNotifier()
         let http = URLSessionHTTPClient()
+        // One shared gate across MSAL and the loopback providers, so no two interactive sign-ins
+        // (webview or browser) can run at the same time.
+        let gate = InteractiveGate()
         var msal: MSALTokenProvider?
         var initError: Error?
         if settings.isConfigured {
             do {
-                msal = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor)
+                msal = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
             } catch {
                 initError = error
             }
         }
         // The first-party providers need no configuration; they exist whether or not MSAL does.
-        // One shared gate keeps two browser sign-ins from racing each other.
-        let gate = InteractiveGate()
         let loopback = Self.loopbackProviders(http: http, gate: gate)
         let tokens = CompositeTokenProvider(msal: msal, loopback: loopback)
         let model = AppModel(tokens: tokens, http: http, store: AppStateStore(), notifier: notifier, settings: settings,
-                             anchor: anchor, msal: msal, loopback: loopback)
+                             anchor: anchor, msal: msal, loopback: loopback, gate: gate)
         if let initError {
             model.notice = "Could not initialise sign-in with the saved client ID: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription). Check it in Settings."
         }
@@ -125,7 +131,7 @@ final class AppModel {
         guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
         // Construct the new provider before mutating anything, so a throwing init leaves the
         // current client id, tokens and session state untouched.
-        let replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
+        let replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
         let ownApp = state.identities.filter { $0.signInMethod == .ownApp }
         // The old client's cache is unusable under the new client id; drop it silently.
         // A webview sign-out here would only interrupt the user with a browser window.
@@ -613,10 +619,10 @@ final class AppModel {
             t.discoveryMode = .manualRoles
             // Only an own-app registration can be consented to; the first-party client ids are
             // Microsoft's and are not ours to request consent for.
-            let isOwnApp = state.identities.first { $0.id == tenantKey.identityId }?.signInMethod == .ownApp
-            t.lastDiscoveryError = isOwnApp
+            let method = state.identities.first { $0.id == tenantKey.identityId }?.signInMethod ?? .ownApp
+            t.lastDiscoveryError = method == .ownApp
                 ? "Activation not permitted in this tenant until an admin consents."
-                : "Activation not permitted in this tenant for the Azure CLI app; try your own app registration instead."
+                : "Activation not permitted in this tenant for the \(method.displayName); try your own app registration instead."
             state.upsertTenant(t)
         }
         persist()

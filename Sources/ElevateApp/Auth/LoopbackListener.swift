@@ -69,6 +69,10 @@ actor LoopbackListener {
 
     /// Waits for the browser's redirect and returns the authorization code.
     ///
+    /// Keeps serving connections until one carries an OAuth `error` or a code with the expected
+    /// state; stray probes, dropped sockets and mismatched responses are answered and ignored, so
+    /// the timeout is what ends a flow the browser never completes.
+    ///
     /// Stops the listener before returning, whatever the outcome.
     func waitForCode(expectedState: String, timeout: Duration = .seconds(120)) async throws -> String {
         let waiter = OneShot<String>()
@@ -111,10 +115,10 @@ actor LoopbackListener {
             var buffer = buffer
             if let data { buffer.append(data) }
             if error != nil {
-                // Without this the caller would sit until the two-minute timeout for a redirect
-                // that can no longer arrive on this connection.
+                // One dropped connection says nothing about the redirect: browsers open, probe and
+                // abandon sockets on this port. Drop this one and keep listening for the real
+                // response; the two-minute timeout is the backstop if it never arrives.
                 connection.cancel()
-                waiter.finish(.failure(PIMError.network("Sign-in connection dropped")))
                 return
             }
             let text = String(decoding: buffer, as: UTF8.self)
@@ -150,14 +154,16 @@ actor LoopbackListener {
             waiter.finish(.failure(error == "access_denied" ? PIMError.network("Sign-in cancelled") : PIMError.network(description)))
             return
         }
+        // A mismatched state is somebody else's response (or a stale tab from an earlier attempt),
+        // never ours: refuse it and keep waiting for the one we asked for.
         guard let state = value("state"), state == expectedState else {
             respond(connection, status: "400 Bad Request", body: page("Sign-in failed. You can close this window and return to Elevate."))
-            waiter.finish(.failure(PIMError.unexpected(status: 0, body: "Sign-in state did not match; the response may not be ours")))
             return
         }
+        // Matching state but no code at all is not a response we can complete either; the timeout
+        // still applies if nothing better follows.
         guard let code = value("code") else {
             respond(connection, status: "400 Bad Request", body: page("Sign-in failed. You can close this window and return to Elevate."))
-            waiter.finish(.failure(PIMError.network("Sign-in response carried no authorization code")))
             return
         }
         respond(connection, status: "200 OK", body: page("You can close this window and return to Elevate."))

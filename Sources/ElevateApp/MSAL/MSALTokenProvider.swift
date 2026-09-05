@@ -10,19 +10,24 @@ extension MSALAccount: @unchecked @retroactive Sendable {}
 final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     private let app: MSALPublicClientApplication
     private let anchor: AuthAnchorWindow
-    private let gate = InteractiveGate()
+    /// Shared with the loopback providers so an MSAL webview and a browser flow cannot run at once.
+    private let gate: InteractiveGate
 
-    init(clientId: String, redirectUri: String, anchor: AuthAnchorWindow) throws {
+    init(clientId: String, redirectUri: String, anchor: AuthAnchorWindow, gate: InteractiveGate = InteractiveGate()) throws {
         let authority = try MSALAADAuthority(url: URL(string: "https://login.microsoftonline.com/organizations")!)
         let config = MSALPublicClientApplicationConfig(clientId: clientId, redirectUri: redirectUri, authority: authority)
         app = try MSALPublicClientApplication(configuration: config)
         self.anchor = anchor
+        self.gate = gate
     }
 
     // MARK: TokenProviding
 
     func signIn(method: SignInMethod) async throws -> Identity {
-        try await gate.run { [self] in
+        guard method == .ownApp else {
+            throw PIMError.unexpected(status: 0, body: "MSAL only signs in with your own app registration")
+        }
+        return try await gate.run { [self] in
             let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead], claims: nil, prompt: .selectAccount)
             return Self.identity(from: result.account)
         }

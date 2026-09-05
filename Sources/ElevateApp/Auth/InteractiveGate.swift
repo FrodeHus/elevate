@@ -2,7 +2,8 @@ import Foundation
 
 /// Serialises interactive sign-in sessions. MSAL refuses a second one with
 /// `MSALErrorInteractiveSessionAlreadyRunning`, and a second loopback flow would race for the
-/// browser and the listener, so callers queue instead of failing. Shared by both providers.
+/// browser and the listener, so callers queue instead of failing. `AppModel` hands one instance
+/// to `MSALTokenProvider` and to every `LoopbackTokenProvider`, so the queue spans all of them.
 actor InteractiveGate {
     private var busy = false
     private var waiters: [(id: UUID, continuation: CheckedContinuation<Bool, Never>)] = []

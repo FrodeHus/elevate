@@ -49,7 +49,7 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
             let upn = claims.preferredUsername ?? "unknown"
             let identity = Identity(id: "\(claims.oid).\(claims.tid)", upn: upn,
                                     displayName: claims.name ?? upn, homeTenantId: claims.tid, signInMethod: self.method)
-            await session.store(response, identityId: identity.id, tenantId: claims.tid, scopes: Self.signInScopes)
+            await session.cache(response, identityId: identity.id, tenantId: claims.tid, scopes: Self.signInScopes)
             return identity
         }
     }
@@ -82,7 +82,7 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
             let code = try await listener.waitForCode(expectedState: state)
             let response = try await client.redeem(code: code, verifier: pkce.verifier, clientId: clientId,
                                                    redirectURI: redirectURI, tenant: tenantId, scopes: requested)
-            await session.store(response, identityId: identity.id, tenantId: tenantId, scopes: scopes)
+            await session.cache(response, identityId: identity.id, tenantId: tenantId, scopes: scopes)
             return response.accessToken
         }
     }
