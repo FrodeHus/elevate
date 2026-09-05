@@ -35,7 +35,14 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 480)
-        .onAppear { draft = model.settings.clientId }
+        .onAppear {
+            draft = model.settings.clientId
+            // A menu bar app (LSUIElement) is not activated when a window opens, so Settings can land behind other apps.
+            NSApp.activate(ignoringOtherApps: true)
+            DispatchQueue.main.async {
+                NSApp.windows.first { $0.isVisible && $0.contentView?.subviews.isEmpty == false && $0.title.localizedCaseInsensitiveContains("settings") }?.makeKeyAndOrderFront(nil)
+            }
+        }
         .onChange(of: draft) { saved = false }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
             Button("Sign out and change", role: .destructive) { apply() }
