@@ -34,35 +34,7 @@ public struct GroupProvider: PIMProvider {
         let createdDateTime: Date?
         let scheduleInfo: ScheduleInfo?
     }
-    struct Page<T: Decodable>: Decodable {
-        let value: [T]
-        let nextLink: String?
-        enum CodingKeys: String, CodingKey { case value; case nextLink = "@odata.nextLink" }
-    }
-
     static let base = "/identityGovernance/privilegedAccess/group"
-
-    func url(_ path: String) throws -> URL {
-        if let u = URL(string: GraphTransport.graphBase.absoluteString + path) { return u }
-        let encoded = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
-        guard let u = URL(string: GraphTransport.graphBase.absoluteString + encoded) else {
-            throw PIMError.unexpected(status: 0, body: "Bad URL")
-        }
-        return u
-    }
-
-    /// GET every page, following `@odata.nextLink`.
-    func listAll<T: Decodable>(_ type: T.Type, identity: Identity, tenantId: String, url: URL) async throws -> [T] {
-        var next: URL? = url
-        var out: [T] = []
-        while let current = next {
-            let r = try await transport.get(identity: identity, tenantId: tenantId, url: current, scopes: scopes)
-            let page = try GraphJSON.decoder.decode(Page<T>.self, from: r.body)
-            out += page.value
-            next = page.nextLink.flatMap(URL.init(string:))
-        }
-        return out
-    }
 
     static func access(_ raw: String) -> GroupAccess { raw.caseInsensitiveCompare("owner") == .orderedSame ? .owner : .member }
     static func isGroupMember(_ memberType: String?) -> Bool { memberType?.caseInsensitiveCompare("group") == .orderedSame }
@@ -70,8 +42,8 @@ public struct GroupProvider: PIMProvider {
     // MARK: Reads
 
     public func eligibleRoles(identity: Identity, tenant: TenantContext) async throws -> [EligibleRole] {
-        let items = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                      url: try url("\(Self.base)/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"))
+        let items = try await transport.listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
+                                      url: try transport.graphURL("\(Self.base)/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
         var seen = Set<RoleScope>()
         var roles: [EligibleRole] = []
         for i in items {
@@ -88,10 +60,10 @@ public struct GroupProvider: PIMProvider {
     }
 
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
-        let instances = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                          url: try url("\(Self.base)/assignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"))
-        let requests = try await listAll(ScheduleRequest.self, identity: identity, tenantId: tenant.tenantId,
-                                         url: try url("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"))
+        let instances = try await transport.listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
+                                          url: try transport.graphURL("\(Self.base)/assignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
+        let requests = try await transport.listAll(ScheduleRequest.self, identity: identity, tenantId: tenant.tenantId,
+                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"), scopes: scopes)
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.assignmentType?.caseInsensitiveCompare("activated") == .orderedSame {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: i.groupId, accessId: Self.access(i.accessId)))
@@ -110,53 +82,27 @@ public struct GroupProvider: PIMProvider {
 
     // MARK: Policy
 
-    struct PolicyRule: Decodable {
-        let id: String
-        let maximumDuration: String?
-        let enabledRules: [String]?
-        let setting: ApprovalSetting?
-        let isEnabled: Bool?
-        let claimValue: String?
-        struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
-    }
-    struct Policy: Decodable { let id: String; let rules: [PolicyRule]? }
+    struct Policy: Decodable { let id: String; let rules: [PolicyRules.Rule]? }
     struct PolicyAssignment: Decodable { let id: String; let roleDefinitionId: String?; let policy: Policy? }
 
     public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
         guard case .group(let groupId, let access) = role.key.scope else { throw PIMError.notEligible }
-        let filter = "scopeId eq '\(groupId)' and scopeType eq 'Group' and roleDefinitionId eq '\(access == .owner ? "owner" : "member")'"
+        let filter = "scopeId eq '\(GraphTransport.odataEscaped(groupId))' and scopeType eq 'Group' and roleDefinitionId eq '\(access == .owner ? "owner" : "member")'"
         let encoded = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? filter
         let r = try await transport.get(identity: identity, tenantId: role.key.tenantId,
-                                        url: try url("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
+                                        url: try transport.graphURL("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
                                         scopes: scopes)
-        let assignments = try GraphJSON.decoder.decode(Page<PolicyAssignment>.self, from: r.body).value
+        let assignments = try GraphJSON.decoder.decode(GraphTransport.Page<PolicyAssignment>.self, from: r.body).value
         guard let rules = assignments.first?.policy?.rules else { return .manualDefault }
-        var policy = RolePolicy.manualDefault
-        for rule in rules {
-            switch rule.id {
-            case "Expiration_EndUser_Assignment":
-                if let d = rule.maximumDuration.flatMap(ISO8601Duration.parse) { policy.maximumDuration = d; policy.defaultDuration = d }
-            case "Enablement_EndUser_Assignment":
-                let enabled = Set(rule.enabledRules ?? [])
-                policy.requiresJustification = enabled.contains("Justification")
-                policy.requiresTicket = enabled.contains("Ticketing")
-                policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
-            case "Approval_EndUser_Assignment":
-                policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
-            case "AuthenticationContext_EndUser_Assignment":
-                if rule.isEnabled == true, let claim = rule.claimValue, !claim.isEmpty { policy.authenticationContext = claim }
-            default: break
-            }
-        }
-        return policy
+        return PolicyRules.apply(rules)
     }
 
     // MARK: Activate / deactivate
 
     /// The eligibility's own principal id (a group when inherited), used only when the token hides the caller's oid.
     func eligibilityPrincipalId(groupId: String, access: GroupAccess, identity: Identity, tenantId: String) async throws -> String? {
-        let items = try await listAll(Instance.self, identity: identity, tenantId: tenantId,
-                                      url: try url("\(Self.base)/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"))
+        let items = try await transport.listAll(Instance.self, identity: identity, tenantId: tenantId,
+                                      url: try transport.graphURL("\(Self.base)/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
         return items.first { $0.groupId == groupId && Self.access($0.accessId) == access }?.principalId
     }
 
@@ -196,7 +142,7 @@ public struct GroupProvider: PIMProvider {
         ]
         if let t = request.ticket { body["ticketInfo"] = ["ticketNumber": t.number, "ticketSystem": t.system] }
         let r = try await transport.post(identity: identity, tenantId: tenantId,
-                                         url: try url("\(Self.base)/assignmentScheduleRequests"),
+                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests"),
                                          scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
         let start = created.scheduleInfo?.startDateTime ?? .now
@@ -219,7 +165,7 @@ public struct GroupProvider: PIMProvider {
             "accessId": access == .owner ? "owner" : "member",
         ]
         _ = try await transport.post(identity: identity, tenantId: tenantId,
-                                     url: try url("\(Self.base)/assignmentScheduleRequests"),
+                                     url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
     }
 
@@ -227,7 +173,7 @@ public struct GroupProvider: PIMProvider {
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard let requestId = assignment.assignmentId else { throw PIMError.notEligible }
         _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
-                                     url: try url("\(Self.base)/assignmentScheduleRequests/\(requestId)/cancel"),
+                                     url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/\(requestId)/cancel"),
                                      scopes: scopes, body: Data())
     }
 }

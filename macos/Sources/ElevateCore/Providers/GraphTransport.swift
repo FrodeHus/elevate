@@ -15,6 +15,38 @@ public struct GraphTransport: Sendable {
         self.mapper = mapper
     }
 
+    /// A Graph URL for `path`, percent-encoding it only when it is not already a valid URL.
+    public func graphURL(_ path: String) throws -> URL {
+        if let u = URL(string: Self.graphBase.absoluteString + path) { return u }
+        let encoded = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
+        guard let u = URL(string: Self.graphBase.absoluteString + encoded) else {
+            throw PIMError.unexpected(status: 0, body: "Bad URL")
+        }
+        return u
+    }
+
+    /// OData string literals escape a single quote by doubling it.
+    public static func odataEscaped(_ value: String) -> String { value.replacingOccurrences(of: "'", with: "''") }
+
+    public struct Page<T: Decodable>: Decodable {
+        public let value: [T]
+        let nextLink: String?
+        enum CodingKeys: String, CodingKey { case value; case nextLink = "@odata.nextLink" }
+    }
+
+    /// GET every page of a Graph list, following `@odata.nextLink`.
+    public func listAll<T: Decodable>(_ type: T.Type, identity: Identity, tenantId: String, url: URL, scopes: [String]) async throws -> [T] {
+        var next: URL? = url
+        var out: [T] = []
+        while let current = next {
+            let r = try await get(identity: identity, tenantId: tenantId, url: current, scopes: scopes)
+            let page = try GraphJSON.decoder.decode(Page<T>.self, from: r.body)
+            out += page.value
+            next = page.nextLink.flatMap(URL.init(string:))
+        }
+        return out
+    }
+
     public func get(identity: Identity, tenantId: String, url: URL, scopes: [String]) async throws -> HTTPResponse {
         try await send(HTTPRequest(method: "GET", url: url), identity: identity, tenantId: tenantId, scopes: scopes)
     }
