@@ -32,7 +32,7 @@ struct RoleRow: View {
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
             }
             Spacer()
-            AssignmentControls(key: role.key, assignment: assignment, viewOnlyReason: viewOnlyReason)
+            AssignmentControls(key: role.key, assignment: assignment, viewOnlyReason: viewOnlyReason, policy: role.policy)
         }
         .frame(minHeight: 28)
         .padding(.vertical, 3)

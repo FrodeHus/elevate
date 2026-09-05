@@ -53,6 +53,7 @@ struct ActiveRow: View {
     var body: some View {
         let key = assignment.roleKey
         HStack(spacing: 8) {
+            // Yellow covers the pending states only: ActiveSummary.order drops .failed, so it never reaches the summary.
             Circle().fill(assignment.status == .active ? .green : .yellow).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.summaryName(for: key)).font(.body).lineLimit(1)
@@ -60,7 +61,7 @@ struct ActiveRow: View {
                     .font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer()
-            AssignmentControls(key: key, assignment: assignment, allowActivate: false)
+            AssignmentControls(key: key, assignment: assignment, policy: model.role(for: key)?.policy ?? .manualDefault, allowActivate: false)
         }
         .frame(minHeight: 28)
         .padding(.vertical, 3)

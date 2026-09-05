@@ -20,6 +20,12 @@ import Foundation
         #expect(!PanelFilter.matches(query: "reader", role: role, tenantName: "Contoso", upn: "u@contoso.com"))
     }
 
+    @Test func textOverloadTrimsWhitespaceAndNewlines() {
+        #expect(PanelFilter.matches(query: "owner\n", text: "Group owner"))
+        #expect(PanelFilter.matches(query: " \n ", text: "anything"))
+        #expect(!PanelFilter.matches(query: "reader\n", text: "Group owner"))
+    }
+
     @Test func ignoresDiacritics() {
         var r = role
         r.displayName = "Sécurité"

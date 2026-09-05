@@ -6,10 +6,17 @@ public enum PanelFilter {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    public static func matches(query: String, role: EligibleRole, tenantName: String, upn: String) -> Bool {
+    /// One field against the query: an empty query matches everything, otherwise a case- and
+    /// diacritic-insensitive substring test.
+    public static func matches(query: String, text: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return true }
+        return text.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+    }
+
+    public static func matches(query: String, role: EligibleRole, tenantName: String, upn: String) -> Bool {
+        guard isActive(query) else { return true }
         let fields = [role.displayName, role.detail ?? "", role.viaGroup ?? "", tenantName, upn]
-        return fields.contains { $0.range(of: q, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        return fields.contains { matches(query: query, text: $0) }
     }
 }

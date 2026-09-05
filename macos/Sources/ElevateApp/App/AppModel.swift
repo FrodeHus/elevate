@@ -202,7 +202,6 @@ final class AppModel {
     var ownAppIdentityCount: Int { state.identities.count { $0.signInMethod == .ownApp } }
     /// False when the machine has no usable network path; reads and requests are held back.
     var isOnline: Bool { network.isOnline }
-    var activeCount: Int { active.values.filter { $0.status == .active }.count }
     func tenants(for identityId: String) -> [TenantContext] { state.tenants(for: identityId) }
     func roles(for tenantKey: TenantKey) -> [EligibleRole] { roles[tenantKey] ?? [] }
     private func matchesFilter(_ role: EligibleRole) -> Bool {
@@ -244,7 +243,7 @@ final class AppModel {
         guard isFiltering else { return ordered }
         return ordered.filter { a in
             if let r = role(for: a.roleKey) { return matchesFilter(r) }
-            return summaryName(for: a.roleKey).range(of: searchQuery.trimmingCharacters(in: .whitespaces), options: [.caseInsensitive, .diacriticInsensitive]) != nil
+            return PanelFilter.matches(query: searchQuery, text: summaryName(for: a.roleKey))
         }
     }
 
@@ -474,6 +473,8 @@ final class AppModel {
 
     /// Called when the menu bar panel opens. Runs in its own task so closing the panel cannot cancel it.
     func panelOpened() {
+        // A stale filter must never survive a reopen: the panel always opens showing everything.
+        searchQuery = ""
         guard bootstrapped, isOnline, !identities.isEmpty, Date().timeIntervalSince(lastRefresh) > 30 else { return }
         Task { await self.refreshAll() }
     }

@@ -8,6 +8,8 @@ struct AssignmentControls: View {
     let key: RoleKey
     let assignment: ActiveAssignment?
     var viewOnlyReason: String? = nil
+    /// Policy of the role behind this assignment; Extend is withheld when it needs approval.
+    var policy: RolePolicy = .manualDefault
     /// The summary never offers Activate (its rows are already active or pending).
     var allowActivate: Bool = true
 
@@ -29,7 +31,7 @@ struct AssignmentControls: View {
                     Text(assignment?.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .frame(width: PanelMetrics.countdownWidth, alignment: .trailing)
-                    if let a = assignment, ExtendWindow.canExtend(a, now: ctx.date) {
+                    if let a = assignment, lockedFor <= 0, ExtendWindow.canExtend(a, policy: policy, now: ctx.date) {
                         Button("Extend") { open(.activate([key])) }
                             .controlSize(.small)
                             .disabled(!model.isOnline)

@@ -10,11 +10,17 @@ import Foundation
     }
 
     @Test func offeredOnlyInsideTheWindowWhileActive() {
-        #expect(ExtendWindow.canExtend(a(.active, end: 900), now: now))
-        #expect(ExtendWindow.canExtend(a(.active, end: 1), now: now))
-        #expect(!ExtendWindow.canExtend(a(.active, end: 901), now: now))
-        #expect(!ExtendWindow.canExtend(a(.active, end: 0), now: now))
-        #expect(!ExtendWindow.canExtend(a(.active, end: nil), now: now))
-        #expect(!ExtendWindow.canExtend(a(.pendingApproval, end: 100), now: now))
+        #expect(ExtendWindow.canExtend(a(.active, end: 900), policy: .manualDefault, now: now))
+        #expect(ExtendWindow.canExtend(a(.active, end: 1), policy: .manualDefault, now: now))
+        #expect(!ExtendWindow.canExtend(a(.active, end: 901), policy: .manualDefault, now: now))
+        #expect(!ExtendWindow.canExtend(a(.active, end: 0), policy: .manualDefault, now: now))
+        #expect(!ExtendWindow.canExtend(a(.active, end: nil), policy: .manualDefault, now: now))
+        #expect(!ExtendWindow.canExtend(a(.pendingApproval, end: 100), policy: .manualDefault, now: now))
+    }
+
+    @Test func neverOfferedWhenTheRoleNeedsApproval() {
+        var policy = RolePolicy.manualDefault
+        policy.requiresApproval = true
+        #expect(!ExtendWindow.canExtend(a(.active, end: 300), policy: policy, now: now))
     }
 }
