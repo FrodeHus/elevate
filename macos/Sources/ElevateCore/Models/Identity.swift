@@ -56,13 +56,16 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
     /// What the Graph token in this tenant allows for Entra roles. nil until a refresh has looked
     /// at a token; the UI then falls back to the sign-in method's known capabilities.
     public var entraActivation: EntraActivationSupport?
+    /// Set when the group PIM reads are not permitted in this tenant (missing admin consent).
+    /// The group provider is skipped while it is set; "Retry discovery" clears it.
+    public var groupsUnavailableReason: String?
 
     public var id: TenantKey { TenantKey(identityId: identityId, tenantId: tenantId) }
 
     public init(identityId: String, tenantId: String, displayName: String, source: Source,
                 discoveryMode: DiscoveryMode = .automatic, principalObjectId: String? = nil,
                 lastDiscoveryError: String? = nil, azureUnavailableReason: String? = nil,
-                entraActivation: EntraActivationSupport? = nil) {
+                entraActivation: EntraActivationSupport? = nil, groupsUnavailableReason: String? = nil) {
         self.identityId = identityId
         self.tenantId = tenantId
         self.displayName = displayName
@@ -72,6 +75,7 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
         self.lastDiscoveryError = lastDiscoveryError
         self.azureUnavailableReason = azureUnavailableReason
         self.entraActivation = entraActivation
+        self.groupsUnavailableReason = groupsUnavailableReason
     }
 }
 
