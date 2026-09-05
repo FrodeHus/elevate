@@ -22,6 +22,13 @@ final class AppModel {
         set { settings.panelTab = newValue; selection.removeAll() }
     }
 
+    var collapsedActive: Bool { settings.collapsedActive }
+    func toggleActive() { settings.collapsedActive.toggle() }
+
+    /// Panel search. Not persisted; changing it drops the bulk selection since rows may disappear.
+    var searchQuery = "" { didSet { if searchQuery != oldValue { selection.removeAll() } } }
+    var isFiltering: Bool { PanelFilter.isActive(searchQuery) }
+
     static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
         tab == .groups ? [.group] : [.entraDirectory, .azureResource]
     }
@@ -194,9 +201,47 @@ final class AppModel {
     var activeCount: Int { active.values.filter { $0.status == .active }.count }
     func tenants(for identityId: String) -> [TenantContext] { state.tenants(for: identityId) }
     func roles(for tenantKey: TenantKey) -> [EligibleRole] { roles[tenantKey] ?? [] }
+    private func matchesFilter(_ role: EligibleRole) -> Bool {
+        guard isFiltering else { return true }
+        let tenantName = tenant(role.key.tenantKey)?.displayName ?? role.key.tenantId
+        let upn = identity(role.key.identityId)?.upn ?? ""
+        return PanelFilter.matches(query: searchQuery, role: role, tenantName: tenantName, upn: upn)
+    }
+
     func roles(for tenantKey: TenantKey, tab: PanelTab) -> [EligibleRole] {
         let kinds = Self.kinds(for: tab)
-        return roles(for: tenantKey).filter { kinds.contains($0.key.scope.kind) }
+        return roles(for: tenantKey).filter { kinds.contains($0.key.scope.kind) && matchesFilter($0) }
+    }
+
+    /// While filtering, only tenants with a matching row in the current tab; otherwise all of them.
+    func visibleTenants(for identityId: String) -> [TenantContext] {
+        let all = tenants(for: identityId)
+        guard isFiltering else { return all }
+        return all.filter { !roles(for: $0.id, tab: panelTab).isEmpty }
+    }
+
+    var visibleIdentities: [Identity] {
+        guard isFiltering else { return identities }
+        return identities.filter { !visibleTenants(for: $0.id).isEmpty }
+    }
+
+    /// Name for the summary row; before the eligible list has loaded only the key is known.
+    func summaryName(for key: RoleKey) -> String {
+        if let r = role(for: key) { return r.displayName }
+        switch key.scope {
+        case .entraDirectory(let id, _): return id
+        case .azureResource(let scope, let id): return "\(id.components(separatedBy: "/").last ?? id) @ \(scope)"
+        case .group(let gid, let access): return "\(gid) (\(access == .owner ? "owner" : "member"))"
+        }
+    }
+
+    var activeAssignmentsOrdered: [ActiveAssignment] {
+        let ordered = ActiveSummary.order(Array(active.values))
+        guard isFiltering else { return ordered }
+        return ordered.filter { a in
+            if let r = role(for: a.roleKey) { return matchesFilter(r) }
+            return summaryName(for: a.roleKey).range(of: searchQuery.trimmingCharacters(in: .whitespaces), options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
     }
 
     /// Why the Groups tab is empty by construction for this tenant, or nil when groups are read normally.

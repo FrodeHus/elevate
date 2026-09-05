@@ -12,6 +12,7 @@ final class AppSettings {
     static let clientIdKey = "clientId"
     static let customClientIdKey = "customLoopbackClientId"
     static let panelTabKey = "panelTab"
+    static let collapsedActiveKey = "collapsedActive"
 
     private let defaults: UserDefaults
 
@@ -30,6 +31,11 @@ final class AppSettings {
         didSet { defaults.set(panelTab.rawValue, forKey: Self.panelTabKey) }
     }
 
+    /// Whether the panel's "Active now" summary is collapsed; remembered between launches.
+    var collapsedActive: Bool {
+        didSet { defaults.set(collapsedActive, forKey: Self.collapsedActiveKey) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
@@ -45,6 +51,7 @@ final class AppSettings {
         clientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
+        collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }
