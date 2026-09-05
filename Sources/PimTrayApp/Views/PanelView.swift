@@ -1,6 +1,15 @@
 import SwiftUI
 import PimTrayCore
 
+enum PanelMetrics {
+    static let width: CGFloat = 380
+    static let maxListHeight: CGFloat = 460
+    static let headerInset: CGFloat = 12      // account row, tenant header
+    static let roleInset: CGFloat = 28        // role rows: status-dot column
+    static let trailingInset: CGFloat = 12
+    static let countdownWidth: CGFloat = 44
+}
+
 struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
@@ -36,15 +45,17 @@ struct PanelView: View {
                 // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
                 // to zero; size it from the measured content instead, capped so long lists scroll.
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ForEach(model.identities) { identity in
-                            IdentitySection(identity: identity)
+                            IdentityHeader(identity: identity)
+                            ForEach(model.tenants(for: identity.id)) { tenant in
+                                TenantBlock(identity: identity, tenant: tenant)
+                            }
                         }
                     }
-                    .padding(10)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }
-                .frame(height: min(max(contentHeight, 44), 520))
+                .frame(height: min(max(contentHeight, 44), PanelMetrics.maxListHeight))
             }
             if model.selectMode {
                 Divider()
@@ -62,7 +73,7 @@ struct PanelView: View {
             Divider()
             footer
         }
-        .frame(width: 380)
+        .frame(width: PanelMetrics.width)
     }
 
     private var header: some View {
@@ -102,5 +113,20 @@ struct PanelView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+/// A tenant's pinned header plus its role rows, as one `Section` so the header sticks while its rows scroll.
+struct TenantBlock: View {
+    let identity: Identity
+    let tenant: TenantContext
+    @State private var expanded = true
+
+    var body: some View {
+        Section {
+            if expanded { TenantRoles(tenant: tenant) }
+        } header: {
+            TenantHeader(tenant: tenant, identity: identity, expanded: $expanded)
+        }
     }
 }

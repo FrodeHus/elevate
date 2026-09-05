@@ -24,8 +24,10 @@ struct RoleRow: View {
             Spacer()
             trailing
         }
+        .frame(minHeight: 28)
         .padding(.vertical, 3)
-        .padding(.leading, 4)
+        .padding(.leading, PanelMetrics.roleInset)
+        .padding(.trailing, PanelMetrics.trailingInset)
     }
 
     @ViewBuilder private var statusDot: some View {
@@ -55,6 +57,7 @@ struct RoleRow: View {
                 if let end = assignment?.endDateTime {
                     Text(Countdown.remaining(until: end, now: ctx.date).map(Countdown.label) ?? "expired")
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .frame(width: PanelMetrics.countdownWidth, alignment: .trailing)
                 }
                 Button("Deactivate") { Task { await model.deactivate(role.key) } }
                     .controlSize(.small)
