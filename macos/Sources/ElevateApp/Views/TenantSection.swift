@@ -26,13 +26,18 @@ struct TenantHeader: View {
             }
             .foregroundStyle(.secondary)
             HStack(spacing: 6) {
+                // One plain button for chevron + name: a bare tap gesture next to a borderless Menu
+                // loses to the menu's hit area, which stretches across the row.
                 Button { withAnimation(.snappy) { model.toggleTenant(tenant.id) } } label: {
-                    Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+                            .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+                        Text(tenant.displayName).font(.subheadline)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain).accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
-                Text(tenant.displayName).font(.subheadline)
-                    .contentShape(Rectangle()).onTapGesture { withAnimation(.snappy) { model.toggleTenant(tenant.id) } }
+                .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
                 if tenant.source == .home { Text("home").font(.caption2).foregroundStyle(.secondary) }
                 if tenant.discoveryMode == .manualRoles {
                     Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
@@ -50,7 +55,7 @@ struct TenantHeader: View {
                 if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
                 Spacer()
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
-                Menu {
+                HeaderMenu(label: "Tenant actions") {
                     Button("Configure known PIM roles…") { open(.configureRoles(tenant.id)) }
                     Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
                     if tenant.discoveryMode == .manualRoles,
@@ -60,10 +65,7 @@ struct TenantHeader: View {
                     Divider()
                     Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
                         .disabled(tenant.source == .home)
-                } label: { Image(systemName: "ellipsis.circle") }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .accessibilityLabel("Tenant actions")
+                }
             }
         }
         .padding(.leading, PanelMetrics.headerInset)

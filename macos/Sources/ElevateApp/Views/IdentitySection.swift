@@ -11,34 +11,33 @@ struct IdentityHeader: View {
         let expanded = !model.collapsedIdentities.contains(identity.id)
         HStack(spacing: 8) {
             Button { withAnimation(.snappy) { model.toggleIdentity(identity.id) } } label: {
-                Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+                    Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
+                    Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                }
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain).accessibilityLabel(expanded ? "Collapse account" : "Expand account")
-            Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                    .contentShape(Rectangle()).onTapGesture { withAnimation(.snappy) { model.toggleIdentity(identity.id) } }
-                HStack(spacing: 6) {
-                    if identity.signInMethod != .ownApp {
-                        Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
-                    }
-                    // Account-level badge follows the tenants: it disappears once every tenant's token proves the write scope.
-                    if let reason = model.tenants(for: identity.id).lazy.compactMap({ model.entraViewOnlyReason(for: $0.id) }).first
-                        ?? (model.tenants(for: identity.id).isEmpty ? identity.signInMethod.entraViewOnlyReason : nil) {
-                        ViewOnlyBadge(reason: reason)
-                    }
+            .buttonStyle(.plain)
+            .accessibilityLabel(expanded ? "Collapse account" : "Expand account")
+            HStack(spacing: 6) {
+                if identity.signInMethod != .ownApp {
+                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                }
+                // Account-level badge follows the tenants: it disappears once every tenant's token proves the write scope.
+                if let reason = model.tenants(for: identity.id).lazy.compactMap({ model.entraViewOnlyReason(for: $0.id) }).first
+                    ?? (model.tenants(for: identity.id).isEmpty ? identity.signInMethod.entraViewOnlyReason : nil) {
+                    ViewOnlyBadge(reason: reason)
                 }
             }
             Spacer(minLength: 8)
-            Menu {
+            HeaderMenu(label: "Account actions") {
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
                 Divider()
                 Button("Sign out", role: .destructive) { model.signOut(identity) }
-            } label: { Image(systemName: "ellipsis.circle") }
-            .menuStyle(.borderlessButton).fixedSize()
-            .accessibilityLabel("Account actions")
+            }
         }
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.vertical, 7)
@@ -76,4 +75,19 @@ struct StatusPill: View {
 struct ViewOnlyBadge: View {
     let reason: String
     var body: some View { StatusPill(text: "Azure roles only", help: reason) }
+}
+
+/// The "…" menu at the trailing edge of a header. Pinned to a fixed width with its indicator
+/// hidden so its click target is the glyph alone and never the rest of the row.
+struct HeaderMenu<Content: View>: View {
+    let label: String
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        Menu(content: content) { Image(systemName: "ellipsis.circle") }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 22, height: 20)
+            .fixedSize()
+            .accessibilityLabel(label)
+    }
 }
