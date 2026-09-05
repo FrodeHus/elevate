@@ -40,7 +40,7 @@ struct AddAccountView: View {
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Custom app (loopback)")
-                    Text("Another public-client registration, e.g. your company's PIM app; signs in through the browser and http://localhost")
+                    Text("An Entra app registration without a macOS platform, e.g. your company's PIM app; signs in through the browser with the standard http://localhost loopback redirect")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .tag(Choice.custom)
@@ -110,7 +110,7 @@ struct AddAccountView: View {
         case .azurePowerShell:
             "Azure resource roles only; for tenants that block the Azure CLI app"
         case .custom:
-            "Another public-client registration used through the loopback flow"
+            "An Entra app registration without a macOS platform, used through the loopback flow"
         }
     }
 
