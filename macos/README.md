@@ -40,6 +40,15 @@ combination (at least one of ⌘ ⌃ ⌥) and pick a profile; pressing it runs t
 Option-clicking its chip, or opens the run sheet when input is needed. macOS offers no supported
 way to open a menu bar panel from a shortcut, so the shortcut runs a profile instead.
 
+**Approvals.** When you are an approver, requests awaiting your decision appear in a pinned
+Approvals section above Active now, across all accounts and tenants: requester, role or group,
+tenant, requested duration, and the requester's reason on hover. Approve and Deny open a short
+sheet with a justification (required for Deny). A notification announces each new request; the
+menu bar shows a person-with-clock glyph while any are pending. Extend and renew requests (and any
+request type other than an activation) cannot be decided through the Microsoft APIs and are marked
+"Decide in the portal". Accounts added with the Azure CLI or Azure PowerShell app see Azure resource
+approvals only. A tenant that refuses the approver read simply shows nothing.
+
 ## Sign-in methods
 
 > **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports Azure resource roles only**: Elevate does not call the Graph PIM APIs for it at all, so no Entra roles are discovered or activated and no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
