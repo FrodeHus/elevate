@@ -164,3 +164,18 @@ import Foundation
         }
     }
 }
+
+@Suite struct FirstPartyForbiddenTests {
+    @Test func forbiddenForFirstPartyIdentityCarriesServerMessage() async throws {
+        let http = StubHTTPClient()
+        await http.on("GET", "roleEligibilitySchedules", status: 403, body: Data(#"{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}"#.utf8))
+        let provider = EntraDirectoryProvider(http: http, tokens: FakeTokenProvider())
+        let identity = Identity(id: "id1", upn: "u@x", displayName: "U", homeTenantId: "t1", signInMethod: .azureCLI)
+        let tenant = TenantContext(identityId: "id1", tenantId: "t1", displayName: "T", source: .home)
+        await #expect(throws: PIMError.forbidden("Insufficient privileges to complete the operation.")) {
+            _ = try await provider.eligibleRoles(identity: identity, tenant: tenant)
+        }
+        #expect(PIMError.forbidden("x").userMessage == "Not permitted: x")
+        #expect(PIMError.unexpected(status: 500, body: "boom").userMessage == "Unexpected response (500): boom")
+    }
+}

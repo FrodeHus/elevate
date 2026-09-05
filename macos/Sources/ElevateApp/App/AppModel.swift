@@ -16,6 +16,11 @@ final class AppModel {
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     private(set) var inFlight: Set<RoleKey> = []
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
+    /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
+    var collapsedTenants: Set<TenantKey> = []
+    var collapsedIdentities: Set<String> = []
+    func toggleTenant(_ key: TenantKey) { if collapsedTenants.contains(key) { collapsedTenants.remove(key) } else { collapsedTenants.insert(key) } }
+    func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
     var selection: Set<RoleKey> = []
     var startupError: String?
     /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.

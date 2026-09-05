@@ -8,7 +8,7 @@ struct TenantHeader: View {
     @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
     let identity: Identity
-    @Binding var expanded: Bool
+    private var expanded: Bool { !model.collapsedTenants.contains(tenant.id) }
 
     private var roles: [EligibleRole] { model.roles(for: tenant.id) }
     private var activeCount: Int { roles.filter { model.assignment(for: $0.key)?.status == .active }.count }
@@ -24,12 +24,13 @@ struct TenantHeader: View {
             }
             .foregroundStyle(Color.accentColor)
             HStack(spacing: 6) {
-                Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+                Button { withAnimation(.snappy) { model.toggleTenant(tenant.id) } } label: {
                     Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
                 }
                 .buttonStyle(.plain).accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
                 Text(tenant.displayName).font(.subheadline)
+                    .contentShape(Rectangle()).onTapGesture { withAnimation(.snappy) { model.toggleTenant(tenant.id) } }
                 if tenant.source == .home { Text("home").font(.caption2).foregroundStyle(.secondary) }
                 if tenant.discoveryMode == .manualRoles {
                     Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)

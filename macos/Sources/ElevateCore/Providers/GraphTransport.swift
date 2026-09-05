@@ -36,7 +36,12 @@ public struct GraphTransport: Sendable {
         req.headers["Accept"] = "application/json"
         let response = try await http.send(req)
         if (200..<300).contains(response.status) { return response }
-        throw mapper(response)
+        let error = mapper(response)
+        // Admin consent only helps the user's own app registration; for a first-party sign-in a 403 is a plain refusal.
+        if case .consentRequired = error, identity.signInMethod != .ownApp {
+            throw PIMError.forbidden(Self.graphMessage(response.bodyText) ?? (response.bodyText.isEmpty ? "HTTP 403" : String(response.bodyText.prefix(300))))
+        }
+        throw error
     }
 
     public static func mapError(_ r: HTTPResponse) -> PIMError {

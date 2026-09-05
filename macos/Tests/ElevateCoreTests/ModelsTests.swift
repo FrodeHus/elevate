@@ -53,6 +53,6 @@ import Foundation
     @Test func unexpectedWithStatusZeroShowsTheBody() {
         #expect(PIMError.unexpected(status: 0, body: "Enter the client ID as a GUID").userMessage == "Enter the client ID as a GUID")
         #expect(PIMError.unexpected(status: 0, body: "").userMessage == "Unexpected error")
-        #expect(PIMError.unexpected(status: 503, body: "gateway").userMessage == "Unexpected response (503)")
+        #expect(PIMError.unexpected(status: 503, body: "gateway").userMessage == "Unexpected response (503): gateway")
     }
 }

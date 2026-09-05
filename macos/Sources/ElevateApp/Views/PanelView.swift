@@ -48,8 +48,10 @@ struct PanelView: View {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ForEach(model.identities) { identity in
                             IdentityHeader(identity: identity)
-                            ForEach(model.tenants(for: identity.id)) { tenant in
-                                TenantBlock(identity: identity, tenant: tenant)
+                            if !model.collapsedIdentities.contains(identity.id) {
+                                ForEach(model.tenants(for: identity.id)) { tenant in
+                                    TenantBlock(identity: identity, tenant: tenant)
+                                }
                             }
                         }
                     }
@@ -120,15 +122,15 @@ struct PanelView: View {
 
 /// A tenant's pinned header plus its role rows, as one `Section` so the header sticks while its rows scroll.
 struct TenantBlock: View {
+    @Environment(AppModel.self) private var model
     let identity: Identity
     let tenant: TenantContext
-    @State private var expanded = true
 
     var body: some View {
         Section {
-            if expanded { TenantRoles(tenant: tenant) }
+            if !model.collapsedTenants.contains(tenant.id) { TenantRoles(tenant: tenant) }
         } header: {
-            TenantHeader(tenant: tenant, identity: identity, expanded: $expanded)
+            TenantHeader(tenant: tenant, identity: identity)
         }
     }
 }

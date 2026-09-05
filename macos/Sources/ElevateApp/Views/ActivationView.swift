@@ -53,6 +53,11 @@ struct ActivationView: View {
     private var singleDuration: some View {
         Group {
             if let item = items.first {
+                if case .failed(let error)? = model.progress[item.role.key] {
+                    Label(error.userMessage, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 DurationPicker(duration: Binding(get: { items[0].duration }, set: { items[0].duration = $0 }), maximum: item.role.policy.maximumDuration)
                 if item.role.policy.requiresApproval { Label("This role requires approval", systemImage: "person.badge.clock").font(.caption) }
             }

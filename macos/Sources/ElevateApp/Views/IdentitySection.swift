@@ -8,10 +8,17 @@ struct IdentityHeader: View {
     let identity: Identity
 
     var body: some View {
+        let expanded = !model.collapsedIdentities.contains(identity.id)
         HStack(spacing: 8) {
+            Button { withAnimation(.snappy) { model.toggleIdentity(identity.id) } } label: {
+                Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+            }
+            .buttonStyle(.plain).accessibilityLabel(expanded ? "Collapse account" : "Expand account")
             Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 0) {
                 Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                    .contentShape(Rectangle()).onTapGesture { withAnimation(.snappy) { model.toggleIdentity(identity.id) } }
                 if identity.signInMethod != .ownApp {
                     Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
                 }
