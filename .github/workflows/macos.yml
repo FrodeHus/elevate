@@ -1,0 +1,44 @@
+name: macOS
+
+on:
+  push:
+    branches: [main]
+    paths: ["macos/**", "shared/**", ".github/workflows/macos.yml"]
+  pull_request:
+    paths: ["macos/**", "shared/**", ".github/workflows/macos.yml"]
+
+jobs:
+  core-tests:
+    name: ElevateCore tests
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - name: Swift version
+        run: swift --version
+      - name: Test
+        run: swift test
+
+  app-build:
+    name: ElevateApp build (unsigned)
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build
+        run: >
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug
+          -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          build | tail -5
