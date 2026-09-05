@@ -5,24 +5,24 @@ options:
     macOS: "26.0"
   createIntermediateGroups: true
 packages:
-  PimTrayCore:
+  ElevateCore:
     path: .
   MSAL:
     url: https://github.com/AzureAD/microsoft-authentication-library-for-objc
     from: 2.15.0
 targets:
-  PimTrayApp:
+  ElevateApp:
     type: application
     platform: macOS
     sources:
-      - path: Sources/PimTrayApp
+      - path: Sources/ElevateApp
     dependencies:
-      - package: PimTrayCore
-        product: PimTrayCore
+      - package: ElevateCore
+        product: ElevateCore
       - package: MSAL
         product: MSAL
     info:
-      path: Sources/PimTrayApp/Info.plist
+      path: Sources/ElevateApp/Info.plist
       properties:
         CFBundleDisplayName: Elevate
         CFBundleName: Elevate
@@ -37,7 +37,7 @@ targets:
           - msauthv2
           - msauthv3
     entitlements:
-      path: Sources/PimTrayApp/PimTray.entitlements
+      path: Sources/ElevateApp/Elevate.entitlements
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)com.microsoft.identity.universalstorage
@@ -53,10 +53,10 @@ targets:
         ENABLE_APP_SANDBOX: false
         GENERATE_INFOPLIST_FILE: false
 schemes:
-  PimTrayApp:
+  ElevateApp:
     build:
       targets:
-        PimTrayApp: all
+        ElevateApp: all
     run:
       config: Debug
     test:

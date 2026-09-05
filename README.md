@@ -23,7 +23,7 @@ Formerly PimTray. Elevate is a macOS 26 menu bar app for activating Microsoft En
 
 ```bash
 xcodegen generate
-xcodebuild -project Elevate.xcodeproj -scheme PimTrayApp -configuration Debug -derivedDataPath build build
+xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug -derivedDataPath build -allowProvisioningUpdates build
 open build/Build/Products/Debug/Elevate.app
 ```
 
@@ -61,4 +61,4 @@ row is re-keyed to the resolved role definition id at that point.
 ## Regenerating the role catalogue
 
 Save the markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
-and run `perl Scripts/update-role-catalogue.pl page.md > Sources/PimTrayCore/Resources/EntraBuiltInRoles.json`.
+and run `perl Scripts/update-role-catalogue.pl page.md > Sources/ElevateCore/Resources/EntraBuiltInRoles.json`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
-# Regenerates Sources/PimTrayCore/Resources/EntraBuiltInRoles.json from the
+# Regenerates Sources/ElevateCore/Resources/EntraBuiltInRoles.json from the
 # markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
-# Usage: perl Scripts/update-role-catalogue.pl permissions-reference.md > Sources/PimTrayCore/Resources/EntraBuiltInRoles.json
+# Usage: perl Scripts/update-role-catalogue.pl permissions-reference.md > Sources/ElevateCore/Resources/EntraBuiltInRoles.json
 use strict; use warnings;
 my @roles;
 while (<>) {

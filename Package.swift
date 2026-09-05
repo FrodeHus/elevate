@@ -2,22 +2,22 @@
 import PackageDescription
 
 let package = Package(
-    name: "PimTray",
+    name: "Elevate",
     platforms: [.macOS(.v26)],
     products: [
-        .library(name: "PimTrayCore", targets: ["PimTrayCore"]),
+        .library(name: "ElevateCore", targets: ["ElevateCore"]),
     ],
     targets: [
         .target(
-            name: "PimTrayCore",
-            path: "Sources/PimTrayCore",
+            name: "ElevateCore",
+            path: "Sources/ElevateCore",
             resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
-            name: "PimTrayCoreTests",
-            dependencies: ["PimTrayCore"],
-            path: "Tests/PimTrayCoreTests",
+            name: "ElevateCoreTests",
+            dependencies: ["ElevateCore"],
+            path: "Tests/ElevateCoreTests",
             resources: [.copy("Fixtures")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
