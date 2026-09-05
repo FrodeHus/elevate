@@ -22,7 +22,8 @@ public enum PIMError: Error, Hashable, Sendable {
         case .policyViolation(let m): m
         case .pendingApproval: "Awaiting approval"
         case .network(let m): "Network error: \(m)"
-        case .unexpected(let s, _): "Unexpected response (\(s))"
+        // status 0 is our own marker for "not an HTTP failure": the body is the message.
+        case .unexpected(let s, let body): s == 0 ? (body.isEmpty ? "Unexpected error" : body) : "Unexpected response (\(s))"
         }
     }
 }

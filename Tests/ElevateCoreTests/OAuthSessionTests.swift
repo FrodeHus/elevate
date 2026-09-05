@@ -52,7 +52,7 @@ import Foundation
     @Test func storeAndSignOut() async throws {
         let store = InMemoryRefreshTokenStore()
         let s = session(StubHTTPClient(), store: store)
-        await s.store(TokenResponse(accessToken: "AT", refreshToken: "RT", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        await s.cache(TokenResponse(accessToken: "AT", refreshToken: "RT", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
         #expect(try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) == "AT")
         #expect(try await s.knownIdentityIds() == ["i"])
         try await s.signOut(identityId: "i")
@@ -62,11 +62,54 @@ import Foundation
 
     @Test func persistenceFailureIsRecordedButTokenStaysUsable() async throws {
         let s = OAuthSession(clientId: clientId, client: AuthorizationCodeClient(http: StubHTTPClient()), store: FailingRefreshTokenStore())
-        await s.store(TokenResponse(accessToken: "AT", refreshToken: "RT", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        await s.cache(TokenResponse(accessToken: "AT", refreshToken: "RT", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
         #expect(try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) == "AT")
         let recorded = await s.persistenceError()
         #expect(recorded?.contains("keychain unavailable") == true)
         #expect(await s.lastPersistenceError == recorded)
+    }
+
+    @Test func definitivelyRejectedRefreshTokenIsDeleted() async throws {
+        let http = StubHTTPClient()
+        let store = InMemoryRefreshTokenStore(); try store.save("RT", identityId: "i")
+        await http.on("POST", "/oauth2/v2.0/token", status: 400,
+                      body: Data(#"{"error":"invalid_grant","error_description":"AADSTS700082: refresh token expired"}"#.utf8))
+        let s = session(http, store: store)
+        await #expect(throws: PIMError.interactionRequired) { _ = try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) }
+        #expect(try store.load(identityId: "i") == nil)
+    }
+
+    @Test func mfaRefreshFailureKeepsTheToken() async throws {
+        let http = StubHTTPClient()
+        let store = InMemoryRefreshTokenStore(); try store.save("RT", identityId: "i")
+        await http.on("POST", "/oauth2/v2.0/token", status: 400,
+                      body: Data(#"{"error":"invalid_grant","error_description":"AADSTS50076: MFA required"}"#.utf8))
+        let s = session(http, store: store)
+        await #expect(throws: PIMError.interactionRequired) { _ = try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) }
+        #expect(try store.load(identityId: "i") == "RT")
+    }
+
+    @Test func failedRefreshClearsInFlightSoTheNextCallRetries() async throws {
+        let http = StubHTTPClient()
+        let store = InMemoryRefreshTokenStore(); try store.save("RT", identityId: "i")
+        // Transient sub-code, so the token survives the first failure and the retry can reuse it.
+        await http.on("POST", "/t/oauth2/v2.0/token", status: 400,
+                      body: Data(#"{"error":"invalid_grant","error_description":"AADSTS50158: external claims"}"#.utf8))
+        let s = session(http, store: store)
+        await #expect(throws: PIMError.interactionRequired) { _ = try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) }
+        await #expect(throws: PIMError.interactionRequired) { _ = try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) }
+        #expect(await http.requests.count == 2)
+    }
+
+    @Test func persistenceErrorClearsAfterALaterSuccessfulSave() async throws {
+        let store = FlakyRefreshTokenStore()
+        let s = OAuthSession(clientId: clientId, client: AuthorizationCodeClient(http: StubHTTPClient()), store: store)
+        await s.cache(TokenResponse(accessToken: "AT1", refreshToken: "RT1", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        #expect(await s.persistenceError()?.contains("keychain unavailable") == true)
+        store.recover()
+        await s.cache(TokenResponse(accessToken: "AT2", refreshToken: "RT2", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        #expect(await s.persistenceError() == nil)
+        #expect(try store.load(identityId: "i") == "RT2")
     }
 
     @Test func concurrentRefreshesShareOneRequest() async throws {
@@ -88,6 +131,24 @@ struct FailingRefreshTokenStore: RefreshTokenStore {
     func save(_ token: String, identityId: String) throws { throw PIMError.unexpected(status: -25308, body: "keychain unavailable") }
     func delete(identityId: String) throws {}
     func allIdentityIds() throws -> [String] { [] }
+}
+
+/// Store whose `save` fails until `recover()` is called, standing in for a keychain that comes back.
+final class FlakyRefreshTokenStore: RefreshTokenStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var healthy = false
+    private var tokens: [String: String] = [:]
+
+    func recover() { lock.withLock { healthy = true } }
+    func load(identityId: String) throws -> String? { lock.withLock { tokens[identityId] } }
+    func save(_ token: String, identityId: String) throws {
+        try lock.withLock {
+            guard healthy else { throw PIMError.unexpected(status: -25308, body: "keychain unavailable") }
+            tokens[identityId] = token
+        }
+    }
+    func delete(identityId: String) throws { lock.withLock { tokens[identityId] = nil } }
+    func allIdentityIds() throws -> [String] { lock.withLock { tokens.keys.sorted() } }
 }
 
 final class Clock: @unchecked Sendable {

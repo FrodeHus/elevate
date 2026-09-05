@@ -7,6 +7,7 @@ public protocol RefreshTokenStore: Sendable {
     func allIdentityIds() throws -> [String]
 }
 
+/// Non-persistent store for tests and previews; production uses the keychain-backed store in the app.
 public final class InMemoryRefreshTokenStore: RefreshTokenStore, @unchecked Sendable {
     private let lock = NSLock()
     private var tokens: [String: String] = [:]
@@ -58,19 +59,31 @@ public actor OAuthSession {
         guard let refreshToken = try store.load(identityId: key.identityId) else { throw PIMError.interactionRequired }
         let response: TokenResponse
         do {
-            response = try await client.refresh(refreshToken: refreshToken, clientId: clientId, tenant: key.tenantId, scopes: [key.resource])
-        } catch let e as PIMError {
-            switch e {
-            case .interactionRequired, .consentRequired, .claimsChallenge: throw e
-            case .network: throw e
-            default: throw PIMError.network(e.userMessage)
+            response = try await client.refreshClassified(refreshToken: refreshToken, clientId: clientId, tenant: key.tenantId, scopes: [key.resource])
+        } catch let outcome as RefreshOutcomeError {
+            // The server rejected the refresh token itself, so it will never work again: drop it
+            // rather than keep re-sending it. Transient, consent and MFA failures keep the token.
+            if outcome.definitive, outcome.error == .interactionRequired {
+                try? store.delete(identityId: key.identityId)
             }
+            throw Self.surfaced(outcome.error)
+        } catch let e as PIMError {
+            throw Self.surfaced(e)
         }
-        store(response, identityId: key.identityId, tenantId: key.tenantId, scopes: scopes)
+        cache(response, identityId: key.identityId, tenantId: key.tenantId, scopes: scopes)
         return response.accessToken
     }
 
-    public func store(_ response: TokenResponse, identityId: String, tenantId: String, scopes: [String]) {
+    /// Errors the UI knows how to act on pass through; anything else becomes a network failure.
+    private static func surfaced(_ e: PIMError) -> PIMError {
+        switch e {
+        case .interactionRequired, .consentRequired, .claimsChallenge, .network: e
+        default: .network(e.userMessage)
+        }
+    }
+
+    /// Caches the access token and persists the rotated refresh token, if the response carried one.
+    public func cache(_ response: TokenResponse, identityId: String, tenantId: String, scopes: [String]) {
         let resource = AuthorizationCodeClient.resourceScope(for: scopes)
         cache[CacheKey(identityId: identityId, tenantId: tenantId, resource: resource)] = Entry(token: response.accessToken, expiresAt: now().addingTimeInterval(TimeInterval(response.expiresIn)))
         guard let rt = response.refreshToken else { return }

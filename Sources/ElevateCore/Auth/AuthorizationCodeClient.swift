@@ -34,6 +34,19 @@ public struct IdTokenClaims: Sendable {
     }
 }
 
+/// A failed refresh, carrying both the mapped error and whether the refresh token is now dead.
+///
+/// `definitive` means the server rejected the token itself (`invalid_grant` with no transient or
+/// MFA sub-code), so keeping it would only produce the same failure on every later attempt.
+public struct RefreshOutcomeError: Error, Sendable {
+    public let error: PIMError
+    public let definitive: Bool
+    public init(error: PIMError, definitive: Bool) {
+        self.error = error
+        self.definitive = definitive
+    }
+}
+
 /// Microsoft identity platform v2 authorization-code flow for public clients (PKCE, no secret).
 public struct AuthorizationCodeClient: Sendable {
     let http: any HTTPClient
@@ -74,12 +87,40 @@ public struct AuthorizationCodeClient: Sendable {
         ])
     }
 
+    /// Same as `refresh`, but classifies the failure so the caller can drop a dead refresh token.
+    public func refreshClassified(refreshToken: String, clientId: String, tenant: String, scopes: [String]) async throws -> TokenResponse {
+        let r = try await post(tenant: tenant, form: [
+            "client_id": clientId, "grant_type": "refresh_token", "refresh_token": refreshToken,
+            "scope": scopes.joined(separator: " "),
+        ])
+        guard (200..<300).contains(r.status) else {
+            throw RefreshOutcomeError(error: Self.mapTokenError(status: r.status, body: r.body),
+                                      definitive: Self.isDefinitiveRefreshFailure(status: r.status, body: r.body))
+        }
+        return try JSONDecoder().decode(TokenResponse.self, from: r.body)
+    }
+
     private func token(tenant: String, form: [String: String]) async throws -> TokenResponse {
-        let url = URL(string: "https://login.microsoftonline.com/\(tenant)/oauth2/v2.0/token")!
-        let body = form.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.formEncode($0.value))" }.joined(separator: "&")
-        let r = try await http.send(HTTPRequest(method: "POST", url: url, headers: ["Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"], body: Data(body.utf8)))
+        let r = try await post(tenant: tenant, form: form)
         guard (200..<300).contains(r.status) else { throw Self.mapTokenError(status: r.status, body: r.body) }
         return try JSONDecoder().decode(TokenResponse.self, from: r.body)
+    }
+
+    private func post(tenant: String, form: [String: String]) async throws -> HTTPResponse {
+        let url = URL(string: "https://login.microsoftonline.com/\(tenant)/oauth2/v2.0/token")!
+        let body = form.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.formEncode($0.value))" }.joined(separator: "&")
+        return try await http.send(HTTPRequest(method: "POST", url: url, headers: ["Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"], body: Data(body.utf8)))
+    }
+
+    /// True when the token endpoint rejected the refresh token itself rather than the session:
+    /// `invalid_grant` without one of the transient / MFA sub-codes that a fresh interactive
+    /// sign-in on the *same* token would clear.
+    public static func isDefinitiveRefreshFailure(status: Int, body: Data) -> Bool {
+        struct E: Decodable { let error: String?; let error_description: String? }
+        let e = try? JSONDecoder().decode(E.self, from: body)
+        guard e?.error == "invalid_grant" else { return false }
+        let desc = e?.error_description ?? String(decoding: body, as: UTF8.self)
+        return !desc.contains(/AADSTS(50076|50079|53000|53001|50158|50173|50133)/)
     }
 
     static func formEncode(_ s: String) -> String {
