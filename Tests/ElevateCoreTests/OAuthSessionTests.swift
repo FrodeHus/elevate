@@ -59,6 +59,35 @@ import Foundation
         #expect(try store.load(identityId: "i") == nil)
         await #expect(throws: PIMError.interactionRequired) { _ = try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) }
     }
+
+    @Test func persistenceFailureIsRecordedButTokenStaysUsable() async throws {
+        let s = OAuthSession(clientId: clientId, client: AuthorizationCodeClient(http: StubHTTPClient()), store: FailingRefreshTokenStore())
+        await s.store(TokenResponse(accessToken: "AT", refreshToken: "RT", expiresIn: 3600, idToken: nil, scope: nil), identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        #expect(try await s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all) == "AT")
+        let recorded = await s.persistenceError()
+        #expect(recorded?.contains("keychain unavailable") == true)
+        #expect(await s.lastPersistenceError == recorded)
+    }
+
+    @Test func concurrentRefreshesShareOneRequest() async throws {
+        let http = StubHTTPClient()
+        let store = InMemoryRefreshTokenStore(); try store.save("RT", identityId: "i")
+        await http.on("POST", "/t/oauth2/v2.0/token", body: Data(#"{"expires_in":3600,"access_token":"AT"}"#.utf8))
+        let s = session(http, store: store)
+        async let a = s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        async let b = s.accessToken(identityId: "i", tenantId: "t", scopes: GraphScopes.all)
+        let (first, second) = try await (a, b)
+        #expect(first == "AT" && second == "AT")
+        #expect(await http.requests.count == 1)
+    }
+}
+
+/// Store whose `save` always fails, standing in for a locked or unavailable keychain.
+struct FailingRefreshTokenStore: RefreshTokenStore {
+    func load(identityId: String) throws -> String? { nil }
+    func save(_ token: String, identityId: String) throws { throw PIMError.unexpected(status: -25308, body: "keychain unavailable") }
+    func delete(identityId: String) throws {}
+    func allIdentityIds() throws -> [String] { [] }
 }
 
 final class Clock: @unchecked Sendable {
