@@ -829,7 +829,10 @@ final class AppModel {
     /// Sends one Approve or Deny. Returns true when the service accepted it; the caller closes its
     /// sheet on true and shows `approvalErrors[request.id]` on false.
     func decide(_ request: ApprovalRequest, approve: Bool, justification: String) async -> Bool {
-        guard !decisionInFlight.contains(request.id) else { return false }
+        guard !decisionInFlight.contains(request.id) else {
+            approvalErrors[request.id] = "A decision for this request is already being sent."
+            return false
+        }
         guard let identity = self.identity(request.tenantKey.identityId) else {
             approvalErrors[request.id] = "That account is no longer signed in."
             return false
@@ -840,6 +843,7 @@ final class AppModel {
         }
         let generation = configGeneration
         decisionInFlight.insert(request.id)
+        approvalErrors[request.id] = nil
         defer { decisionInFlight.remove(request.id) }
         do {
             try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: request.tenantKey.tenantId,

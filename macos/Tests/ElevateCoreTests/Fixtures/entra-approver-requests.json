@@ -22,6 +22,26 @@
       "directoryScopeId": "/",
       "createdDateTime": "2026-09-05T09:00:00Z",
       "scheduleInfo": { "startDateTime": "2026-09-05T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } }
+    },
+    {
+      "id": "areq-3",
+      "status": "PendingApproval",
+      "action": "selfRenew",
+      "principalId": "user-obj-3",
+      "roleDefinitionId": "def-role-3",
+      "directoryScopeId": "/",
+      "createdDateTime": "2026-09-05T10:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T10:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } }
+    },
+    {
+      "id": "areq-4",
+      "status": "PendingApproval",
+      "action": "somethingUnknown",
+      "principalId": "user-obj-4",
+      "roleDefinitionId": "def-role-4",
+      "directoryScopeId": "/",
+      "createdDateTime": "2026-09-05T11:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T11:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } }
     }
   ]
 }

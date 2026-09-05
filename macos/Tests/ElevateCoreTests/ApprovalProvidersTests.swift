@@ -2,6 +2,15 @@ import Testing
 import Foundation
 @testable import ElevateCore
 
+@Suite struct GraphApprovalsActionMappingTests {
+    @Test func selfRenewMapsToRenewAndUnknownMapsToOther() {
+        #expect(GraphApprovals.action("selfRenew") == .renew)
+        #expect(GraphApprovals.action("SelfRenew") == .renew)
+        #expect(GraphApprovals.action("somethingUnknown") == .other)
+        #expect(GraphApprovals.action(nil) == .other)
+    }
+}
+
 @Suite struct EntraApprovalProviderTests {
     let identity = Identity(id: "id1", upn: "u@contoso.com", displayName: "U", homeTenantId: "t-home")
     let tenant = TenantContext(identityId: "id1", tenantId: "t1", displayName: "Contoso", source: .home)
@@ -21,10 +30,10 @@ import Foundation
         let (p, http) = makeProvider()
         await http.on("GET", "approver", body: Fixtures.data("entra-approver-requests"))
         let items = try await p.pendingApprovals(identity: identity, tenant: tenant)
-        #expect(items.map(\.id) == ["areq-1", "areq-2"])
-        #expect(items.map(\.action) == [.activate, .extend])
-        #expect(items.map(\.targetName) == ["Global Administrator", "def-role-2"])
-        #expect(items.map(\.requesterName) == ["Ann Approver", "user-obj-2"])
+        #expect(items.map(\.id) == ["areq-1", "areq-2", "areq-3", "areq-4"])
+        #expect(items.map(\.action) == [.activate, .extend, .renew, .other])
+        #expect(items.map(\.targetName) == ["Global Administrator", "def-role-2", "def-role-3", "def-role-4"])
+        #expect(items.map(\.requesterName).prefix(2) == ["Ann Approver", "user-obj-2"])
         #expect(items[0].requestedDuration == .seconds(4 * 3600))
         #expect(items[0].justification == "Incident 4711")
         #expect(items[0].createdAt == GraphJSON.parseDate("2026-09-05T08:00:00Z"))

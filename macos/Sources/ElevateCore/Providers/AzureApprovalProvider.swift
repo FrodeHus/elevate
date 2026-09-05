@@ -12,8 +12,6 @@ public struct AzureApprovalProvider: ApprovalProvider {
 
     // MARK: Wire models
 
-    struct Expiration: Decodable { let type: String?; let duration: String? }
-    struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
     struct RequestProperties: Decodable {
         let roleDefinitionId: String?
         let principalId: String?
@@ -22,7 +20,7 @@ public struct AzureApprovalProvider: ApprovalProvider {
         let approvalId: String?
         let justification: String?
         let createdOn: Date?
-        let scheduleInfo: ScheduleInfo?
+        let scheduleInfo: AzureResourceProvider.ScheduleInfo?
         let expandedProperties: AzureResourceProvider.Expanded?
     }
     struct Request: Decodable { let name: String; let properties: RequestProperties }
@@ -46,16 +44,6 @@ public struct AzureApprovalProvider: ApprovalProvider {
         return url
     }
 
-    /// `SelfActivate` → activate, `SelfExtend` → extend, `SelfRenew` → renew, anything else → other.
-    static func action(_ raw: String?) -> ApprovalRequest.Action {
-        switch raw?.lowercased() {
-        case "selfactivate": .activate
-        case "selfextend": .extend
-        case "selfrenew": .renew
-        default: .other
-        }
-    }
-
     // MARK: Reads
 
     public func pendingApprovals(identity: Identity, tenant: TenantContext) async throws -> [ApprovalRequest] {
@@ -72,7 +60,7 @@ public struct AzureApprovalProvider: ApprovalProvider {
             guard r.properties.status == "PendingApproval" else { return nil }
             let expanded = r.properties.expandedProperties
             return ApprovalRequest(
-                id: r.name, tenantKey: tenant.id, kind: kind, action: Self.action(r.properties.requestType),
+                id: r.name, tenantKey: tenant.id, kind: kind, action: GraphApprovals.action(r.properties.requestType),
                 targetName: expanded?.roleDefinition?.displayName ?? r.properties.roleDefinitionId ?? r.name,
                 scopeCaption: AzureResourceProvider.caption(expanded),
                 requesterName: expanded?.principal?.displayName ?? r.properties.principalId ?? "Unknown",

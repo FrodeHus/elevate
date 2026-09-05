@@ -48,6 +48,33 @@
         "status": "Provisioned",
         "createdOn": "2026-09-05T07:00:00Z"
       }
+    },
+    {
+      "name": "areq-4",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleAssignmentScheduleRequests/areq-4",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "principalId": "user-obj-4",
+        "requestType": "SelfRenew",
+        "status": "PendingApproval",
+        "approvalId": "appr-4",
+        "createdOn": "2026-09-05T10:00:00Z",
+        "scheduleInfo": { "startDateTime": "2026-09-05T10:00:00Z", "expiration": { "type": "AfterDuration", "duration": "PT4H", "endDateTime": null } }
+      }
+    },
+    {
+      "name": "areq-5",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleAssignmentScheduleRequests/areq-5",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "principalId": "user-obj-5",
+        "requestType": "SomethingUnknown",
+        "status": "PendingApproval",
+        "approvalId": "appr-5",
+        "createdOn": "2026-09-05T11:00:00Z"
+      }
     }
   ]
 }
