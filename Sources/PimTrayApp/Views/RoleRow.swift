@@ -18,6 +18,7 @@ struct RoleRow: View {
             statusDot
             VStack(alignment: .leading, spacing: 1) {
                 Text(role.displayName).font(.body)
+                if let detail = role.detail { Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
             }
             Spacer()

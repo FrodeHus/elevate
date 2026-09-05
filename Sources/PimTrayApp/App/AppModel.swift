@@ -250,81 +250,108 @@ final class AppModel {
     }
 
     func refresh(_ key: TenantKey) async {
-        guard let identity = self.identity(key.identityId), var tenant = self.tenant(key),
-              let provider = coordinator.provider(for: .entraDirectory) else { return }
+        guard let identity = self.identity(key.identityId), var tenant = self.tenant(key) else { return }
         guard !busy.contains(key) else { return }
         busy.insert(key)
         defer { busy.remove(key) }
         tenantErrors[key] = nil
 
-        // Start from what we already know so a transient failure never blanks the list.
-        var discovered: [EligibleRole] = roles(for: key).filter { $0.source == .discovered }
-        // A tenant without consent must not be prodded with interactive prompts on every refresh.
+        let providers: [any PIMProvider] = [RoleScopeKind.entraDirectory, .azureResource].compactMap { coordinator.provider(for: $0) }
+        // Start from what we already know so a transient failure never blanks a provider's rows.
+        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered }) { $0.key.scope.kind }
+        var errors: [String] = []
         var consentBlocked = tenant.discoveryMode != .automatic
-        if tenant.discoveryMode == .automatic {
+        var kindsWithActive: Set<RoleScopeKind> = []
+        var current: [ActiveAssignment] = []
+
+        for provider in providers {
+            let kind = provider.kind
+            let isEntra = kind == .entraDirectory
             let tenantSnapshot = tenant
-            do {
-                discovered = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
-                    try await provider.eligibleRoles(identity: identity, tenant: tenantSnapshot)
+            // Eligible roles. Entra honours the consent block; ARM consent is user-consentable.
+            if !(isEntra && consentBlocked) {
+                do {
+                    let found = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+                        try await provider.eligibleRoles(identity: identity, tenant: tenantSnapshot)
+                    }
+                    discoveredByKind[kind] = await applyPolicies(to: found, identity: identity)
+                } catch PIMError.consentRequired where isEntra {
+                    discoveredByKind[kind] = []
+                    consentBlocked = true
+                    tenant.discoveryMode = .manualRoles
+                    tenant.lastDiscoveryError = "Role discovery not permitted in this tenant. Configure known roles or ask an admin to consent."
+                    state.upsertTenant(tenant)
+                    persist()
+                } catch is CancellationError {
+                    return
+                } catch {
+                    errors.append("\(Self.label(kind)): \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
                 }
-                discovered = await applyPolicies(to: discovered, identity: identity, provider: provider)
-            } catch PIMError.consentRequired {
-                discovered = []
-                consentBlocked = true
-                tenant.discoveryMode = .manualRoles
-                tenant.lastDiscoveryError = "Role discovery not permitted in this tenant. Configure known roles or ask an admin to consent."
-                state.upsertTenant(tenant)
-                persist()
+            }
+            // Active assignments.
+            do {
+                let snapshot = tenant
+                let found: [ActiveAssignment]
+                if isEntra && consentBlocked {
+                    found = try await provider.activeAssignments(identity: identity, tenant: snapshot)
+                } else {
+                    found = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+                        try await provider.activeAssignments(identity: identity, tenant: snapshot)
+                    }
+                }
+                current += found
+                kindsWithActive.insert(kind)
+            } catch PIMError.interactionRequired where isEntra && consentBlocked {
+            } catch PIMError.consentRequired where isEntra && consentBlocked {
             } catch is CancellationError {
                 return
             } catch {
-                tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+                errors.append("\(Self.label(kind)): \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
             }
         }
+
         let manual = ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: key).map { role -> EligibleRole in
             var r = role
             if let policy = policyCache[r.key] { r.policy = policy }
             return r
         }
+        let discovered = discoveredByKind.values.flatMap { $0 }.sorted { $0.displayName < $1.displayName }
         roles[key] = ManualRoleSource.merge(discovered: discovered, manual: manual)
+        // Replace only the kinds we successfully re-read; keep the rest.
+        active = active.filter { !($0.key.tenantKey == key && kindsWithActive.contains($0.key.scope.kind)) }
+        for a in current { active[a.roleKey] = a }
+        if !errors.isEmpty { tenantErrors[key] = errors.joined(separator: " · ") }
+        await rescheduleNotifications()
+    }
 
-        do {
-            let tenantSnapshot = tenant
-            let current: [ActiveAssignment]
-            if consentBlocked {
-                current = try await provider.activeAssignments(identity: identity, tenant: tenantSnapshot)
-            } else {
-                current = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
-                    try await provider.activeAssignments(identity: identity, tenant: tenantSnapshot)
-                }
-            }
-            active = active.filter { $0.key.tenantKey != key }
-            for a in current { active[a.roleKey] = a }
-            await rescheduleNotifications()
-        } catch PIMError.interactionRequired where consentBlocked {
-            // No active data available for this tenant; `lastDiscoveryError` already explains why.
-        } catch PIMError.consentRequired where consentBlocked {
-            // Same: leave whatever we knew about this tenant in place.
-        } catch is CancellationError {
-            return
-        } catch {
-            if tenantErrors[key] == nil { tenantErrors[key] = (error as? PIMError)?.userMessage ?? error.localizedDescription }
+    private static func label(_ kind: RoleScopeKind) -> String {
+        switch kind {
+        case .entraDirectory: "Entra"
+        case .azureResource: "Azure"
+        case .group: "Groups"
         }
     }
 
     /// Fills in policies, reusing the cache and fetching at most four at a time.
     /// A failed fetch keeps the cached policy when there is one, otherwise the manual default.
-    private func applyPolicies(to roles: [EligibleRole], identity: Identity, provider: any PIMProvider) async -> [EligibleRole] {
+    private func applyPolicies(to roles: [EligibleRole], identity: Identity) async -> [EligibleRole] {
         var pending = roles.filter { policyCache[$0.key] == nil }
+        // Pull the next role with an available provider, skipping any that have none.
+        func nextRunnable() -> (EligibleRole, any PIMProvider)? {
+            while let role = pending.popLast() {
+                if let provider = coordinator.provider(for: role.key.scope.kind) { return (role, provider) }
+            }
+            return nil
+        }
         let fetched = await withTaskGroup(of: (RoleKey, RolePolicy?).self) { group in
             for _ in 0..<4 {
-                guard let role = pending.popLast() else { break }
+                guard let (role, provider) = nextRunnable() else { break }
                 group.addTask { (role.key, try? await provider.policy(for: role, identity: identity)) }
             }
             var out: [RoleKey: RolePolicy] = [:]
             for await (roleKey, policy) in group {
                 if let policy { out[roleKey] = policy }
-                if let role = pending.popLast() {
+                if let (role, provider) = nextRunnable() {
                     group.addTask { (role.key, try? await provider.policy(for: role, identity: identity)) }
                 }
             }

@@ -35,6 +35,15 @@ If a tenant admin has not consented, discovery fails and the tenant switches to
 you hold. Activation still requires `RoleAssignmentSchedule.ReadWrite.Directory`;
 the tenant menu offers an admin-consent link you can forward.
 
+## Azure resource roles
+
+Eligibilities on management groups, subscriptions, resource groups and resources
+appear as rows with the scope under the role name. The first Azure call in a
+tenant asks you to consent to `user_impersonation` for Azure Service Management;
+no admin consent is needed. A tenant where you have no Azure access simply shows
+no Azure rows. Manual Azure roles are entered as scope + role name and resolved
+to the role definition when you activate.
+
 ## Manual smoke test
 
 - Add account → browser sign-in → home tenant appears with eligible roles.

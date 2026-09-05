@@ -81,7 +81,6 @@ struct ConfigureRolesView: View {
                 }
             }
             Button("Add row") { azure.append(AzureRow()) }
-            Text("Activation for Azure resource roles arrives in phase 2.").font(.caption2).foregroundStyle(.secondary)
         }
     }
 
@@ -133,7 +132,7 @@ struct ConfigureRolesView: View {
             let scope = row.scope.trimmingCharacters(in: .whitespaces)
             let roleName = row.roleName.trimmingCharacters(in: .whitespaces)
             guard !scope.isEmpty, !roleName.isEmpty else { continue }
-            manual.append(ManualRole(tenantKey: tenantKey, scope: .azureResource(scope: scope, roleDefinitionId: roleName), displayName: "\(roleName) · \(scope)"))
+            manual.append(ManualRole(tenantKey: tenantKey, scope: .azureResource(scope: scope, roleDefinitionId: roleName), displayName: roleName))
         }
         for row in groups where !row.groupId.trimmingCharacters(in: .whitespaces).isEmpty {
             manual.append(ManualRole(tenantKey: tenantKey, scope: .group(groupId: row.groupId.trimmingCharacters(in: .whitespaces), accessId: row.access),
