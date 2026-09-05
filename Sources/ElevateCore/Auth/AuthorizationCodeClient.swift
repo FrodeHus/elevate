@@ -56,6 +56,7 @@ public struct AuthorizationCodeClient: Sendable {
         if let loginHint { items.append(URLQueryItem(name: "login_hint", value: loginHint)) }
         if let prompt { items.append(URLQueryItem(name: "prompt", value: prompt)) }
         c.queryItems = items
+        c.percentEncodedQuery = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         return c.url!
     }
 
@@ -82,7 +83,7 @@ public struct AuthorizationCodeClient: Sendable {
     }
 
     static func formEncode(_ s: String) -> String {
-        var allowed = CharacterSet.alphanumerics
+        var allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
         allowed.insert(charactersIn: "-._~")
         return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
     }

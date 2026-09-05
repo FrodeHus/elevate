@@ -61,6 +61,24 @@ import Foundation
         #expect(AuthorizationCodeClient.mapTokenError(status: 400, body: err("temporarily_unavailable", "try later")) == .network("try later"))
     }
 
+    @Test func authorizeURLEncodesPlusInQueryValues() throws {
+        let url = AuthorizationCodeClient.authorizeURL(clientId: clientId, tenant: "organizations", redirectURI: redirect,
+                                                       scopes: ["openid"], state: "a+b", codeChallenge: "ch")
+        #expect(url.absoluteString.contains("state=a%2Bb"))
+    }
+
+    @Test func refreshFormBodyFullyEscapesTokenValue() async throws {
+        let http = StubHTTPClient()
+        await http.on("POST", "/tenant-2/oauth2/v2.0/token", body: Data(#"{"expires_in":100,"access_token":"AT2"}"#.utf8))
+        _ = try await AuthorizationCodeClient(http: http).refresh(refreshToken: "x+y/z=&client_id=evil", clientId: clientId, tenant: "tenant-2", scopes: ["https://management.azure.com/.default"])
+        let form = String(decoding: (await http.requests.first!).body!, as: UTF8.self)
+        let pairs = form.split(separator: "&").map { String($0) }
+        let rtPair = pairs.first { $0.hasPrefix("refresh_token=") }!
+        let rtValue = String(rtPair.dropFirst("refresh_token=".count))
+        #expect(!rtValue.contains("&") && !rtValue.contains("+") && !rtValue.contains("/") && !rtValue.contains("="))
+        #expect(pairs.filter { $0.hasPrefix("client_id=") }.count == 1)
+    }
+
     @Test func resourceScopeIsDerivedFromScopeHost() {
         #expect(AuthorizationCodeClient.resourceScope(for: ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/RoleEligibilitySchedule.Read.Directory"]) == "https://graph.microsoft.com/.default")
         #expect(AuthorizationCodeClient.resourceScope(for: ["https://management.azure.com/user_impersonation"]) == "https://management.azure.com/.default")
