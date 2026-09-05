@@ -48,6 +48,18 @@ import Foundation
         #expect(entries.first?.roleKey == keepKey)
     }
 
+    @Test func removingIdentityDropsProfileEntries() throws {
+        var s = AppState()
+        let keepKey = RoleKey(identityId: "other", tenantId: "t1", scope: .entraDirectory(roleDefinitionId: "keep", directoryScopeId: "/"))
+        let dropKey = key("drop", tenantId: "t1")
+        let p = ActivationProfile(name: "Mixed", entries: [.init(roleKey: keepKey), .init(roleKey: dropKey)])
+        s.upsertProfile(p)
+        s.removeIdentity("i")
+        let entries = s.profile(id: p.id)?.entries ?? []
+        #expect(entries.count == 1)
+        #expect(entries.first?.roleKey == keepKey)
+    }
+
     @Test func summaryCaption() {
         #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil)]) == "1 role")
         #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil), .init(roleKey: key("b", kind: .azureResource), lastDuration: nil)]) == "2 roles")

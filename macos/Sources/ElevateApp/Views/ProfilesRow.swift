@@ -16,12 +16,13 @@ struct ProfilesRow: View {
                 }
                 FlowLayout(spacing: 6) {
                     ForEach(model.profiles) { p in
-                        Button { open(.runProfile(p.id)) } label: {
+                        Button { model.requestRun(p.id); open(.runProfile(p.id)) } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.accentColor)
-                                Text(p.name).font(.caption.weight(.medium))
+                                Text(p.name).font(.caption.weight(.medium)).lineLimit(1)
                                 Text(ProfileSummary.caption(entries: p.entries)).font(.caption2).foregroundStyle(.secondary)
                             }
+                            .frame(maxWidth: 220)
                             .padding(.horizontal, 9).padding(.vertical, 4)
                             .background(.background, in: Capsule())
                             .overlay(Capsule().strokeBorder(.quaternary))

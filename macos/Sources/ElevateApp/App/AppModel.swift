@@ -971,6 +971,12 @@ final class AppModel {
 
     var profiles: [ActivationProfile] { state.profiles }
     var editingProfileId: UUID?
+    /// Bumped each time the user asks to run a profile. `WindowGroup(for:)` refocuses an existing
+    /// window instead of re-running `.onAppear`, so the Run sheet re-plans on a change here —
+    /// and only then, never merely because the window regained focus.
+    private(set) var runRequests: [UUID: Int] = [:]
+
+    func requestRun(_ id: UUID) { runRequests[id, default: 0] += 1 }
 
     private func orderedKeys(_ keys: [RoleKey]) -> [RoleKey] {
         // Stable, readable order: by account, then tenant, then kind, then name.
@@ -1023,7 +1029,11 @@ final class AppModel {
         var rolesByKey: [RoleKey: EligibleRole] = [:]
         for list in roles.values { for r in list { rolesByKey[r.key] = r } }
         let memoryByKey = Dictionary(state.memory.map { ($0.roleKey, $0) }, uniquingKeysWith: { _, b in b })
-        return ProfilePlanner.plan(p, roles: rolesByKey, active: active, memory: memoryByKey)
+        // A tenant counts as loaded once it has a roles entry and is not mid-refresh; entries of a
+        // tenant that is not loaded yet plan as `.notLoaded` rather than a wrong "not eligible".
+        let loadedTenants = Set(roles.keys).subtracting(busy)
+        return ProfilePlanner.plan(p, roles: rolesByKey, active: active, memory: memoryByKey,
+                                   loadedTenants: loadedTenants)
     }
 
     /// Activates the plan's `.activate` items, then remembers the reason and each duration on the profile.
@@ -1035,7 +1045,20 @@ final class AppModel {
         if !requests.isEmpty { await activate(requests) }
         guard var p = state.profile(id: id) else { return }
         p.lastJustification = justification
-        for item in items { if let i = p.entries.firstIndex(where: { $0.roleKey == item.roleKey }) { p.entries[i].lastDuration = item.duration } }
+        for item in items where item.disposition != .notEligible && item.disposition != .notLoaded {
+            // `rekey` may have moved a manual Azure entry onto the key the provider resolved, so the
+            // planned key can be gone. Fall back to the one active key of the same tenant carrying the
+            // same display name; ambiguity means we leave the remembered duration alone.
+            var index = p.entries.firstIndex { $0.roleKey == item.roleKey }
+            if index == nil, active[item.roleKey] == nil, let name = item.role?.displayName {
+                let candidates = active.keys.filter { candidate in
+                    candidate.tenantKey == item.roleKey.tenantKey && role(for: candidate)?.displayName == name
+                        && p.entries.contains { $0.roleKey == candidate }
+                }
+                if candidates.count == 1 { index = p.entries.firstIndex { $0.roleKey == candidates[0] } }
+            }
+            if let i = index { p.entries[i].lastDuration = item.duration }
+        }
         state.upsertProfile(p); persist()
     }
 

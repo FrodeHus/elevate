@@ -4,7 +4,6 @@ import ElevateCore
 struct RunProfileView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.controlActiveState) private var activeState
     let profileId: UUID
     @State private var items: [ProfilePlanItem] = []
     @State private var justification = ""
@@ -64,10 +63,10 @@ struct RunProfileView: View {
         }
         .padding(16).frame(width: 560)
         .onAppear(perform: load)
-        // WindowGroup(for:) refocuses an existing window for the same value, so
-        // .onAppear does not re-fire; re-plan when the reused window becomes key.
-        .onChange(of: activeState) { _, state in
-            if state == .key && !running { load() }
+        // WindowGroup(for:) refocuses an existing window for the same value, so .onAppear does not
+        // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
+        .onChange(of: model.runRequests[profileId]) { _, _ in
+            if !running { load() }
         }
     }
 
@@ -87,6 +86,11 @@ struct RunProfileView: View {
             case .alreadyActive: Text("already active · skipped").font(.caption).foregroundStyle(.secondary)
             case .pending: Text("pending · skipped").font(.caption).foregroundStyle(.secondary)
             case .notEligible: Text("not eligible · skipped").font(.caption).foregroundStyle(.orange)
+            case .notLoaded:
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.small)
+                    Text("loading…").font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }

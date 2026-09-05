@@ -27,7 +27,7 @@ struct ManageProfilesView: View {
                                 .onSubmit { commit(p.id) }
                             Text(ProfileSummary.caption(entries: p.entries)).font(.caption).foregroundStyle(.secondary)
                             Spacer()
-                            Button("Run") { commitAll(); open(.runProfile(p.id)) }.controlSize(.small)
+                            Button("Run") { commitAll(); model.requestRun(p.id); open(.runProfile(p.id)) }.controlSize(.small)
                             Button("Edit") { commitAll(); model.beginEditing(profileId: p.id); dismiss() }.controlSize(.small)
                                 .help("Reopens the selection in the panel; use \"Update profile\" when done")
                             Button(role: .destructive) { model.deleteProfile(id: p.id) } label: { Image(systemName: "trash") }
