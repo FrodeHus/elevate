@@ -23,7 +23,7 @@ public struct PanelStatus: Equatable, Sendable {
                     let left = end.timeIntervalSince(now)
                     if left > 0 && left <= soonWithin { soon = true }
                 }
-            case .pendingApproval: pending = true
+            case .pendingApproval, .scheduled: pending = true
             case .pendingProvisioning, .failed: break
             }
         }

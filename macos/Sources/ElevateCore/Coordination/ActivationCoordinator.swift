@@ -4,6 +4,7 @@ public struct ActivationOutcome: Hashable, Sendable {
     public enum Result: Hashable, Sendable {
         case activated(ActiveAssignment)
         case pendingApproval(ActiveAssignment)
+        case scheduled(ActiveAssignment)
         case failed(PIMError)
     }
     public let roleKey: RoleKey
@@ -64,6 +65,7 @@ public final class ActivationCoordinator: Sendable {
             }
             switch assignment.status {
             case .pendingApproval: return ActivationOutcome(roleKey: request.roleKey, result: .pendingApproval(assignment))
+            case .scheduled: return ActivationOutcome(roleKey: request.roleKey, result: .scheduled(assignment))
             case .failed(let m): return ActivationOutcome(roleKey: request.roleKey, result: .failed(.unexpected(status: 0, body: m)))
             default: return ActivationOutcome(roleKey: request.roleKey, result: .activated(assignment))
             }
