@@ -24,6 +24,8 @@ import Foundation
         #expect(roles[1].detail == "rg-ops · resource group")
         #expect(roles[0].key.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId))
         #expect(roles.allSatisfy { $0.source == .discovered && $0.key.tenantId == "t1" })
+        let viaGroup = roles.first { $0.viaGroup != nil }
+        #expect(viaGroup?.viaGroup == "Platform Team")
         let first = await http.requests.first!
         #expect(first.url.absoluteString.hasPrefix("https://management.azure.com/providers/Microsoft.Authorization/roleEligibilityScheduleInstances"))
         #expect(first.url.absoluteString.contains("api-version=2020-10-01"))

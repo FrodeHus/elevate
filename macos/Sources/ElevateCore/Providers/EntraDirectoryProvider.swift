@@ -20,6 +20,7 @@ public struct EntraDirectoryProvider: PIMProvider {
         let startDateTime: Date?
         let endDateTime: Date?
         let roleDefinition: RoleDefinitionRef?
+        let memberType: String?
     }
     struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
     struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
@@ -57,8 +58,9 @@ public struct EntraDirectoryProvider: PIMProvider {
             let scope = RoleScope.entraDirectory(roleDefinitionId: s.roleDefinitionId, directoryScopeId: s.directoryScopeId ?? "/")
             guard seen.insert(scope).inserted else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: scope)
+            let viaGroup: String? = s.memberType?.caseInsensitiveCompare("Group") == .orderedSame ? "group" : nil
             roles.append(EligibleRole(key: key, displayName: s.roleDefinition?.displayName ?? s.roleDefinitionId,
-                                      source: .discovered, policy: .manualDefault))
+                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup))
         }
         return roles.sorted { $0.displayName < $1.displayName }
     }

@@ -14,7 +14,7 @@
         "expandedProperties": {
           "scope": { "id": "/subscriptions/sub-1/resourceGroups/rg-ops", "displayName": "rg-ops", "type": "resourcegroup" },
           "roleDefinition": { "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7", "displayName": "Reader", "type": "BuiltInRole" },
-          "principal": { "id": "user-obj-1", "displayName": "U", "type": "User" }
+          "principal": { "id": "grp-1", "displayName": "Platform Team", "type": "Group" }
         }
       }
     }
