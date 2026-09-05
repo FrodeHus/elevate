@@ -54,4 +54,109 @@ import Foundation
             _ = try await p.eligibleRoles(identity: identity, tenant: tenant)
         }
     }
+
+    /// A JWT-shaped Graph token whose `oid` names the caller.
+    private struct JWTTokenProvider: TokenProviding {
+        let oid: String
+        private var token: String {
+            let payload = try! JSONSerialization.data(withJSONObject: ["oid": oid, "tid": "t1"])
+            let b64 = payload.base64EncodedString().replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_").trimmingCharacters(in: CharacterSet(charactersIn: "="))
+            return "eyJhbGciOiJub25lIn0.\(b64).sig"
+        }
+        func signIn(method: SignInMethod) async throws -> Identity { throw PIMError.notEligible }
+        func signOut(_ identity: Identity) async throws {}
+        func identities() async throws -> [Identity] { [] }
+        func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String { token }
+        func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String { token }
+    }
+
+    var opsMember: EligibleRole {
+        EligibleRole(key: RoleKey(identityId: "id1", tenantId: "t1", scope: .group(groupId: "grp-ops", accessId: .member)),
+                     displayName: "Ops Admins", detail: "member", source: .discovered, policy: .manualDefault)
+    }
+
+    @Test func policyIsReadPerGroupAndAccess() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleManagementPolicyAssignments", body: Fixtures.data("group-policy"))
+        let policy = try await p.policy(for: opsMember, identity: identity)
+        #expect(policy.maximumDuration == .seconds(8 * 3600))
+        #expect(policy.defaultDuration == .seconds(8 * 3600))
+        #expect(policy.requiresJustification && policy.requiresTicket && !policy.requiresMFA && !policy.requiresApproval)
+        #expect(policy.authenticationContext == "c3")
+        let req = await http.requests.first!
+        let u = req.url.absoluteString.removingPercentEncoding ?? req.url.absoluteString
+        #expect(u.contains("scopeId eq 'grp-ops'") && u.contains("scopeType eq 'Group'") && u.contains("roleDefinitionId eq 'member'"))
+        #expect(u.contains("$expand=policy($expand=rules)"))
+    }
+
+    @Test func activatePostsSelfActivateAsTheCaller() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: Fixtures.data("group-activate-response"))
+        let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(7200), justification: "INC-7", ticket: TicketInfo(number: "42", system: "Jira")), identity: identity)
+        #expect(a.status == .active)
+        #expect(a.assignmentId == "greq-new")
+        #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T14:00:00Z"))
+        #expect(a.roleKey == opsMember.key)
+        let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
+        #expect(post.url.absoluteString.hasSuffix("/identityGovernance/privilegedAccess/group/assignmentScheduleRequests"))
+        let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
+        #expect(body["action"] as? String == "selfActivate")
+        #expect(body["accessId"] as? String == "member")
+        #expect(body["groupId"] as? String == "grp-ops")
+        #expect(body["principalId"] as? String == "caller-oid")
+        #expect(body["justification"] as? String == "INC-7")
+        #expect((body["ticketInfo"] as? [String: Any])?["ticketNumber"] as? String == "42")
+        let exp = (body["scheduleInfo"] as! [String: Any])["expiration"] as! [String: Any]
+        #expect(exp["type"] as? String == "afterDuration" && exp["duration"] as? String == "PT2H")
+    }
+
+    @Test func opaqueTokenFallsBackToEligibilityPrincipal() async throws {
+        let (p, http, _) = makeProvider()   // FakeTokenProvider returns "token-t1", not a JWT
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("group-eligible-page2"))
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: Fixtures.data("group-activate-response"))
+        _ = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(3600), justification: "x"), identity: identity)
+        let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
+        let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
+        #expect(body["principalId"] as? String == "user-obj-1")
+    }
+
+    @Test func pendingApprovalResponseIsReported() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        await http.on("POST", "assignmentScheduleRequests", status: 201,
+                      body: Data(#"{"id":"greq-p","status":"PendingApproval","groupId":"grp-ops","accessId":"member","scheduleInfo":{"startDateTime":"2026-09-04T12:00:00Z"}}"#.utf8))
+        let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(3600), justification: "x"), identity: identity)
+        #expect(a.status == .pendingApproval)
+        #expect(a.endDateTime == nil)
+    }
+
+    @Test func deactivatePostsSelfDeactivateWithoutSchedule() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: Fixtures.data("group-activate-response"))
+        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "ginst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        try await p.deactivate(a, identity: identity)
+        let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
+        let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
+        #expect(body["action"] as? String == "selfDeactivate")
+        #expect(body["principalId"] as? String == "caller-oid")
+        #expect(body["groupId"] as? String == "grp-ops" && body["accessId"] as? String == "member")
+        #expect(body["scheduleInfo"] == nil)
+    }
+
+    @Test func cancelPostsToTheRequestCancelAction() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("POST", "/cancel", status: 204)
+        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "greq-9", startDateTime: .now, endDateTime: nil, status: .pendingApproval)
+        try await p.cancelPendingRequest(a, identity: identity)
+        let post = await http.requests.first!
+        #expect(post.method == "POST")
+        #expect(post.url.absoluteString.hasSuffix("/identityGovernance/privilegedAccess/group/assignmentScheduleRequests/greq-9/cancel"))
+    }
 }

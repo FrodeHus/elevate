@@ -108,10 +108,126 @@ public struct GroupProvider: PIMProvider {
         return Array(result.values)
     }
 
-    // MARK: Policy and writes (Task 4)
+    // MARK: Policy
 
-    public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy { .manualDefault }
-    public func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment { throw PIMError.notEligible }
-    public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws { throw PIMError.notEligible }
-    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws { throw PIMError.notEligible }
+    struct PolicyRule: Decodable {
+        let id: String
+        let maximumDuration: String?
+        let enabledRules: [String]?
+        let setting: ApprovalSetting?
+        let isEnabled: Bool?
+        let claimValue: String?
+        struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
+    }
+    struct Policy: Decodable { let id: String; let rules: [PolicyRule]? }
+    struct PolicyAssignment: Decodable { let id: String; let roleDefinitionId: String?; let policy: Policy? }
+
+    public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
+        guard case .group(let groupId, let access) = role.key.scope else { throw PIMError.notEligible }
+        let filter = "scopeId eq '\(groupId)' and scopeType eq 'Group' and roleDefinitionId eq '\(access == .owner ? "owner" : "member")'"
+        let encoded = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? filter
+        let r = try await transport.get(identity: identity, tenantId: role.key.tenantId,
+                                        url: try url("/policies/roleManagementPolicyAssignments?$filter=\(encoded)&$expand=policy($expand=rules)"),
+                                        scopes: scopes)
+        let assignments = try GraphJSON.decoder.decode(Page<PolicyAssignment>.self, from: r.body).value
+        guard let rules = assignments.first?.policy?.rules else { return .manualDefault }
+        var policy = RolePolicy.manualDefault
+        for rule in rules {
+            switch rule.id {
+            case "Expiration_EndUser_Assignment":
+                if let d = rule.maximumDuration.flatMap(ISO8601Duration.parse) { policy.maximumDuration = d; policy.defaultDuration = d }
+            case "Enablement_EndUser_Assignment":
+                let enabled = Set(rule.enabledRules ?? [])
+                policy.requiresJustification = enabled.contains("Justification")
+                policy.requiresTicket = enabled.contains("Ticketing")
+                policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
+            case "Approval_EndUser_Assignment":
+                policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
+            case "AuthenticationContext_EndUser_Assignment":
+                if rule.isEnabled == true, let claim = rule.claimValue, !claim.isEmpty { policy.authenticationContext = claim }
+            default: break
+            }
+        }
+        return policy
+    }
+
+    // MARK: Activate / deactivate
+
+    /// The eligibility's own principal id (a group when inherited), used only when the token hides the caller's oid.
+    func eligibilityPrincipalId(groupId: String, access: GroupAccess, identity: Identity, tenantId: String) async throws -> String? {
+        let items = try await listAll(Instance.self, identity: identity, tenantId: tenantId,
+                                      url: try url("\(Self.base)/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"))
+        return items.first { $0.groupId == groupId && Self.access($0.accessId) == access }?.principalId
+    }
+
+    /// Always the caller: an eligibility inherited through another group names that group, which Graph refuses.
+    func requestPrincipalId(groupId: String, access: GroupAccess, identity: Identity, tenantId: String) async throws -> String {
+        if let token = try? await transport.tokens.accessToken(identity: identity, tenantId: tenantId, scopes: scopes),
+           let oid = AccessTokenClaims.objectId(token) { return oid }
+        guard let fallback = try await eligibilityPrincipalId(groupId: groupId, access: access, identity: identity, tenantId: tenantId) else {
+            throw PIMError.notEligible
+        }
+        return fallback
+    }
+
+    static func status(_ raw: String) -> ActiveAssignment.Status {
+        switch raw {
+        case "PendingApproval", "PendingAdminDecision": .pendingApproval
+        case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated": .pendingProvisioning
+        case "Denied", "Failed", "Canceled", "Revoked": .failed(raw)
+        default: .active
+        }
+    }
+
+    public func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment {
+        guard case .group(let groupId, let access) = request.roleKey.scope else { throw PIMError.notEligible }
+        let tenantId = request.roleKey.tenantId
+        let principal = try await requestPrincipalId(groupId: groupId, access: access, identity: identity, tenantId: tenantId)
+        var body: [String: Any] = [
+            "action": "selfActivate",
+            "principalId": principal,
+            "groupId": groupId,
+            "accessId": access == .owner ? "owner" : "member",
+            "justification": request.justification,
+            "scheduleInfo": [
+                "startDateTime": GraphJSON.encoderDateString(.now),
+                "expiration": ["type": "afterDuration", "duration": ISO8601Duration.format(request.duration)],
+            ],
+        ]
+        if let t = request.ticket { body["ticketInfo"] = ["ticketNumber": t.number, "ticketSystem": t.system] }
+        let r = try await transport.post(identity: identity, tenantId: tenantId,
+                                         url: try url("\(Self.base)/assignmentScheduleRequests"),
+                                         scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
+        let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
+        let start = created.scheduleInfo?.startDateTime ?? .now
+        let end = created.scheduleInfo?.expiration?.endDateTime
+            ?? created.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
+        let status = Self.status(created.status)
+        return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
+                                endDateTime: status == .active ? end : nil, status: status)
+    }
+
+    public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        guard case .group(let groupId, let access) = assignment.roleKey.scope else { throw PIMError.notEligible }
+        let tenantId = assignment.roleKey.tenantId
+        let principal = try await requestPrincipalId(groupId: groupId, access: access, identity: identity, tenantId: tenantId)
+        let body: [String: Any] = [
+            "action": "selfDeactivate",
+            "principalId": principal,
+            "groupId": groupId,
+            "accessId": access == .owner ? "owner" : "member",
+        ]
+        _ = try await transport.post(identity: identity, tenantId: tenantId,
+                                     url: try url("\(Self.base)/assignmentScheduleRequests"),
+                                     scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
+    }
+
+    /// Withdraws a request still awaiting approval. Graph answers 204 with no body.
+    public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
+        guard let requestId = assignment.assignmentId else { throw PIMError.notEligible }
+        _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
+                                     url: try url("\(Self.base)/assignmentScheduleRequests/\(requestId)/cancel"),
+                                     scopes: scopes, body: Data())
+    }
 }
