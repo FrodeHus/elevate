@@ -36,14 +36,18 @@ public struct EligibleRole: Codable, Hashable, Sendable, Identifiable {
     public var detail: String?
     public var source: RoleSource
     public var policy: RolePolicy
+    /// Name of the group that grants this eligibility (or "group" when only the member type is known);
+    /// nil for a direct eligibility. Shown as a caption; activation is unaffected.
+    public var viaGroup: String?
     public var id: RoleKey { key }
 
-    public init(key: RoleKey, displayName: String, detail: String? = nil, source: RoleSource, policy: RolePolicy) {
+    public init(key: RoleKey, displayName: String, detail: String? = nil, source: RoleSource, policy: RolePolicy, viaGroup: String? = nil) {
         self.key = key
         self.displayName = displayName
         self.detail = detail
         self.source = source
         self.policy = policy
+        self.viaGroup = viaGroup
     }
 }
 

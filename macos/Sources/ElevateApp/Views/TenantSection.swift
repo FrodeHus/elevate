@@ -66,16 +66,27 @@ struct TenantHeader: View {
 struct TenantRoles: View {
     @Environment(AppModel.self) private var model
     let tenant: TenantContext
-    private var roles: [EligibleRole] { model.roles(for: tenant.id) }
+    private var roles: [EligibleRole] { model.roles(for: tenant.id, tab: model.panelTab) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if roles.isEmpty {
-                Text(tenant.discoveryMode == .manualRoles ? "No roles configured." : "No eligible roles.")
-                    .font(.caption).foregroundStyle(.secondary)
+            if model.panelTab == .groups, let reason = model.groupsUnavailableReason(for: tenant.id) {
+                Label(reason, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, PanelMetrics.roleInset).padding(.trailing, PanelMetrics.trailingInset).padding(.vertical, 6)
+            } else if roles.isEmpty {
+                Text(emptyText).font(.caption).foregroundStyle(.secondary)
                     .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
             ForEach(roles) { role in RoleRow(role: role) }
+        }
+    }
+
+    private var emptyText: String {
+        switch (model.panelTab, tenant.discoveryMode) {
+        case (.groups, _): "No eligible groups."
+        case (.roles, .manualRoles): "No roles configured."
+        case (.roles, .automatic): "No eligible roles."
         }
     }
 }
@@ -91,6 +102,9 @@ struct TenantPills: View {
         }
         if let reason = tenant.azureUnavailableReason {
             Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
+        }
+        if let reason = tenant.groupsUnavailableReason {
+            StatusPill(text: "Groups off", help: reason)
         }
         if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
             StatusPill(text: "error", tint: .red, help: err)
@@ -110,7 +124,7 @@ struct TenantMenuItems: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
-        if tenant.discoveryMode == .manualRoles,
+        if tenant.discoveryMode == .manualRoles || tenant.groupsUnavailableReason != nil,
            let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
             Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
         }

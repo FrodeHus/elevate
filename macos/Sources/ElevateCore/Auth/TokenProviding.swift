@@ -14,6 +14,15 @@ public enum ArmScopes {
     public static let all = ["https://management.azure.com/user_impersonation"]
 }
 
+/// Delegated Graph permissions for PIM for Groups. Admin-consent only, like the Entra PIM scopes.
+public enum GroupScopes {
+    public static let all = [
+        "https://graph.microsoft.com/PrivilegedEligibilitySchedule.Read.AzureADGroup",
+        "https://graph.microsoft.com/PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup",
+        "https://graph.microsoft.com/RoleManagementPolicy.Read.AzureADGroup",
+    ]
+}
+
 public protocol TokenProviding: Sendable {
     /// Interactive sign-in against the `organizations` authority using the given method. Returns the new identity.
     func signIn(method: SignInMethod) async throws -> Identity

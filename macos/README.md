@@ -2,6 +2,16 @@
 
 Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
 
+**Groups.** The panel has a Roles tab and a Groups tab. The Groups tab lists your PIM for Groups
+memberships and ownerships; activation, the countdown and Deactivate work exactly as they do for
+roles. Because a group can carry Entra or Azure roles, those roles are re-read a few seconds after
+a group activation so the Roles tab catches up. Groups need the three `*.AzureADGroup` delegated
+permissions below, so they are available for your own app registration and for a custom app
+registration that carries them — never for the Microsoft first-party Azure CLI or Azure PowerShell
+apps. A first-party account is never read for groups at all; its Groups tab explains that the
+sign-in method supports Azure resource roles only. A tenant where the group read is refused for
+permissions shows a "Groups off" pill with the reason.
+
 ## Sign-in methods
 
 > **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports Azure resource roles only**: Elevate does not call the Graph PIM APIs for it at all, so no Entra roles are discovered or activated and no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
@@ -38,19 +48,11 @@ Caveats:
 Only the own-app method needs an app registration; the first-party methods need none of this.
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
-2. An Entra app registration (multi-tenant, public client):
-   - Authentication → Add a platform → iOS/macOS, bundle ID `no.reothor.elevate`.
-     The redirect URI becomes `msauth.no.reothor.elevate://auth`.
-   - Authentication → Add a platform → Web, redirect URI
-     `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
-     admin-consent link the app hands out lands on a valid page.
-   - "Allow public client flows" is not needed: the iOS/macOS platform already marks the
-     redirect URI as public-client. Turn it on only if sign-in fails with AADSTS7000218.
-   - API permissions (delegated, Microsoft Graph): `User.Read`,
-     `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
-     `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
-   - Azure Service Management → `user_impersonation` (delegated). Required: it covers both
-     tenant discovery and every Azure resource role read and activation. User consent is enough.
+2. An Entra app registration (multi-tenant, public client) with redirect URI
+   `msauth.no.reothor.elevate://auth` under the iOS/macOS platform — see
+   [Setting up the Entra app registration](../docs/entra-app-registration.md) for the full
+   walkthrough (Azure CLI script or portal steps) and the permission list, including the three
+   `*.AzureADGroup` scopes the Groups tab needs.
 3. Launch Elevate, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run

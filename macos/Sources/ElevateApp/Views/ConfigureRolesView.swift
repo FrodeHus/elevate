@@ -97,7 +97,7 @@ struct ConfigureRolesView: View {
                 }
             }
             Button("Add row") { groups.append(GroupRow()) }
-            Text("Activation for PIM for Groups arrives in phase 3.").font(.caption2).foregroundStyle(.secondary)
+            Text("The group id is the group's object id in Entra ID.").font(.caption2).foregroundStyle(.secondary)
         }
     }
 

@@ -18,6 +18,12 @@ shared/    Assets used by both apps: the Entra built-in roles catalogue script
 docs/      Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
+## Setting up the Entra app registration
+
+Elevate signs in with its own multi-tenant Entra app registration, or with the Azure CLI or Azure
+PowerShell app. To create and consent your own registration, see
+[docs/entra-app-registration.md](docs/entra-app-registration.md).
+
 ## Design documents
 
 - [Phase 1: core app](docs/superpowers/specs/2026-09-04-pimtray-design.md)

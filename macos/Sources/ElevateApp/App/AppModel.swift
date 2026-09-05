@@ -16,6 +16,15 @@ final class AppModel {
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     private(set) var inFlight: Set<RoleKey> = []
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
+    /// The list the panel shows; switching drops the bulk selection since it spans one tab only.
+    var panelTab: PanelTab {
+        get { settings.panelTab }
+        set { settings.panelTab = newValue; selection.removeAll() }
+    }
+
+    static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
+        tab == .groups ? [.group] : [.entraDirectory, .azureResource]
+    }
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
     var collapsedTenants: Set<TenantKey> = []
     var collapsedIdentities: Set<String> = []
@@ -97,7 +106,7 @@ final class AppModel {
         self.network = network
         self.settings = settings
         self.anchor = anchor
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider()], tokens: tokens)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens)], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
     }
 
@@ -158,7 +167,7 @@ final class AppModel {
         msal = replacement
         let composite = CompositeTokenProvider(msal: replacement, loopback: loopback)
         tokens = composite
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider()], tokens: composite)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
         discovery = TenantDiscovery(http: http, tokens: composite)
         notice = nil
         startupError = nil
@@ -185,6 +194,19 @@ final class AppModel {
     var activeCount: Int { active.values.filter { $0.status == .active }.count }
     func tenants(for identityId: String) -> [TenantContext] { state.tenants(for: identityId) }
     func roles(for tenantKey: TenantKey) -> [EligibleRole] { roles[tenantKey] ?? [] }
+    func roles(for tenantKey: TenantKey, tab: PanelTab) -> [EligibleRole] {
+        let kinds = Self.kinds(for: tab)
+        return roles(for: tenantKey).filter { kinds.contains($0.key.scope.kind) }
+    }
+
+    /// Why the Groups tab is empty by construction for this tenant, or nil when groups are read normally.
+    func groupsUnavailableReason(for key: TenantKey) -> String? {
+        guard let identity = identity(key.identityId) else { return nil }
+        if !identity.signInMethod.isPreauthorisedForEntraActivation {
+            return "The \(identity.signInMethod.displayName) supports Azure resource roles only; PIM for Groups needs your own or a custom app registration."
+        }
+        return tenant(key)?.groupsUnavailableReason
+    }
     func role(for key: RoleKey) -> EligibleRole? { roles[key.tenantKey]?.first { $0.key == key } }
     func assignment(for key: RoleKey) -> ActiveAssignment? { active[key] }
     func remembered(for key: RoleKey) -> RoleMemory? { state.memory(for: key) }
@@ -201,7 +223,7 @@ final class AppModel {
         components.path = "/\(tenantId)/v2.0/adminconsent"
         components.queryItems = [
             URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
-            URLQueryItem(name: "scope", value: GraphScopes.all.joined(separator: " ")),
+            URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all).joined(separator: " ")),
             URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
         ]
         return components.url
@@ -391,6 +413,7 @@ final class AppModel {
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
         t.azureUnavailableReason = nil
+        t.groupsUnavailableReason = nil
         t.entraActivation = nil
         dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
@@ -421,13 +444,14 @@ final class AppModel {
         }
     }
 
-    func refresh(_ key: TenantKey) async {
+    func refresh(_ key: TenantKey, kinds requestedKinds: Set<RoleScopeKind>? = nil) async {
         let generation = configGeneration
         guard let identity = self.identity(key.identityId), var tenant = self.tenant(key) else { return }
         guard !busy.contains(key) else { return }
         busy.insert(key)
         defer { busy.remove(key) }
-        tenantErrors[key] = nil
+        // A kinds-restricted refresh re-reads only some providers, so it must not clear errors it cannot re-earn.
+        if requestedKinds == nil { tenantErrors[key] = nil }
 
         // Runs a provider read; prompts at most once per tenant per session, never for a tenant that was removed meanwhile.
         func acquire<T: Sendable>(_ scopes: [String], _ op: @Sendable @escaping () async throws -> T) async throws -> T {
@@ -445,11 +469,18 @@ final class AppModel {
         // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
         // A first-party sign-in (Azure CLI / PowerShell) has no Graph PIM scopes at all, so its
         // Entra reads fail every time: skip that provider outright and keep the account Azure-only.
-        var kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource] : [.entraDirectory]
-        if !identity.signInMethod.isPreauthorisedForEntraActivation { kinds.removeAll { $0 == .entraDirectory } }
+        // Every kind this identity can read at all, before any per-refresh restriction.
+        var eligibleKinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group] : [.entraDirectory, .group]
+        if !identity.signInMethod.isPreauthorisedForEntraActivation { eligibleKinds.removeAll { $0 == .entraDirectory || $0 == .group } }
+        if tenant.groupsUnavailableReason != nil { eligibleKinds.removeAll { $0 == .group } }
+        // A kinds-restricted refresh reads only these providers.
+        var kinds = eligibleKinds
+        if let requestedKinds { kinds.removeAll { !requestedKinds.contains($0) } }
         let providers: [any PIMProvider] = kinds.compactMap { coordinator.provider(for: $0) }
-        // Start from what we already know so a transient failure never blanks a provider's rows.
-        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered && kinds.contains($0.key.scope.kind) }) { $0.key.scope.kind }
+        // Start from what we already know so a transient failure never blanks a provider's rows, and so a
+        // kinds-restricted refresh keeps the rows of the kinds it does not re-read. Kinds this identity
+        // cannot read at all (a first-party account's Entra rows, a consent-refused tenant's groups) still drop.
+        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered && eligibleKinds.contains($0.key.scope.kind) }) { $0.key.scope.kind }
         var errors: [String] = []
         var consentBlocked = tenant.discoveryMode != .automatic
         var kindsWithActive: Set<RoleScopeKind> = []
@@ -460,6 +491,7 @@ final class AppModel {
             let kind = provider.kind
             let isEntra = kind == .entraDirectory
             let isAzure = kind == .azureResource
+            let isGroup = kind == .group
             let tenantSnapshot = tenant
             // Eligible roles. Entra honours the consent block; ARM consent is user-consentable.
             if !(isEntra && consentBlocked) {
@@ -485,6 +517,13 @@ final class AppModel {
                     tenant.lastDiscoveryError = "Role discovery not permitted in this tenant. Configure known roles or ask an admin to consent."
                     state.upsertTenant(tenant)
                     persist()
+                } catch let error as PIMError where isGroup && Self.isGroupConsentFailure(error) {
+                    guard generation == configGeneration, self.tenant(key) != nil else { return }
+                    discoveredByKind[kind] = []
+                    latchGroupsOff(&tenant)
+                    // Claim the kind so the tail filter drops group rows we read before consent was refused.
+                    kindsWithActive.insert(kind)
+                    continue   // skip the active read for this provider
                 } catch is CancellationError {
                     return
                 } catch PIMError.signInDeclined, PIMError.interactionRequired {
@@ -520,6 +559,11 @@ final class AppModel {
                 if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
             } catch is CancellationError {
                 return
+            } catch let error as PIMError where isGroup && Self.isGroupConsentFailure(error) {
+                guard generation == configGeneration, self.tenant(key) != nil else { return }
+                latchGroupsOff(&tenant)
+                // Claim the kind so the tail filter drops any group rows read before consent was refused.
+                kindsWithActive.insert(kind)
             } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
                 guard generation == configGeneration else { return }
                 azureOff = true
@@ -544,6 +588,25 @@ final class AppModel {
         for a in current { active[a.roleKey] = a }
         if !errors.isEmpty { tenantErrors[key] = errors.joined(separator: " · ") }
         await rescheduleNotifications()
+    }
+
+    /// Latches PIM for Groups off for this tenant. Callers must already have checked
+    /// `generation == configGeneration` and that the tenant still exists.
+    private func latchGroupsOff(_ tenant: inout TenantContext) {
+        tenant.groupsUnavailableReason = "PIM for Groups is not permitted in this tenant until an admin consents to the group permissions."
+        state.upsertTenant(tenant)
+        persist()
+    }
+
+    /// A group read refused for permissions: the tenant has no PIM for Groups we can reach.
+    /// A first-party or custom app without the group scopes answers 403 rather than a consent challenge.
+    /// `GraphTransport.send` substitutes `.forbidden` for a 403 on non-own-app identities, so a missing
+    /// group permission surfaces here as `.forbidden` rather than `.consentRequired`.
+    private static func isGroupConsentFailure(_ error: PIMError) -> Bool {
+        switch error {
+        case .consentRequired, .forbidden: true
+        default: false
+        }
     }
 
     /// Spec §1: a tenant without Azure access shows no Azure rows and no error. These failures
@@ -708,6 +771,11 @@ final class AppModel {
             state.upsertTenant(t)
         }
         persist()
+        let changedGroupTenants = Set(outcomes.compactMap { o -> TenantKey? in
+            guard o.roleKey.scope.kind == .group, case .activated = o.result else { return nil }
+            return o.roleKey.tenantKey
+        })
+        refreshRolesAfterGroupChange(changedGroupTenants)
         selectMode = false
         await rescheduleNotifications()
         // Runs independently so a slow policy fetch cannot hold the activation spinner; it only
@@ -780,10 +848,29 @@ final class AppModel {
             try await coordinator.deactivate(a, identity: identity)
             guard generation == configGeneration else { return }
             active[key] = nil
+            if key.scope.kind == .group { refreshRolesAfterGroupChange([key.tenantKey]) }
             await rescheduleNotifications()
         } catch {
             guard generation == configGeneration else { return }
             tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+        }
+    }
+
+    /// Membership changes carry roles with them; give the directory a moment, then re-read roles only.
+    private func refreshRolesAfterGroupChange(_ tenantKeys: Set<TenantKey>) {
+        guard !tenantKeys.isEmpty else { return }
+        let generation = configGeneration
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            guard generation == self.configGeneration else { return }
+            // A refresh already in flight would make `refresh` return without re-reading; wait it out once.
+            if tenantKeys.contains(where: { self.busy.contains($0) }) {
+                try? await Task.sleep(for: .seconds(5))
+                guard generation == self.configGeneration else { return }
+            }
+            for key in tenantKeys where self.tenant(key) != nil {
+                await self.refresh(key, kinds: [.entraDirectory, .azureResource])
+            }
         }
     }
 

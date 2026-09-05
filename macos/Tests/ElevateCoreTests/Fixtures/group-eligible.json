@@ -1,0 +1,15 @@
+{
+  "@odata.nextLink": "https://graph.microsoft.com/v1.0/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances/filterByCurrentUser(on='principal')?$skiptoken=page2",
+  "value": [
+    {
+      "id": "gelig-1", "principalId": "user-obj-1", "groupId": "grp-ops", "accessId": "member",
+      "memberType": "direct", "startDateTime": "2026-01-01T00:00:00Z", "endDateTime": null,
+      "group": { "id": "grp-ops", "displayName": "Ops Admins" }
+    },
+    {
+      "id": "gelig-2", "principalId": "user-obj-1", "groupId": "grp-sec", "accessId": "owner",
+      "memberType": "group", "startDateTime": "2026-01-01T00:00:00Z", "endDateTime": null,
+      "group": { "id": "grp-sec", "displayName": "Security Owners" }
+    }
+  ]
+}

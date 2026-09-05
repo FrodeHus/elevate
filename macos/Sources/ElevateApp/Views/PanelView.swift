@@ -20,6 +20,14 @@ struct PanelView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
+                ForEach(PanelTab.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            Divider()
             if let notice = model.notice {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
@@ -75,7 +83,7 @@ struct PanelView: View {
                     openWindow(value: PanelRoute.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Text("Activate \(model.selection.count) role\(model.selection.count == 1 ? "" : "s")")
+                    Text("Activate \(model.selection.count) \(model.panelTab == .groups ? "group" : "role")\(model.selection.count == 1 ? "" : "s")")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

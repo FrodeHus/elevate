@@ -24,6 +24,10 @@ struct RoleRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(role.displayName).font(.body)
                 if let detail = role.detail { Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                if let via = role.viaGroup {
+                    Text(via == "group" ? "via group" : "via \(via)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .help("This eligibility is granted through a group; activating it activates the role for you")
+                }
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
             }
             Spacer()

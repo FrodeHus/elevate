@@ -13,7 +13,7 @@ public struct AzureResourceProvider: PIMProvider {
     // MARK: Wire models
 
     struct Named: Decodable { let displayName: String?; let type: String?; let id: String? }
-    struct Expanded: Decodable { let scope: Named?; let roleDefinition: Named? }
+    struct Expanded: Decodable { let scope: Named?; let roleDefinition: Named?; let principal: Named? }
     struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
     struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
     struct Properties: Decodable {
@@ -29,6 +29,7 @@ public struct AzureResourceProvider: PIMProvider {
         let createdOn: Date?
         let scheduleInfo: ScheduleInfo?
         let expandedProperties: Expanded?
+        let memberType: String?
     }
     struct Instance: Decodable { let name: String; let id: String; let properties: Properties }
     struct Page<T: Decodable>: Decodable { let value: [T]; let nextLink: String? }
@@ -82,10 +83,12 @@ public struct AzureResourceProvider: PIMProvider {
         for i in items {
             let scope = RoleScope.azureResource(scope: i.properties.scope, roleDefinitionId: i.properties.roleDefinitionId)
             guard seen.insert(scope).inserted else { continue }
+            let viaGroup: String? = i.properties.memberType?.caseInsensitiveCompare("Group") == .orderedSame
+                ? (i.properties.expandedProperties?.principal?.displayName ?? "group") : nil
             roles.append(EligibleRole(key: RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: scope),
                                       displayName: i.properties.expandedProperties?.roleDefinition?.displayName ?? i.properties.roleDefinitionId,
                                       detail: Self.caption(i.properties.expandedProperties),
-                                      source: .discovered, policy: .manualDefault))
+                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup))
         }
         return roles.sorted { ($0.displayName, $0.detail ?? "") < ($1.displayName, $1.detail ?? "") }
     }
@@ -113,16 +116,7 @@ public struct AzureResourceProvider: PIMProvider {
 
     // MARK: Policy
 
-    struct PolicyRule: Decodable {
-        let id: String
-        let maximumDuration: String?
-        let enabledRules: [String]?
-        let setting: ApprovalSetting?
-        let isEnabled: Bool?
-        let claimValue: String?
-        struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
-    }
-    struct PolicyProperties: Decodable { let roleDefinitionId: String?; let effectiveRules: [PolicyRule]? }
+    struct PolicyProperties: Decodable { let roleDefinitionId: String?; let effectiveRules: [PolicyRules.Rule]? }
     struct PolicyAssignment: Decodable { let name: String; let properties: PolicyProperties }
 
     public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
@@ -131,38 +125,18 @@ public struct AzureResourceProvider: PIMProvider {
         let assignments = try await listAll(PolicyAssignment.self, identity: identity, tenantId: role.key.tenantId, url: url)
         guard let match = assignments.first(where: { $0.properties.roleDefinitionId?.caseInsensitiveCompare(roleDefinitionId) == .orderedSame }),
               let rules = match.properties.effectiveRules else { return .manualDefault }
-        var policy = RolePolicy.manualDefault
-        for rule in rules {
-            switch rule.id {
-            case "Expiration_EndUser_Assignment":
-                if let d = rule.maximumDuration.flatMap(ISO8601Duration.parse) { policy.maximumDuration = d; policy.defaultDuration = d }
-            case "Enablement_EndUser_Assignment":
-                let enabled = Set(rule.enabledRules ?? [])
-                policy.requiresJustification = enabled.contains("Justification")
-                policy.requiresTicket = enabled.contains("Ticketing")
-                policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
-            case "Approval_EndUser_Assignment":
-                policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
-            case "AuthenticationContext_EndUser_Assignment":
-                if rule.isEnabled == true, let claim = rule.claimValue, !claim.isEmpty { policy.authenticationContext = claim }
-            default: break
-            }
-        }
-        return policy
+        return PolicyRules.apply(rules)
     }
 
     // MARK: Activation
 
     struct RoleDefinition: Decodable { let id: String; let properties: Props; struct Props: Decodable { let roleName: String? } }
 
-    /// OData string literals escape a single quote by doubling it.
-    static func odataEscaped(_ value: String) -> String { value.replacingOccurrences(of: "'", with: "''") }
-
     /// Manual roles carry a role *name*; ARM wants the definition id at that scope.
     func resolveRoleDefinitionId(_ nameOrId: String, scope: String, identity: Identity, tenantId: String) async throws -> String {
         if nameOrId.contains("/") { return nameOrId }
         let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleDefinitions",
-                             apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(Self.odataEscaped(nameOrId))'"])
+                             apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(GraphTransport.odataEscaped(nameOrId))'"])
         let defs = try await listAll(RoleDefinition.self, identity: identity, tenantId: tenantId, url: url)
         guard let id = defs.first?.id else { throw PIMError.notEligible }
         return id

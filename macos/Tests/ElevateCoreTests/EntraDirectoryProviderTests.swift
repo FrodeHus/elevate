@@ -19,6 +19,8 @@ import Foundation
         #expect(roles.map(\.displayName) == ["Global Reader", "User Administrator"])
         #expect(roles.allSatisfy { $0.source == .discovered && $0.key.tenantId == "t1" && $0.key.identityId == "id1" })
         #expect(roles[0].key.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/"))
+        #expect(roles[0].viaGroup == nil)                 // Global Reader: memberType Direct
+        #expect(roles[1].viaGroup == "group")             // User Administrator: memberType Group
         let req = await http.requests.first!
         #expect(req.headers["Authorization"] == "Bearer token-t1")
         #expect(req.url.absoluteString.contains("expand=roleDefinition"))
