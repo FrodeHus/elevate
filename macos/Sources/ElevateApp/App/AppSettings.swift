@@ -10,11 +10,18 @@ final class AppSettings {
     static let legacyBundleIds = ["no.frodehus.elevate", "no.frodehus.pimtray"]
     static var redirectUri: String { "msauth.\(bundleId)://auth" }
     static let clientIdKey = "clientId"
+    static let customClientIdKey = "customLoopbackClientId"
 
     private let defaults: UserDefaults
 
     var clientId: String {
         didSet { defaults.set(clientId, forKey: Self.clientIdKey) }
+    }
+
+    /// Last client id typed into "Custom app (loopback)" in Add account, so the next account
+    /// from the same company app needs no retyping. Not a configuration value in its own right.
+    var customClientId: String {
+        didSet { defaults.set(customClientId, forKey: Self.customClientIdKey) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -30,6 +37,7 @@ final class AppSettings {
             }
         }
         clientId = stored
+        customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }

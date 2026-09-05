@@ -2,12 +2,12 @@ import Foundation
 import ElevateCore
 
 /// Routes every token operation to the provider that owns the identity's sign-in method:
-/// `ownApp` to MSAL, the first-party methods to their `LoopbackTokenProvider`.
+/// `ownApp` to MSAL, every loopback method (first-party or custom client id) to its `LoopbackTokenProvider`.
 final class CompositeTokenProvider: TokenProviding, Sendable {
     private let msal: MSALTokenProvider?
-    private let loopback: [SignInMethod: LoopbackTokenProvider]
+    private let loopback: LoopbackProviderRegistry
 
-    init(msal: MSALTokenProvider?, loopback: [SignInMethod: LoopbackTokenProvider]) {
+    init(msal: MSALTokenProvider?, loopback: LoopbackProviderRegistry) {
         self.msal = msal
         self.loopback = loopback
     }
@@ -42,14 +42,14 @@ final class CompositeTokenProvider: TokenProviding, Sendable {
     // MARK: Routing
 
     /// The provider for `identityId`'s method, or nil when nothing owns that identity.
-    func loopbackProvider(for method: SignInMethod) -> LoopbackTokenProvider? { loopback[method] }
+    func loopbackProvider(for method: SignInMethod) -> LoopbackTokenProvider? { loopback.provider(for: method) }
 
     private func provider(for method: SignInMethod) throws -> any TokenProviding {
         if method.usesMSAL {
             guard let msal else { throw PIMError.unexpected(status: 0, body: "Configure a client id in Settings") }
             return msal
         }
-        guard let provider = loopback[method] else {
+        guard let provider = loopback.provider(for: method) else {
             throw PIMError.unexpected(status: 0, body: "Unsupported sign-in method")
         }
         return provider

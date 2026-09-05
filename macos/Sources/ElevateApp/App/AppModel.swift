@@ -50,7 +50,7 @@ final class AppModel {
     /// The pieces behind `tokens` when it is a `CompositeTokenProvider`, kept so `applyClientId`
     /// can swap the MSAL half without disturbing the first-party providers (and their keychain items).
     private var msal: MSALTokenProvider?
-    private var loopback: [SignInMethod: LoopbackTokenProvider] = [:]
+    private let loopback: LoopbackProviderRegistry
     /// One interactive gate for every provider, so an MSAL webview and a browser sign-in queue
     /// instead of racing each other. `applyClientId` hands it to the replacement MSAL provider.
     private let gate: InteractiveGate
@@ -67,20 +67,29 @@ final class AppModel {
     /// own-app sign-in method is available. The first-party methods work without it.
     var isConfigured: Bool { settings.isConfigured && msal != nil }
 
-    /// Sign-in methods offered by "Add account…". `.ownApp` is listed even when unconfigured;
-    /// the view disables it and explains why.
-    var availableMethods: [SignInMethod] { SignInMethod.allCases }
+    /// Fixed sign-in methods offered by "Add account…" (a custom client id is typed there).
+    /// `.ownApp` is listed even when unconfigured; the view disables it and explains why.
+    var availableMethods: [SignInMethod] { SignInMethod.builtIn }
 
-    /// Whether a method can be used right now.
-    func isAvailable(_ method: SignInMethod) -> Bool { method.usesMSAL ? isConfigured : loopback[method] != nil }
+    /// The custom client id used last time, for prefilling the add-account dialog.
+    var rememberedCustomClientId: String { settings.customClientId }
+
+    /// Whether a method can be used right now. A custom method needs a well-formed client id.
+    func isAvailable(_ method: SignInMethod) -> Bool {
+        switch method {
+        case .ownApp: isConfigured
+        case .custom(let id): AppSettings.isValidClientId(id)
+        default: method.clientId != nil
+        }
+    }
 
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
-         msal: MSALTokenProvider? = nil, loopback: [SignInMethod: LoopbackTokenProvider] = [:],
+         msal: MSALTokenProvider? = nil, loopback: LoopbackProviderRegistry? = nil,
          gate: InteractiveGate = InteractiveGate()) {
         self.tokens = tokens
         self.msal = msal
-        self.loopback = loopback
+        self.loopback = loopback ?? LoopbackProviderRegistry(http: http, gate: gate)
         self.gate = gate
         self.http = http
         self.store = store
@@ -111,8 +120,8 @@ final class AppModel {
                 initError = error
             }
         }
-        // The first-party providers need no configuration; they exist whether or not MSAL does.
-        let loopback = Self.loopbackProviders(http: http, gate: gate)
+        // Loopback providers need no configuration; they exist whether or not MSAL does.
+        let loopback = LoopbackProviderRegistry(http: http, gate: gate)
         let tokens = CompositeTokenProvider(msal: msal, loopback: loopback)
         let model = AppModel(tokens: tokens, http: http, store: AppStateStore(), notifier: notifier, settings: settings,
                              anchor: anchor, msal: msal, loopback: loopback, gate: gate)
@@ -124,17 +133,6 @@ final class AppModel {
             model?.notice = "Notifications are off for Elevate; enable them in System Settings to get expiry alerts."
         }
         return model
-    }
-
-    /// One provider per first-party method, each with its own keychain-backed refresh-token store.
-    private static func loopbackProviders(http: any HTTPClient, gate: InteractiveGate) -> [SignInMethod: LoopbackTokenProvider] {
-        var providers: [SignInMethod: LoopbackTokenProvider] = [:]
-        for method in SignInMethod.allCases {
-            guard let clientId = method.clientId else { continue }
-            providers[method] = LoopbackTokenProvider(method: method, http: http,
-                                                      store: KeychainRefreshTokenStore(clientId: clientId), gate: gate)
-        }
-        return providers
     }
 
     /// Saves a new client id. MSAL's token cache is per client, so every *own-app* account is
@@ -236,7 +234,7 @@ final class AppModel {
         var unreadable = false
         var droppedUPNs: [String] = []
         for identity in state.identities where identity.signInMethod != .ownApp {
-            guard let provider = loopback[identity.signInMethod] else { continue }
+            guard let provider = loopback.provider(for: identity.signInMethod) else { continue }
             switch await provider.refreshTokenState(for: identity.id) {
             case .some(false):
                 state.removeIdentity(identity.id)
@@ -290,9 +288,14 @@ final class AppModel {
     @discardableResult
     func addAccount(method: SignInMethod = .ownApp) async -> Bool {
         guard isAvailable(method) else {
-            notice = method.usesMSAL ? "Complete initial setup first" : "That sign-in method is unavailable"
+            switch method {
+            case .ownApp: notice = "Complete initial setup first"
+            case .custom: notice = "Enter the custom app's application (client) ID as a GUID"
+            default: notice = "That sign-in method is unavailable"
+            }
             return false
         }
+        if case .custom(let id) = method { settings.customClientId = id }
         do {
             let identity = try await tokens.signIn(method: method)
             // The same account under a different method would fight over the same rows and tenants.
@@ -304,7 +307,7 @@ final class AppModel {
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
             }
-            if !method.usesMSAL, let failure = await loopback[method]?.persistenceError() {
+            if !method.usesMSAL, let failure = await loopback.provider(for: method)?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
             }
             let homeKey = TenantKey(identityId: identity.id, tenantId: identity.homeTenantId)
@@ -626,7 +629,7 @@ final class AppModel {
               let permitted = AccessTokenClaims.permitsEntraActivation(token) else { return nil }
         if permitted { return .supported }
         let reason = identity.signInMethod.entraViewOnlyReason
-            ?? "Your app registration was not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant, so Entra roles are view only."
+            ?? "The app registration used for this account (\(identity.signInMethod.displayName)) was not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant, so Entra roles are view only. Azure resource roles still work."
         return .unsupported(reason: reason)
     }
 

@@ -6,31 +6,56 @@ import ElevateCore
 struct AddAccountView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var method: SignInMethod?
+    /// Which radio row is chosen. `custom` is a row, not a method, until a client id is typed.
+    private enum Choice: Hashable { case fixed(SignInMethod), custom }
+
+    @State private var choice: Choice?
+    @State private var customClientId = ""
     @State private var error: String?
     @State private var working = false
 
     private var methods: [SignInMethod] { model.availableMethods }
+    private var selectedChoice: Choice {
+        choice ?? methods.first { model.isAvailable($0) }.map(Choice.fixed) ?? .fixed(.azureCLI)
+    }
     private var selection: SignInMethod {
-        method ?? methods.first { model.isAvailable($0) } ?? .azureCLI
+        switch selectedChoice {
+        case .fixed(let m): m
+        case .custom: .custom(clientId: customClientId.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Add account").font(.title3.weight(.semibold))
-            Picker("", selection: Binding(get: { selection }, set: { method = $0 })) {
+            Picker("", selection: Binding(get: { selectedChoice }, set: { choice = $0 })) {
                 ForEach(methods, id: \.self) { m in
                     VStack(alignment: .leading, spacing: 1) {
                         Text(m.displayName)
                         Text(Self.caption(for: m, available: model.isAvailable(m)))
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    .tag(m)
+                    .tag(Choice.fixed(m))
                     .disabled(!model.isAvailable(m))
                 }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Custom app (loopback)")
+                    Text("Another public-client registration, e.g. your company's PIM app; signs in through the browser and http://localhost")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .tag(Choice.custom)
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
+            if selectedChoice == .custom {
+                TextField("Application (client) ID", text: $customClientId)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.body.monospaced())
+                    .padding(.leading, 20)
+                if !customClientId.isEmpty, !model.isAvailable(selection) {
+                    Text("Enter the application (client) ID as a GUID").font(.caption).foregroundStyle(.orange).padding(.leading, 20)
+                }
+            }
             limitations
             if let error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
@@ -42,7 +67,8 @@ struct AddAccountView: View {
                     .disabled(working || !model.isAvailable(selection))
             }
         }
-        .padding(16).frame(width: 420)
+        .padding(16).frame(width: 440)
+        .onAppear { customClientId = model.rememberedCustomClientId }
     }
 
     /// What the chosen method can and cannot do, stated before the account is added.
@@ -56,6 +82,16 @@ struct AddAccountView: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        } else if selection.isCustom {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Capabilities depend on what the app was consented for.", systemImage: "info.circle")
+                    .font(.callout.weight(.medium))
+                Text("The registration must allow public client flows (no secret) and accept the http://localhost redirect. Elevate reads the granted scopes from the token after sign-in: if RoleAssignmentSchedule.ReadWrite.Directory is missing, Entra roles are marked view only; Azure resource roles need only ARM user_impersonation.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.blue.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
         } else {
             Label("Entra and Azure resource roles: activate and deactivate.", systemImage: "checkmark.circle")
                 .font(.caption).foregroundStyle(.secondary)
@@ -73,6 +109,8 @@ struct AddAccountView: View {
             "Microsoft's Azure CLI app; no consent needed; Entra roles view only"
         case .azurePowerShell:
             "Same limits, for tenants that block the Azure CLI app"
+        case .custom:
+            "Another public-client registration used through the loopback flow"
         }
     }
 

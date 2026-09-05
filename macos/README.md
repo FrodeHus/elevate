@@ -11,6 +11,11 @@ Elevate can add an account in two ways, chosen per account in "Add account…":
 - **Your own Entra app registration** ("Own app registration"). Sign-in goes through MSAL and
   the client ID from Settings. It gives Elevate exactly the permissions you grant it, but each
   tenant needs an admin to consent (see Prerequisites below).
+- **A custom app registration through the loopback flow** ("Custom app (loopback)"). Any
+  public-client registration you have a client ID for, such as a company-wide PIM app that has
+  no macOS platform configured. It must allow public client flows and accept the
+  `http://localhost` redirect; Elevate reads the granted scopes from the token after sign-in
+  and marks Entra roles view-only if the write scope is missing. The last ID is remembered.
 - **A Microsoft first-party app** ("Azure CLI app" or "Azure PowerShell app"). No registration
   and no consent: these client IDs are already trusted in every tenant that allows the Azure CLI
   or Azure PowerShell. Sign-in opens your default browser and comes back to
