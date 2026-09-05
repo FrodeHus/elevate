@@ -1,7 +1,9 @@
 #!/usr/bin/env perl
-# Regenerates Sources/ElevateCore/Resources/EntraBuiltInRoles.json from the
+# Regenerates the Entra built-in roles catalogue used by both apps from the
 # markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
-# Usage: perl Scripts/update-role-catalogue.pl permissions-reference.md > Sources/ElevateCore/Resources/EntraBuiltInRoles.json
+# Usage (from the repo root):
+#   perl shared/entra-roles/update-role-catalogue.pl permissions-reference.md > macos/Sources/ElevateCore/Resources/EntraBuiltInRoles.json
+#   perl shared/entra-roles/update-role-catalogue.pl permissions-reference.md > windows/src/Elevate.Core/Resources/EntraBuiltInRoles.json
 use strict; use warnings;
 my @roles;
 while (<>) {

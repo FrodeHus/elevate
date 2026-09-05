@@ -1,89 +1,30 @@
 # Elevate
 
-Formerly PimTray. Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
+Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
 
-## Sign-in methods
+Elevate lists every account you have signed in with, each tenant that account can reach, and the PIM roles you are eligible for in it: Entra directory roles and Azure resource roles. Activate a role with the policy's default duration and a reason Elevate remembers, or select several roles across tenants and activate them together. Active roles show a live countdown, can be deactivated once Entra's five-minute minimum has passed, and raise a notification before they expire. Sign in with your own app registration, or with the Azure CLI app when a tenant will not grant yours consent.
 
-Elevate can add an account in two ways, chosen per account in "Add account…":
+| App | Status | Docs |
+|---|---|---|
+| [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable; phase 1, phase 2 (Azure roles) and sign-in methods complete | [macos/README.md](macos/README.md) |
+| [Windows 11](windows/) — WinUI 3 tray app, .NET 10, MSI + winget | Designed, not yet implemented | [windows/README.md](windows/README.md) |
 
-- **Your own Entra app registration** ("Own app registration"). Sign-in goes through MSAL and
-  the client ID from Settings. It gives Elevate exactly the permissions you grant it, but each
-  tenant needs an admin to consent (see Prerequisites below).
-- **A Microsoft first-party app** ("Azure CLI app" or "Azure PowerShell app"). No registration
-  and no consent: these client IDs are already trusted in every tenant that allows the Azure CLI
-  or Azure PowerShell. Sign-in opens your default browser and comes back to
-  `http://localhost:<random port>`, a loopback redirect Microsoft accepts for public clients
-  without any redirect URI being registered. Nothing listens on that port outside the sign-in
-  itself, and the refresh token is stored in your Keychain (this device only).
+## Repository layout
 
-Caveats:
-
-- Conditional Access can block these apps. A tenant that blocks the Azure CLI app will refuse
-  sign-in with it — try the Azure PowerShell app, and if the tenant blocks public clients
-  altogether, use your own app registration.
-- The same account cannot be added twice under different methods; sign it out first.
-- Changing the client ID in Settings only affects own-app accounts: they are signed out and
-  removed. Azure CLI and Azure PowerShell accounts and their tenants are left alone.
-
-## Prerequisites
-
-Only the own-app method needs an app registration; the first-party methods need none of this.
-
-1. Xcode 26.6 or newer, `brew install xcodegen`.
-2. An Entra app registration (multi-tenant, public client):
-   - Authentication → Add a platform → iOS/macOS, bundle ID `no.reothor.elevate`.
-     The redirect URI becomes `msauth.no.reothor.elevate://auth`.
-   - Authentication → Add a platform → Web, redirect URI
-     `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
-     admin-consent link the app hands out lands on a valid page.
-   - Authentication → Advanced settings → Allow public client flows: Yes.
-   - API permissions (delegated, Microsoft Graph): `User.Read`,
-     `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
-     `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
-   - Azure Service Management → `user_impersonation` (delegated). Required: it covers both
-     tenant discovery and every Azure resource role read and activation. User consent is enough.
-3. Launch Elevate, open Settings (⌘,) from the panel, and paste the application (client) ID.
-
-## Build and run
-
-```bash
-xcodegen generate
-xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug -derivedDataPath build -allowProvisioningUpdates build
-open build/Build/Products/Debug/Elevate.app
+```
+macos/     Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
+windows/   .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
+shared/    Assets used by both apps: the Entra built-in roles catalogue script
+docs/      Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
-Core tests: `swift test`.
+## Design documents
 
-## Tenants that refuse consent
+- [Phase 1: core app](docs/superpowers/specs/2026-09-04-pimtray-design.md)
+- [Phase 2: Azure resource roles](docs/superpowers/specs/2026-09-04-pimtray-phase2-azure-design.md)
+- [Sign-in methods](docs/superpowers/specs/2026-09-05-elevate-signin-methods-design.md)
+- [Windows app](docs/superpowers/specs/2026-09-05-elevate-windows-design.md)
 
-If a tenant admin has not consented, discovery fails and the tenant switches to
-"manual roles". Use the tenant menu → Configure known PIM roles… to pick the roles
-you hold. Activation still requires `RoleAssignmentSchedule.ReadWrite.Directory`;
-the tenant menu offers an admin-consent link you can forward.
+## License
 
-## Azure resource roles
-
-Eligibilities on management groups, subscriptions, resource groups and resources
-appear as rows with the scope under the role name. The first Azure call in a
-tenant asks you to consent to `user_impersonation` for Azure Service Management;
-no admin consent is needed. A tenant where you have no Azure access simply shows
-no Azure rows and no error: the first refused Azure read switches Azure off for
-that tenant, marked with a quiet "Azure off" caption in the tenant header whose
-tooltip gives the reason. Nothing else is retried there until you pick Retry
-discovery from the tenant menu, which clears it. Manual Azure roles are entered
-as scope + role name and resolved to the role definition when you activate; the
-row is re-keyed to the resolved role definition id at that point.
-
-## Manual smoke test
-
-- Add account → browser sign-in → home tenant appears with eligible roles.
-- Activate a role → reason pre-fills on the next activation → green dot and countdown.
-- Deactivate → dot clears.
-- Select mode → pick roles in two tenants → Activate all → grouped progress.
-- Discover tenants… lists other tenants; Add tenant… accepts a domain.
-- A role expiring within 5 minutes produces a notification with Extend.
-
-## Regenerating the role catalogue
-
-Save the markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
-and run `perl Scripts/update-role-catalogue.pl page.md > Sources/ElevateCore/Resources/EntraBuiltInRoles.json`.
+MIT, see [LICENSE](LICENSE).

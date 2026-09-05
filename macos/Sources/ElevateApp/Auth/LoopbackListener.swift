@@ -10,7 +10,7 @@ import ElevateCore
 actor LoopbackListener {
     private let listener: NWListener
     private let sink: ConnectionSink
-    private let queue = DispatchQueue(label: "no.frodehus.elevate.loopback")
+    private let queue = DispatchQueue(label: "no.reothor.elevate.loopback")
     /// The port the browser will be redirected to.
     nonisolated let port: UInt16
 
@@ -34,7 +34,7 @@ actor LoopbackListener {
         } catch {
             throw PIMError.network("Could not open a local port for sign-in: \(error.localizedDescription)")
         }
-        let queue = DispatchQueue(label: "no.frodehus.elevate.loopback.start")
+        let queue = DispatchQueue(label: "no.reothor.elevate.loopback.start")
         let waiter = OneShot<UInt16>()
         // NWListener fails to bind unless a connection handler is set before `start`, and the
         // browser can arrive before `waitForCode` runs, so the sink buffers until then.

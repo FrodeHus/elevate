@@ -1,8 +1,18 @@
+# macOS app
+macos/.build/
+macos/build/
+macos/*.xcodeproj/
+macos/.swiftpm/
+*.xcworkspace/
+# Windows app
+windows/**/bin/
+windows/**/obj/
+windows/.vs/
+# Tooling
+.superpowers/
+.DS_Store
+# Stale root-level build output from before the restructure
 .build/
 build/
 *.xcodeproj/
-DerivedData/
-.DS_Store
-.superpowers/
-.swiftpm/
-*.xcworkspace/
+.playwright-mcp/
