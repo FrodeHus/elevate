@@ -43,15 +43,15 @@ struct MenuBarLabel: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { ctx in
-            let status = PanelStatus.compute(Array(model.active.values), now: ctx.date)
-            HStack(spacing: 3) {
-                Image(systemName: Self.symbol(for: status))
-                if status.activeCount > 0 { Text("\(status.activeCount)").monospacedDigit() }
-                if status.pendingApproval { Image(systemName: "clock").font(.caption2) }
-            }
-            .accessibilityLabel(Self.description(of: status))
+        // No TimelineView here: a MenuBarExtra label is rendered as a snapshot, and a
+        // TimelineView-driven label came out blank. The model ticks `clock` every 30 s instead.
+        let status = PanelStatus.compute(Array(model.active.values), now: model.clock)
+        HStack(spacing: 3) {
+            Image(systemName: Self.symbol(for: status))
+            if status.activeCount > 0 { Text("\(status.activeCount)").monospacedDigit() }
+            if status.pendingApproval { Image(systemName: "clock").font(.caption2) }
         }
+        .accessibilityLabel(Self.description(of: status))
         .onChange(of: model.pendingExtend) { _, key in
             guard let key else { return }
             openWindow(value: PanelRoute.activate([key]))

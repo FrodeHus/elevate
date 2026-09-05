@@ -325,7 +325,23 @@ final class AppModel {
         startTimer()
     }
 
+    /// Coarse "now" for views that must not drive their own timers (the menu bar label); ticks every 30 s.
+    private(set) var clock: Date = .now
+    private var clockTimer: Task<Void, Never>?
+
+    private func startClock() {
+        clockTimer?.cancel()
+        clockTimer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard let self else { return }
+                self.clock = .now
+            }
+        }
+    }
+
     private func startTimer() {
+        startClock()
         refreshTimer?.cancel()
         refreshTimer = Task { [weak self] in
             while !Task.isCancelled {
