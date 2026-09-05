@@ -27,6 +27,8 @@ struct ActivationView: View {
         !running && !items.isEmpty
             && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
             && (!needsTicket || !ticketNumber.trimmingCharacters(in: .whitespaces).isEmpty)
+            // A start that has slipped into the past while the sheet sat open is not submittable.
+            && !(scheduleStart && startAt <= Date.now)
     }
 
     var body: some View {
@@ -131,16 +133,21 @@ struct ActivationView: View {
             return Item(role: role, duration: d)
         }
         justification = keys.compactMap { model.remembered(for: $0)?.justification }.first ?? ""
+        // The sheet is reused: a stale toggle or a start time from the last run must not carry over.
+        scheduleStart = false
+        startAt = Date.now.addingTimeInterval(3600)
         model.clearProgress(keys)
     }
 
     private func submit() async {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
+        // Two minutes of headroom: a start the service sees as "now" would activate immediately.
+        let start: Date? = scheduleStart ? max(startAt, Date.now.addingTimeInterval(120)) : nil
         let requests = items.map {
             ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket,
                               authenticationContext: $0.role.policy.authenticationContext,
-                              startDateTime: scheduleStart ? startAt : nil)
+                              startDateTime: start)
         }
         await model.activate(requests)
         running = false

@@ -30,7 +30,6 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("entra-active"))
         await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("entra-pending-requests"))
-        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let gr = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") }!
@@ -133,29 +132,31 @@ import Foundation
         #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
     }
 
-    @Test func futureSchedulesAppearAsScheduled() async throws {
+    @Test func futureRequestsAppearAsScheduled() async throws {
         let (p, http, _) = makeProvider()
-        let empty = Data(#"{"value":[]}"#.utf8)
-        await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: empty)
-        await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: empty)
-        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Fixtures.data("entra-schedules"))
+        await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
+        await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("entra-pending-requests"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
-        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
-        let gr = try #require(active.first)
-        #expect(gr.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/"))
+        #expect(active.count == 2)                        // req-8 started this morning: not upcoming
+        let gr = try #require(active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") })
         #expect(gr.status == .scheduled)
-        #expect(gr.assignmentId == "sched-1")
+        #expect(gr.assignmentId == "req-7")
         #expect(gr.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
         #expect(gr.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+        let req = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let url = req.url.absoluteString.removingPercentEncoding ?? req.url.absoluteString
+        #expect(url.contains("status eq 'ScheduleCreated'") && url.contains("status eq 'Provisioned'"))
+        // The schedules list is no longer read at all.
+        #expect(await http.requests(matching: "roleAssignmentSchedules/filterByCurrentUser").isEmpty)
     }
 
-    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+    @Test func futureRequestDoesNotOverrideAnActiveAssignment() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("entra-active"))
         await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("entra-pending-requests"))
-        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Fixtures.data("entra-schedules"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
+        // req-7 is a future request for the same role: the live assignment still wins.
         let gr = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") }!
         #expect(gr.status == .active)
         #expect(gr.assignmentId == "inst-1")

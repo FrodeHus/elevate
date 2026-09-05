@@ -21,6 +21,20 @@ enum ScheduledStart {
     /// How far ahead a start must be before it counts as scheduled rather than immediate.
     static let horizon: TimeInterval = 60
 
+    /// Request statuses that must never read as a booked-ahead activation: one still waiting on an
+    /// approver is `.pendingApproval`, and a refused or withdrawn one is nothing at all.
+    static let notScheduled: Set<String> = [
+        "PendingApproval", "PendingAdminDecision", "PendingApprovalProvisioning",
+        "Denied", "AdminDenied", "Failed", "FailedAsResourceIsLocked", "Canceled", "Cancelled", "Revoked",
+        "TimedOut", "Invalid",
+    ]
+
+    /// True when `status` is one of the above, comparing case-insensitively as the services differ.
+    static func isSettledOrPending(_ status: String?) -> Bool {
+        guard let status else { return false }
+        return notScheduled.contains { $0.caseInsensitiveCompare(status) == .orderedSame }
+    }
+
     static func isFuture(_ date: Date?, now: Date = .now) -> Bool {
         guard let date else { return false }
         return date.timeIntervalSince(now) > horizon

@@ -21,8 +21,6 @@ public struct EntraDirectoryProvider: PIMProvider {
         let endDateTime: Date?
         let roleDefinition: RoleDefinitionRef?
         let memberType: String?
-        /// Present on roleAssignmentSchedules; the instances endpoint carries flat start/end instead.
-        let scheduleInfo: ScheduleInfo?
     }
     struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
     struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
@@ -60,17 +58,15 @@ public struct EntraDirectoryProvider: PIMProvider {
         let instances = try await transport.get(identity: identity, tenantId: tenant.tenantId,
                                                 url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
                                                 scopes: scopes)
+        // Widened past PendingApproval so a booked-ahead request, which the service has already
+        // turned into a schedule, is the source for the `.scheduled` rows below.
         let requests = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                               url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"),
+                                               url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"),
                                                scopes: scopes)
-        let schedules = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                                url: try transport.graphURL("/roleManagement/directory/roleAssignmentSchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
-                                                scopes: scopes)
         let activated = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: instances.body).value
             .filter { $0.assignmentType == "Activated" }
-        let pending = try GraphJSON.decoder.decode(Collection<ScheduleRequest>.self, from: requests.body).value
-            .filter { $0.status == "PendingApproval" }
-        let upcoming = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: schedules.body).value
+        let all = try GraphJSON.decoder.decode(Collection<ScheduleRequest>.self, from: requests.body).value
+        let pending = all.filter { $0.status == "PendingApproval" }
 
         var result: [RoleKey: ActiveAssignment] = [:]
         for s in activated {
@@ -87,13 +83,13 @@ public struct EntraDirectoryProvider: PIMProvider {
                                            startDateTime: p.scheduleInfo?.startDateTime ?? p.createdDateTime ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
         }
-        for u in upcoming where u.assignmentType?.caseInsensitiveCompare("Activated") == .orderedSame {
+        for u in all where !ScheduledStart.isSettledOrPending(u.status) {
             guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId,
                               scope: .entraDirectory(roleDefinitionId: u.roleDefinitionId, directoryScopeId: u.directoryScopeId ?? "/"))
             guard result[key] == nil else { continue }
             let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
-                                         duration: u.scheduleInfo?.expiration?.duration, start: start)
+                                         duration: u.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
                                            endDateTime: end, status: .scheduled)
         }

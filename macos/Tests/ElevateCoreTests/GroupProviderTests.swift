@@ -34,7 +34,6 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-active"))
         await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("group-pending"))
-        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let ops = active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) }!
@@ -48,29 +47,31 @@ import Foundation
         #expect(pendingReq.url.absoluteString.contains("status eq 'PendingApproval'") || pendingReq.url.absoluteString.contains("status%20eq%20'PendingApproval'"))
     }
 
-    @Test func futureSchedulesAppearAsScheduled() async throws {
+    @Test func futureRequestsAppearAsScheduled() async throws {
         let (p, http, _) = makeProvider()
-        let empty = Data(#"{"value":[]}"#.utf8)
-        await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: empty)
-        await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: empty)
-        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Fixtures.data("group-schedules"))
+        await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
+        await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("group-pending"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
-        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
-        let ops = try #require(active.first)
-        #expect(ops.roleKey.scope == .group(groupId: "grp-ops", accessId: .member))
+        #expect(active.count == 2)                        // greq-9 started this afternoon: not upcoming
+        let ops = try #require(active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) })
         #expect(ops.status == .scheduled)
-        #expect(ops.assignmentId == "gsched-1")
+        #expect(ops.assignmentId == "greq-1")
         #expect(ops.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
         #expect(ops.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+        let req = await http.requests(matching: "assignmentScheduleRequests").first!
+        let url = req.url.absoluteString.removingPercentEncoding ?? req.url.absoluteString
+        #expect(url.contains("status eq 'ScheduleCreated'") && url.contains("status eq 'Provisioned'"))
+        // The schedules list is no longer read at all.
+        #expect(await http.requests(matching: "assignmentSchedules/filterByCurrentUser").isEmpty)
     }
 
-    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+    @Test func futureRequestDoesNotOverrideAnActiveAssignment() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-active"))
         await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("group-pending"))
-        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Fixtures.data("group-schedules"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
+        // greq-1 is a future request for the same group: the live assignment still wins.
         let ops = active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) }!
         #expect(ops.status == .active)
         #expect(ops.assignmentId == "ginst-1")

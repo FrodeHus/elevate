@@ -98,8 +98,6 @@ public struct AzureResourceProvider: PIMProvider {
                                           url: try armURL("providers/Microsoft.Authorization/roleAssignmentScheduleInstances", query: ["$filter": "asTarget()"]))
         let requests = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
                                          url: try armURL("providers/Microsoft.Authorization/roleAssignmentScheduleRequests", query: ["$filter": "asTarget()"]))
-        let schedules = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                          url: try armURL("providers/Microsoft.Authorization/roleAssignmentSchedules", query: ["$filter": "asTarget()"]))
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.properties.assignmentType == "Activated" {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: i.properties.scope, roleDefinitionId: i.properties.roleDefinitionId))
@@ -113,13 +111,14 @@ public struct AzureResourceProvider: PIMProvider {
                                            startDateTime: r.properties.scheduleInfo?.startDateTime ?? r.properties.createdOn ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
         }
-        for u in schedules where u.properties.assignmentType?.caseInsensitiveCompare("Activated") == .orderedSame {
+        // The requests list is unfiltered, so a booked-ahead request is already in hand.
+        for u in requests where !ScheduledStart.isSettledOrPending(u.properties.status) {
             let props = u.properties
-            guard let start = props.scheduleInfo?.startDateTime ?? props.startDateTime, ScheduledStart.isFuture(start) else { continue }
+            guard let start = props.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: props.scope, roleDefinitionId: props.roleDefinitionId))
             guard result[key] == nil else { continue }
-            let end = ScheduledStart.end(explicit: props.endDateTime ?? props.scheduleInfo?.expiration?.endDateTime,
-                                         duration: props.scheduleInfo?.expiration?.duration, start: start)
+            let end = ScheduledStart.end(explicit: props.scheduleInfo?.expiration?.endDateTime,
+                                         duration: props.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.name, startDateTime: start,
                                            endDateTime: end, status: .scheduled)
         }

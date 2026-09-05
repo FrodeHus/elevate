@@ -38,7 +38,6 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("arm-active"))
         await http.on("GET", "roleAssignmentScheduleRequests", body: Fixtures.data("arm-pending"))
-        await http.on("GET", "roleAssignmentSchedules?", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
@@ -50,37 +49,34 @@ import Foundation
         #expect(reader.assignmentId == "req-77")
     }
 
-    @Test func futureSchedulesAppearAsScheduled() async throws {
+    @Test func futureRequestsAppearAsScheduled() async throws {
         let (p, http, _) = makeProvider()
-        let empty = Data(#"{"value":[]}"#.utf8)
-        await http.on("GET", "roleAssignmentScheduleInstances", body: empty)
-        await http.on("GET", "roleAssignmentScheduleRequests", body: empty)
-        await http.on("GET", "roleAssignmentSchedules?", body: Fixtures.data("arm-schedules"))
+        await http.on("GET", "roleAssignmentScheduleInstances", body: Data(#"{"value":[]}"#.utf8))
+        await http.on("GET", "roleAssignmentScheduleRequests", body: Fixtures.data("arm-pending"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
-        #expect(active.count == 2)                         // the 2020 schedule is not upcoming
+        #expect(active.count == 2)                         // req-70 started this morning: not upcoming
         let contributor = try #require(active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) })
         #expect(contributor.status == .scheduled)
-        #expect(contributor.assignmentId == "sched-1")
+        #expect(contributor.assignmentId == "req-71")
         #expect(contributor.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
         #expect(contributor.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+        // req-72 is a future request on the pending request's key: the pending one still wins.
         let reader = try #require(active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) })
-        #expect(reader.status == .scheduled)
-        #expect(reader.assignmentId == "sched-pending-collision")
-        let get = await http.requests(matching: "roleAssignmentSchedules?").first!
-        #expect(get.url.absoluteString.contains("asTarget()"))
+        #expect(reader.status == .pendingApproval)
+        #expect(reader.assignmentId == "req-77")
+        // The schedules list is no longer read at all.
+        #expect(await http.requests(matching: "roleAssignmentSchedules?").isEmpty)
     }
 
-    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+    @Test func futureRequestDoesNotOverrideAnActiveAssignment() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("arm-active"))
         await http.on("GET", "roleAssignmentScheduleRequests", body: Fixtures.data("arm-pending"))
-        await http.on("GET", "roleAssignmentSchedules?", body: Fixtures.data("arm-schedules"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
         #expect(contributor.status == .active)
         #expect(contributor.assignmentId == "inst-1")
-        // A future schedule sharing the pending request's key must not override it either.
         let reader = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) }!
         #expect(reader.status == .pendingApproval)
         #expect(reader.assignmentId == "req-77")

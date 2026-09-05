@@ -23,8 +23,6 @@ public struct GroupProvider: PIMProvider {
         let startDateTime: Date?
         let endDateTime: Date?
         let group: GroupRef?
-        /// Present on assignmentSchedules; the instances endpoint carries flat start/end instead.
-        let scheduleInfo: ScheduleInfo?
     }
     struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
     struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
@@ -64,10 +62,10 @@ public struct GroupProvider: PIMProvider {
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
         let instances = try await transport.listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
                                           url: try transport.graphURL("\(Self.base)/assignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
+        // Widened past PendingApproval so a booked-ahead request, which the service has already
+        // turned into a schedule, is the source for the `.scheduled` rows below.
         let requests = try await transport.listAll(ScheduleRequest.self, identity: identity, tenantId: tenant.tenantId,
-                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"), scopes: scopes)
-        let schedules = try await transport.listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                          url: try transport.graphURL("\(Self.base)/assignmentSchedules/filterByCurrentUser(on='principal')?$expand=group($select=id,displayName)"), scopes: scopes)
+                                         url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"), scopes: scopes)
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.assignmentType?.caseInsensitiveCompare("activated") == .orderedSame {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: i.groupId, accessId: Self.access(i.accessId)))
@@ -81,12 +79,12 @@ public struct GroupProvider: PIMProvider {
                                            startDateTime: r.scheduleInfo?.startDateTime ?? r.createdDateTime ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
         }
-        for u in schedules where u.assignmentType?.caseInsensitiveCompare("activated") == .orderedSame {
+        for u in requests where !ScheduledStart.isSettledOrPending(u.status) {
             guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: u.groupId, accessId: Self.access(u.accessId)))
             guard result[key] == nil else { continue }
             let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
-                                         duration: u.scheduleInfo?.expiration?.duration, start: start)
+                                         duration: u.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
                                            endDateTime: end, status: .scheduled)
         }
