@@ -10,6 +10,7 @@ enum PanelRoute: Codable, Hashable {
     case saveProfile([RoleKey])
     case runProfile(UUID)
     case manageProfiles
+    case decide(requestId: String, approve: Bool)
 }
 
 protocol ExpiryNotifying: Sendable {

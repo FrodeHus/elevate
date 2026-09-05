@@ -75,6 +75,7 @@ struct PanelView: View {
                 // to zero; size it from the measured content instead, capped so long lists scroll.
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        ApprovalsSection()
                         ActiveSection()
                         let visible = model.visibleIdentities
                         if visible.isEmpty {

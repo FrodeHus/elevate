@@ -13,6 +13,9 @@ final class AppSettings {
     static let customClientIdKey = "customLoopbackClientId"
     static let panelTabKey = "panelTab"
     static let collapsedActiveKey = "collapsedActive"
+    static let collapsedApprovalsKey = "collapsedApprovals"
+    static let lastApprovalJustificationKey = "lastApprovalJustification"
+    static let seenApprovalIdsKey = "seenApprovalIds"
     static let hotKeyKey = "hotKey"
     static let hotKeyProfileKey = "hotKeyProfileId"
 
@@ -36,6 +39,28 @@ final class AppSettings {
     /// Whether the panel's "Active now" summary is collapsed; remembered between launches.
     var collapsedActive: Bool {
         didSet { defaults.set(collapsedActive, forKey: Self.collapsedActiveKey) }
+    }
+
+    /// Whether the panel's pinned "Approvals" section is collapsed; remembered between launches.
+    var collapsedApprovals: Bool {
+        didSet { defaults.set(collapsedApprovals, forKey: Self.collapsedApprovalsKey) }
+    }
+
+    /// The justification typed into the last decision sheet, used to prefill the next one.
+    var lastApprovalJustification: String {
+        didSet { defaults.set(lastApprovalJustification, forKey: Self.lastApprovalJustificationKey) }
+    }
+
+    /// Ids of approval requests already notified about, as JSON, so a relaunch does not re-notify.
+    /// Pruned after each refresh to the ids still pending.
+    var seenApprovalIds: Set<String> {
+        didSet {
+            if let data = try? JSONEncoder().encode(seenApprovalIds) {
+                defaults.set(data, forKey: Self.seenApprovalIdsKey)
+            } else {
+                defaults.removeObject(forKey: Self.seenApprovalIdsKey)
+            }
+        }
     }
 
     /// The global shortcut, stored as JSON. Nil means no shortcut is registered.
@@ -76,6 +101,9 @@ final class AppSettings {
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
+        collapsedApprovals = defaults.bool(forKey: Self.collapsedApprovalsKey)
+        lastApprovalJustification = defaults.string(forKey: Self.lastApprovalJustificationKey) ?? ""
+        seenApprovalIds = (defaults.data(forKey: Self.seenApprovalIdsKey)).flatMap { try? JSONDecoder().decode(Set<String>.self, from: $0) } ?? []
         hotKey = (defaults.data(forKey: Self.hotKeyKey)).flatMap { try? JSONDecoder().decode(HotKeyBinding.self, from: $0) }
         hotKeyProfileId = (defaults.string(forKey: Self.hotKeyProfileKey)).flatMap(UUID.init(uuidString:))
     }

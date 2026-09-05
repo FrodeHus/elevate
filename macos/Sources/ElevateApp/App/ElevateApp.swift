@@ -50,8 +50,9 @@ struct MenuBarLabel: View {
             Image(systemName: Self.symbol(for: status))
             if status.activeCount > 0 { Text("\(status.activeCount)").monospacedDigit() }
             if status.pendingApproval { Image(systemName: "clock").font(.caption2) }
+            if model.pendingApprovalCount > 0 { Image(systemName: "person.badge.clock").font(.caption2) }
         }
-        .accessibilityLabel(Self.description(of: status))
+        .accessibilityLabel(Self.description(of: status, awaitingMyApproval: model.pendingApprovalCount))
         .onChange(of: model.pendingExtend) { _, key in
             guard let key else { return }
             openWindow(value: PanelRoute.activate([key]))
@@ -71,10 +72,11 @@ struct MenuBarLabel: View {
         return s.activeCount > 0 ? "checkmark.shield.fill" : "shield"
     }
 
-    static func description(of s: PanelStatus) -> String {
+    static func description(of s: PanelStatus, awaitingMyApproval: Int = 0) -> String {
         var parts = [s.activeCount == 0 ? "No active roles" : "\(s.activeCount) active"]
         if s.expiringSoon { parts.append("one expiring soon") }
         if s.pendingApproval { parts.append("one awaiting approval") }
+        if awaitingMyApproval > 0 { parts.append("\(awaitingMyApproval) awaiting your approval") }
         return parts.joined(separator: ", ")
     }
 }

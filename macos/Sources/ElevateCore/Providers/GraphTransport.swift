@@ -4,6 +4,8 @@ import Foundation
 public struct GraphTransport: Sendable {
     public static let graphBase = URL(string: "https://graph.microsoft.com/v1.0")!
     public static let armBase = URL(string: "https://management.azure.com")!
+    /// The approvals resources live on beta only; every other Graph call stays on v1.0.
+    public static let graphBetaBase = URL(string: "https://graph.microsoft.com/beta")!
     let http: any HTTPClient
     let tokens: any TokenProviding
     let mapper: @Sendable (HTTPResponse) -> PIMError
@@ -17,9 +19,18 @@ public struct GraphTransport: Sendable {
 
     /// A Graph URL for `path`, percent-encoding it only when it is not already a valid URL.
     public func graphURL(_ path: String) throws -> URL {
-        if let u = URL(string: Self.graphBase.absoluteString + path) { return u }
+        try Self.url(base: Self.graphBase, path: path)
+    }
+
+    /// A Graph beta URL for `path`, percent-encoding it only when it is not already a valid URL.
+    public func graphBetaURL(_ path: String) throws -> URL {
+        try Self.url(base: Self.graphBetaBase, path: path)
+    }
+
+    private static func url(base: URL, path: String) throws -> URL {
+        if let u = URL(string: base.absoluteString + path) { return u }
         let encoded = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
-        guard let u = URL(string: Self.graphBase.absoluteString + encoded) else {
+        guard let u = URL(string: base.absoluteString + encoded) else {
             throw PIMError.unexpected(status: 0, body: "Bad URL")
         }
         return u
@@ -58,6 +69,11 @@ public struct GraphTransport: Sendable {
 
     public func put(identity: Identity, tenantId: String, url: URL, scopes: [String], body: Data) async throws -> HTTPResponse {
         try await send(HTTPRequest(method: "PUT", url: url, headers: ["Content-Type": "application/json"], body: body),
+                       identity: identity, tenantId: tenantId, scopes: scopes)
+    }
+
+    public func patch(identity: Identity, tenantId: String, url: URL, scopes: [String], body: Data) async throws -> HTTPResponse {
+        try await send(HTTPRequest(method: "PATCH", url: url, headers: ["Content-Type": "application/json"], body: body),
                        identity: identity, tenantId: tenantId, scopes: scopes)
     }
 
