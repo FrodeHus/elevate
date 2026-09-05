@@ -15,14 +15,16 @@ struct TenantHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
+            // Accent only on the glyph: tinted text on a material reads badly in dark mode,
+            // so the caption itself uses the standard secondary colour.
             HStack(spacing: 4) {
-                Image(systemName: "person.crop.circle.fill").font(.caption2)
+                Image(systemName: "person.crop.circle.fill").font(.caption2).foregroundStyle(Color.accentColor)
                 Text(identity.upn).font(.caption2.weight(.medium)).lineLimit(1).truncationMode(.middle)
                 if identity.signInMethod != .ownApp {
-                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                    Text(identity.signInMethod.displayName).font(.caption2)
                 }
             }
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 Button { withAnimation(.snappy) { model.toggleTenant(tenant.id) } } label: {
                     Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
@@ -41,6 +43,9 @@ struct TenantHeader: View {
                 }
                 if let reason = model.entraViewOnlyReason(for: tenant.id) {
                     ViewOnlyBadge(reason: reason)
+                }
+                if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
+                    StatusPill(text: "error", tint: .red, help: err)
                 }
                 if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
                 Spacer()
@@ -75,7 +80,7 @@ struct TenantHeader: View {
     }
 }
 
-/// The rows for one tenant: its roles, an empty-state caption, or a discovery error.
+/// The rows for one tenant: its roles or an empty-state caption. Errors live in the header pill.
 struct TenantRoles: View {
     @Environment(AppModel.self) private var model
     let tenant: TenantContext
@@ -89,10 +94,6 @@ struct TenantRoles: View {
                     .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
             ForEach(roles) { role in RoleRow(role: role) }
-            if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
-                Label(err, systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange)
-                    .padding(.leading, PanelMetrics.roleInset).padding(.trailing, PanelMetrics.trailingInset).padding(.vertical, 4)
-            }
         }
     }
 }

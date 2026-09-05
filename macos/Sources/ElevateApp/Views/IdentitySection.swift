@@ -43,8 +43,11 @@ struct IdentityHeader: View {
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.accentColor.opacity(0.14))
-        .overlay(alignment: .bottom) { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height: 1) }
+        // A neutral fill keeps the primary text at full contrast in both appearances; the accent
+        // survives as the glyph and a left edge, which is enough to tell accounts from tenants.
+        .background(.quaternary.opacity(0.5))
+        .overlay(alignment: .leading) { Rectangle().fill(Color.accentColor).frame(width: 3) }
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     private func open(_ route: PanelRoute) {
@@ -53,16 +56,24 @@ struct IdentityHeader: View {
     }
 }
 
-/// Orange "Azure roles only" capsule. Same look on account headers, tenant headers and rows so the
-/// limitation reads the same wherever the user meets it; the tooltip carries the full reason.
+/// Small tinted capsule for a status the user should notice but not read at length; the full
+/// text is the tooltip. Used for "Azure roles only" and for a failed discovery.
+struct StatusPill: View {
+    let text: String
+    var tint: Color = .orange
+    let help: String
+    var body: some View {
+        Text(text).font(.caption2.weight(.medium))
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .background(tint.opacity(0.2), in: Capsule())
+            .foregroundStyle(.primary)
+            .help(help)
+            .accessibilityLabel("\(text): \(help)")
+    }
+}
+
+/// "Azure roles only" pill, same on account headers and tenant headers.
 struct ViewOnlyBadge: View {
     let reason: String
-    var body: some View {
-        Text("Azure roles only").font(.caption2.weight(.medium))
-            .padding(.horizontal, 5).padding(.vertical, 1)
-            .background(.orange.opacity(0.2), in: Capsule())
-            .foregroundStyle(.primary)
-            .help(reason)
-            .accessibilityLabel("Supports activation of Azure resource roles only")
-    }
+    var body: some View { StatusPill(text: "Azure roles only", help: reason) }
 }
