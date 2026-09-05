@@ -468,13 +468,18 @@ final class AppModel {
         // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
         // A first-party sign-in (Azure CLI / PowerShell) has no Graph PIM scopes at all, so its
         // Entra reads fail every time: skip that provider outright and keep the account Azure-only.
-        var kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group] : [.entraDirectory, .group]
-        if !identity.signInMethod.isPreauthorisedForEntraActivation { kinds.removeAll { $0 == .entraDirectory || $0 == .group } }
-        if tenant.groupsUnavailableReason != nil { kinds.removeAll { $0 == .group } }
+        // Every kind this identity can read at all, before any per-refresh restriction.
+        var eligibleKinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group] : [.entraDirectory, .group]
+        if !identity.signInMethod.isPreauthorisedForEntraActivation { eligibleKinds.removeAll { $0 == .entraDirectory || $0 == .group } }
+        if tenant.groupsUnavailableReason != nil { eligibleKinds.removeAll { $0 == .group } }
+        // A kinds-restricted refresh reads only these providers.
+        var kinds = eligibleKinds
         if let requestedKinds { kinds.removeAll { !requestedKinds.contains($0) } }
         let providers: [any PIMProvider] = kinds.compactMap { coordinator.provider(for: $0) }
-        // Start from what we already know so a transient failure never blanks a provider's rows.
-        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered && kinds.contains($0.key.scope.kind) }) { $0.key.scope.kind }
+        // Start from what we already know so a transient failure never blanks a provider's rows, and so a
+        // kinds-restricted refresh keeps the rows of the kinds it does not re-read. Kinds this identity
+        // cannot read at all (a first-party account's Entra rows, a consent-refused tenant's groups) still drop.
+        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered && eligibleKinds.contains($0.key.scope.kind) }) { $0.key.scope.kind }
         var errors: [String] = []
         var consentBlocked = tenant.discoveryMode != .automatic
         var kindsWithActive: Set<RoleScopeKind> = []
@@ -842,6 +847,11 @@ final class AppModel {
         Task {
             try? await Task.sleep(for: .seconds(5))
             guard generation == self.configGeneration else { return }
+            // A refresh already in flight would make `refresh` return without re-reading; wait it out once.
+            if tenantKeys.contains(where: { self.busy.contains($0) }) {
+                try? await Task.sleep(for: .seconds(5))
+                guard generation == self.configGeneration else { return }
+            }
             for key in tenantKeys where self.tenant(key) != nil {
                 await self.refresh(key, kinds: [.entraDirectory, .azureResource])
             }
