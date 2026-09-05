@@ -1,0 +1,10 @@
+{
+  "value": [
+    {
+      "id": "greq-9", "status": "PendingApproval", "action": "selfActivate",
+      "principalId": "user-obj-1", "groupId": "grp-sec", "accessId": "owner",
+      "createdDateTime": "2026-09-04T13:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-04T13:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H" } }
+    }
+  ]
+}

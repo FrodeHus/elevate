@@ -1,0 +1,16 @@
+{
+  "value": [
+    {
+      "id": "ginst-1", "principalId": "user-obj-1", "groupId": "grp-ops", "accessId": "member",
+      "assignmentType": "activated", "memberType": "direct",
+      "startDateTime": "2026-09-04T12:00:00Z", "endDateTime": "2026-09-04T16:00:00Z",
+      "group": { "id": "grp-ops", "displayName": "Ops Admins" }
+    },
+    {
+      "id": "ginst-2", "principalId": "user-obj-1", "groupId": "grp-perm", "accessId": "member",
+      "assignmentType": "assigned", "memberType": "direct",
+      "startDateTime": "2026-01-01T00:00:00Z", "endDateTime": null,
+      "group": { "id": "grp-perm", "displayName": "Permanent" }
+    }
+  ]
+}

@@ -97,7 +97,7 @@ final class AppModel {
         self.network = network
         self.settings = settings
         self.anchor = anchor
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider()], tokens: tokens)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens)], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
     }
 
@@ -158,7 +158,7 @@ final class AppModel {
         msal = replacement
         let composite = CompositeTokenProvider(msal: replacement, loopback: loopback)
         tokens = composite
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider()], tokens: composite)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
         discovery = TenantDiscovery(http: http, tokens: composite)
         notice = nil
         startupError = nil
