@@ -96,12 +96,15 @@ final class AppModel {
         // current client id, tokens and session state untouched.
         let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
         let old = tokens
-        let identity = state.identities
-        Task { for identity in identity { try? await old.signOut(identity) } }
+        let identities = state.identities
+        // The old client's cache is unusable under the new client id; drop it silently.
+        // A webview sign-out here would only interrupt the user with a browser window.
+        try? (old as? MSALTokenProvider)?.removeCachedAccounts(identities)
         configGeneration += 1
         state = AppState()
         roles = [:]; active = [:]; policyCache = [:]; tenantErrors = [:]; selection = []
         busy = []; inFlight = []; progress = [:]; lastRefresh = .distantPast
+        pendingExtend = nil; selectMode = false
         persist()
         settings.clientId = id
         tokens = msal
@@ -479,9 +482,11 @@ final class AppModel {
                   let identity = self.identity(r.roleKey.identityId) else { continue }
             do {
                 try await coordinator.deactivate(existing, identity: identity)
+                guard generation == configGeneration else { return }
                 active[r.roleKey] = nil
                 deactivated.insert(r.roleKey)
             } catch {
+                guard generation == configGeneration else { return }
                 let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
                 tenantErrors[r.roleKey.tenantKey] = message
                 progress[r.roleKey] = .failed(.unexpected(status: 0, body: "Could not deactivate before re-activating: \(message)"))
@@ -492,6 +497,7 @@ final class AppModel {
         let outcomes = await coordinator.activate(attempted, identities: state.identities) { outcome in
             // This hop can land after the final loop below, which is authoritative; only fill a gap.
             Task { @MainActor in
+                guard generation == self.configGeneration else { return }
                 if self.progress[outcome.roleKey] == nil { self.progress[outcome.roleKey] = outcome.result }
             }
         }
@@ -501,12 +507,12 @@ final class AppModel {
             progress[outcome.roleKey] = outcome.result
             guard let request = attempted.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
             switch outcome.result {
-            case .activated(let a):
+            case .activated(let a), .pendingApproval(let a):
+                // A manual Azure role is keyed by role name; the provider answers with the resolved
+                // definition id, so move the stored role, its memory and its row onto that key.
+                if a.roleKey != request.roleKey { rekey(from: request.roleKey, to: a.roleKey) }
                 active[a.roleKey] = a
-                state.remember(roleKey: request.roleKey, justification: request.justification, duration: request.duration)
-            case .pendingApproval(let a):
-                active[a.roleKey] = a
-                state.remember(roleKey: request.roleKey, justification: request.justification, duration: request.duration)
+                state.remember(roleKey: a.roleKey, justification: request.justification, duration: request.duration)
             case .failed(let error):
                 active[request.roleKey] = nil
                 if deactivated.contains(request.roleKey) {
@@ -528,6 +534,28 @@ final class AppModel {
         // Runs independently so a slow policy fetch cannot hold the activation spinner; it only
         // updates cached policy/role data afterwards, never `inFlight`.
         Task { await self.learnPoliciesForManualRoles(outcomes) }
+    }
+
+    /// Moves a manual role from the key the user typed to the key the provider resolved it to.
+    /// The row keeps `source: .manual` and its detail; `ManualRoleSource.merge` drops it once
+    /// discovery returns the same scope and name.
+    private func rekey(from old: RoleKey, to new: RoleKey) {
+        let tenantKey = old.tenantKey
+        guard tenantKey == new.tenantKey else { return }
+        if let i = state.manualRoles.firstIndex(where: { $0.tenantKey == tenantKey && $0.scope == old.scope }) {
+            state.manualRoles[i].scope = new.scope
+        }
+        if let remembered = state.memory(for: old) {
+            state.memory.removeAll { $0.roleKey == old }
+            state.remember(roleKey: new, justification: remembered.justification, duration: remembered.lastDuration)
+        }
+        if let i = roles[tenantKey]?.firstIndex(where: { $0.key == old }), let row = roles[tenantKey]?[i] {
+            roles[tenantKey]?[i] = EligibleRole(key: new, displayName: row.displayName, detail: row.detail,
+                                                source: row.source, policy: row.policy)
+        }
+        if let policy = policyCache[old] { policyCache[old] = nil; policyCache[new] = policy }
+        if let p = progress[old] { progress[old] = nil; progress[new] = p }
+        active[old] = nil
     }
 
     /// A manual role has no policy until Entra accepts an activation; that is the moment we can read one.

@@ -90,6 +90,16 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
         }
     }
 
+    /// Drops the given accounts from this client's local MSAL cache without any webview.
+    /// Used when the client id changes: the cached tokens belong to the old client and a browser
+    /// sign-out would only interrupt the user.
+    func removeCachedAccounts(_ identities: [Identity]) throws {
+        for identity in identities {
+            guard let account = try? app.account(forIdentifier: identity.id) else { continue }
+            try app.remove(account)
+        }
+    }
+
     func identities() async throws -> [Identity] {
         try app.allAccounts().map(Self.identity(from:))
     }

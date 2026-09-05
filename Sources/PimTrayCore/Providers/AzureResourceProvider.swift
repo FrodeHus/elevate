@@ -208,7 +208,10 @@ public struct AzureResourceProvider: PIMProvider {
         case "Denied", "Failed", "Canceled", "Revoked", "TimedOut", "Invalid", "AdminDenied", "FailedAsResourceIsLocked": .failed(created.properties.status ?? "Failed")
         default: .active
         }
-        return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.name, startDateTime: start,
+        // A manual role is keyed by role name; key the assignment by the id ARM resolved it to.
+        let resolvedKey = RoleKey(identityId: request.roleKey.identityId, tenantId: tenantId,
+                                  scope: .azureResource(scope: scope, roleDefinitionId: roleDefinitionId))
+        return ActiveAssignment(roleKey: resolvedKey, assignmentId: created.name, startDateTime: start,
                                 endDateTime: status == .active ? end : nil, status: status)
     }
 

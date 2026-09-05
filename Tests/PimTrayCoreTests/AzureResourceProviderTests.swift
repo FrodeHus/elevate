@@ -114,6 +114,9 @@ import Foundation
         let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
         let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
         #expect(props["roleDefinitionId"] as? String == contributorId)
+        // The assignment comes back keyed by the resolved id, not by the role name we asked with.
+        #expect(a.roleKey.scope == .azureResource(scope: "/subscriptions/SUB-1", roleDefinitionId: contributorId))
+        #expect(a.roleKey.identityId == "id1" && a.roleKey.tenantId == "t1")
     }
 
     @Test func activateWithoutMatchingEligibilityIsNotEligible() async throws {
