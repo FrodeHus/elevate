@@ -39,32 +39,12 @@ struct TenantHeader: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
                 if tenant.source == .home { Text("home").font(.caption2).foregroundStyle(.secondary) }
-                if tenant.discoveryMode == .manualRoles {
-                    Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(.orange.opacity(0.2), in: Capsule())
-                }
-                if let reason = tenant.azureUnavailableReason {
-                    Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
-                }
-                if let reason = model.entraViewOnlyReason(for: tenant.id) {
-                    ViewOnlyBadge(reason: reason)
-                }
-                if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
-                    StatusPill(text: "error", tint: .red, help: err)
-                }
-                if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
+                if let reason = model.entraViewOnlyReason(for: tenant.id) { ViewOnlyBadge(reason: reason) }
+                TenantPills(tenant: tenant)
                 Spacer()
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
                 HeaderMenu(label: "Tenant actions") {
-                    Button("Configure known PIM roles…") { open(.configureRoles(tenant.id)) }
-                    Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
-                    if tenant.discoveryMode == .manualRoles,
-                       let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
-                        Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
-                    }
-                    Divider()
-                    Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
-                        .disabled(tenant.source == .home)
+                    TenantMenuItems(tenant: tenant)
                 }
             }
         }
@@ -97,5 +77,45 @@ struct TenantRoles: View {
             }
             ForEach(roles) { role in RoleRow(role: role) }
         }
+    }
+}
+
+/// The tenant's status pills: manual mode, Azure off, discovery/refresh error, busy spinner.
+struct TenantPills: View {
+    @Environment(AppModel.self) private var model
+    let tenant: TenantContext
+    var body: some View {
+        if tenant.discoveryMode == .manualRoles {
+            Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
+                .background(.orange.opacity(0.2), in: Capsule())
+        }
+        if let reason = tenant.azureUnavailableReason {
+            Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
+        }
+        if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
+            StatusPill(text: "error", tint: .red, help: err)
+        }
+        if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
+    }
+}
+
+/// Menu entries that act on one tenant; shared by the tenant header and the single-tenant account row.
+struct TenantMenuItems: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+    let tenant: TenantContext
+    var body: some View {
+        Button("Configure known PIM roles…") {
+            openWindow(value: PanelRoute.configureRoles(tenant.id))
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
+        if tenant.discoveryMode == .manualRoles,
+           let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
+            Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
+        }
+        Divider()
+        Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
+            .disabled(tenant.source == .home)
     }
 }

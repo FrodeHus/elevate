@@ -47,10 +47,20 @@ struct PanelView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ForEach(model.identities) { identity in
-                            IdentityHeader(identity: identity)
-                            if !model.collapsedIdentities.contains(identity.id) {
-                                ForEach(model.tenants(for: identity.id)) { tenant in
-                                    TenantBlock(identity: identity, tenant: tenant)
+                            let tenants = model.tenants(for: identity.id)
+                            if tenants.count == 1, let only = tenants.first {
+                                // One tenant: fold it into the account row (pinned) and skip the tenant header.
+                                Section {
+                                    if !model.collapsedIdentities.contains(identity.id) { TenantRoles(tenant: only) }
+                                } header: {
+                                    IdentityHeader(identity: identity, soleTenant: only)
+                                }
+                            } else {
+                                IdentityHeader(identity: identity)
+                                if !model.collapsedIdentities.contains(identity.id) {
+                                    ForEach(tenants) { tenant in
+                                        TenantBlock(identity: identity, tenant: tenant)
+                                    }
                                 }
                             }
                         }

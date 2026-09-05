@@ -1,11 +1,19 @@
 import SwiftUI
 import ElevateCore
 
-/// Full account row shown between accounts. Accent-tinted so accounts read differently from tenants.
+/// Full account row shown between accounts. With `soleTenant` set the account has exactly one
+/// tenant, so this row also carries that tenant's name, pills, active count and menu items, and
+/// the tenant header is not shown at all.
 struct IdentityHeader: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     let identity: Identity
+    var soleTenant: TenantContext? = nil
+
+    private var activeCount: Int {
+        guard let t = soleTenant else { return 0 }
+        return model.roles(for: t.id).filter { model.assignment(for: $0.key)?.status == .active }.count
+    }
 
     var body: some View {
         let expanded = !model.collapsedIdentities.contains(identity.id)
@@ -15,7 +23,13 @@ struct IdentityHeader: View {
                     Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
                     Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
-                    Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                        if let t = soleTenant {
+                            Text(t.source == .home ? "\(t.displayName) · home" : t.displayName)
+                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -30,11 +44,17 @@ struct IdentityHeader: View {
                     ?? (model.tenants(for: identity.id).isEmpty ? identity.signInMethod.entraViewOnlyReason : nil) {
                     ViewOnlyBadge(reason: reason)
                 }
+                if let t = soleTenant { TenantPills(tenant: t) }
             }
             Spacer(minLength: 8)
+            if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
             HeaderMenu(label: "Account actions") {
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
+                if let t = soleTenant {
+                    Divider()
+                    TenantMenuItems(tenant: t)
+                }
                 Divider()
                 Button("Sign out", role: .destructive) { model.signOut(identity) }
             }
