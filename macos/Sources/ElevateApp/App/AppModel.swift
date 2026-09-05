@@ -19,6 +19,15 @@ final class AppModel {
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
     var collapsedTenants: Set<TenantKey> = []
     var collapsedIdentities: Set<String> = []
+    /// Tenants whose interactive sign-in the user dismissed this session; refreshes stay silent for them until Refresh or Retry discovery.
+    private var declinedTenants: Set<TenantKey> = []
+    private static func isDeclinedSignIn(_ e: PIMError) -> Bool {
+        switch e {
+        case .interactionRequired: true
+        case .network(let m): m.localizedCaseInsensitiveContains("cancel") || m.localizedCaseInsensitiveContains("timed out")
+        default: false
+        }
+    }
     func toggleTenant(_ key: TenantKey) { if collapsedTenants.contains(key) { collapsedTenants.remove(key) } else { collapsedTenants.insert(key) } }
     func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
     var selection: Set<RoleKey> = []
@@ -365,6 +374,7 @@ final class AppModel {
     }
 
     func removeTenant(_ key: TenantKey) {
+        declinedTenants.remove(key)
         state.removeTenant(key)
         roles[key] = nil
         active = active.filter { $0.key.tenantKey != key }
@@ -373,6 +383,7 @@ final class AppModel {
     }
 
     func retryDiscovery(_ key: TenantKey) async {
+        declinedTenants.remove(key)
         guard var t = self.tenant(key) else { return }
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
@@ -391,7 +402,8 @@ final class AppModel {
         Task { await self.refreshAll() }
     }
 
-    func refreshAll() async {
+    func refreshAll(userInitiated: Bool = false) async {
+        if userInitiated { declinedTenants.removeAll() }
         lastRefresh = .now
         let generation = configGeneration
         let keys = state.tenants.map(\.id)
@@ -413,6 +425,19 @@ final class AppModel {
         defer { busy.remove(key) }
         tenantErrors[key] = nil
 
+        // Runs a provider read; prompts at most once per tenant per session, never for a tenant that was removed meanwhile.
+        func acquire<T: Sendable>(_ scopes: [String], _ op: @Sendable @escaping () async throws -> T) async throws -> T {
+            guard self.tenant(key) != nil else { throw CancellationError() }
+            if declinedTenants.contains(key) { return try await op() }
+            do {
+                return try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: scopes, operation: op)
+            } catch let e as PIMError where Self.isDeclinedSignIn(e) {
+                guard self.tenant(key) != nil else { throw CancellationError() }
+                declinedTenants.insert(key)
+                throw PIMError.signInDeclined
+            }
+        }
+
         // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
         let kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource] : [.entraDirectory]
         let providers: [any PIMProvider] = kinds.compactMap { coordinator.provider(for: $0) }
@@ -432,7 +457,7 @@ final class AppModel {
             // Eligible roles. Entra honours the consent block; ARM consent is user-consentable.
             if !(isEntra && consentBlocked) {
                 do {
-                    let found = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+                    let found = try await acquire(provider.scopes) { @Sendable in
                         try await provider.eligibleRoles(identity: identity, tenant: tenantSnapshot)
                     }
                     let withPolicies = await applyPolicies(to: found, identity: identity)
@@ -448,6 +473,8 @@ final class AppModel {
                     persist()
                 } catch is CancellationError {
                     return
+                } catch PIMError.signInDeclined, PIMError.interactionRequired {
+                    if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
                 } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
                     guard generation == configGeneration else { return }
                     azureOff = true
@@ -466,7 +493,7 @@ final class AppModel {
                 if isEntra && consentBlocked {
                     found = try await provider.activeAssignments(identity: identity, tenant: snapshot)
                 } else {
-                    found = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+                    found = try await acquire(provider.scopes) { @Sendable in
                         try await provider.activeAssignments(identity: identity, tenant: snapshot)
                     }
                 }
@@ -475,6 +502,8 @@ final class AppModel {
                 kindsWithActive.insert(kind)
             } catch PIMError.interactionRequired where isEntra && consentBlocked {
             } catch PIMError.consentRequired where isEntra && consentBlocked {
+            } catch PIMError.signInDeclined, PIMError.interactionRequired {
+                if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
             } catch is CancellationError {
                 return
             } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {

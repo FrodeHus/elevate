@@ -5,6 +5,8 @@ public enum PIMError: Error, Hashable, Sendable {
     case consentRequired
     /// The service refused the call (HTTP 403) for an account that cannot be helped by admin consent (first-party sign-in); carries the server message.
     case forbidden(String)
+    /// The user dismissed or timed out the interactive sign-in a tenant needed; no further prompts until they ask again.
+    case signInDeclined
     /// Silent token acquisition failed; the caller must run an interactive flow.
     case interactionRequired
     /// Resource returned a claims challenge; payload is the decoded claims JSON.
@@ -19,6 +21,7 @@ public enum PIMError: Error, Hashable, Sendable {
         switch self {
         case .consentRequired: "Admin consent required for this tenant"
         case .forbidden(let m): "Not permitted: \(m)"
+        case .signInDeclined: "Sign-in for this tenant was not completed; press Refresh to try again"
         case .interactionRequired: "Sign in again"
         case .claimsChallenge: "Multi-factor authentication required"
         case .notEligible: "Not eligible for this role"

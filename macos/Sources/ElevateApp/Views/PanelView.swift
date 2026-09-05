@@ -93,7 +93,7 @@ struct PanelView: View {
                 .toggleStyle(.button)
                 .help("Select several roles to activate together")
                 .accessibilityLabel("Select roles")
-            Button { Task { await model.refreshAll() } } label: { Image(systemName: "arrow.clockwise") }
+            Button { Task { await model.refreshAll(userInitiated: true) } } label: { Image(systemName: "arrow.clockwise") }
                 .help("Refresh")
                 .accessibilityLabel("Refresh")
                 .disabled(!model.isOnline)
