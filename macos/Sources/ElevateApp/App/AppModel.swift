@@ -64,6 +64,12 @@ final class AppModel {
     private var bootstrapped = false
     private var lastRefresh: Date = .distantPast
     var pendingExtend: RoleKey?
+    /// Set when the global hot key's profile needs input; `MenuBarLabel` opens the Run sheet for it.
+    var pendingProfileRun: UUID?
+    /// Why the global shortcut could not be registered, shown in Settings.
+    var hotKeyError: String?
+    /// One global hot key, created with the model and reconfigured by `applyHotKey()`.
+    private let hotKeys = HotKeyCenter()
 
     let settings: AppSettings
     private(set) var tokens: any TokenProviding
@@ -338,6 +344,34 @@ final class AppModel {
         persist()
         if isOnline { await refreshAll() }
         startTimer()
+        applyHotKey()
+    }
+
+    // MARK: Global shortcut
+
+    /// Re-registers the global shortcut from settings. Registering unregisters first, so calling
+    /// this after every Settings change cannot leave a stale hot key behind.
+    func applyHotKey() {
+        hotKeys.unregister()
+        hotKeyError = nil
+        guard let binding = settings.hotKey, settings.hotKeyProfileId != nil else {
+            hotKeys.onFire = nil
+            return
+        }
+        hotKeys.onFire = { [weak self] in
+            Task { @MainActor in
+                guard let self, let id = self.settings.hotKeyProfileId else { return }
+                if await self.quickRun(profileId: id) { return }
+                // Needs a justification, ticket or duration: open the Run sheet instead.
+                self.requestRun(id)
+                self.pendingProfileRun = id
+            }
+        }
+        do {
+            try hotKeys.register(binding)
+        } catch {
+            hotKeyError = error.localizedDescription
+        }
     }
 
     /// Coarse "now" for views that must not drive their own timers (the menu bar label); ticks every 30 s.

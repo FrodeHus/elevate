@@ -13,6 +13,8 @@ final class AppSettings {
     static let customClientIdKey = "customLoopbackClientId"
     static let panelTabKey = "panelTab"
     static let collapsedActiveKey = "collapsedActive"
+    static let hotKeyKey = "hotKey"
+    static let hotKeyProfileKey = "hotKeyProfileId"
 
     private let defaults: UserDefaults
 
@@ -36,6 +38,28 @@ final class AppSettings {
         didSet { defaults.set(collapsedActive, forKey: Self.collapsedActiveKey) }
     }
 
+    /// The global shortcut, stored as JSON. Nil means no shortcut is registered.
+    var hotKey: HotKeyBinding? {
+        didSet {
+            if let hotKey, let data = try? JSONEncoder().encode(hotKey) {
+                defaults.set(data, forKey: Self.hotKeyKey)
+            } else {
+                defaults.removeObject(forKey: Self.hotKeyKey)
+            }
+        }
+    }
+
+    /// The profile the global shortcut runs. Without it the shortcut stays unregistered.
+    var hotKeyProfileId: UUID? {
+        didSet {
+            if let hotKeyProfileId {
+                defaults.set(hotKeyProfileId.uuidString, forKey: Self.hotKeyProfileKey)
+            } else {
+                defaults.removeObject(forKey: Self.hotKeyProfileKey)
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
@@ -52,6 +76,8 @@ final class AppSettings {
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
+        hotKey = (defaults.data(forKey: Self.hotKeyKey)).flatMap { try? JSONDecoder().decode(HotKeyBinding.self, from: $0) }
+        hotKeyProfileId = (defaults.string(forKey: Self.hotKeyProfileKey)).flatMap(UUID.init(uuidString:))
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }
