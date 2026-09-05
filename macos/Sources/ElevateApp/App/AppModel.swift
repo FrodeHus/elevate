@@ -15,6 +15,13 @@ final class AppModel {
     private(set) var progress: [RoleKey: ActivationOutcome.Result] = [:]
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     private(set) var inFlight: Set<RoleKey> = []
+    /// Requests awaiting this user's decision, per tenant and kind. Session only: approvals are
+    /// read opportunistically on every refresh and a failed read keeps the previous list.
+    private(set) var approvals: [TenantKey: [RoleScopeKind: [ApprovalRequest]]] = [:]
+    /// Requests whose Approve/Deny is currently being sent; their rows show a spinner.
+    private(set) var decisionInFlight: Set<String> = []
+    /// Last decision failure per request id, shown on the row and in the sheet.
+    private(set) var approvalErrors: [String: String] = [:]
     var selectMode = false { didSet { if !selectMode { selection.removeAll(); editingProfileId = nil } } }
     /// The list the panel shows; the bulk selection survives switching so a profile can span tabs.
     var panelTab: PanelTab {
@@ -24,6 +31,9 @@ final class AppModel {
 
     var collapsedActive: Bool { settings.collapsedActive }
     func toggleActive() { settings.collapsedActive.toggle() }
+
+    var collapsedApprovals: Bool { settings.collapsedApprovals }
+    func toggleApprovals() { settings.collapsedApprovals.toggle() }
 
     /// Panel search. Not persisted; changing it drops the bulk selection since rows may disappear.
     var searchQuery = "" { didSet { if searchQuery != oldValue { selection.removeAll() } } }
@@ -86,6 +96,8 @@ final class AppModel {
     let settings: AppSettings
     private(set) var tokens: any TokenProviding
     private(set) var coordinator: ActivationCoordinator
+    /// Approval readers/deciders, one per kind, rebuilt with the coordinator when the client id changes.
+    private(set) var approvalProviders: [RoleScopeKind: any ApprovalProvider]
     private(set) var discovery: TenantDiscovery
     private let store: AppStateStore
     private let notifier: any ExpiryNotifying
@@ -143,7 +155,14 @@ final class AppModel {
         self.settings = settings
         self.anchor = anchor
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens)], tokens: tokens)
+        approvalProviders = Self.makeApprovalProviders(http: http, tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
+    }
+
+    private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
+        [.entraDirectory: EntraApprovalProvider(http: http, tokens: tokens),
+         .group: GroupApprovalProvider(http: http, tokens: tokens),
+         .azureResource: AzureApprovalProvider(http: http, tokens: tokens)]
     }
 
     /// Production wiring. The client id lives in `AppSettings`; when it is missing or unusable,
@@ -197,6 +216,7 @@ final class AppModel {
         for identity in ownApp { forgetIdentity(identity.id) }
         lastRefresh = .distantPast
         selection = []; busy = []; inFlight = []
+        decisionInFlight = []; approvalErrors = [:]
         pendingExtend = nil; selectMode = false
         persist()
         settings.clientId = id
@@ -204,6 +224,7 @@ final class AppModel {
         let composite = CompositeTokenProvider(msal: replacement, loopback: loopback)
         tokens = composite
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
+        approvalProviders = Self.makeApprovalProviders(http: http, tokens: composite)
         discovery = TenantDiscovery(http: http, tokens: composite)
         notice = nil
         startupError = nil
@@ -217,6 +238,7 @@ final class AppModel {
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
+        dropApprovals { $0.identityId == identityId }
         dropPolicies { $0.identityId == identityId }
     }
 
@@ -278,6 +300,31 @@ final class AppModel {
             if let r = role(for: a.roleKey) { return matchesFilter(r) }
             return PanelFilter.matches(query: searchQuery, text: summaryName(for: a.roleKey))
         }
+    }
+
+    /// Every pending request across accounts and tenants, oldest first, tenant name and id as
+    /// tiebreaks so the order is stable between refreshes. Filtered by the panel search when active.
+    var approvalsOrdered: [ApprovalRequest] {
+        let ordered = allApprovals.sorted { a, b in
+            let da = a.createdAt ?? .distantPast, db = b.createdAt ?? .distantPast
+            if da != db { return da < db }
+            let na = approvalTenantName(a), nb = approvalTenantName(b)
+            if na != nb { return na < nb }
+            return a.id < b.id
+        }
+        guard isFiltering else { return ordered }
+        return ordered.filter { r in
+            [r.targetName, r.requesterName, approvalTenantName(r)].contains { PanelFilter.matches(query: searchQuery, text: $0) }
+        }
+    }
+
+    /// The menu bar glyph's condition: everything pending, never narrowed by the panel search.
+    var pendingApprovalCount: Int { allApprovals.count }
+
+    private var allApprovals: [ApprovalRequest] { approvals.values.flatMap { $0.values.flatMap { $0 } } }
+
+    func approvalTenantName(_ request: ApprovalRequest) -> String {
+        tenant(request.tenantKey)?.displayName ?? request.tenantKey.tenantId
     }
 
     /// Why the Groups tab is empty by construction for this tenant, or nil when groups are read normally.
@@ -420,6 +467,18 @@ final class AppModel {
         for key in policyCache.keys where matches(key) { policyCache[key] = nil }
     }
 
+    /// Forgets the approvals of the matching tenants, along with their in-flight and error state,
+    /// so a removed tenant or signed-out account leaves nothing in the pinned section.
+    private func dropApprovals(where matches: (TenantKey) -> Bool) {
+        for key in approvals.keys where matches(key) {
+            for id in (approvals[key] ?? [:]).values.flatMap({ $0 }).map(\.id) {
+                decisionInFlight.remove(id)
+                approvalErrors[id] = nil
+            }
+            approvals[key] = nil
+        }
+    }
+
     private func persist() {
         saveGeneration += 1
         let snapshot = state
@@ -528,6 +587,7 @@ final class AppModel {
         state.removeTenant(key)
         roles[key] = nil
         active = active.filter { $0.key.tenantKey != key }
+        dropApprovals { $0 == key }
         dropPolicies { $0.tenantKey == key }
         persist()
     }
@@ -569,6 +629,8 @@ final class AppModel {
                 }
             }
         }
+        guard generation == configGeneration else { return }
+        pruneSeenApprovals()
     }
 
     func refresh(_ key: TenantKey, kinds requestedKinds: Set<RoleScopeKind>? = nil) async {
@@ -702,6 +764,26 @@ final class AppModel {
             }
         }
 
+        // Approvals are opportunistic: a 403, a missing consent or a network failure leaves the
+        // previous list for that tenant and kind untouched and surfaces nothing to the user.
+        // `kinds` already excludes Entra and groups for a first-party sign-in, so those accounts
+        // read only the Azure approvals.
+        var readApprovals: [RoleScopeKind: [ApprovalRequest]] = [:]
+        for kind in kinds where !(kind == .azureResource && azureOff) {
+            guard let provider = approvalProviders[kind] else { continue }
+            let snapshot = tenant
+            if let found = try? await acquire(provider.scopes, { @Sendable in
+                try await provider.pendingApprovals(identity: identity, tenant: snapshot)
+            }) {
+                readApprovals[kind] = found
+            }
+        }
+        guard generation == configGeneration else { return }
+        if self.tenant(key) != nil, !readApprovals.isEmpty {
+            for (kind, list) in readApprovals { approvals[key, default: [:]][kind] = list }
+            await announceNewApprovals()
+        }
+
         guard generation == configGeneration else { return }
         let manual = ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: key).map { role -> EligibleRole in
             var r = role
@@ -715,6 +797,60 @@ final class AppModel {
         for a in current { active[a.roleKey] = a }
         if !errors.isEmpty { tenantErrors[key] = errors.joined(separator: " · ") }
         await rescheduleNotifications()
+    }
+
+    /// Notifies once per request the user has not seen before. Only adds here: a single tenant's
+    /// refresh knows nothing about the tenants that have not been read yet this launch, so pruning
+    /// here would forget their ids and re-notify them a moment later. `refreshAll` prunes instead.
+    private func announceNewApprovals() async {
+        let all = allApprovals
+        for r in ApprovalDiff.newRequests(previousIds: settings.seenApprovalIds, current: all) {
+            await notifier.notify(title: "Approval requested",
+                                  body: "\(r.targetName) for \(r.requesterName), \(approvalTenantName(r))")
+        }
+        settings.seenApprovalIds.formUnion(all.map(\.id))
+    }
+
+    /// After a full sweep every tenant's list is current, so the seen set can be cut back to what is
+    /// still pending; a request that is withdrawn and comes back notifies again.
+    private func pruneSeenApprovals() {
+        settings.seenApprovalIds.formIntersection(allApprovals.map(\.id))
+    }
+
+    // MARK: Approvals
+
+    /// Sends one Approve or Deny. Returns true when the service accepted it; the caller closes its
+    /// sheet on true and shows `approvalErrors[request.id]` on false.
+    func decide(_ request: ApprovalRequest, approve: Bool, justification: String) async -> Bool {
+        guard !decisionInFlight.contains(request.id) else { return false }
+        guard let identity = self.identity(request.tenantKey.identityId) else {
+            approvalErrors[request.id] = "That account is no longer signed in."
+            return false
+        }
+        guard let provider = approvalProviders[request.kind] else {
+            approvalErrors[request.id] = "This request cannot be decided from Elevate."
+            return false
+        }
+        let generation = configGeneration
+        decisionInFlight.insert(request.id)
+        defer { decisionInFlight.remove(request.id) }
+        do {
+            try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: request.tenantKey.tenantId,
+                                           scopes: provider.scopes) { @Sendable in
+                try await provider.decide(request, approve: approve, justification: justification, identity: identity)
+            }
+            guard generation == configGeneration else { return false }
+            // Drop the row now; the follow-up refresh re-lists it if a further approval stage remains.
+            approvals[request.tenantKey]?[request.kind]?.removeAll { $0.id == request.id }
+            approvalErrors[request.id] = nil
+            settings.lastApprovalJustification = justification
+            Task { await self.refresh(request.tenantKey, kinds: [request.kind]) }
+            return true
+        } catch {
+            guard generation == configGeneration else { return false }
+            approvalErrors[request.id] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            return false
+        }
     }
 
     /// Latches PIM for Groups off for this tenant. Callers must already have checked
