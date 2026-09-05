@@ -98,6 +98,7 @@ struct RunProfileView: View {
     @ViewBuilder private func statusLabel(for it: ProfilePlanItem) -> some View {
         switch model.progress[it.roleKey] {
         case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+        case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
         case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.yellow).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil:

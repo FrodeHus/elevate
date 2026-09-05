@@ -14,8 +14,11 @@ enum PanelRoute: Codable, Hashable {
 
 protocol ExpiryNotifying: Sendable {
     func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String], tenantNames: [TenantKey: String]) async
+    /// Posts a notification immediately; used to report the outcome of a quick activation.
+    func notify(title: String, body: String) async
 }
 
 struct NoopNotifier: ExpiryNotifying {
     func reschedule(assignments: [ActiveAssignment], names: [RoleKey: String], tenantNames: [TenantKey: String]) async {}
+    func notify(title: String, body: String) async {}
 }

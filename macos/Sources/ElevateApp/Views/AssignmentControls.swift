@@ -43,6 +43,8 @@ struct AssignmentControls: View {
                         .help(lockedFor > 0 ? "Can be deactivated in \(Int(lockedFor.rounded(.up))) s (Entra enforces 5 minutes)" : "Deactivate this role now")
                 }
             }
+        case .scheduled:
+            Text("scheduled").font(.caption).foregroundStyle(.secondary)
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
             Button("Cancel") { Task { await model.cancelPending(key) } }

@@ -819,7 +819,7 @@ final class AppModel {
             progress[outcome.roleKey] = outcome.result
             guard let request = attempted.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
             switch outcome.result {
-            case .activated(let a), .pendingApproval(let a):
+            case .activated(let a), .pendingApproval(let a), .scheduled(let a):
                 // A manual Azure role is keyed by role name; the provider answers with the resolved
                 // definition id, so move the stored role, its memory and its row onto that key.
                 if a.roleKey != request.roleKey { rekey(from: request.roleKey, to: a.roleKey) }
@@ -862,6 +862,46 @@ final class AppModel {
         // Runs independently so a slow policy fetch cannot hold the activation spinner; it only
         // updates cached policy/role data afterwards, never `inFlight`.
         Task { await self.learnPoliciesForManualRoles(outcomes) }
+    }
+
+    // MARK: Quick activate
+
+    /// Option-click path. Returns false when the dialog is needed; the caller opens it.
+    func quickActivate(_ key: RoleKey) async -> Bool {
+        guard let role = role(for: key) else { return false }
+        guard case .ready(let requests) = QuickActivate.decide(role: role, memory: remembered(for: key)) else { return false }
+        await activate(requests)
+        await notifyOutcome(title: role.displayName, keys: requests.map(\.roleKey))
+        return true
+    }
+
+    func quickRun(profileId: UUID) async -> Bool {
+        guard let profile = state.profile(id: profileId) else { return false }
+        let items = plan(for: profileId)
+        guard case .ready(let requests) = QuickActivate.decide(items: items, justification: profile.lastJustification) else { return false }
+        await runProfile(id: profileId, items: items, justification: requests.first?.justification ?? "", ticket: nil)
+        await notifyOutcome(title: profile.name, keys: requests.map(\.roleKey))
+        return true
+    }
+
+    private func notifyOutcome(title: String, keys: [RoleKey]) async {
+        var ok = 0, pending = 0, scheduled = 0
+        var failures: [String] = []
+        for k in keys {
+            switch progress[k] {
+            case .activated: ok += 1
+            case .pendingApproval: pending += 1
+            case .scheduled: scheduled += 1
+            case .failed(let e): failures.append("\(summaryName(for: k)): \(e.userMessage)")
+            case nil: break
+            }
+        }
+        var parts: [String] = []
+        if ok > 0 { parts.append("\(ok) activated") }
+        if scheduled > 0 { parts.append("\(scheduled) scheduled") }
+        if pending > 0 { parts.append("\(pending) awaiting approval") }
+        if !failures.isEmpty { parts.append("\(failures.count) failed: " + failures.joined(separator: "; ")) }
+        await notifier.notify(title: title, body: parts.isEmpty ? "Nothing to do" : parts.joined(separator: ", "))
     }
 
     /// Moves a manual role from the key the user typed to the key the provider resolved it to.
