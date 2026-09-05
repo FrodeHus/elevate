@@ -6,9 +6,11 @@ Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles acro
 memberships and ownerships; activation, the countdown and Deactivate work exactly as they do for
 roles. Because a group can carry Entra or Azure roles, those roles are re-read a few seconds after
 a group activation so the Roles tab catches up. Groups need the three `*.AzureADGroup` delegated
-permissions below, so they are only available for your own app registration — accounts added with
-the Microsoft first-party Azure CLI or Azure PowerShell apps get no groups, and the tenant shows a
-"Groups off" pill with the reason.
+permissions below, so they are available for your own app registration and for a custom app
+registration that carries them — never for the Microsoft first-party Azure CLI or Azure PowerShell
+apps. A first-party account is never read for groups at all; its Groups tab explains that the
+sign-in method supports Azure resource roles only. A tenant where the group read is refused for
+permissions shows a "Groups off" pill with the reason.
 
 ## Sign-in methods
 

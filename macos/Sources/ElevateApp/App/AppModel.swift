@@ -450,7 +450,8 @@ final class AppModel {
         guard !busy.contains(key) else { return }
         busy.insert(key)
         defer { busy.remove(key) }
-        tenantErrors[key] = nil
+        // A kinds-restricted refresh re-reads only some providers, so it must not clear errors it cannot re-earn.
+        if requestedKinds == nil { tenantErrors[key] = nil }
 
         // Runs a provider read; prompts at most once per tenant per session, never for a tenant that was removed meanwhile.
         func acquire<T: Sendable>(_ scopes: [String], _ op: @Sendable @escaping () async throws -> T) async throws -> T {
@@ -519,9 +520,9 @@ final class AppModel {
                 } catch let error as PIMError where isGroup && Self.isGroupConsentFailure(error) {
                     guard generation == configGeneration, self.tenant(key) != nil else { return }
                     discoveredByKind[kind] = []
-                    tenant.groupsUnavailableReason = "PIM for Groups is not permitted in this tenant until an admin consents to the group permissions."
-                    state.upsertTenant(tenant)
-                    persist()
+                    latchGroupsOff(&tenant)
+                    // Claim the kind so the tail filter drops group rows we read before consent was refused.
+                    kindsWithActive.insert(kind)
                     continue   // skip the active read for this provider
                 } catch is CancellationError {
                     return
@@ -558,6 +559,11 @@ final class AppModel {
                 if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
             } catch is CancellationError {
                 return
+            } catch let error as PIMError where isGroup && Self.isGroupConsentFailure(error) {
+                guard generation == configGeneration, self.tenant(key) != nil else { return }
+                latchGroupsOff(&tenant)
+                // Claim the kind so the tail filter drops any group rows read before consent was refused.
+                kindsWithActive.insert(kind)
             } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
                 guard generation == configGeneration else { return }
                 azureOff = true
@@ -584,8 +590,18 @@ final class AppModel {
         await rescheduleNotifications()
     }
 
+    /// Latches PIM for Groups off for this tenant. Callers must already have checked
+    /// `generation == configGeneration` and that the tenant still exists.
+    private func latchGroupsOff(_ tenant: inout TenantContext) {
+        tenant.groupsUnavailableReason = "PIM for Groups is not permitted in this tenant until an admin consents to the group permissions."
+        state.upsertTenant(tenant)
+        persist()
+    }
+
     /// A group read refused for permissions: the tenant has no PIM for Groups we can reach.
     /// A first-party or custom app without the group scopes answers 403 rather than a consent challenge.
+    /// `GraphTransport.send` substitutes `.forbidden` for a 403 on non-own-app identities, so a missing
+    /// group permission surfaces here as `.forbidden` rather than `.consentRequired`.
     private static func isGroupConsentFailure(_ error: PIMError) -> Bool {
         switch error {
         case .consentRequired, .forbidden: true

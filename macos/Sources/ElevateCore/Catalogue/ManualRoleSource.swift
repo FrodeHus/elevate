@@ -15,7 +15,11 @@ public struct ManualRole: Codable, Hashable, Sendable {
 public enum ManualRoleSource {
     public static func eligibleRoles(from manual: [ManualRole], tenantKey: TenantKey) -> [EligibleRole] {
         manual.filter { $0.tenantKey == tenantKey }.map {
-            let detail: String? = if case .azureResource(let scope, _) = $0.scope { scope } else { nil }
+            let detail: String? = switch $0.scope {
+            case .azureResource(let scope, _): scope
+            case .group(_, let accessId): accessId == .owner ? "owner" : "member"
+            default: nil
+            }
             return EligibleRole(key: RoleKey(identityId: tenantKey.identityId, tenantId: tenantKey.tenantId, scope: $0.scope),
                                 displayName: $0.displayName, detail: detail, source: .manual, policy: .manualDefault)
         }

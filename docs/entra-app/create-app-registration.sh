@@ -4,6 +4,8 @@
 #   display-name  defaults to "Elevate"
 #   bundle-id     defaults to no.reothor.elevate (must match the app's bundle id; only change it for your own build)
 # Requires: az login as a user allowed to create app registrations (Application Developer or above).
+# NOT idempotent: every run creates a NEW app registration (a second run leaves you with two).
+# Run it once and keep the client id it prints.
 set -euo pipefail
 NAME="${1:-Elevate}"
 BUNDLE="${2:-no.reothor.elevate}"
@@ -18,7 +20,7 @@ APP_ID=$(az ad app create \
   --query appId -o tsv)
 
 # A service principal in the home tenant so admin consent can be recorded there.
-az ad sp create --id "$APP_ID" >/dev/null 2>&1 || true
+az ad sp show --id "$APP_ID" >/dev/null 2>&1 || az ad sp create --id "$APP_ID" >/dev/null
 
 echo "Application (client) ID: $APP_ID"
 echo
