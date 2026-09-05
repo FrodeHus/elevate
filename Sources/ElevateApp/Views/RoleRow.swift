@@ -55,15 +55,16 @@ struct RoleRow: View {
             let start = assignment?.startDateTime ?? .distantPast
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 let lockedFor = 300 - ctx.date.timeIntervalSince(start)
-                if let end = assignment?.endDateTime {
-                    Text(Countdown.remaining(until: end, now: ctx.date).map(Countdown.label) ?? "expired")
+                // One horizontal line: countdown, then the button. Multiple children of a TimelineView stack vertically otherwise.
+                HStack(spacing: 8) {
+                    Text(assignment?.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .frame(width: PanelMetrics.countdownWidth, alignment: .trailing)
+                    Button("Deactivate") { Task { await model.deactivate(role.key) } }
+                        .controlSize(.small)
+                        .disabled(lockedFor > 0 || !model.isOnline)
+                        .help(lockedFor > 0 ? "Can be deactivated in \(Int(lockedFor.rounded(.up))) s (Entra enforces 5 minutes)" : "Deactivate this role now")
                 }
-                Button("Deactivate") { Task { await model.deactivate(role.key) } }
-                    .controlSize(.small)
-                    .disabled(lockedFor > 0 || !model.isOnline)
-                    .help(lockedFor > 0 ? "Can be deactivated in \(Int(lockedFor.rounded(.up))) s (Entra enforces 5 minutes)" : "Deactivate this role now")
             }
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
