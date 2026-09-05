@@ -1,0 +1,16 @@
+{
+  "value": [
+    {
+      "id": "gsched-1", "principalId": "user-obj-1", "groupId": "grp-ops", "accessId": "member",
+      "assignmentType": "activated", "memberType": "direct",
+      "scheduleInfo": { "startDateTime": "2099-01-01T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": "2099-01-01T11:00:00Z" } },
+      "group": { "id": "grp-ops", "displayName": "Ops Admins" }
+    },
+    {
+      "id": "gsched-old", "principalId": "user-obj-1", "groupId": "grp-sec", "accessId": "owner",
+      "assignmentType": "activated", "memberType": "direct",
+      "scheduleInfo": { "startDateTime": "2020-01-01T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": "2020-01-01T11:00:00Z" } },
+      "group": { "id": "grp-sec", "displayName": "Security Owners" }
+    }
+  ]
+}

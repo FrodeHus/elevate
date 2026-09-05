@@ -34,6 +34,7 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-active"))
         await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("group-pending"))
+        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let ops = active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) }!
@@ -45,6 +46,34 @@ import Foundation
         #expect(sec.assignmentId == "greq-9")
         let pendingReq = await http.requests(matching: "assignmentScheduleRequests").first!
         #expect(pendingReq.url.absoluteString.contains("status eq 'PendingApproval'") || pendingReq.url.absoluteString.contains("status%20eq%20'PendingApproval'"))
+    }
+
+    @Test func futureSchedulesAppearAsScheduled() async throws {
+        let (p, http, _) = makeProvider()
+        let empty = Data(#"{"value":[]}"#.utf8)
+        await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: empty)
+        await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: empty)
+        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Fixtures.data("group-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
+        let ops = try #require(active.first)
+        #expect(ops.roleKey.scope == .group(groupId: "grp-ops", accessId: .member))
+        #expect(ops.status == .scheduled)
+        #expect(ops.assignmentId == "gsched-1")
+        #expect(ops.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
+        #expect(ops.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+    }
+
+    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "assignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-active"))
+        await http.on("GET", "assignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("group-pending"))
+        await http.on("GET", "assignmentSchedules/filterByCurrentUser", body: Fixtures.data("group-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 2)
+        let ops = active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) }!
+        #expect(ops.status == .active)
+        #expect(ops.assignmentId == "ginst-1")
     }
 
     @Test func forbiddenReadMapsToConsentRequired() async throws {
@@ -122,6 +151,28 @@ import Foundation
         let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
         let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
         #expect(body["principalId"] as? String == "user-obj-1")
+    }
+
+    @Test func activateWithFutureStartSendsItAndReportsScheduled() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        // Same response as a normal activation, but with no echoed end: the service works it out from the duration.
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("group-activate-response")) as! [String: Any]
+        var sched = json["scheduleInfo"] as! [String: Any]
+        sched["expiration"] = ["type": "afterDuration", "duration": "PT2H"]
+        json["scheduleInfo"] = sched
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(7200), justification: "later", startDateTime: start), identity: identity)
+
+        let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
+        let body = (try JSONSerialization.jsonObject(with: post.body!) as! [String: Any])["scheduleInfo"] as! [String: Any]
+        #expect(GraphJSON.parseDate(body["startDateTime"] as! String) == start)
+        // The response echoes a start in the past; the request's future start wins.
+        #expect(a.status == .scheduled)
+        #expect(a.startDateTime == start)
+        #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
     }
 
     @Test func pendingApprovalResponseIsReported() async throws {

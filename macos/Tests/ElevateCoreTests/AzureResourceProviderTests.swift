@@ -38,6 +38,7 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("arm-active"))
         await http.on("GET", "roleAssignmentScheduleRequests", body: Fixtures.data("arm-pending"))
+        await http.on("GET", "roleAssignmentSchedules?", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
@@ -47,6 +48,36 @@ import Foundation
         let reader = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) }!
         #expect(reader.status == .pendingApproval)
         #expect(reader.assignmentId == "req-77")
+    }
+
+    @Test func futureSchedulesAppearAsScheduled() async throws {
+        let (p, http, _) = makeProvider()
+        let empty = Data(#"{"value":[]}"#.utf8)
+        await http.on("GET", "roleAssignmentScheduleInstances", body: empty)
+        await http.on("GET", "roleAssignmentScheduleRequests", body: empty)
+        await http.on("GET", "roleAssignmentSchedules?", body: Fixtures.data("arm-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
+        let contributor = try #require(active.first)
+        #expect(contributor.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId))
+        #expect(contributor.status == .scheduled)
+        #expect(contributor.assignmentId == "sched-1")
+        #expect(contributor.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
+        #expect(contributor.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+        let get = await http.requests(matching: "roleAssignmentSchedules?").first!
+        #expect(get.url.absoluteString.contains("asTarget()"))
+    }
+
+    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("arm-active"))
+        await http.on("GET", "roleAssignmentScheduleRequests", body: Fixtures.data("arm-pending"))
+        await http.on("GET", "roleAssignmentSchedules?", body: Fixtures.data("arm-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 2)
+        let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
+        #expect(contributor.status == .active)
+        #expect(contributor.assignmentId == "inst-1")
     }
 
     @Test func forbiddenIsNotTreatedAsConsent() async throws {
@@ -130,6 +161,25 @@ import Foundation
         let exp = (props["scheduleInfo"] as! [String: Any])["expiration"] as! [String: Any]
         #expect(exp["type"] as? String == "AfterDuration")
         #expect(exp["duration"] as? String == "PT2H")
+    }
+
+    @Test func activateWithFutureStartSendsItAndReportsScheduled() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(7200), justification: "later", startDateTime: start), identity: identity)
+
+        let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
+        let sched = props["scheduleInfo"] as! [String: Any]
+        #expect(GraphJSON.parseDate(sched["startDateTime"] as! String) == start)
+        // The response echoes a start in the past; the request's future start wins.
+        #expect(a.status == .scheduled)
+        #expect(a.startDateTime == start)
+        #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
     }
 
     @Test func manualRoleNameIsResolvedBeforeActivation() async throws {

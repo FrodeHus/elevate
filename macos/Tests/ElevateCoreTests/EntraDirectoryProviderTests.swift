@@ -30,6 +30,7 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("entra-active"))
         await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("entra-pending-requests"))
+        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
         #expect(active.count == 2)
         let gr = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") }!
@@ -113,6 +114,51 @@ import Foundation
         #expect(exp["type"] as? String == "afterDuration")
         #expect(exp["duration"] as? String == "PT2H")
         #expect(body["ticketInfo"] == nil)
+    }
+
+    @Test func activateWithFutureStartSendsItAndReportsScheduled() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("entra-activate-response"))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let request = ActivationRequest(roleKey: globalReader.key, duration: .seconds(7200), justification: "later", startDateTime: start)
+        let a = try await p.activate(request, identity: identity)
+
+        let post = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let sched = (try JSONSerialization.jsonObject(with: post.body!) as! [String: Any])["scheduleInfo"] as! [String: Any]
+        #expect(GraphJSON.parseDate(sched["startDateTime"] as! String) == start)
+        // The response echoes a start in the past; the request's future start wins.
+        #expect(a.status == .scheduled)
+        #expect(a.startDateTime == start)
+        #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+    }
+
+    @Test func futureSchedulesAppearAsScheduled() async throws {
+        let (p, http, _) = makeProvider()
+        let empty = Data(#"{"value":[]}"#.utf8)
+        await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: empty)
+        await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: empty)
+        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Fixtures.data("entra-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
+        let gr = try #require(active.first)
+        #expect(gr.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/"))
+        #expect(gr.status == .scheduled)
+        #expect(gr.assignmentId == "sched-1")
+        #expect(gr.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
+        #expect(gr.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+    }
+
+    @Test func futureScheduleDoesNotOverrideAnActiveAssignment() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", body: Fixtures.data("entra-active"))
+        await http.on("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", body: Fixtures.data("entra-pending-requests"))
+        await http.on("GET", "roleAssignmentSchedules/filterByCurrentUser", body: Fixtures.data("entra-schedules"))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.count == 2)
+        let gr = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") }!
+        #expect(gr.status == .active)
+        #expect(gr.assignmentId == "inst-1")
     }
 
     @Test func activateReportsPendingApproval() async throws {

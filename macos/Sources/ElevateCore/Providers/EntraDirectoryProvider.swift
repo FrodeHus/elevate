@@ -21,6 +21,8 @@ public struct EntraDirectoryProvider: PIMProvider {
         let endDateTime: Date?
         let roleDefinition: RoleDefinitionRef?
         let memberType: String?
+        /// Present on roleAssignmentSchedules; the instances endpoint carries flat start/end instead.
+        let scheduleInfo: ScheduleInfo?
     }
     struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
     struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
@@ -61,10 +63,14 @@ public struct EntraDirectoryProvider: PIMProvider {
         let requests = try await transport.get(identity: identity, tenantId: tenant.tenantId,
                                                url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval'"),
                                                scopes: scopes)
+        let schedules = try await transport.get(identity: identity, tenantId: tenant.tenantId,
+                                                url: try transport.graphURL("/roleManagement/directory/roleAssignmentSchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
+                                                scopes: scopes)
         let activated = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: instances.body).value
             .filter { $0.assignmentType == "Activated" }
         let pending = try GraphJSON.decoder.decode(Collection<ScheduleRequest>.self, from: requests.body).value
             .filter { $0.status == "PendingApproval" }
+        let upcoming = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: schedules.body).value
 
         var result: [RoleKey: ActiveAssignment] = [:]
         for s in activated {
@@ -80,6 +86,17 @@ public struct EntraDirectoryProvider: PIMProvider {
             result[key] = ActiveAssignment(roleKey: key, assignmentId: p.id,
                                            startDateTime: p.scheduleInfo?.startDateTime ?? p.createdDateTime ?? .now,
                                            endDateTime: nil, status: .pendingApproval)
+        }
+        for u in upcoming where u.assignmentType?.caseInsensitiveCompare("Activated") == .orderedSame {
+            guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
+            let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId,
+                              scope: .entraDirectory(roleDefinitionId: u.roleDefinitionId, directoryScopeId: u.directoryScopeId ?? "/"))
+            guard result[key] == nil else { continue }
+            let end = u.scheduleInfo?.expiration?.endDateTime
+                ?? u.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse)
+                    .map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
+                                           endDateTime: end, status: .scheduled)
         }
         return Array(result.values)
     }
@@ -120,7 +137,7 @@ public struct EntraDirectoryProvider: PIMProvider {
             "directoryScopeId": directoryScopeId,
             "justification": request.justification,
             "scheduleInfo": [
-                "startDateTime": GraphJSON.encoderDateString(.now),
+                "startDateTime": GraphJSON.encoderDateString(request.startDateTime ?? .now),
                 "expiration": ["type": "afterDuration", "duration": ISO8601Duration.format(request.duration)],
             ],
         ]
@@ -131,18 +148,20 @@ public struct EntraDirectoryProvider: PIMProvider {
                                          url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                          scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
-        let start = created.scheduleInfo?.startDateTime ?? .now
+        let start = ScheduledStart.effective(response: created.scheduleInfo?.startDateTime, requested: request.startDateTime)
         let end = created.scheduleInfo?.expiration?.endDateTime
             ?? created.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
             ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
-        let status: ActiveAssignment.Status = switch created.status {
+        let reported: ActiveAssignment.Status = switch created.status {
         case "PendingApproval", "PendingAdminDecision": .pendingApproval
         case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated": .pendingProvisioning
         case "Denied", "Failed", "Canceled", "Revoked": .failed(created.status)
         default: .active
         }
+        // A start in the future is a booking, whatever the request's own status says.
+        let status: ActiveAssignment.Status = ScheduledStart.isFuture(start) ? .scheduled : reported
         return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
-                                endDateTime: status == .active ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {

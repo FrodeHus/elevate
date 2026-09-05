@@ -1,0 +1,9 @@
+{ "value": [
+  { "id": "sched-1", "principalId": "user-obj-1", "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+    "assignmentType": "Activated", "status": "Provisioned",
+    "scheduleInfo": { "startDateTime": "2099-01-01T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": "2099-01-01T11:00:00Z" } },
+    "roleDefinition": { "id": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "displayName": "Global Reader" } },
+  { "id": "sched-old", "principalId": "user-obj-1", "roleDefinitionId": "fe930be7-5e62-47db-91af-98c3a49a38b1", "directoryScopeId": "/",
+    "assignmentType": "Activated", "status": "Provisioned",
+    "scheduleInfo": { "startDateTime": "2020-01-01T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H" } } }
+] }
