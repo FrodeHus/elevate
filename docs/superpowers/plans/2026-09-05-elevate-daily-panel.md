@@ -699,7 +699,63 @@ git commit -m "Notify on expiry with an Activate again action"
 
 ---
 
-### Task 7: Final checks and docs
+### Task 8: Azure Resources tab
+
+**Files:**
+- Modify: `Sources/ElevateApp/App/PanelTab.swift`, `Sources/ElevateApp/App/AppModel.swift` (`kinds(for:)`), `Sources/ElevateApp/Views/PanelView.swift` ("Activate N" wording), `Sources/ElevateApp/Views/TenantSection.swift` (empty-state text)
+
+- [ ] **Step 1: PanelTab**
+
+```swift
+enum PanelTab: String, CaseIterable, Sendable {
+    case roles, azure, groups
+    var title: String {
+        switch self { case .roles: "Entra"; case .azure: "Azure"; case .groups: "Groups" }
+    }
+    /// Singular noun for the bulk button: "Activate 2 roles" / "groups".
+    var noun: String { self == .groups ? "group" : "role" }
+}
+```
+
+The raw value `roles` is kept so a persisted tab still decodes; `azure` is new.
+
+- [ ] **Step 2: AppModel.kinds(for:)**
+
+```swift
+    static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
+        switch tab {
+        case .roles: [.entraDirectory]
+        case .azure: [.azureResource]
+        case .groups: [.group]
+        }
+    }
+```
+
+- [ ] **Step 3: Views**
+
+`PanelView` "Activate N" label uses `model.panelTab.noun`. `TenantRoles.emptyText`:
+
+```swift
+        switch (model.panelTab, tenant.discoveryMode) {
+        case (.groups, _): "No eligible groups."
+        case (.azure, _): tenant.azureUnavailableReason ?? "No eligible Azure resource roles."
+        case (.roles, .manualRoles): "No roles configured."
+        case (.roles, .automatic): "No eligible Entra roles."
+        }
+```
+
+In the Azure tab, a first-party account's Entra note must not show: the groups-unavailable note is already gated to `.groups`; check that nothing Entra-specific renders under `.azure`. The account/tenant "Azure roles only" pill stays as is (it describes the account, not the tab).
+
+- [ ] **Step 4: Build, relaunch, commit**
+
+```bash
+git add Sources/ElevateApp
+git commit -m "Split the panel into Entra, Azure and Groups tabs"
+```
+
+---
+
+### Task 9: Final checks and docs
 
 - [ ] `swift test` (126 expected) and app build; relaunch.
-- [ ] `macos/README.md`: add three sentences to the panel description: the Active now summary, the search field, and that Extend appears within 15 minutes of expiry and the expiry notification offers Activate again. Commit "Document the Active now summary, search and Extend".
+- [ ] `macos/README.md`: add three sentences to the panel description: the Active now summary, the search field, and that Extend appears within 15 minutes of expiry and the expiry notification offers Activate again; mention the three tabs (Entra, Azure, Groups). Commit "Document the Active now summary, search and Extend".
