@@ -18,6 +18,9 @@ struct TenantHeader: View {
             HStack(spacing: 4) {
                 Image(systemName: "person.crop.circle.fill").font(.caption2)
                 Text(identity.upn).font(.caption2.weight(.medium)).lineLimit(1).truncationMode(.middle)
+                if identity.signInMethod != .ownApp {
+                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                }
             }
             .foregroundStyle(Color.accentColor)
             HStack(spacing: 6) {
@@ -41,7 +44,8 @@ struct TenantHeader: View {
                 Menu {
                     Button("Configure known PIM roles…") { open(.configureRoles(tenant.id)) }
                     Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
-                    if tenant.discoveryMode == .manualRoles, let url = model.adminConsentURL(tenantId: tenant.tenantId) {
+                    if tenant.discoveryMode == .manualRoles,
+                       let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
                         Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
                     }
                     Divider()

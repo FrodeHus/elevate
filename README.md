@@ -2,7 +2,32 @@
 
 Formerly PimTray. Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
 
+## Sign-in methods
+
+Elevate can add an account in two ways, chosen per account in "Add account…":
+
+- **Your own Entra app registration** ("Own app registration"). Sign-in goes through MSAL and
+  the client ID from Settings. It gives Elevate exactly the permissions you grant it, but each
+  tenant needs an admin to consent (see Prerequisites below).
+- **A Microsoft first-party app** ("Azure CLI app" or "Azure PowerShell app"). No registration
+  and no consent: these client IDs are already trusted in every tenant that allows the Azure CLI
+  or Azure PowerShell. Sign-in opens your default browser and comes back to
+  `http://localhost:<random port>`, a loopback redirect Microsoft accepts for public clients
+  without any redirect URI being registered. Nothing listens on that port outside the sign-in
+  itself, and the refresh token is stored in your Keychain (this device only).
+
+Caveats:
+
+- Conditional Access can block these apps. A tenant that blocks the Azure CLI app will refuse
+  sign-in with it — try the Azure PowerShell app, and if the tenant blocks public clients
+  altogether, use your own app registration.
+- The same account cannot be added twice under different methods; sign it out first.
+- Changing the client ID in Settings only affects own-app accounts: they are signed out and
+  removed. Azure CLI and Azure PowerShell accounts and their tenants are left alone.
+
 ## Prerequisites
+
+Only the own-app method needs an app registration; the first-party methods need none of this.
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
 2. An Entra app registration (multi-tenant, public client):

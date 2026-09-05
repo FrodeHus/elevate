@@ -10,7 +10,12 @@ struct IdentityHeader: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
-            Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                if identity.signInMethod != .ownApp {
+                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
             Spacer(minLength: 8)
             Menu {
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }

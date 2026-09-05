@@ -32,7 +32,7 @@ struct PanelView: View {
                 .background(.orange.opacity(0.12))
                 Divider()
             }
-            if !model.isConfigured {
+            if !model.isConfigured && model.identities.isEmpty {
                 SetupView()
             } else if let fatal = model.startupError {
                 ContentUnavailableView("Elevate cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
@@ -103,8 +103,10 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack {
-            Button("Add account…") { Task { await model.addAccount() } }
-                .disabled(!model.isConfigured)
+            Button("Add account…") {
+                openWindow(value: PanelRoute.addAccount)
+                NSApp.activate(ignoringOtherApps: true)
+            }
             Spacer()
             SettingsLink { Text("Settings…") }.buttonStyle(.borderless)
             Spacer()

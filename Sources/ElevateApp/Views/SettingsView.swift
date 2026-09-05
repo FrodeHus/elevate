@@ -48,7 +48,7 @@ struct SettingsView: View {
             Button("Sign out and change", role: .destructive) { apply() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Saving a different client ID signs out all \(model.identities.count) accounts; you will add them again.")
+            Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it; you will add them again. Azure CLI and Azure PowerShell accounts are unaffected.")
         }
     }
 

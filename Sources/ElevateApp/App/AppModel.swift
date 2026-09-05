@@ -33,6 +33,10 @@ final class AppModel {
     private let network: NetworkMonitor
     private let http: any HTTPClient
     private let anchor: AuthAnchorWindow?
+    /// The pieces behind `tokens` when it is a `CompositeTokenProvider`, kept so `applyClientId`
+    /// can swap the MSAL half without disturbing the first-party providers (and their keychain items).
+    private var msal: MSALTokenProvider?
+    private var loopback: [SignInMethod: LoopbackTokenProvider] = [:]
     private var refreshTimer: Task<Void, Never>?
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
     private var policyCache: [RoleKey: RolePolicy] = [:]
@@ -42,12 +46,23 @@ final class AppModel {
     /// check this before writing to state so they cannot repopulate what was just cleared.
     private var configGeneration = 0
 
-    /// True once the app has a usable client id and a working token provider.
-    var isConfigured: Bool { settings.isConfigured && !(tokens is UnavailableTokenProvider) }
+    /// True once the app has a usable client id and a working MSAL provider — that is, once the
+    /// own-app sign-in method is available. The first-party methods work without it.
+    var isConfigured: Bool { settings.isConfigured && msal != nil }
+
+    /// Sign-in methods offered by "Add account…". `.ownApp` is listed even when unconfigured;
+    /// the view disables it and explains why.
+    var availableMethods: [SignInMethod] { SignInMethod.allCases }
+
+    /// Whether a method can be used right now.
+    func isAvailable(_ method: SignInMethod) -> Bool { method.usesMSAL ? isConfigured : loopback[method] != nil }
 
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
-         network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil) {
+         network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
+         msal: MSALTokenProvider? = nil, loopback: [SignInMethod: LoopbackTokenProvider] = [:]) {
         self.tokens = tokens
+        self.msal = msal
+        self.loopback = loopback
         self.http = http
         self.store = store
         self.notifier = notifier
@@ -64,19 +79,23 @@ final class AppModel {
         let settings = AppSettings()
         let anchor = AuthAnchorWindow()
         let notifier = ExpiryNotifier()
-        let tokens: any TokenProviding
+        let http = URLSessionHTTPClient()
+        var msal: MSALTokenProvider?
         var initError: Error?
         if settings.isConfigured {
             do {
-                tokens = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor)
+                msal = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor)
             } catch {
-                tokens = UnavailableTokenProvider()
                 initError = error
             }
-        } else {
-            tokens = UnavailableTokenProvider()
         }
-        let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, settings: settings, anchor: anchor)
+        // The first-party providers need no configuration; they exist whether or not MSAL does.
+        // One shared gate keeps two browser sign-ins from racing each other.
+        let gate = InteractiveGate()
+        let loopback = Self.loopbackProviders(http: http, gate: gate)
+        let tokens = CompositeTokenProvider(msal: msal, loopback: loopback)
+        let model = AppModel(tokens: tokens, http: http, store: AppStateStore(), notifier: notifier, settings: settings,
+                             anchor: anchor, msal: msal, loopback: loopback)
         if let initError {
             model.notice = "Could not initialise sign-in with the saved client ID: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription). Check it in Settings."
         }
@@ -87,37 +106,62 @@ final class AppModel {
         return model
     }
 
-    /// Saves a new client id. Because MSAL's token cache is per client, every account is signed out.
+    /// One provider per first-party method, each with its own keychain-backed refresh-token store.
+    private static func loopbackProviders(http: any HTTPClient, gate: InteractiveGate) -> [SignInMethod: LoopbackTokenProvider] {
+        var providers: [SignInMethod: LoopbackTokenProvider] = [:]
+        for method in SignInMethod.allCases {
+            guard let clientId = method.clientId else { continue }
+            providers[method] = LoopbackTokenProvider(method: method, http: http,
+                                                      store: KeychainRefreshTokenStore(clientId: clientId), gate: gate)
+        }
+        return providers
+    }
+
+    /// Saves a new client id. MSAL's token cache is per client, so every *own-app* account is
+    /// signed out and cleared; first-party accounts keep their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
         guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
         // Construct the new provider before mutating anything, so a throwing init leaves the
         // current client id, tokens and session state untouched.
-        let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
-        let old = tokens
-        let identities = state.identities
+        let replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
+        let ownApp = state.identities.filter { $0.signInMethod == .ownApp }
         // The old client's cache is unusable under the new client id; drop it silently.
         // A webview sign-out here would only interrupt the user with a browser window.
-        try? (old as? MSALTokenProvider)?.removeCachedAccounts(identities)
+        try? msal?.removeCachedAccounts(ownApp)
         configGeneration += 1
-        state = AppState()
-        roles = [:]; active = [:]; policyCache = [:]; tenantErrors = [:]; selection = []
-        busy = []; inFlight = []; progress = [:]; lastRefresh = .distantPast
+        for identity in ownApp { forgetIdentity(identity.id) }
+        lastRefresh = .distantPast
+        selection = []; busy = []; inFlight = []
         pendingExtend = nil; selectMode = false
         persist()
         settings.clientId = id
-        tokens = msal
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: msal), AzureResourceProvider(http: http, tokens: msal), GroupProvider()], tokens: msal)
-        discovery = TenantDiscovery(http: http, tokens: msal)
+        msal = replacement
+        let composite = CompositeTokenProvider(msal: replacement, loopback: loopback)
+        tokens = composite
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider()], tokens: composite)
+        discovery = TenantDiscovery(http: http, tokens: composite)
         notice = nil
         startupError = nil
-        Task { await self.notifier.reschedule(assignments: [], names: [:], tenantNames: [:]) }
+        Task { await self.rescheduleNotifications() }
+    }
+
+    /// Drops one identity and everything derived from it, in state and in memory.
+    private func forgetIdentity(_ identityId: String) {
+        state.removeIdentity(identityId)
+        for key in roles.keys where key.identityId == identityId { roles[key] = nil }
+        active = active.filter { $0.key.identityId != identityId }
+        progress = progress.filter { $0.key.identityId != identityId }
+        tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
+        dropPolicies { $0.identityId == identityId }
     }
 
     // MARK: Derived
 
     var identities: [Identity] { state.identities }
+    /// Accounts a client-id change would sign out; the first-party ones are unaffected.
+    var ownAppIdentityCount: Int { state.identities.count { $0.signInMethod == .ownApp } }
     /// False when the machine has no usable network path; reads and requests are held back.
     var isOnline: Bool { network.isOnline }
     var activeCount: Int { active.values.filter { $0.status == .active }.count }
@@ -129,8 +173,10 @@ final class AppModel {
     func identity(_ id: String) -> Identity? { state.identities.first { $0.id == id } }
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
 
-    func adminConsentURL(tenantId: String) -> URL? {
-        guard isConfigured else { return nil }
+    /// Only own-app accounts can be consented to: the first-party client ids are Microsoft's,
+    /// already consented tenant-wide, and are not ours to request consent for.
+    func adminConsentURL(identityId: String, tenantId: String) -> URL? {
+        guard isConfigured, identity(identityId)?.signInMethod == .ownApp else { return nil }
         var components = URLComponents()
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
@@ -156,10 +202,21 @@ final class AppModel {
             state = AppState()
             notice = "Saved state could not be read; it was moved to state.json.bak"
         }
-        // Reconcile with MSAL's cache: drop identities MSAL no longer knows.
-        if let known = try? await tokens.identities() {
+        // Reconcile with MSAL's cache: drop own-app identities MSAL no longer knows.
+        if msal != nil, let known = try? await tokens.identities() {
             let ids = Set(known.map(\.id))
-            for identity in state.identities where !ids.contains(identity.id) { state.removeIdentity(identity.id) }
+            for identity in state.identities where identity.signInMethod == .ownApp && !ids.contains(identity.id) {
+                state.removeIdentity(identity.id)
+            }
+        }
+        // First-party identities live only in `AppState`; they are real only while their refresh
+        // token is still in the keychain.
+        for identity in state.identities where identity.signInMethod != .ownApp {
+            guard let provider = loopback[identity.signInMethod],
+                  await provider.hasRefreshToken(for: identity.id) else {
+                state.removeIdentity(identity.id)
+                continue
+            }
         }
         persist()
         if isOnline { await refreshAll() }
@@ -193,12 +250,26 @@ final class AppModel {
 
     // MARK: Accounts
 
-    func addAccount() async {
-        guard isConfigured else { notice = "Complete initial setup first"; return }
+    /// Signs in with `method` and adds the resulting account, its home tenant and its roles.
+    /// Sets `notice` and leaves the state untouched when the sign-in fails.
+    func addAccount(method: SignInMethod = .ownApp) async {
+        guard isAvailable(method) else {
+            notice = method.usesMSAL ? "Complete initial setup first" : "That sign-in method is unavailable"
+            return
+        }
         do {
-            let identity = try await tokens.signIn(method: .ownApp)
+            let identity = try await tokens.signIn(method: method)
+            // The same account under a different method would fight over the same rows and tenants.
+            if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
+                notice = "This account is already added with \(existing.signInMethod.displayName)"
+                try? await tokens.signOut(identity)
+                return
+            }
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
+            }
+            if !method.usesMSAL, let failure = await loopback[method]?.persistenceError() {
+                notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
             }
             let homeKey = TenantKey(identityId: identity.id, tenantId: identity.homeTenantId)
             if tenant(homeKey) == nil {
@@ -215,10 +286,7 @@ final class AppModel {
     func signOut(_ identity: Identity) {
         Task {
             try? await tokens.signOut(identity)
-            state.removeIdentity(identity.id)
-            for key in roles.keys where key.identityId == identity.id { roles[key] = nil }
-            active = active.filter { $0.key.identityId != identity.id }
-            dropPolicies { $0.identityId == identity.id }
+            forgetIdentity(identity.id)
             persist()
         }
     }
@@ -625,13 +693,4 @@ final class AppModel {
     }
 
     func manualRoles(for key: TenantKey) -> [ManualRole] { state.manualRoles.filter { $0.tenantKey == key } }
-}
-
-/// Used only when configuration failed to load; every call fails with a clear message.
-struct UnavailableTokenProvider: TokenProviding {
-    func signIn(method: SignInMethod) async throws -> Identity { throw PIMError.unexpected(status: 0, body: "Configuration missing") }
-    func signOut(_ identity: Identity) async throws {}
-    func identities() async throws -> [Identity] { [] }
-    func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String { throw PIMError.unexpected(status: 0, body: "Configuration missing") }
-    func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String { throw PIMError.unexpected(status: 0, body: "Configuration missing") }
 }
