@@ -38,8 +38,8 @@ click through the portal.
 1. Clone this repository and change into the script's directory:
 
    ```bash
-   git clone https://github.com/<org>/pimtray.git
-   cd pimtray/docs/entra-app
+   git clone https://github.com/FrodeHus/elevate.git
+   cd elevate/docs/entra-app
    ```
 
 2. Run the script:

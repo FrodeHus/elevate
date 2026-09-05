@@ -46,22 +46,11 @@ Caveats:
 Only the own-app method needs an app registration; the first-party methods need none of this.
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
-2. An Entra app registration (multi-tenant, public client):
-   - Authentication → Add a platform → iOS/macOS, bundle ID `no.reothor.elevate`.
-     The redirect URI becomes `msauth.no.reothor.elevate://auth`.
-   - Authentication → Add a platform → Web, redirect URI
-     `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
-     admin-consent link the app hands out lands on a valid page.
-   - "Allow public client flows" is not needed: the iOS/macOS platform already marks the
-     redirect URI as public-client. Turn it on only if sign-in fails with AADSTS7000218.
-   - API permissions (delegated, Microsoft Graph): `User.Read`,
-     `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
-     `RoleManagementPolicy.Read.Directory`, and — for the Groups tab —
-     `PrivilegedEligibilitySchedule.Read.AzureADGroup`,
-     `PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup`,
-     `RoleManagementPolicy.Read.AzureADGroup`. All of these need admin consent per tenant.
-   - Azure Service Management → `user_impersonation` (delegated). Required: it covers both
-     tenant discovery and every Azure resource role read and activation. User consent is enough.
+2. An Entra app registration (multi-tenant, public client) with redirect URI
+   `msauth.no.reothor.elevate://auth` under the iOS/macOS platform — see
+   [Setting up the Entra app registration](../docs/entra-app-registration.md) for the full
+   walkthrough (Azure CLI script or portal steps) and the permission list, including the three
+   `*.AzureADGroup` scopes the Groups tab needs.
 3. Launch Elevate, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run
