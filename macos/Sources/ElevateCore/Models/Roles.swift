@@ -7,15 +7,19 @@ public struct RolePolicy: Codable, Hashable, Sendable {
     public var requiresTicket: Bool
     public var requiresMFA: Bool
     public var requiresApproval: Bool
+    /// Conditional Access authentication context id (e.g. "c1") the activation token must carry,
+    /// from the `AuthenticationContext_EndUser_Assignment` rule. nil when the role has none.
+    public var authenticationContext: String?
 
     public init(defaultDuration: Duration, maximumDuration: Duration, requiresJustification: Bool,
-                requiresTicket: Bool, requiresMFA: Bool, requiresApproval: Bool) {
+                requiresTicket: Bool, requiresMFA: Bool, requiresApproval: Bool, authenticationContext: String? = nil) {
         self.defaultDuration = defaultDuration
         self.maximumDuration = maximumDuration
         self.requiresJustification = requiresJustification
         self.requiresTicket = requiresTicket
         self.requiresMFA = requiresMFA
         self.requiresApproval = requiresApproval
+        self.authenticationContext = authenticationContext
     }
 
     public static let manualDefault = RolePolicy(
@@ -74,12 +78,16 @@ public struct ActivationRequest: Codable, Hashable, Sendable, Identifiable {
     public var duration: Duration
     public var justification: String
     public var ticket: TicketInfo?
+    /// Authentication context the role's policy demands; the coordinator asks for a token carrying it.
+    public var authenticationContext: String?
     public var id: RoleKey { roleKey }
 
-    public init(roleKey: RoleKey, duration: Duration, justification: String, ticket: TicketInfo? = nil) {
+    public init(roleKey: RoleKey, duration: Duration, justification: String, ticket: TicketInfo? = nil,
+                authenticationContext: String? = nil) {
         self.roleKey = roleKey
         self.duration = duration
         self.justification = justification
         self.ticket = ticket
+        self.authenticationContext = authenticationContext
     }
 }

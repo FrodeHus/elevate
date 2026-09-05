@@ -28,14 +28,16 @@ public protocol TokenProviding: Sendable {
 
 public enum InteractionRetry {
     /// Runs `operation`; on `interactionRequired` or `claimsChallenge` acquires a token interactively once and retries once.
+    /// `fallbackClaims` is sent when the service demanded interaction without saying which claims
+    /// it wants (a PIM MFA rule), so the browser actually re-verifies instead of silently reusing the session.
     public static func run<T: Sendable>(
         tokens: any TokenProviding, identity: Identity, tenantId: String, scopes: [String],
-        operation: () async throws -> T
+        fallbackClaims: String? = nil, operation: () async throws -> T
     ) async throws -> T {
         do {
             return try await operation()
         } catch PIMError.interactionRequired {
-            try await tokens.acquireInteractively(identity: identity, tenantId: tenantId, scopes: scopes, claims: nil)
+            try await tokens.acquireInteractively(identity: identity, tenantId: tenantId, scopes: scopes, claims: fallbackClaims)
             return try await operation()
         } catch PIMError.claimsChallenge(let claims) {
             try await tokens.acquireInteractively(identity: identity, tenantId: tenantId, scopes: scopes, claims: claims)

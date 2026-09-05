@@ -121,7 +121,10 @@ struct ActivationView: View {
     private func submit() async {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
-        let requests = items.map { ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket) }
+        let requests = items.map {
+            ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket,
+                              authenticationContext: $0.role.policy.authenticationContext)
+        }
         await model.activate(requests)
         running = false
         let allOk = requests.allSatisfy { if case .failed = model.progress[$0.roleKey] { false } else { true } }

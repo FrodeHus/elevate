@@ -118,6 +118,8 @@ public struct AzureResourceProvider: PIMProvider {
         let maximumDuration: String?
         let enabledRules: [String]?
         let setting: ApprovalSetting?
+        let isEnabled: Bool?
+        let claimValue: String?
         struct ApprovalSetting: Decodable { let isApprovalRequired: Bool? }
     }
     struct PolicyProperties: Decodable { let roleDefinitionId: String?; let effectiveRules: [PolicyRule]? }
@@ -141,6 +143,8 @@ public struct AzureResourceProvider: PIMProvider {
                 policy.requiresMFA = enabled.contains("MultiFactorAuthentication")
             case "Approval_EndUser_Assignment":
                 policy.requiresApproval = rule.setting?.isApprovalRequired ?? false
+            case "AuthenticationContext_EndUser_Assignment":
+                if rule.isEnabled == true, let claim = rule.claimValue, !claim.isEmpty { policy.authenticationContext = claim }
             default: break
             }
         }

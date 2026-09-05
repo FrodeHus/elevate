@@ -9,4 +9,15 @@ public enum ClaimsChallenge {
         guard let data = Data(base64Encoded: b64) else { return nil }
         return String(decoding: data, as: UTF8.self)
     }
+
+    /// Claims request that makes Entra re-verify the user with multi-factor authentication, for a
+    /// PIM `MfaRule` refusal (a 400, so the service sends no challenge header of its own).
+    public static let multiFactor = #"{"access_token":{"amr":{"values":["mfa"]}}}"#
+
+    /// Claims request for a Conditional Access authentication context (`acrs`), for roles whose
+    /// policy carries `AuthenticationContext_EndUser_Assignment`.
+    public static func authenticationContext(_ id: String) -> String {
+        let escaped = id.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        return #"{"access_token":{"acrs":{"essential":true,"value":""# + escaped + #""}}}"#
+    }
 }

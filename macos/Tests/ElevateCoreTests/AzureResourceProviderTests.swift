@@ -67,6 +67,7 @@ import Foundation
         #expect(policy.maximumDuration == .seconds(4 * 3600))
         #expect(policy.defaultDuration == .seconds(4 * 3600))
         #expect(policy.requiresJustification && policy.requiresMFA && policy.requiresTicket && policy.requiresApproval)
+        #expect(policy.authenticationContext == "c2")
         let req = await http.requests.first!
         #expect(req.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicyAssignments"))
     }

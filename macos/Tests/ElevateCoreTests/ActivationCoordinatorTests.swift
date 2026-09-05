@@ -56,7 +56,39 @@ import Foundation
         await provider.state.pushFailure(.claimsChallenge("{}"))
         let c = ActivationCoordinator(providers: [provider], tokens: FakeTokenProvider())
         let outcomes = await c.activate([ActivationRequest(roleKey: key("t1", "r1"), duration: .seconds(60), justification: "j")], identities: [identity]) { _ in }
-        #expect(outcomes[0].result == .failed(.claimsChallenge("{}")))
+        guard case .failed(.policyViolation(let m)) = outcomes[0].result else { Issue.record("expected a policy message, got \(outcomes[0].result)"); return }
+        #expect(m.contains("multi-factor authentication"))
+    }
+
+    /// A PIM MFA rule comes back as a 400 with no claims header, i.e. `interactionRequired`;
+    /// the retry must ask the browser for an MFA re-verification, not a silent SSO round trip.
+    @Test func mfaRuleRetriesWithMultiFactorClaims() async throws {
+        let provider = FakeProvider(kind: .entraDirectory)
+        await provider.state.pushFailure(.interactionRequired)
+        let tokens = FakeTokenProvider()
+        let c = ActivationCoordinator(providers: [provider], tokens: tokens)
+        let outcomes = await c.activate([ActivationRequest(roleKey: key("t1", "r1"), duration: .seconds(60), justification: "j")], identities: [identity]) { _ in }
+        guard case .activated = outcomes[0].result else { Issue.record("expected activated after retry"); return }
+        let calls = await tokens.interactiveCalls
+        #expect(calls.count == 1)
+        #expect(calls[0].claims == ClaimsChallenge.multiFactor)
+    }
+
+    @Test func authenticationContextRoleRetriesWithAcrsClaims() async throws {
+        let provider = FakeProvider(kind: .entraDirectory)
+        await provider.state.pushFailure(.interactionRequired)
+        let tokens = FakeTokenProvider()
+        let c = ActivationCoordinator(providers: [provider], tokens: tokens)
+        let request = ActivationRequest(roleKey: key("t1", "r1"), duration: .seconds(60), justification: "j", authenticationContext: "c1")
+        let outcomes = await c.activate([request], identities: [identity]) { _ in }
+        guard case .activated = outcomes[0].result else { Issue.record("expected activated after retry"); return }
+        let calls = await tokens.interactiveCalls
+        #expect(calls[0].claims == #"{"access_token":{"acrs":{"essential":true,"value":"c1"}}}"#)
+        await provider.state.pushFailure(.interactionRequired)
+        await provider.state.pushFailure(.interactionRequired)
+        let again = await c.activate([request], identities: [identity]) { _ in }
+        guard case .failed(.policyViolation(let m)) = again[0].result else { Issue.record("expected a policy message"); return }
+        #expect(m.contains("\"c1\""))
     }
 
     @Test func pendingApprovalAndPolicyViolationAreReported() async throws {

@@ -82,6 +82,7 @@ import Foundation
         #expect(policy.requiresMFA)
         #expect(!policy.requiresTicket)
         #expect(policy.requiresApproval)
+        #expect(policy.authenticationContext == "c1")
         let req = await http.requests.first!
         #expect(req.url.absoluteString.contains("roleDefinitionId%20eq%20'f2ef992c-3afb-46b9-b7cf-a126ee74c451'")
                 || req.url.absoluteString.contains("roleDefinitionId eq 'f2ef992c-3afb-46b9-b7cf-a126ee74c451'"))

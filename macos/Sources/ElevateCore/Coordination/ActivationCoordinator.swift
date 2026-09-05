@@ -53,8 +53,13 @@ public final class ActivationCoordinator: Sendable {
         guard let provider = providers[request.roleKey.scope.kind] else {
             return ActivationOutcome(roleKey: request.roleKey, result: .failed(.unexpected(status: 501, body: "No provider for \(request.roleKey.scope.kind)")))
         }
+        // A role can demand a fresh MFA or a Conditional Access authentication context. The
+        // service answers with a 400 and no claims header, so we choose the claims: the policy's
+        // authentication context when it has one, otherwise a plain MFA re-verification.
+        let fallbackClaims = request.authenticationContext.map(ClaimsChallenge.authenticationContext) ?? ClaimsChallenge.multiFactor
         do {
-            let assignment = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: request.roleKey.tenantId, scopes: provider.scopes) {
+            let assignment = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: request.roleKey.tenantId,
+                                                            scopes: provider.scopes, fallbackClaims: fallbackClaims) {
                 try await provider.activate(request, identity: identity)
             }
             switch assignment.status {
@@ -62,6 +67,12 @@ public final class ActivationCoordinator: Sendable {
             case .failed(let m): return ActivationOutcome(roleKey: request.roleKey, result: .failed(.unexpected(status: 0, body: m)))
             default: return ActivationOutcome(roleKey: request.roleKey, result: .activated(assignment))
             }
+        } catch PIMError.interactionRequired, PIMError.claimsChallenge {
+            // The retry already sent the user through the browser once; a second refusal means
+            // that sign-in did not satisfy the role's requirement.
+            let requirement = request.authenticationContext.map { "the Conditional Access authentication context \"\($0)\"" } ?? "multi-factor authentication"
+            return ActivationOutcome(roleKey: request.roleKey, result: .failed(.policyViolation(
+                "This role requires \(requirement) and the sign-in did not satisfy it. Try again and complete the verification in the browser.")))
         } catch let e as PIMError {
             return ActivationOutcome(roleKey: request.roleKey, result: .failed(e))
         } catch {

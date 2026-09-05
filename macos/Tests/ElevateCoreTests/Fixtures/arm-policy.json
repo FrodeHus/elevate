@@ -11,7 +11,8 @@
           { "id": "Expiration_Admin_Eligibility", "ruleType": "RoleManagementPolicyExpirationRule", "isExpirationRequired": false, "maximumDuration": "P365D" },
           { "id": "Expiration_EndUser_Assignment", "ruleType": "RoleManagementPolicyExpirationRule", "isExpirationRequired": true, "maximumDuration": "PT4H" },
           { "id": "Enablement_EndUser_Assignment", "ruleType": "RoleManagementPolicyEnablementRule", "enabledRules": ["MultiFactorAuthentication", "Justification", "Ticketing"] },
-          { "id": "Approval_EndUser_Assignment", "ruleType": "RoleManagementPolicyApprovalRule", "setting": { "isApprovalRequired": true } }
+          { "id": "Approval_EndUser_Assignment", "ruleType": "RoleManagementPolicyApprovalRule", "setting": { "isApprovalRequired": true } },
+          { "id": "AuthenticationContext_EndUser_Assignment", "ruleType": "RoleManagementPolicyAuthenticationContextRule", "isEnabled": true, "claimValue": "c2" }
         ]
       }
     },

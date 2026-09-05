@@ -10,6 +10,7 @@
           { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyExpirationRule", "id": "Expiration_EndUser_Assignment", "isExpirationRequired": true, "maximumDuration": "PT4H" },
           { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyEnablementRule", "id": "Enablement_EndUser_Assignment", "enabledRules": ["MultiFactorAuthentication", "Justification"] },
           { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyApprovalRule", "id": "Approval_EndUser_Assignment", "setting": { "isApprovalRequired": true, "approvalStages": [] } },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyAuthenticationContextRule", "id": "AuthenticationContext_EndUser_Assignment", "isEnabled": true, "claimValue": "c1" },
           { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyExpirationRule", "id": "Expiration_Admin_Eligibility", "isExpirationRequired": false, "maximumDuration": "P365D" }
         ]
       }
