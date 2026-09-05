@@ -10,7 +10,6 @@ struct DecisionView: View {
 
     @State private var justification = ""
     @State private var running = false
-    @State private var loaded = false
 
     /// The live row: it disappears once decided elsewhere or dropped by a refresh.
     private var request: ApprovalRequest? { model.approvalsOrdered.first { $0.id == requestId } }
@@ -47,11 +46,11 @@ struct DecisionView: View {
         }
         .padding(16)
         .frame(width: 420)
-        .onAppear {
-            // The routed window is reused, so only the first appearance seeds the field.
-            guard !loaded else { return }
-            loaded = true
+        // The routed window is reused across requests, so the field is seeded per request rather
+        // than on every appearance — retyping is not thrown away when the panel redraws.
+        .task(id: requestId) {
             justification = model.settings.lastApprovalJustification
+            running = false
         }
     }
 
