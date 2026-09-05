@@ -1030,3 +1030,190 @@ xcodegen generate && xcodebuild -project PimTray.xcodeproj -scheme PimTrayApp -c
 git add Sources README.md
 git commit -m "Refresh every provider, show scope captions and document Azure roles"
 ```
+
+---
+
+### Task 6: Client ID in Settings and first-run setup view
+
+**Files:**
+- Create: `Sources/PimTrayApp/App/AppSettings.swift`, `Sources/PimTrayApp/Views/SettingsView.swift`, `Sources/PimTrayApp/Views/SetupView.swift`
+- Delete: `Sources/PimTrayApp/App/AppConfig.swift`, `PimTrayConfig.plist.example`
+- Modify: `Sources/PimTrayApp/App/AppModel.swift`, `Sources/PimTrayApp/App/PimTrayApp.swift`, `Sources/PimTrayApp/Views/PanelView.swift`, `project.yml`, `.gitignore`, `README.md`
+
+**Interfaces:**
+- Produces:
+  - `@MainActor @Observable final class AppSettings { var clientId: String; static let bundleId = "no.frodehus.pimtray"; static var redirectUri: String; var isConfigured: Bool; static func isValidClientId(_:) -> Bool }` backed by `UserDefaults.standard` key `clientId`.
+  - `AppModel`: `let settings: AppSettings`; `var isConfigured: Bool`; `func applyClientId(_ id: String) throws` (validates, saves, signs out everything, rebuilds the token provider, coordinator and discovery); `private(set) var tokens/coordinator/discovery` become replaceable.
+  - Scenes: `Settings { SettingsView() }`; panel shows `SetupView` when not configured and a "Settings…" footer entry always.
+
+- [ ] **Step 1: AppSettings**
+
+```swift
+import Foundation
+import Observation
+
+/// User-editable configuration. The client id is the only required value; it lives in UserDefaults, not in a bundled plist.
+@MainActor
+@Observable
+final class AppSettings {
+    static let bundleId = "no.frodehus.pimtray"
+    static var redirectUri: String { "msauth.\(bundleId)://auth" }
+    static let clientIdKey = "clientId"
+
+    var clientId: String {
+        didSet { UserDefaults.standard.set(clientId, forKey: Self.clientIdKey) }
+    }
+
+    init(defaults: UserDefaults = .standard) {
+        clientId = defaults.string(forKey: Self.clientIdKey) ?? ""
+    }
+
+    var isConfigured: Bool { Self.isValidClientId(clientId) }
+
+    static func isValidClientId(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return UUID(uuidString: trimmed) != nil && trimmed != "00000000-0000-0000-0000-000000000000"
+    }
+}
+```
+
+- [ ] **Step 2: AppModel**
+
+Replace `AppConfig` usage. Keep the existing initializer signature for the internal dependency-injected form, and rework `live()`:
+```swift
+    let settings: AppSettings
+    private(set) var tokens: any TokenProviding
+    private(set) var coordinator: ActivationCoordinator
+    private(set) var discovery: TenantDiscovery
+    private let http: any HTTPClient
+    private let anchor: AuthAnchorWindow?
+
+    var isConfigured: Bool { settings.isConfigured && !(tokens is UnavailableTokenProvider) }
+
+    static func live() -> AppModel {
+        let settings = AppSettings()
+        let anchor = AuthAnchorWindow()
+        let notifier = ExpiryNotifier()
+        let tokens: any TokenProviding
+        if settings.isConfigured, let msal = try? MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor) {
+            tokens = msal
+        } else {
+            tokens = UnavailableTokenProvider()
+        }
+        let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, settings: settings, anchor: anchor)
+        // keep the existing notifier.onExtend / onAuthorizationDenied wiring here
+        return model
+    }
+
+    /// Saves a new client id. Because MSAL's token cache is per client, every account is signed out.
+    func applyClientId(_ raw: String) throws {
+        let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
+        guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
+        for identity in state.identities { Task { try? await tokens.signOut(identity) } }
+        state = AppState()
+        roles = [:]; active = [:]; policyCache = [:]; tenantErrors = [:]; selection = []
+        persist()
+        settings.clientId = id
+        let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
+        tokens = msal
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: msal), AzureResourceProvider(http: http, tokens: msal), GroupProvider()], tokens: msal)
+        discovery = TenantDiscovery(http: http, tokens: msal)
+        notice = nil
+        startupError = nil
+    }
+```
+The `init` gains `settings: AppSettings = AppSettings()` and `anchor: AuthAnchorWindow? = nil` parameters, stores `http`, and builds `coordinator`/`discovery` as before. `adminConsentURL(tenantId:)` uses `settings.clientId`. Remove `clientId` init parameter if it exists. `addAccount()` returns early with `notice = "Complete initial setup first"` when `!isConfigured`. `startupError` is no longer set for a missing client id.
+
+- [ ] **Step 3: Views**
+
+`SetupView.swift`:
+```swift
+import SwiftUI
+
+struct SetupView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "shield.lefthalf.filled").font(.system(size: 34)).foregroundStyle(.secondary)
+            Text("Complete initial setup").font(.headline)
+            Text("PimTray needs the application (client) ID of your Entra app registration before it can sign in.")
+                .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            SettingsLink { Text("Open Settings…") }.buttonStyle(.borderedProminent)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+    }
+}
+```
+
+`SettingsView.swift`:
+```swift
+import SwiftUI
+import AppKit
+
+struct SettingsView: View {
+    @Environment(AppModel.self) private var model
+    @State private var draft = ""
+    @State private var error: String?
+    @State private var confirmReplace = false
+
+    var body: some View {
+        Form {
+            Section("Entra app registration") {
+                TextField("Application (client) ID", text: $draft, prompt: Text("00000000-0000-0000-0000-000000000000"))
+                    .textFieldStyle(.roundedBorder)
+                LabeledContent("Redirect URI") {
+                    HStack {
+                        Text(AppSettings.redirectUri).textSelection(.enabled).font(.caption.monospaced())
+                        Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(AppSettings.redirectUri, forType: .string) } label: { Image(systemName: "doc.on.doc") }
+                            .buttonStyle(.borderless).accessibilityLabel("Copy redirect URI")
+                    }
+                }
+                Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId), enable public client flows, and add the Graph PIM permissions listed in the README.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+            HStack {
+                Spacer()
+                Button("Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines) == model.settings.clientId || !AppSettings.isValidClientId(draft))
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 480)
+        .onAppear { draft = model.settings.clientId }
+        .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
+            Button("Sign out and change", role: .destructive) { apply() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saving a different client ID signs out all \(model.identities.count) accounts; you will add them again.")
+        }
+    }
+
+    private func save() {
+        if model.identities.isEmpty { apply() } else { confirmReplace = true }
+    }
+
+    private func apply() {
+        do { try model.applyClientId(draft); error = nil } catch { self.error = (error as? PIMError)?.userMessage ?? error.localizedDescription }
+    }
+}
+```
+
+`PanelView`: replace the `startupError` branch ordering with: notice banner → `if !model.isConfigured { SetupView() } else if let fatal = model.startupError { … } else if model.identities.isEmpty { … } else { … }`. Footer: `SettingsLink { Text("Settings…") }.buttonStyle(.borderless)` between "Add account…" (disabled when `!model.isConfigured`) and Quit.
+
+`PimTrayApp`: add `Settings { SettingsView().environment(model) }` as a third scene.
+
+- [ ] **Step 4: Remove the plist path**
+
+Delete `AppConfig.swift` and `PimTrayConfig.plist.example`; remove the `PimTrayConfig.plist` optional resource entry from `project.yml`; remove `PimTrayConfig.plist` from `.gitignore`. README: replace the plist step with "Launch PimTray, open Settings (⌘,) from the panel, paste the application (client) ID". Any remaining reference to `AppConfig` must be gone (`grep -rn AppConfig Sources` returns nothing).
+
+- [ ] **Step 5: Build, test, commit**
+
+```bash
+swift test 2>&1 | tail -1
+xcodegen generate && xcodebuild -project PimTray.xcodeproj -scheme PimTrayApp -configuration Debug -derivedDataPath build build 2>&1 | grep -E "error:|warning:.*Sources/PimTrayApp|BUILD" | head
+git add -A Sources project.yml .gitignore README.md && git rm -q PimTrayConfig.plist.example
+git commit -m "Move the client ID to Settings with a first-run setup view"
+```
