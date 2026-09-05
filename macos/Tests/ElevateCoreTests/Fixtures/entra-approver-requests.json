@@ -1,0 +1,27 @@
+{
+  "value": [
+    {
+      "id": "areq-1",
+      "status": "PendingApproval",
+      "action": "selfActivate",
+      "principalId": "user-obj-1",
+      "roleDefinitionId": "62e90394-69f5-4237-9190-012177145e10",
+      "directoryScopeId": "/",
+      "justification": "Incident 4711",
+      "createdDateTime": "2026-09-05T08:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T08:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } },
+      "roleDefinition": { "id": "62e90394-69f5-4237-9190-012177145e10", "displayName": "Global Administrator" },
+      "principal": { "@odata.type": "#microsoft.graph.user", "id": "user-obj-1", "displayName": "Ann Approver", "userPrincipalName": "ann@contoso.com" }
+    },
+    {
+      "id": "areq-2",
+      "status": "PendingApproval",
+      "action": "selfExtend",
+      "principalId": "user-obj-2",
+      "roleDefinitionId": "def-role-2",
+      "directoryScopeId": "/",
+      "createdDateTime": "2026-09-05T09:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } }
+    }
+  ]
+}

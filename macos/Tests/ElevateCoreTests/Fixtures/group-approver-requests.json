@@ -1,0 +1,27 @@
+{
+  "value": [
+    {
+      "id": "gareq-1",
+      "status": "PendingApproval",
+      "action": "selfActivate",
+      "principalId": "user-obj-1",
+      "groupId": "grp-ops",
+      "accessId": "member",
+      "justification": "Deploying tonight",
+      "createdDateTime": "2026-09-05T08:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T08:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } },
+      "group": { "id": "grp-ops", "displayName": "Ops Admins" },
+      "principal": { "@odata.type": "#microsoft.graph.user", "id": "user-obj-1", "displayName": "Ann Approver", "userPrincipalName": "ann@contoso.com" }
+    },
+    {
+      "id": "gareq-2",
+      "status": "PendingApproval",
+      "action": "selfExtend",
+      "principalId": "user-obj-2",
+      "groupId": "grp-sec",
+      "accessId": "owner",
+      "createdDateTime": "2026-09-05T09:00:00Z",
+      "scheduleInfo": { "startDateTime": "2026-09-05T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT4H" } }
+    }
+  ]
+}
