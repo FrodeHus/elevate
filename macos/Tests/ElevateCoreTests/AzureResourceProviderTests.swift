@@ -71,6 +71,36 @@ import Foundation
         #expect(req.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicyAssignments"))
     }
 
+    /// A JWT-shaped ARM token whose `oid` names the caller, as the real providers return.
+    private struct JWTTokenProvider: TokenProviding {
+        let oid: String
+        private var token: String {
+            let payload = try! JSONSerialization.data(withJSONObject: ["oid": oid, "tid": "t1"])
+            let b64 = payload.base64EncodedString().replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_").trimmingCharacters(in: CharacterSet(charactersIn: "="))
+            return "eyJhbGciOiJub25lIn0.\(b64).sig"
+        }
+        func signIn(method: SignInMethod) async throws -> Identity { throw PIMError.notEligible }
+        func signOut(_ identity: Identity) async throws {}
+        func identities() async throws -> [Identity] { [] }
+        func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String { token }
+        func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String { token }
+    }
+
+    @Test func groupInheritedEligibilityActivatesAsTheCaller() async throws {
+        // The eligibility instance names the group ("user-obj-1" stands in); ARM wants the requestor's own oid.
+        let http = StubHTTPClient()
+        let p = AzureResourceProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
+        _ = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(3600), justification: "x", ticket: nil), identity: identity)
+        let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
+        let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
+        #expect(props["principalId"] as? String == "caller-oid")
+        #expect(props["linkedRoleEligibilityScheduleId"] as? String == "b1477448-2cc6-4ceb-93b4-54a202a89413")
+    }
+
     @Test func activateLooksUpEligibilityAndPutsSelfActivate() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleEligibilityScheduleInstances", body: Fixtures.data("arm-eligible-page2"))

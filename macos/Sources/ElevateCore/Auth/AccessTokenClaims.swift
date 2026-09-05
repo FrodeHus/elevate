@@ -3,13 +3,21 @@ import Foundation
 /// The few access-token claims Elevate inspects. The token is Graph's, not ours to validate; we
 /// only read `scp` to learn what the sign-in method was actually granted in this tenant.
 public enum AccessTokenClaims {
+    static func payload(_ accessToken: String) -> [String: Any]? {
+        let parts = accessToken.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 2, let data = Data(base64URLEncoded: String(parts[1])) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
     /// Delegated scopes in the token's `scp` claim, or nil when the token is opaque or unparsable.
     public static func grantedScopes(_ accessToken: String) -> Set<String>? {
-        let parts = accessToken.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count >= 2, let data = Data(base64URLEncoded: String(parts[1])),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let scp = json["scp"] as? String else { return nil }
+        guard let scp = payload(accessToken)?["scp"] as? String else { return nil }
         return Set(scp.split(separator: " ").map(String.init))
+    }
+
+    /// The caller's object id in the token's tenant (`oid`), or nil when the token is opaque.
+    public static func objectId(_ accessToken: String) -> String? {
+        payload(accessToken)?["oid"] as? String
     }
 
     /// Scopes any one of which lets the caller self-activate Entra directory roles.

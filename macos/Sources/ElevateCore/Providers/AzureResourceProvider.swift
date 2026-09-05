@@ -177,6 +177,16 @@ public struct AzureResourceProvider: PIMProvider {
         return (principal, schedule.components(separatedBy: "/").last ?? schedule)
     }
 
+    /// The principal to put in a Self* request: always the caller. An eligibility inherited
+    /// through a group carries the *group's* principal id, and ARM refuses a request naming it
+    /// ("The requestor … does not have permissions for this request"). The caller's object id
+    /// in this tenant comes from the ARM token; an opaque token falls back to the eligibility's id.
+    func requestPrincipalId(eligibilityPrincipalId: String, identity: Identity, tenantId: String) async -> String {
+        guard let token = try? await transport.tokens.accessToken(identity: identity, tenantId: tenantId, scopes: scopes),
+              let oid = AccessTokenClaims.objectId(token) else { return eligibilityPrincipalId }
+        return oid
+    }
+
     func requestURL(scope: String) throws -> URL {
         try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/" + UUID().uuidString.lowercased())
     }
@@ -186,8 +196,9 @@ public struct AzureResourceProvider: PIMProvider {
         let tenantId = request.roleKey.tenantId
         let roleDefinitionId = try await resolveRoleDefinitionId(nameOrId, scope: scope, identity: identity, tenantId: tenantId)
         let elig = try await eligibility(scope: scope, roleDefinitionId: roleDefinitionId, identity: identity, tenantId: tenantId)
+        let principalId = await requestPrincipalId(eligibilityPrincipalId: elig.principalId, identity: identity, tenantId: tenantId)
         var props: [String: Any] = [
-            "principalId": elig.principalId,
+            "principalId": principalId,
             "roleDefinitionId": roleDefinitionId,
             "requestType": "SelfActivate",
             "linkedRoleEligibilityScheduleId": elig.scheduleName,
@@ -223,8 +234,9 @@ public struct AzureResourceProvider: PIMProvider {
         let tenantId = assignment.roleKey.tenantId
         let roleDefinitionId = try await resolveRoleDefinitionId(nameOrId, scope: scope, identity: identity, tenantId: tenantId)
         let elig = try await eligibility(scope: scope, roleDefinitionId: roleDefinitionId, identity: identity, tenantId: tenantId)
+        let principalId = await requestPrincipalId(eligibilityPrincipalId: elig.principalId, identity: identity, tenantId: tenantId)
         let props: [String: Any] = [
-            "principalId": elig.principalId,
+            "principalId": principalId,
             "roleDefinitionId": roleDefinitionId,
             "requestType": "SelfDeactivate",
             "linkedRoleEligibilityScheduleId": elig.scheduleName,
