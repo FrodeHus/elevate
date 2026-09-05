@@ -11,6 +11,7 @@ final class AppSettings {
     static var redirectUri: String { "msauth.\(bundleId)://auth" }
     static let clientIdKey = "clientId"
     static let customClientIdKey = "customLoopbackClientId"
+    static let panelTabKey = "panelTab"
 
     private let defaults: UserDefaults
 
@@ -22,6 +23,11 @@ final class AppSettings {
     /// from the same company app needs no retyping. Not a configuration value in its own right.
     var customClientId: String {
         didSet { defaults.set(customClientId, forKey: Self.customClientIdKey) }
+    }
+
+    /// The panel's last-used tab, so it reopens where the user left it.
+    var panelTab: PanelTab {
+        didSet { defaults.set(panelTab.rawValue, forKey: Self.panelTabKey) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -38,6 +44,7 @@ final class AppSettings {
         }
         clientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
+        panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }
