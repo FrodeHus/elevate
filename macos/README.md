@@ -4,7 +4,7 @@ Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles acro
 
 ## Sign-in methods
 
-> **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). With an account added that way, **Entra roles are view-only** and **Azure resource roles activate normally**. Elevate says so in the add-account dialog, marks the account, its tenants and the Entra rows "Entra view only", and keeps those rows out of bulk selection. It reads the granted scopes from each tenant's Graph token, so if an admin grants the permission to the "Microsoft Azure CLI" / "Microsoft Azure PowerShell" enterprise app, Entra activation switches on after the next refresh (or "Retry discovery"). No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
+> **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports activation of Azure resource roles only**: Entra roles are listed but cannot be activated. Elevate says so in the add-account dialog, marks the account and its tenants "Azure roles only", shows "cannot activate" on the Entra rows, and keeps those rows out of bulk selection. It reads the granted scopes from each tenant's Graph token, so if an admin grants the permission to the "Microsoft Azure CLI" / "Microsoft Azure PowerShell" enterprise app, Entra activation switches on after the next refresh (or "Retry discovery"). No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
 
 Elevate can add an account in two ways, chosen per account in "Add account…":
 
@@ -15,7 +15,7 @@ Elevate can add an account in two ways, chosen per account in "Add account…":
   public-client registration you have a client ID for, such as a company-wide PIM app that has
   no macOS platform configured. It must allow public client flows and accept the
   `http://localhost` redirect; Elevate reads the granted scopes from the token after sign-in
-  and marks Entra roles view-only if the write scope is missing. The last ID is remembered.
+  and marks the account "Azure roles only" if the Entra write scope is missing. The last ID is remembered.
 - **A Microsoft first-party app** ("Azure CLI app" or "Azure PowerShell app"). No registration
   and no consent: these client IDs are already trusted in every tenant that allows the Azure CLI
   or Azure PowerShell. Sign-in opens your default browser and comes back to

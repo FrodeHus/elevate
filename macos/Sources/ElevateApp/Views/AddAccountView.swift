@@ -76,7 +76,7 @@ struct AddAccountView: View {
         if let summary = selection.limitationSummary {
             VStack(alignment: .leading, spacing: 4) {
                 Label(summary, systemImage: "exclamationmark.triangle.fill").font(.callout.weight(.medium))
-                Text("Microsoft does not let the \(selection.displayName) activate Entra directory roles, so they are listed but cannot be activated or selected. Azure resource roles are fully supported. Use your own app registration for Entra roles.")
+                Text("Microsoft does not let the \(selection.displayName) activate Entra directory roles. Azure resource roles activate and deactivate normally; Entra roles are listed for reference only and cannot be selected. Use your own or a custom app registration to activate Entra roles.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
@@ -86,7 +86,7 @@ struct AddAccountView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Capabilities depend on what the app was consented for.", systemImage: "info.circle")
                     .font(.callout.weight(.medium))
-                Text("The registration must allow public client flows (no secret) and accept the http://localhost redirect. Elevate reads the granted scopes from the token after sign-in: if RoleAssignmentSchedule.ReadWrite.Directory is missing, Entra roles are marked view only; Azure resource roles need only ARM user_impersonation.")
+                Text("The registration must allow public client flows (no secret) and accept the http://localhost redirect. Elevate reads the granted scopes from the token after sign-in: if RoleAssignmentSchedule.ReadWrite.Directory is missing, the account is marked as supporting Azure resource roles only; those need only ARM user_impersonation.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
@@ -106,9 +106,9 @@ struct AddAccountView: View {
                 ? "Uses the client ID from Settings; needs admin consent in each tenant"
                 : "Unavailable — configure a client ID in Settings"
         case .azureCLI:
-            "Microsoft's Azure CLI app; no consent needed; Entra roles view only"
+            "Microsoft's Azure CLI app; no consent needed; Azure resource roles only"
         case .azurePowerShell:
-            "Same limits, for tenants that block the Azure CLI app"
+            "Azure resource roles only; for tenants that block the Azure CLI app"
         case .custom:
             "Another public-client registration used through the loopback flow"
         }

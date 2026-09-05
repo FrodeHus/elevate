@@ -629,7 +629,7 @@ final class AppModel {
               let permitted = AccessTokenClaims.permitsEntraActivation(token) else { return nil }
         if permitted { return .supported }
         let reason = identity.signInMethod.entraViewOnlyReason
-            ?? "The app registration used for this account (\(identity.signInMethod.displayName)) was not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant, so Entra roles are view only. Azure resource roles still work."
+            ?? "The app registration used for this account (\(identity.signInMethod.displayName)) was not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant, so it supports activation of Azure resource roles only here; Entra roles are listed but cannot be activated."
         return .unsupported(reason: reason)
     }
 

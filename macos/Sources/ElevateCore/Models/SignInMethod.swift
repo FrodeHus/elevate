@@ -47,16 +47,16 @@ public enum SignInMethod: Hashable, Sendable {
         }
     }
 
-    /// One-line statement of what the method cannot do, for the add-account dialog and headers.
+    /// One-line statement of what the method can do, for the add-account dialog and headers.
     public var limitationSummary: String? {
         isPreauthorisedForEntraActivation ? nil
-            : "Entra roles: view only. Azure resource roles: activate and deactivate."
+            : "Supports activation of Azure resource roles only. Entra roles are listed but cannot be activated."
     }
 
     /// Longer explanation shown on the Entra rows and headers of an account using this method.
     public var entraViewOnlyReason: String? {
         isPreauthorisedForEntraActivation ? nil
-            : "The \(displayName) is not allowed to activate Entra roles (it lacks RoleAssignmentSchedule.ReadWrite.Directory). Azure resource roles still work. Add the account with your own app registration to activate Entra roles."
+            : "This account was added with the \(displayName), which supports activation of Azure resource roles only: Microsoft does not grant it RoleAssignmentSchedule.ReadWrite.Directory, so Entra roles can be listed but not activated. Add the account with your own or a custom app registration to activate Entra roles."
     }
 }
 

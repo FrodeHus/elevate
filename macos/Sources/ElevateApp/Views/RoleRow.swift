@@ -83,7 +83,7 @@ struct RoleRow: View {
             Text(m).font(.caption).foregroundStyle(.red).lineLimit(1)
         case nil:
             if let viewOnlyReason {
-                Text("view only").font(.caption).foregroundStyle(.secondary).help(viewOnlyReason)
+                Text("cannot activate").font(.caption).foregroundStyle(.secondary).help(viewOnlyReason)
             } else if !model.selectMode {
                 Button("Activate") {
                     openWindow(value: PanelRoute.activate([role.key]))

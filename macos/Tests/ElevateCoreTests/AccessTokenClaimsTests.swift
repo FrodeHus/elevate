@@ -37,7 +37,7 @@ import Foundation
         #expect(SignInMethod.ownApp.entraViewOnlyReason == nil)
         for m in [SignInMethod.azureCLI, .azurePowerShell] {
             #expect(!m.isPreauthorisedForEntraActivation)
-            #expect(m.limitationSummary?.contains("view only") == true)
+            #expect(m.limitationSummary?.contains("Azure resource roles only") == true)
             #expect(m.entraViewOnlyReason?.contains(m.displayName) == true)
         }
     }

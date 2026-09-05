@@ -53,16 +53,16 @@ struct IdentityHeader: View {
     }
 }
 
-/// Orange "Entra view only" capsule. Same look on account headers, tenant headers and rows so the
+/// Orange "Azure roles only" capsule. Same look on account headers, tenant headers and rows so the
 /// limitation reads the same wherever the user meets it; the tooltip carries the full reason.
 struct ViewOnlyBadge: View {
     let reason: String
     var body: some View {
-        Text("Entra view only").font(.caption2.weight(.medium))
+        Text("Azure roles only").font(.caption2.weight(.medium))
             .padding(.horizontal, 5).padding(.vertical, 1)
             .background(.orange.opacity(0.2), in: Capsule())
             .foregroundStyle(.primary)
             .help(reason)
-            .accessibilityLabel("Entra roles are view only")
+            .accessibilityLabel("Supports activation of Azure resource roles only")
     }
 }
