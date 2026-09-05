@@ -44,7 +44,7 @@ struct AddAccountView: View {
         .padding(16).frame(width: 420)
     }
 
-    /// SwiftUI has no per-row disabled state in a radio group, so an unavailable row says why.
+    /// An unavailable row explains why, since its `.disabled` state alone is easy to miss.
     private static func caption(for method: SignInMethod, available: Bool) -> String {
         switch method {
         case .ownApp:
@@ -63,12 +63,9 @@ struct AddAccountView: View {
         defer { working = false }
         error = nil
         let previousNotice = model.notice
-        let count = model.identities.count
         let chosen = selection
-        await model.addAccount(method: chosen)
-        // A sign-in that added an account succeeded even if it left a notice behind (a refresh
-        // token that could not be saved); anything else means the notice is the failure.
-        if model.identities.count > count || model.notice == previousNotice {
+        let added = await model.addAccount(method: chosen)
+        if added {
             dismiss()
         } else {
             error = model.notice

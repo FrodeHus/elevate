@@ -11,9 +11,21 @@ import ElevateCore
 /// land in Elevate's own group rather than whichever group the entitlement happens to list first.
 final class KeychainRefreshTokenStore: RefreshTokenStore {
     static let service = "no.frodehus.elevate.refresh"
+    /// Fallback used only if the running process's own entitlements cannot be read.
     /// Must match the first `keychain-access-groups` entry in `project.yml`
     /// (`$(AppIdentifierPrefix)no.frodehus.elevate`, with the team id as the prefix).
-    static let accessGroup = "VLJKN96D7N.no.frodehus.elevate"
+    static let fallbackAccessGroup = "VLJKN96D7N.no.frodehus.elevate"
+    /// The access group actually used: the running app's own team-id prefix (read from its
+    /// `application-identifier` entitlement) plus the bundle suffix, so a build signed by a
+    /// different team still lands in its own group instead of failing every Keychain call.
+    static let accessGroup: String = {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, "application-identifier" as CFString, nil),
+              let identifier = value as? String,
+              let prefix = identifier.split(separator: ".", maxSplits: 1).first, !prefix.isEmpty
+        else { return fallbackAccessGroup }
+        return "\(prefix).no.frodehus.elevate"
+    }()
 
     private let clientId: String
 

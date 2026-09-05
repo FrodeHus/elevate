@@ -23,7 +23,7 @@ final class CompositeTokenProvider: TokenProviding, Sendable {
     }
 
     /// Only MSAL keeps its own account list; first-party identities live in `AppState` and are
-    /// reconciled by `AppModel` through `hasRefreshToken(for:)`.
+    /// reconciled by `AppModel` through `refreshTokenState(for:)`.
     func identities() async throws -> [Identity] {
         guard let msal else { return [] }
         return try await msal.identities()

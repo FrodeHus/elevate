@@ -59,7 +59,7 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
     }
 
     /// Always empty: `AppState` owns the identity list, this provider only owns refresh tokens.
-    /// Use `hasRefreshToken(for:)` to reconcile a stored identity against the keychain.
+    /// Use `refreshTokenState(for:)` to reconcile a stored identity against the keychain.
     func identities() async throws -> [Identity] { [] }
 
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String {
@@ -90,9 +90,12 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
     // MARK: Reconciliation
 
     /// Whether a refresh token for this identity is still in the store, so `AppModel` can drop
-    /// identities whose tokens were removed behind the app's back.
-    func hasRefreshToken(for identityId: String) async -> Bool {
-        ((try? await session.knownIdentityIds()) ?? []).contains(identityId)
+    /// identities whose tokens were removed behind the app's back. `nil` means the store could not
+    /// be read (e.g. a transient Keychain error) rather than "no token" — callers must not treat
+    /// that as a reason to sign the identity out.
+    func refreshTokenState(for identityId: String) async -> Bool? {
+        guard let known = try? await session.knownIdentityIds() else { return nil }
+        return known.contains(identityId)
     }
 
     /// Last failure while persisting a refresh token, for surfacing in the UI.

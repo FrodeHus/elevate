@@ -210,13 +210,27 @@ final class AppModel {
             }
         }
         // First-party identities live only in `AppState`; they are real only while their refresh
-        // token is still in the keychain.
+        // token is still in the keychain. A Keychain read failure must not be mistaken for "no
+        // token" — that would sign real accounts out on a transient error, so we fail open and
+        // keep the identity, telling the user their state may be stale.
+        var unreadable = false
+        var droppedUPNs: [String] = []
         for identity in state.identities where identity.signInMethod != .ownApp {
-            guard let provider = loopback[identity.signInMethod],
-                  await provider.hasRefreshToken(for: identity.id) else {
+            guard let provider = loopback[identity.signInMethod] else { continue }
+            switch await provider.refreshTokenState(for: identity.id) {
+            case .some(false):
                 state.removeIdentity(identity.id)
-                continue
+                droppedUPNs.append(identity.upn)
+            case .some(true):
+                break
+            case .none:
+                unreadable = true
             }
+        }
+        if !droppedUPNs.isEmpty {
+            notice = "\(droppedUPNs.joined(separator: ", ")) was signed out because its saved sign-in is gone; add the account again."
+        } else if unreadable {
+            notice = "Could not read saved sign-ins from the Keychain; your accounts were kept."
         }
         persist()
         if isOnline { await refreshAll() }
@@ -251,11 +265,13 @@ final class AppModel {
     // MARK: Accounts
 
     /// Signs in with `method` and adds the resulting account, its home tenant and its roles.
-    /// Sets `notice` and leaves the state untouched when the sign-in fails.
-    func addAccount(method: SignInMethod = .ownApp) async {
+    /// Sets `notice` and leaves the state untouched when the sign-in fails. Returns whether an
+    /// account was actually added (a saved-refresh-token warning still counts as success).
+    @discardableResult
+    func addAccount(method: SignInMethod = .ownApp) async -> Bool {
         guard isAvailable(method) else {
             notice = method.usesMSAL ? "Complete initial setup first" : "That sign-in method is unavailable"
-            return
+            return false
         }
         do {
             let identity = try await tokens.signIn(method: method)
@@ -263,7 +279,7 @@ final class AppModel {
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.displayName)"
                 try? await tokens.signOut(identity)
-                return
+                return false
             }
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
@@ -278,8 +294,10 @@ final class AppModel {
             }
             persist()
             await refresh(homeKey)
+            return true
         } catch {
             notice = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            return false
         }
     }
 
@@ -593,7 +611,12 @@ final class AppModel {
         for tenantKey in consentBlocked {
             guard var t = self.tenant(tenantKey) else { continue }
             t.discoveryMode = .manualRoles
-            t.lastDiscoveryError = "Activation not permitted in this tenant until an admin consents."
+            // Only an own-app registration can be consented to; the first-party client ids are
+            // Microsoft's and are not ours to request consent for.
+            let isOwnApp = state.identities.first { $0.id == tenantKey.identityId }?.signInMethod == .ownApp
+            t.lastDiscoveryError = isOwnApp
+                ? "Activation not permitted in this tenant until an admin consents."
+                : "Activation not permitted in this tenant for the Azure CLI app; try your own app registration instead."
             state.upsertTenant(t)
         }
         persist()
