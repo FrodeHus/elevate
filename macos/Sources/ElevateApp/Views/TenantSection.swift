@@ -39,6 +39,9 @@ struct TenantHeader: View {
                 if let reason = tenant.azureUnavailableReason {
                     Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
                 }
+                if let reason = model.entraViewOnlyReason(for: tenant.id) {
+                    ViewOnlyBadge(reason: reason)
+                }
                 if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
                 Spacer()
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }

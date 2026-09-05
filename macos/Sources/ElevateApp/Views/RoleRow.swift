@@ -7,6 +7,9 @@ struct RoleRow: View {
     let role: EligibleRole
 
     private var assignment: ActiveAssignment? { model.assignment(for: role.key) }
+    private var viewOnlyReason: String? {
+        role.key.scope.kind == .entraDirectory ? model.entraViewOnlyReason(for: role.key.tenantKey) : nil
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -14,7 +17,8 @@ struct RoleRow: View {
                 Toggle("", isOn: Binding(get: { model.selection.contains(role.key) }, set: { _ in model.toggleSelection(role.key) }))
                     .labelsHidden()
                     .accessibilityLabel("Select role")
-                    .disabled(assignment?.status == .active)
+                    .disabled(assignment?.status == .active || viewOnlyReason != nil)
+                    .help(viewOnlyReason ?? "")
             }
             statusDot
             VStack(alignment: .leading, spacing: 1) {
@@ -78,7 +82,9 @@ struct RoleRow: View {
         case .failed(let m):
             Text(m).font(.caption).foregroundStyle(.red).lineLimit(1)
         case nil:
-            if !model.selectMode {
+            if let viewOnlyReason {
+                Text("view only").font(.caption).foregroundStyle(.secondary).help(viewOnlyReason)
+            } else if !model.selectMode {
                 Button("Activate") {
                     openWindow(value: PanelRoute.activate([role.key]))
                     NSApp.activate(ignoringOtherApps: true)

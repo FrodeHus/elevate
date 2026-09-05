@@ -53,12 +53,16 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
     /// Set when Azure resource reads are pointless in this tenant (no ARM access, sign-in not completed).
     /// While it is set the Azure provider is skipped entirely; "Retry discovery" clears it.
     public var azureUnavailableReason: String?
+    /// What the Graph token in this tenant allows for Entra roles. nil until a refresh has looked
+    /// at a token; the UI then falls back to the sign-in method's known capabilities.
+    public var entraActivation: EntraActivationSupport?
 
     public var id: TenantKey { TenantKey(identityId: identityId, tenantId: tenantId) }
 
     public init(identityId: String, tenantId: String, displayName: String, source: Source,
                 discoveryMode: DiscoveryMode = .automatic, principalObjectId: String? = nil,
-                lastDiscoveryError: String? = nil, azureUnavailableReason: String? = nil) {
+                lastDiscoveryError: String? = nil, azureUnavailableReason: String? = nil,
+                entraActivation: EntraActivationSupport? = nil) {
         self.identityId = identityId
         self.tenantId = tenantId
         self.displayName = displayName
@@ -67,5 +71,18 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
         self.principalObjectId = principalObjectId
         self.lastDiscoveryError = lastDiscoveryError
         self.azureUnavailableReason = azureUnavailableReason
+        self.entraActivation = entraActivation
+    }
+}
+
+/// Whether the signed-in account may activate Entra directory roles in a tenant, as proven by
+/// the scopes Microsoft actually put in its Graph token (or by a refused activation).
+public enum EntraActivationSupport: Codable, Hashable, Sendable {
+    case supported
+    case unsupported(reason: String)
+
+    public var reason: String? {
+        if case .unsupported(let r) = self { return r }
+        return nil
     }
 }

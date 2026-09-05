@@ -19,8 +19,15 @@ struct IdentityHeader: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
                     .contentShape(Rectangle()).onTapGesture { withAnimation(.snappy) { model.toggleIdentity(identity.id) } }
-                if identity.signInMethod != .ownApp {
-                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if identity.signInMethod != .ownApp {
+                        Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    // Account-level badge follows the tenants: it disappears once every tenant's token proves the write scope.
+                    if let reason = model.tenants(for: identity.id).lazy.compactMap({ model.entraViewOnlyReason(for: $0.id) }).first
+                        ?? (model.tenants(for: identity.id).isEmpty ? identity.signInMethod.entraViewOnlyReason : nil) {
+                        ViewOnlyBadge(reason: reason)
+                    }
                 }
             }
             Spacer(minLength: 8)
@@ -43,5 +50,19 @@ struct IdentityHeader: View {
     private func open(_ route: PanelRoute) {
         openWindow(value: route)
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+/// Orange "Entra view only" capsule. Same look on account headers, tenant headers and rows so the
+/// limitation reads the same wherever the user meets it; the tooltip carries the full reason.
+struct ViewOnlyBadge: View {
+    let reason: String
+    var body: some View {
+        Text("Entra view only").font(.caption2.weight(.medium))
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .background(.orange.opacity(0.2), in: Capsule())
+            .foregroundStyle(.primary)
+            .help(reason)
+            .accessibilityLabel("Entra roles are view only")
     }
 }

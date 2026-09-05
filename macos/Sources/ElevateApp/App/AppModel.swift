@@ -388,6 +388,7 @@ final class AppModel {
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
         t.azureUnavailableReason = nil
+        t.entraActivation = nil
         dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
         persist()
@@ -463,6 +464,13 @@ final class AppModel {
                     let withPolicies = await applyPolicies(to: found, identity: identity)
                     guard generation == configGeneration else { return }
                     discoveredByKind[kind] = withPolicies
+                    if isEntra, let support = await probeEntraActivation(identity: identity, tenantId: key.tenantId),
+                       support != tenant.entraActivation {
+                        guard generation == configGeneration, self.tenant(key) != nil else { return }
+                        tenant.entraActivation = support
+                        state.upsertTenant(tenant)
+                        persist()
+                    }
                 } catch PIMError.consentRequired where isEntra {
                     guard generation == configGeneration else { return }
                     discoveredByKind[kind] = []
@@ -594,6 +602,34 @@ final class AppModel {
         await notifier.reschedule(assignments: Array(active.values), names: names, tenantNames: tenantNames)
     }
 
+    // MARK: Entra activation capability
+
+    /// Why Entra roles in this tenant are view-only, or nil when they can be activated.
+    /// A tenant that has been probed answers from its token; otherwise the sign-in method's
+    /// known capabilities decide, so a first-party account is view-only from the moment it is added.
+    func entraViewOnlyReason(for key: TenantKey) -> String? {
+        guard let identity = identity(key.identityId) else { return nil }
+        if let support = tenant(key)?.entraActivation { return support.reason }
+        return identity.signInMethod.entraViewOnlyReason
+    }
+
+    /// Whether the account may activate this role in its tenant. Azure and group roles always may;
+    /// Entra roles depend on `entraViewOnlyReason(for:)`.
+    func canActivate(_ key: RoleKey) -> Bool {
+        key.scope.kind != .entraDirectory || entraViewOnlyReason(for: key.tenantKey) == nil
+    }
+
+    /// Reads the cached Graph token's `scp` claim. Silent only: never prompts, and nil when no
+    /// token is at hand or it hides its scopes, in which case the caller keeps what it knew.
+    private func probeEntraActivation(identity: Identity, tenantId: String) async -> EntraActivationSupport? {
+        guard let token = try? await tokens.accessToken(identity: identity, tenantId: tenantId, scopes: GraphScopes.all),
+              let permitted = AccessTokenClaims.permitsEntraActivation(token) else { return nil }
+        if permitted { return .supported }
+        let reason = identity.signInMethod.entraViewOnlyReason
+            ?? "Your app registration was not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant, so Entra roles are view only."
+        return .unsupported(reason: reason)
+    }
+
     // MARK: Activation
 
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.
@@ -646,6 +682,12 @@ final class AppModel {
                 }
                 // Spec §8 step 4: an activation refused for consent puts the tenant in manual mode.
                 if error == .consentRequired { consentBlocked.insert(request.roleKey.tenantKey) }
+                // A first-party sign-in refused for the write scope: the tenant's Entra rows become view-only.
+                if case .forbidden(let message) = error, request.roleKey.scope.kind == .entraDirectory,
+                   var t = self.tenant(request.roleKey.tenantKey) {
+                    t.entraActivation = .unsupported(reason: message)
+                    state.upsertTenant(t)
+                }
             }
         }
         for tenantKey in consentBlocked {
@@ -742,6 +784,7 @@ final class AppModel {
     func clearProgress(_ keys: [RoleKey]) { for k in keys { progress[k] = nil } }
 
     func toggleSelection(_ key: RoleKey) {
+        guard canActivate(key) else { return }
         if selection.contains(key) { selection.remove(key) } else { selection.insert(key) }
     }
 

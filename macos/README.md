@@ -4,7 +4,7 @@ Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles acro
 
 ## Sign-in methods
 
-> **Limitation:** Microsoft's Azure CLI app is pre-authorised to read PIM schedules but not to activate Entra directory roles (`RoleAssignmentSchedule.ReadWrite.Directory` is admin-consent only). With a CLI-signed account, Azure resource roles activate normally and Entra roles are read-only unless an admin grants that permission to the "Microsoft Azure CLI" enterprise app. The Azure PowerShell app may differ; your own app registration always works once consented.
+> **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). With an account added that way, **Entra roles are view-only** and **Azure resource roles activate normally**. Elevate says so in the add-account dialog, marks the account, its tenants and the Entra rows "Entra view only", and keeps those rows out of bulk selection. It reads the granted scopes from each tenant's Graph token, so if an admin grants the permission to the "Microsoft Azure CLI" / "Microsoft Azure PowerShell" enterprise app, Entra activation switches on after the next refresh (or "Retry discovery"). No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
 
 Elevate can add an account in two ways, chosen per account in "Add account…":
 

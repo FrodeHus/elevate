@@ -24,4 +24,23 @@ public enum SignInMethod: String, Codable, Hashable, Sendable, CaseIterable {
     }
 
     public var usesMSAL: Bool { self == .ownApp }
+
+    /// Whether Microsoft pre-authorises this client for the Graph scope that activates Entra
+    /// directory roles. Neither first-party app is: they can list PIM schedules but
+    /// `RoleAssignmentSchedule.ReadWrite.Directory` is admin-consent only, so Entra roles are
+    /// view-only with them unless an admin grants it to the enterprise app. Azure resource roles
+    /// go through ARM (`user_impersonation`) and are unaffected.
+    public var isPreauthorisedForEntraActivation: Bool { self == .ownApp }
+
+    /// One-line statement of what the method cannot do, for the add-account dialog and headers.
+    public var limitationSummary: String? {
+        isPreauthorisedForEntraActivation ? nil
+            : "Entra roles: view only. Azure resource roles: activate and deactivate."
+    }
+
+    /// Longer explanation shown on the Entra rows and headers of an account using this method.
+    public var entraViewOnlyReason: String? {
+        isPreauthorisedForEntraActivation ? nil
+            : "The \(displayName) is not allowed to activate Entra roles (it lacks RoleAssignmentSchedule.ReadWrite.Directory). Azure resource roles still work. Add the account with your own app registration to activate Entra roles."
+    }
 }

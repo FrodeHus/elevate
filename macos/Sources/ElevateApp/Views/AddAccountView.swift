@@ -31,6 +31,7 @@ struct AddAccountView: View {
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
+            limitations
             if let error { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
                 if working { ProgressView().controlSize(.small) }
@@ -44,6 +45,23 @@ struct AddAccountView: View {
         .padding(16).frame(width: 420)
     }
 
+    /// What the chosen method can and cannot do, stated before the account is added.
+    @ViewBuilder private var limitations: some View {
+        if let summary = selection.limitationSummary {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(summary, systemImage: "exclamationmark.triangle.fill").font(.callout.weight(.medium))
+                Text("Microsoft does not let the \(selection.displayName) activate Entra directory roles, so they are listed but cannot be activated or selected. Azure resource roles are fully supported. Use your own app registration for Entra roles.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        } else {
+            Label("Entra and Azure resource roles: activate and deactivate.", systemImage: "checkmark.circle")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
     /// An unavailable row explains why, since its `.disabled` state alone is easy to miss.
     private static func caption(for method: SignInMethod, available: Bool) -> String {
         switch method {
@@ -52,9 +70,9 @@ struct AddAccountView: View {
                 ? "Uses the client ID from Settings; needs admin consent in each tenant"
                 : "Unavailable — configure a client ID in Settings"
         case .azureCLI:
-            "Microsoft's Azure CLI app; works wherever Azure CLI is allowed; no consent needed"
+            "Microsoft's Azure CLI app; no consent needed; Entra roles view only"
         case .azurePowerShell:
-            "Same, for tenants that block the Azure CLI app"
+            "Same limits, for tenants that block the Azure CLI app"
         }
     }
 
