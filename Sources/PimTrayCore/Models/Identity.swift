@@ -37,12 +37,15 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
     /// Object id of the identity *inside this tenant* (guests differ per tenant).
     public var principalObjectId: String?
     public var lastDiscoveryError: String?
+    /// Set when Azure resource reads are pointless in this tenant (no ARM access, sign-in not completed).
+    /// While it is set the Azure provider is skipped entirely; "Retry discovery" clears it.
+    public var azureUnavailableReason: String?
 
     public var id: TenantKey { TenantKey(identityId: identityId, tenantId: tenantId) }
 
     public init(identityId: String, tenantId: String, displayName: String, source: Source,
                 discoveryMode: DiscoveryMode = .automatic, principalObjectId: String? = nil,
-                lastDiscoveryError: String? = nil) {
+                lastDiscoveryError: String? = nil, azureUnavailableReason: String? = nil) {
         self.identityId = identityId
         self.tenantId = tenantId
         self.displayName = displayName
@@ -50,5 +53,6 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
         self.discoveryMode = discoveryMode
         self.principalObjectId = principalObjectId
         self.lastDiscoveryError = lastDiscoveryError
+        self.azureUnavailableReason = azureUnavailableReason
     }
 }

@@ -32,6 +32,17 @@ import Foundation
         #expect(!p.requiresApproval)
     }
 
+    @Test func tenantWithoutAzureFieldDecodesWithNoReason() throws {
+        let json = Data(#"{"identityId":"id1","tenantId":"t1","displayName":"Contoso","source":"home","discoveryMode":"automatic"}"#.utf8)
+        let tenant = try JSONDecoder().decode(TenantContext.self, from: json)
+        #expect(tenant.azureUnavailableReason == nil)
+        #expect(tenant.lastDiscoveryError == nil)
+        var off = tenant
+        off.azureUnavailableReason = "No Azure access in this tenant"
+        let back = try JSONDecoder().decode(TenantContext.self, from: JSONEncoder().encode(off))
+        #expect(back == off)
+    }
+
     @Test func activeAssignmentStatusRoundTrips() throws {
         let key = RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: "r", directoryScopeId: "/"))
         let a = ActiveAssignment(roleKey: key, assignmentId: "x", startDateTime: Date(timeIntervalSince1970: 0), endDateTime: nil, status: .failed("boom"))

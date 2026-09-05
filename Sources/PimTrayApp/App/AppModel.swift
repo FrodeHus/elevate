@@ -276,6 +276,7 @@ final class AppModel {
         guard var t = self.tenant(key) else { return }
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
+        t.azureUnavailableReason = nil
         dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
         persist()
@@ -312,17 +313,21 @@ final class AppModel {
         defer { busy.remove(key) }
         tenantErrors[key] = nil
 
-        let providers: [any PIMProvider] = [RoleScopeKind.entraDirectory, .azureResource].compactMap { coordinator.provider(for: $0) }
+        // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
+        let kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource] : [.entraDirectory]
+        let providers: [any PIMProvider] = kinds.compactMap { coordinator.provider(for: $0) }
         // Start from what we already know so a transient failure never blanks a provider's rows.
         var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered }) { $0.key.scope.kind }
         var errors: [String] = []
         var consentBlocked = tenant.discoveryMode != .automatic
         var kindsWithActive: Set<RoleScopeKind> = []
         var current: [ActiveAssignment] = []
+        var azureOff = false
 
         for provider in providers {
             let kind = provider.kind
             let isEntra = kind == .entraDirectory
+            let isAzure = kind == .azureResource
             let tenantSnapshot = tenant
             // Eligible roles. Entra honours the consent block; ARM consent is user-consentable.
             if !(isEntra && consentBlocked) {
@@ -343,11 +348,18 @@ final class AppModel {
                     persist()
                 } catch is CancellationError {
                     return
+                } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
+                    guard generation == configGeneration else { return }
+                    azureOff = true
+                    tenant.azureUnavailableReason = Self.azureUnavailableReason(for: error)
+                    state.upsertTenant(tenant)
+                    persist()
                 } catch {
                     errors.append("\(Self.label(kind)): \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
                 }
             }
-            // Active assignments.
+            // Active assignments. Whatever Azure rows we already know stay as they are.
+            if isAzure && azureOff { continue }
             do {
                 let snapshot = tenant
                 let found: [ActiveAssignment]
@@ -365,6 +377,12 @@ final class AppModel {
             } catch PIMError.consentRequired where isEntra && consentBlocked {
             } catch is CancellationError {
                 return
+            } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
+                guard generation == configGeneration else { return }
+                azureOff = true
+                tenant.azureUnavailableReason = Self.azureUnavailableReason(for: error)
+                state.upsertTenant(tenant)
+                persist()
             } catch {
                 errors.append("\(Self.label(kind)): \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
             }
@@ -383,6 +401,16 @@ final class AppModel {
         for a in current { active[a.roleKey] = a }
         if !errors.isEmpty { tenantErrors[key] = errors.joined(separator: " · ") }
         await rescheduleNotifications()
+    }
+
+    /// Spec §1: a tenant without Azure access shows no Azure rows and no error. These failures
+    /// from an Azure *list* call mean "there is nothing here for this user", not "this refresh failed".
+    private static func azureUnavailableReason(for error: PIMError) -> String? {
+        switch error {
+        case .policyViolation: "No Azure access in this tenant"
+        case .interactionRequired, .consentRequired: "Azure sign-in was not completed"
+        default: nil
+        }
     }
 
     private static func label(_ kind: RoleScopeKind) -> String {

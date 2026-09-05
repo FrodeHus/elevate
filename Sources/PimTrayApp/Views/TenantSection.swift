@@ -32,6 +32,9 @@ struct TenantHeader: View {
                     Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
                         .background(.orange.opacity(0.2), in: Capsule())
                 }
+                if let reason = tenant.azureUnavailableReason {
+                    Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
+                }
                 if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
                 Spacer()
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
