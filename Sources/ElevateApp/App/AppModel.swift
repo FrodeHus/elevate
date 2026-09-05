@@ -196,7 +196,7 @@ final class AppModel {
     func addAccount() async {
         guard isConfigured else { notice = "Complete initial setup first"; return }
         do {
-            let identity = try await tokens.signIn()
+            let identity = try await tokens.signIn(method: .ownApp)
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
             }
@@ -629,7 +629,7 @@ final class AppModel {
 
 /// Used only when configuration failed to load; every call fails with a clear message.
 struct UnavailableTokenProvider: TokenProviding {
-    func signIn() async throws -> Identity { throw PIMError.unexpected(status: 0, body: "Configuration missing") }
+    func signIn(method: SignInMethod) async throws -> Identity { throw PIMError.unexpected(status: 0, body: "Configuration missing") }
     func signOut(_ identity: Identity) async throws {}
     func identities() async throws -> [Identity] { [] }
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String { throw PIMError.unexpected(status: 0, body: "Configuration missing") }

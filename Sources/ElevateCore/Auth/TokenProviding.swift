@@ -15,8 +15,8 @@ public enum ArmScopes {
 }
 
 public protocol TokenProviding: Sendable {
-    /// Interactive sign-in against the `organizations` authority. Returns the new identity.
-    func signIn() async throws -> Identity
+    /// Interactive sign-in against the `organizations` authority using the given method. Returns the new identity.
+    func signIn(method: SignInMethod) async throws -> Identity
     func signOut(_ identity: Identity) async throws
     func identities() async throws -> [Identity]
     /// Silent acquisition for `tenantId`. Throws `PIMError.interactionRequired` when a prompt is needed.

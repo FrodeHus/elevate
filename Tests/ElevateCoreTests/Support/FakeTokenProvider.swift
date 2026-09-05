@@ -12,8 +12,8 @@ actor FakeTokenProvider: TokenProviding {
     func setSilentError(_ e: PIMError?) { silentError = e }
     func setInteractiveError(_ e: PIMError?) { interactiveError = e }
 
-    func signIn() async throws -> Identity {
-        let i = Identity(id: "new", upn: "new@x", displayName: "New", homeTenantId: "home")
+    func signIn(method: SignInMethod) async throws -> Identity {
+        let i = Identity(id: "new", upn: "new@x", displayName: "New", homeTenantId: "home", signInMethod: method)
         storedIdentities.append(i)
         return i
     }

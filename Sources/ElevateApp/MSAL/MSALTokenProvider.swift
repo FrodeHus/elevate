@@ -66,7 +66,7 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
 
     // MARK: TokenProviding
 
-    func signIn() async throws -> Identity {
+    func signIn(method: SignInMethod) async throws -> Identity {
         try await gate.run { [self] in
             let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead], claims: nil, prompt: .selectAccount)
             return Self.identity(from: result.account)
@@ -161,7 +161,8 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
         return Identity(id: account.identifier ?? account.username ?? UUID().uuidString,
                         upn: account.username ?? "unknown",
                         displayName: (claims["name"] as? String) ?? account.username ?? "unknown",
-                        homeTenantId: account.homeAccountId?.tenantId ?? (claims["tid"] as? String) ?? "")
+                        homeTenantId: account.homeAccountId?.tenantId ?? (claims["tid"] as? String) ?? "",
+                        signInMethod: .ownApp)
     }
 
     static func map(_ error: Error?) -> PIMError {

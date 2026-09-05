@@ -6,12 +6,25 @@ public struct Identity: Codable, Hashable, Sendable, Identifiable {
     public var upn: String
     public var displayName: String
     public var homeTenantId: String
+    public var signInMethod: SignInMethod
 
-    public init(id: String, upn: String, displayName: String, homeTenantId: String) {
+    public init(id: String, upn: String, displayName: String, homeTenantId: String, signInMethod: SignInMethod = .ownApp) {
         self.id = id
         self.upn = upn
         self.displayName = displayName
         self.homeTenantId = homeTenantId
+        self.signInMethod = signInMethod
+    }
+
+    enum CodingKeys: String, CodingKey { case id, upn, displayName, homeTenantId, signInMethod }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        upn = try c.decode(String.self, forKey: .upn)
+        displayName = try c.decode(String.self, forKey: .displayName)
+        homeTenantId = try c.decode(String.self, forKey: .homeTenantId)
+        signInMethod = try c.decodeIfPresent(SignInMethod.self, forKey: .signInMethod) ?? .ownApp
     }
 }
 
