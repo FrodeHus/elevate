@@ -50,13 +50,13 @@ public enum SignInMethod: Hashable, Sendable {
     /// One-line statement of what the method can do, for the add-account dialog and headers.
     public var limitationSummary: String? {
         isPreauthorisedForEntraActivation ? nil
-            : "Supports activation of Azure resource roles only. Entra roles are listed but cannot be activated."
+            : "Supports Azure resource roles only. Entra roles are neither read nor activated."
     }
 
     /// Longer explanation shown on the Entra rows and headers of an account using this method.
     public var entraViewOnlyReason: String? {
         isPreauthorisedForEntraActivation ? nil
-            : "This account was added with the \(displayName), which supports activation of Azure resource roles only: Microsoft does not grant it RoleAssignmentSchedule.ReadWrite.Directory, so Entra roles can be listed but not activated. Add the account with your own or a custom app registration to activate Entra roles."
+            : "This account was added with the \(displayName), which supports Azure resource roles only: Microsoft grants it no Graph PIM permissions, so Elevate does not read or activate Entra roles for it. Add the account with your own or a custom app registration for Entra roles."
     }
 }
 

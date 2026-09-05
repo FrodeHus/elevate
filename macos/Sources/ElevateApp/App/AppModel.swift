@@ -443,10 +443,13 @@ final class AppModel {
         }
 
         // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
-        let kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource] : [.entraDirectory]
+        // A first-party sign-in (Azure CLI / PowerShell) has no Graph PIM scopes at all, so its
+        // Entra reads fail every time: skip that provider outright and keep the account Azure-only.
+        var kinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource] : [.entraDirectory]
+        if !identity.signInMethod.isPreauthorisedForEntraActivation { kinds.removeAll { $0 == .entraDirectory } }
         let providers: [any PIMProvider] = kinds.compactMap { coordinator.provider(for: $0) }
         // Start from what we already know so a transient failure never blanks a provider's rows.
-        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered }) { $0.key.scope.kind }
+        var discoveredByKind: [RoleScopeKind: [EligibleRole]] = Dictionary(grouping: roles(for: key).filter { $0.source == .discovered && kinds.contains($0.key.scope.kind) }) { $0.key.scope.kind }
         var errors: [String] = []
         var consentBlocked = tenant.discoveryMode != .automatic
         var kindsWithActive: Set<RoleScopeKind> = []

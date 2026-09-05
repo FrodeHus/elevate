@@ -76,7 +76,7 @@ struct AddAccountView: View {
         if let summary = selection.limitationSummary {
             VStack(alignment: .leading, spacing: 4) {
                 Label(summary, systemImage: "exclamationmark.triangle.fill").font(.callout.weight(.medium))
-                Text("Microsoft does not let the \(selection.displayName) activate Entra directory roles. Azure resource roles activate and deactivate normally; Entra roles are listed for reference only and cannot be selected. Use your own or a custom app registration to activate Entra roles.")
+                Text("Microsoft grants the \(selection.displayName) no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or a custom app registration for Entra roles.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
