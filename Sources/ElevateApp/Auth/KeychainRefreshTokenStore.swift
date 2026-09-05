@@ -2,13 +2,18 @@ import Foundation
 import Security
 import ElevateCore
 
-/// Refresh tokens for one client id, kept as generic-password items in the login keychain.
+/// Refresh tokens for one client id, kept as data-protection generic-password items in the
+/// app's own keychain access group.
 ///
 /// One item per identity, account `"<clientId>|<identityId>"` so two sign-in methods never
 /// collide, and `AfterFirstUnlockThisDeviceOnly` so a background refresh works after a reboot
-/// without the tokens ever leaving this Mac.
+/// without the tokens ever leaving this Mac. The access group is set explicitly so the items
+/// land in Elevate's own group rather than whichever group the entitlement happens to list first.
 final class KeychainRefreshTokenStore: RefreshTokenStore {
     static let service = "no.frodehus.elevate.refresh"
+    /// Must match the first `keychain-access-groups` entry in `project.yml`
+    /// (`$(AppIdentifierPrefix)no.frodehus.elevate`, with the team id as the prefix).
+    static let accessGroup = "VLJKN96D7N.no.frodehus.elevate"
 
     private let clientId: String
 
@@ -21,6 +26,7 @@ final class KeychainRefreshTokenStore: RefreshTokenStore {
         var q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
+            kSecAttrAccessGroup as String: Self.accessGroup,
             kSecUseDataProtectionKeychain as String: true,
         ]
         if let account { q[kSecAttrAccount as String] = account }
@@ -42,7 +48,11 @@ final class KeychainRefreshTokenStore: RefreshTokenStore {
     func save(_ token: String, identityId: String) throws {
         let query = baseQuery(account: account(for: identityId))
         let data = Data(token.utf8)
-        let update = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if update == errSecSuccess { return }
         guard update == errSecItemNotFound else { throw Self.error(update) }
         var add = query

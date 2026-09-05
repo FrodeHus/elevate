@@ -4,6 +4,7 @@
 <dict>
 	<key>keychain-access-groups</key>
 	<array>
+		<string>$(AppIdentifierPrefix)no.frodehus.elevate</string>
 		<string>$(AppIdentifierPrefix)com.microsoft.identity.universalstorage</string>
 	</array>
 </dict>

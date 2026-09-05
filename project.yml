@@ -40,6 +40,7 @@ targets:
       path: Sources/ElevateApp/Elevate.entitlements
       properties:
         keychain-access-groups:
+          - $(AppIdentifierPrefix)no.frodehus.elevate
           - $(AppIdentifierPrefix)com.microsoft.identity.universalstorage
     settings:
       base:

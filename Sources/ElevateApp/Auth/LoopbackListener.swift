@@ -111,7 +111,10 @@ actor LoopbackListener {
             var buffer = buffer
             if let data { buffer.append(data) }
             if error != nil {
+                // Without this the caller would sit until the two-minute timeout for a redirect
+                // that can no longer arrive on this connection.
                 connection.cancel()
+                waiter.finish(.failure(PIMError.network("Sign-in connection dropped")))
                 return
             }
             let text = String(decoding: buffer, as: UTF8.self)
@@ -135,6 +138,12 @@ actor LoopbackListener {
         let items = URLComponents(string: "http://localhost" + target)?.queryItems ?? []
         func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
 
+        // Anything with none of the three OAuth parameters is not a redirect at all (a stray
+        // browser probe, a prefetch); answer it and keep waiting, like the favicon request.
+        guard value("code") != nil || value("error") != nil || value("state") != nil else {
+            respond(connection, status: "404 Not Found", body: "")
+            return
+        }
         if let error = value("error") {
             let description = value("error_description") ?? error
             respond(connection, status: "400 Bad Request", body: page("Sign-in failed. You can close this window and return to Elevate."))
