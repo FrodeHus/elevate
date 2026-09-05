@@ -10,8 +10,11 @@ struct TenantHeader: View {
     let identity: Identity
     private var expanded: Bool { !model.collapsedTenants.contains(tenant.id) }
 
-    private var roles: [EligibleRole] { model.roles(for: tenant.id) }
-    private var activeCount: Int { roles.filter { model.assignment(for: $0.key)?.status == .active }.count }
+    // Counts the current tab's kinds only, so the number matches the rows under the header
+    // (the tab labels carry the per-kind totals).
+    private var activeCount: Int {
+        model.roles(for: tenant.id, tab: model.panelTab).filter { model.assignment(for: $0.key)?.status == .active }.count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

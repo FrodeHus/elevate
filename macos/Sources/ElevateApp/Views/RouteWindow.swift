@@ -11,6 +11,9 @@ struct RouteWindow: View {
         case .addTenant(let identityId): AddTenantView(identityId: identityId)
         case .discoverTenants(let identityId): DiscoverTenantsView(identityId: identityId)
         case .addAccount: AddAccountView()
+        case .saveProfile(let keys): SaveProfileView(keys: keys)
+        case .runProfile(let id): RunProfileView(profileId: id)
+        case .manageProfiles: ManageProfilesView()
         }
     }
 }

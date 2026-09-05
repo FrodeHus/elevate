@@ -33,6 +33,7 @@ struct PanelView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             Divider()
+            ProfilesRow()
             if showSearch {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -104,15 +105,25 @@ struct PanelView: View {
             }
             if model.selectMode {
                 Divider()
-                Button {
-                    openWindow(value: PanelRoute.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
-                    NSApp.activate(ignoringOtherApps: true)
-                } label: {
-                    Text("Activate \(model.selection.count) \(model.panelTab.noun)\(model.selection.count == 1 ? "" : "s")")
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 8) {
+                    if let editing = model.editingProfileId {
+                        Button("Update profile") {
+                            model.updateProfile(id: editing, keys: Array(model.selection))
+                            model.selectMode = false
+                        }
+                        .disabled(model.selection.isEmpty)
+                    } else {
+                        Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
+                            .disabled(model.selection.isEmpty)
+                    }
+                    Button {
+                        open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
+                    } label: {
+                        Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.selection.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.selection.isEmpty)
                 .padding(10)
             }
             Divider()
@@ -125,6 +136,11 @@ struct PanelView: View {
     }
 
     private func closeSearch() { showSearch = false }
+
+    private func open(_ route: PanelRoute) {
+        openWindow(value: route)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     private var header: some View {
         @Bindable var model = model

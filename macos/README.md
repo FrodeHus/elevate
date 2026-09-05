@@ -21,6 +21,15 @@ Microsoft first-party Azure CLI or Azure PowerShell apps. A first-party account 
 groups at all; its Groups tab explains that the sign-in method supports Azure resource roles only. A
 tenant where the group read is refused for permissions shows a "Groups off" pill with the reason.
 
+**Profiles.** Select mode turns the rows into checkboxes so you can pick roles and groups across
+every tab and account at once; "Save as profile…" names that set and pins it as a chip under the
+tabs. Clicking a chip opens a confirmation sheet that plans the run first: entries already active or
+awaiting approval are listed as skipped, the rest keep the duration you last chose for them and the
+reason you last gave, and approval-required entries are requested and come back as pending. "Manage…"
+renames profiles, reorders them by dragging, deletes them, and Edit reopens the profile's selection
+in the panel so you can add or remove entries — "Update profile" saves the change. Profiles are
+stored with the rest of the app state in `state.json`.
+
 ## Sign-in methods
 
 > **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports Azure resource roles only**: Elevate does not call the Graph PIM APIs for it at all, so no Entra roles are discovered or activated and no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
