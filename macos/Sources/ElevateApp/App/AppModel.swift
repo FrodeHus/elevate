@@ -30,7 +30,11 @@ final class AppModel {
     var isFiltering: Bool { PanelFilter.isActive(searchQuery) }
 
     static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
-        tab == .groups ? [.group] : [.entraDirectory, .azureResource]
+        switch tab {
+        case .roles: [.entraDirectory]
+        case .azure: [.azureResource]
+        case .groups: [.group]
+        }
     }
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
     var collapsedTenants: Set<TenantKey> = []

@@ -85,8 +85,9 @@ struct TenantRoles: View {
     private var emptyText: String {
         switch (model.panelTab, tenant.discoveryMode) {
         case (.groups, _): "No eligible groups."
+        case (.azure, _): tenant.azureUnavailableReason ?? "No eligible Azure resource roles."
         case (.roles, .manualRoles): "No roles configured."
-        case (.roles, .automatic): "No eligible roles."
+        case (.roles, .automatic): "No eligible Entra roles."
         }
     }
 }

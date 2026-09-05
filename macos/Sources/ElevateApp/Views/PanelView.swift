@@ -105,7 +105,7 @@ struct PanelView: View {
                     openWindow(value: PanelRoute.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Text("Activate \(model.selection.count) \(model.panelTab == .groups ? "group" : "role")\(model.selection.count == 1 ? "" : "s")")
+                    Text("Activate \(model.selection.count) \(model.panelTab.noun)\(model.selection.count == 1 ? "" : "s")")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
