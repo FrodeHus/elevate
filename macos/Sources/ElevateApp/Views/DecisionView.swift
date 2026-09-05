@@ -1,22 +1,76 @@
 import SwiftUI
 import ElevateCore
 
-/// The Approve/Deny sheet. Placeholder: the details, justification field and buttons land with the
-/// approvals UI; the route exists now so `AppModel.decide` has a window to be driven from.
+/// The Approve/Deny sheet for one pending approval request, opened from `ApprovalRow`.
 struct DecisionView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let requestId: String
     let approve: Bool
 
+    @State private var justification = ""
+    @State private var running = false
+    @State private var loaded = false
+
+    /// The live row: it disappears once decided elsewhere or dropped by a refresh.
+    private var request: ApprovalRequest? { model.approvalsOrdered.first { $0.id == requestId } }
+
+    /// Denying a request has to say why; approving may be wordless.
+    private var canSubmit: Bool {
+        !running && (approve || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(approve ? "Approve request" : "Deny request").font(.title3.weight(.semibold))
-            Text(model.approvalsOrdered.first { $0.id == requestId }?.targetName ?? requestId)
-                .foregroundStyle(.secondary)
-            HStack { Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }
+            if let request {
+                Text(approve ? "Approve request" : "Deny request").font(.title3.weight(.semibold))
+                details(request)
+                TextField("Justification", text: $justification, axis: .vertical).lineLimit(2...4)
+                if let error = model.approvalErrors[requestId] {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack {
+                    if running { ProgressView().controlSize(.small) }
+                    Spacer()
+                    Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                    Button(approve ? "Approve" : "Deny") { Task { await submit(request) } }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canSubmit)
+                }
+            } else {
+                Text("This request is no longer pending.")
+                HStack { Spacer(); Button("Close") { dismiss() }.keyboardShortcut(.cancelAction) }
+            }
         }
         .padding(16)
-        .frame(width: 380)
+        .frame(width: 420)
+        .onAppear {
+            // The routed window is reused, so only the first appearance seeds the field.
+            guard !loaded else { return }
+            loaded = true
+            justification = model.settings.lastApprovalJustification
+        }
+    }
+
+    @ViewBuilder private func details(_ r: ApprovalRequest) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            LabeledContent("Requester") { Text(r.requesterName) }
+            LabeledContent("Role") { Text(r.scopeCaption.map { "\(r.targetName) · \($0)" } ?? r.targetName) }
+            LabeledContent("Tenant") { Text(model.tenant(r.tenantKey)?.displayName ?? r.tenantKey.tenantId) }
+            if let d = r.requestedDuration { LabeledContent("Duration") { Text(Countdown.label(d)) } }
+            LabeledContent("Reason") { Text(r.justification ?? "No reason given") }
+        }
+        .font(.callout)
+        .textSelection(.enabled)
+    }
+
+    private func submit(_ request: ApprovalRequest) async {
+        running = true
+        let ok = await model.decide(request, approve: approve, justification: justification)
+        running = false
+        if ok { dismiss() }
     }
 }
