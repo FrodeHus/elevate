@@ -39,7 +39,7 @@ public struct GraphTransport: Sendable {
         let error = mapper(response)
         // Admin consent only helps the user's own app registration; for a first-party sign-in a 403 is a plain refusal.
         if case .consentRequired = error, identity.signInMethod != .ownApp {
-            throw PIMError.forbidden(Self.graphMessage(response.bodyText) ?? (response.bodyText.isEmpty ? "HTTP 403" : String(response.bodyText.prefix(300))))
+            throw PIMError.forbidden(Self.firstPartyForbiddenMessage(body: response.bodyText, method: identity.signInMethod))
         }
         throw error
     }
@@ -86,5 +86,17 @@ public struct GraphTransport: Sendable {
     static func graphMessage(_ body: String) -> String? {
         struct Envelope: Decodable { struct E: Decodable { let code: String?; let message: String? }; let error: E }
         return (try? JSONDecoder().decode(Envelope.self, from: Data(body.utf8)))?.error.message
+    }
+}
+
+extension GraphTransport {
+    /// Explains a 403 for a Microsoft first-party sign-in. `PermissionScopeNotGranted` means the Microsoft app is not
+    /// pre-authorised for the scope; only an admin can grant it, so say what the user can do instead.
+    static func firstPartyForbiddenMessage(body: String, method: SignInMethod) -> String {
+        let message = graphMessage(body) ?? (body.isEmpty ? "HTTP 403" : String(body.prefix(300)))
+        guard body.contains("PermissionScopeNotGranted") else { return message }
+        let scope = message.firstMatch(of: /missing permission scope ([A-Za-z.]+)/).map { String($0.1) } ?? "the required Graph permission"
+        let alternative = method == .azureCLI ? "try the Azure PowerShell app, " : ""
+        return "The \(method.displayName) is not granted \(scope) in this tenant. Entra roles can be read but not activated with it; use your own app registration, \(alternative)or ask an admin to grant the permission to the Microsoft enterprise app."
     }
 }

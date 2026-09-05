@@ -179,3 +179,13 @@ import Foundation
         #expect(PIMError.unexpected(status: 500, body: "boom").userMessage == "Unexpected response (500): boom")
     }
 }
+
+@Suite struct FirstPartyScopeMessageTests {
+    @Test func permissionScopeNotGrantedExplainsTheLimitation() {
+        let body = #"{"error":{"code":"Authorization_RequestDenied","message":"Authorization failed due to missing permission scope RoleAssignmentSchedule.ReadWrite.Directory,RoleManagement.ReadWrite.Directory.","innerError":{"errorCode":"PermissionScopeNotGranted"}}}"#
+        let m = GraphTransport.firstPartyForbiddenMessage(body: body, method: .azureCLI)
+        #expect(m.hasPrefix("The Azure CLI app is not granted RoleAssignmentSchedule.ReadWrite.Directory in this tenant."))
+        #expect(m.contains("try the Azure PowerShell app"))
+        #expect(GraphTransport.firstPartyForbiddenMessage(body: #"{"error":{"code":"x","message":"plain"}}"#, method: .azureCLI) == "plain")
+    }
+}
