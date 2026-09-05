@@ -14,6 +14,8 @@ struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
+    @State private var showSearch = false
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         @Bindable var model = model
@@ -28,6 +30,21 @@ struct PanelView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             Divider()
+            if showSearch {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
+                        .textFieldStyle(.plain)
+                        .focused($searchFocused)
+                        .onExitCommand { closeSearch() }
+                    if !model.searchQuery.isEmpty {
+                        Button { model.searchQuery = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear filter")
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                Divider()
+            }
             if let notice = model.notice {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
@@ -54,8 +71,13 @@ struct PanelView: View {
                 // to zero; size it from the measured content instead, capped so long lists scroll.
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        ForEach(model.identities) { identity in
-                            let tenants = model.tenants(for: identity.id)
+                        ActiveSection()
+                        let visible = model.visibleIdentities
+                        if visible.isEmpty {
+                            Text("No matches").font(.caption).foregroundStyle(.secondary).padding(12)
+                        }
+                        ForEach(visible) { identity in
+                            let tenants = model.visibleTenants(for: identity.id)
                             if tenants.count == 1, let only = tenants.first {
                                 // One tenant: fold it into the account row (pinned) and skip the tenant header.
                                 Section {
@@ -94,7 +116,12 @@ struct PanelView: View {
             footer
         }
         .frame(width: PanelMetrics.width)
+        .onChange(of: showSearch) { _, on in
+            if on { searchFocused = true } else { model.searchQuery = "" }
+        }
     }
+
+    private func closeSearch() { showSearch = false }
 
     private var header: some View {
         @Bindable var model = model
@@ -107,6 +134,10 @@ struct PanelView: View {
                     .help("No network connection; refreshes and requests are paused")
             }
             Spacer()
+            Toggle(isOn: $showSearch) { Image(systemName: "magnifyingglass") }
+                .toggleStyle(.button)
+                .help("Filter roles and groups")
+                .accessibilityLabel("Search")
             Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
                 .toggleStyle(.button)
                 .help("Select several roles to activate together")
