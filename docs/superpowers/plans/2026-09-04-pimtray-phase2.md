@@ -1217,3 +1217,138 @@ xcodegen generate && xcodebuild -project PimTray.xcodeproj -scheme PimTrayApp -c
 git add -A Sources project.yml .gitignore README.md && git rm -q PimTrayConfig.plist.example
 git commit -m "Move the client ID to Settings with a first-run setup view"
 ```
+
+---
+
+### Task 7: Panel layout: sticky accent account headers, aligned rows, capped height
+
+**Files:**
+- Modify: `Sources/PimTrayApp/Views/PanelView.swift`, `Sources/PimTrayApp/Views/IdentitySection.swift`, `Sources/PimTrayApp/Views/TenantSection.swift`, `Sources/PimTrayApp/Views/RoleRow.swift`
+
+**Interfaces:**
+- Produces: `IdentityHeader(identity:)` (sticky section header with accent tint), `PanelMetrics` (shared insets), `TenantSection`/`RoleRow` aligned to those insets. `IdentitySection` is replaced by a `Section` in `PanelView`.
+
+- [ ] **Step 1: Shared metrics**
+
+Add to `PanelView.swift` (top level):
+```swift
+enum PanelMetrics {
+    static let width: CGFloat = 380
+    static let maxListHeight: CGFloat = 460
+    static let headerInset: CGFloat = 12      // account header, tenant header
+    static let roleInset: CGFloat = 28        // role rows: status dot column
+    static let trailingInset: CGFloat = 12
+    static let countdownWidth: CGFloat = 44
+}
+```
+
+- [ ] **Step 2: Sticky account headers in PanelView**
+
+Replace the identities `ScrollView` block with:
+```swift
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        ForEach(model.identities) { identity in
+                            Section {
+                                ForEach(model.tenants(for: identity.id)) { tenant in
+                                    TenantSection(tenant: tenant)
+                                }
+                                Divider().padding(.vertical, 4)
+                            } header: {
+                                IdentityHeader(identity: identity)
+                            }
+                        }
+                    }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+                }
+                .frame(height: min(max(contentHeight, 44), PanelMetrics.maxListHeight))
+```
+and `.frame(width: PanelMetrics.width)` on the outer VStack.
+
+- [ ] **Step 3: IdentityHeader replaces IdentitySection**
+
+Rewrite `IdentitySection.swift` to contain:
+```swift
+import SwiftUI
+import PimTrayCore
+
+/// Sticky account header. Accent-tinted so accounts read differently from tenants; opaque so rows scroll under it.
+struct IdentityHeader: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+    let identity: Identity
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
+            Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 8)
+            Menu {
+                Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
+                Button("Add tenant…") { open(.addTenant(identity.id)) }
+                Divider()
+                Button("Sign out", role: .destructive) { model.signOut(identity) }
+            } label: { Image(systemName: "ellipsis.circle") }
+            .menuStyle(.borderlessButton).fixedSize()
+            .accessibilityLabel("Account actions")
+        }
+        .padding(.horizontal, PanelMetrics.headerInset)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                Rectangle().fill(.regularMaterial)
+                Rectangle().fill(Color.accentColor.opacity(0.14))
+            }
+        }
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height: 1) }
+    }
+
+    private func open(_ route: PanelRoute) {
+        openWindow(value: route)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
+```
+Keep any accessibility labels the file already had. Delete the old `IdentitySection` struct.
+
+- [ ] **Step 4: Tenant header alignment**
+
+In `TenantSection.swift`, replace `DisclosureGroup` with an explicit header row and conditional content so indentation is under our control:
+```swift
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+                    Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
+                }
+                .buttonStyle(.plain).accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
+                Text(tenant.displayName).font(.subheadline)
+                // existing captions/badges/busy indicator unchanged
+                Spacer()
+                // existing active count + tenant menu unchanged
+            }
+            .padding(.leading, PanelMetrics.headerInset)
+            .padding(.trailing, PanelMetrics.trailingInset)
+            .frame(height: 26)
+            if expanded {
+                // existing content: empty text / ForEach(roles) { RoleRow } / error label
+                // the empty-text and error label get .padding(.leading, PanelMetrics.roleInset)
+            }
+        }
+    }
+```
+Keep every existing header element (home caption, manual-roles badge, busy `ProgressView`, active count, menu with its accessibility label).
+
+- [ ] **Step 5: Role row alignment**
+
+In `RoleRow.swift`: the outer `HStack` gets `.padding(.leading, PanelMetrics.roleInset)` and `.padding(.trailing, PanelMetrics.trailingInset)` (replace the existing `.padding(.leading, 4)`), `.frame(minHeight: 28)`; the countdown `Text` gets `.frame(width: PanelMetrics.countdownWidth, alignment: .trailing)` so buttons line up whether or not a countdown is shown; in select mode the checkbox sits in the same left column (keep it first, before the dot). All buttons keep `.controlSize(.small)`.
+
+- [ ] **Step 6: Build and commit**
+
+```bash
+xcodegen generate && xcodebuild -project PimTray.xcodeproj -scheme PimTrayApp -configuration Debug -derivedDataPath build build 2>&1 | grep -E "error:|warning:.*Sources/PimTrayApp|BUILD" | head
+git add Sources/PimTrayApp/Views
+git commit -m "Sticky accent account headers, aligned tenant and role rows, capped panel height"
+```
