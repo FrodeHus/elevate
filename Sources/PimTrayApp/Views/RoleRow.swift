@@ -13,6 +13,7 @@ struct RoleRow: View {
             if model.selectMode {
                 Toggle("", isOn: Binding(get: { model.selection.contains(role.key) }, set: { _ in model.toggleSelection(role.key) }))
                     .labelsHidden()
+                    .accessibilityLabel("Select role")
                     .disabled(assignment?.status == .active)
             }
             statusDot

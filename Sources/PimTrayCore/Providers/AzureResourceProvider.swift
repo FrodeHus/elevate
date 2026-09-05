@@ -151,11 +151,14 @@ public struct AzureResourceProvider: PIMProvider {
 
     struct RoleDefinition: Decodable { let id: String; let properties: Props; struct Props: Decodable { let roleName: String? } }
 
+    /// OData string literals escape a single quote by doubling it.
+    static func odataEscaped(_ value: String) -> String { value.replacingOccurrences(of: "'", with: "''") }
+
     /// Manual roles carry a role *name*; ARM wants the definition id at that scope.
     func resolveRoleDefinitionId(_ nameOrId: String, scope: String, identity: Identity, tenantId: String) async throws -> String {
         if nameOrId.contains("/") { return nameOrId }
         let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleDefinitions",
-                             apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(nameOrId)'"])
+                             apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(Self.odataEscaped(nameOrId))'"])
         let defs = try await listAll(RoleDefinition.self, identity: identity, tenantId: tenantId, url: url)
         guard let id = defs.first?.id else { throw PIMError.notEligible }
         return id

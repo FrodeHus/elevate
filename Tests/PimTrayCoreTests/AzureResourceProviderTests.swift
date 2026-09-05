@@ -119,6 +119,17 @@ import Foundation
         #expect(a.roleKey.identityId == "id1" && a.roleKey.tenantId == "t1")
     }
 
+    @Test func roleNameWithApostropheIsEscapedInTheODataFilter() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleDefinitions?", body: Fixtures.data("arm-roledefinitions"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        _ = try? await p.resolveRoleDefinitionId("O'Brien Operator", scope: "/subscriptions/sub-1", identity: identity, tenantId: "t1")
+        let defs = await http.requests(matching: "roleDefinitions?").first!
+        let filter = URLComponents(url: defs.url, resolvingAgainstBaseURL: false)!.queryItems!.first { $0.name == "$filter" }!.value
+        #expect(filter == "roleName eq 'O''Brien Operator'")
+    }
+
     @Test func activateWithoutMatchingEligibilityIsNotEligible() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible-page2"))

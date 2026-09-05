@@ -15,7 +15,8 @@ macOS 26 menu bar app for activating Microsoft Entra PIM roles across several ac
    - API permissions (delegated, Microsoft Graph): `User.Read`,
      `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
      `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
-   - Optional: Azure Service Management → `user_impersonation` for tenant discovery.
+   - Azure Service Management → `user_impersonation` (delegated). Required: it covers both
+     tenant discovery and every Azure resource role read and activation. User consent is enough.
 3. Launch PimTray, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run
@@ -41,8 +42,12 @@ Eligibilities on management groups, subscriptions, resource groups and resources
 appear as rows with the scope under the role name. The first Azure call in a
 tenant asks you to consent to `user_impersonation` for Azure Service Management;
 no admin consent is needed. A tenant where you have no Azure access simply shows
-no Azure rows. Manual Azure roles are entered as scope + role name and resolved
-to the role definition when you activate.
+no Azure rows and no error: the first refused Azure read switches Azure off for
+that tenant, marked with a quiet "Azure off" caption in the tenant header whose
+tooltip gives the reason. Nothing else is retried there until you pick Retry
+discovery from the tenant menu, which clears it. Manual Azure roles are entered
+as scope + role name and resolved to the role definition when you activate; the
+row is re-keyed to the resolved role definition id at that point.
 
 ## Manual smoke test
 

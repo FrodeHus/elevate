@@ -50,11 +50,11 @@ public struct GraphTransport: Sendable {
             return .consentRequired
         case 429:
             let retryAfter = r.header("Retry-After").map { "\($0)s" } ?? "a few seconds"
-            return .network("Throttled by Microsoft Graph; retry in \(retryAfter)")
+            return .network("Throttled by the service; retry in \(retryAfter)")
         case 400:
             let text = r.bodyText
             if text.contains("ActiveDurationTooShort") || text.localizedCaseInsensitiveContains("within 5 minutes") || text.localizedCaseInsensitiveContains("within five minutes") {
-                return .policyViolation("Entra requires a role to stay active for 5 minutes before it can be deactivated")
+                return .policyViolation("PIM requires a role to stay active for 5 minutes before it can be deactivated")
             }
             if text.contains("RoleAssignmentRequestPolicyValidationFailed") || text.contains("RoleAssignmentRequestAcrsValidationFailed") {
                 if text.contains("MfaRule") || text.contains("Acrs") {

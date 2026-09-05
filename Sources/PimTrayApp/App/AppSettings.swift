@@ -9,11 +9,14 @@ final class AppSettings {
     static var redirectUri: String { "msauth.\(bundleId)://auth" }
     static let clientIdKey = "clientId"
 
+    private let defaults: UserDefaults
+
     var clientId: String {
-        didSet { UserDefaults.standard.set(clientId, forKey: Self.clientIdKey) }
+        didSet { defaults.set(clientId, forKey: Self.clientIdKey) }
     }
 
     init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         clientId = defaults.string(forKey: Self.clientIdKey) ?? ""
     }
 
