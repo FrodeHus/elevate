@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ElevateCore
 
 /// Trailing controls for one assignment, shared by the role rows and the "Active now" summary.
@@ -32,10 +33,14 @@ struct AssignmentControls: View {
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .frame(width: PanelMetrics.countdownWidth, alignment: .trailing)
                     if let a = assignment, lockedFor <= 0, ExtendWindow.canExtend(a, policy: policy, now: ctx.date) {
-                        Button("Extend") { open(.activate([key])) }
+                        Button("Extend") {
+                            if NSEvent.modifierFlags.contains(.option) {
+                                Task { if await !model.quickActivate(key) { open(.activate([key])) } }
+                            } else { open(.activate([key])) }
+                        }
                             .controlSize(.small)
                             .disabled(!model.isOnline)
-                            .help("Extend by activating again; the current activation is replaced")
+                            .help("Extend by activating again; Option-click to extend with the last reason")
                     }
                     Button("Deactivate") { Task { await model.deactivate(key) } }
                         .controlSize(.small)
@@ -44,7 +49,14 @@ struct AssignmentControls: View {
                 }
             }
         case .scheduled:
-            Text("scheduled").font(.caption).foregroundStyle(.secondary)
+            let start = assignment?.startDateTime ?? .now
+            TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                HStack(spacing: 8) {
+                    Text("starts in \(Countdown.until(start, now: ctx.date))").font(.caption).foregroundStyle(.secondary)
+                    Button("Cancel") { Task { await model.deactivate(key) } }.controlSize(.small).disabled(!model.isOnline)
+                        .help("Cancel this scheduled activation")
+                }
+            }
         case .pendingApproval:
             Text("awaiting approval").font(.caption).foregroundStyle(.secondary)
             Button("Cancel") { Task { await model.cancelPending(key) } }
@@ -58,7 +70,13 @@ struct AssignmentControls: View {
             if let viewOnlyReason {
                 Text("cannot activate").font(.caption).foregroundStyle(.secondary).help(viewOnlyReason)
             } else if allowActivate && !model.selectMode {
-                Button("Activate") { open(.activate([key])) }.controlSize(.small).disabled(!model.isOnline)
+                Button("Activate") {
+                    if NSEvent.modifierFlags.contains(.option) {
+                        Task { if await !model.quickActivate(key) { open(.activate([key])) } }
+                    } else { open(.activate([key])) }
+                }
+                .controlSize(.small).disabled(!model.isOnline)
+                .help("Activate this role. Option-click to activate with the last reason and duration")
             }
         }
     }

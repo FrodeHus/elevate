@@ -1077,10 +1077,12 @@ final class AppModel {
     }
 
     /// Activates the plan's `.activate` items, then remembers the reason and each duration on the profile.
-    func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?) async {
+    func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?,
+                    startDateTime: Date? = nil) async {
         let requests = items.filter { $0.disposition == .activate }.map {
             ActivationRequest(roleKey: $0.roleKey, duration: $0.duration, justification: justification, ticket: ticket,
-                              authenticationContext: $0.role?.policy.authenticationContext)
+                              authenticationContext: $0.role?.policy.authenticationContext,
+                              startDateTime: startDateTime)
         }
         if !requests.isEmpty { await activate(requests) }
         guard var p = state.profile(id: id) else { return }

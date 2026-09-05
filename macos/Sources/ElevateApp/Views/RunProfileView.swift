@@ -11,6 +11,8 @@ struct RunProfileView: View {
     @State private var ticketSystem = ""
     @State private var running = false
     @State private var finished = false
+    @State private var scheduleStart = false
+    @State private var startAt = Date.now.addingTimeInterval(3600)
 
     private var profile: ActivationProfile? { model.profiles.first { $0.id == profileId } }
     private var toActivate: [ProfilePlanItem] { items.filter { $0.disposition == .activate } }
@@ -43,6 +45,7 @@ struct RunProfileView: View {
                 }
             }
             if !finished {
+                startAtRow
                 TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
                 if needsTicket {
                     HStack { TextField("Ticket number", text: $ticketNumber); TextField("Ticket system", text: $ticketSystem) }
@@ -67,6 +70,18 @@ struct RunProfileView: View {
         // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
         .onChange(of: model.runRequests[profileId]) { _, _ in
             if !running { load() }
+        }
+    }
+
+    /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
+    @ViewBuilder private var startAtRow: some View {
+        let notBefore = Date.now
+        HStack(spacing: 8) {
+            Toggle("Start at", isOn: $scheduleStart)
+            if scheduleStart {
+                DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+            }
         }
     }
 
@@ -118,7 +133,8 @@ struct RunProfileView: View {
     private func submit() async {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
-        await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket)
+        await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
+                               startDateTime: scheduleStart ? startAt : nil)
         running = false
         finished = true
     }

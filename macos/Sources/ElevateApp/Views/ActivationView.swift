@@ -17,6 +17,8 @@ struct ActivationView: View {
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
+    @State private var scheduleStart = false
+    @State private var startAt = Date.now.addingTimeInterval(3600)
 
     private var isBulk: Bool { keys.count > 1 }
     private var needsTicket: Bool { items.contains { $0.role.policy.requiresTicket } }
@@ -31,6 +33,7 @@ struct ActivationView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role")).font(.title3.weight(.semibold))
             if isBulk { bulkTable } else { singleDuration }
+            startAtRow
             TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
             if needsTicket {
                 HStack {
@@ -48,6 +51,18 @@ struct ActivationView: View {
         .padding(16)
         .frame(width: isBulk ? 560 : 380)
         .onAppear(perform: load)
+    }
+
+    /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
+    @ViewBuilder private var startAtRow: some View {
+        let notBefore = Date.now
+        HStack(spacing: 8) {
+            Toggle("Start at", isOn: $scheduleStart)
+            if scheduleStart {
+                DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+            }
+        }
     }
 
     private var singleDuration: some View {
@@ -124,7 +139,8 @@ struct ActivationView: View {
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
         let requests = items.map {
             ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket,
-                              authenticationContext: $0.role.policy.authenticationContext)
+                              authenticationContext: $0.role.policy.authenticationContext,
+                              startDateTime: scheduleStart ? startAt : nil)
         }
         await model.activate(requests)
         running = false

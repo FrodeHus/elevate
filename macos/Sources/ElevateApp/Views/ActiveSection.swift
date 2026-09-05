@@ -53,8 +53,7 @@ struct ActiveRow: View {
     var body: some View {
         let key = assignment.roleKey
         HStack(spacing: 8) {
-            // Yellow covers the pending states only: ActiveSummary.order drops .failed, so it never reaches the summary.
-            Circle().fill(assignment.status == .active ? .green : .yellow).frame(width: 8, height: 8)
+            statusDot
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.summaryName(for: key)).font(.body).lineLimit(1)
                 Text("\(model.tenant(key.tenantKey)?.displayName ?? key.tenantId) · \(model.identity(key.identityId)?.upn ?? key.identityId)")
@@ -67,5 +66,15 @@ struct ActiveRow: View {
         .padding(.vertical, 3)
         .padding(.leading, PanelMetrics.roleInset)
         .padding(.trailing, PanelMetrics.trailingInset)
+    }
+
+    // ActiveSummary.order drops .failed, so red never actually reaches the summary; it is here for completeness.
+    @ViewBuilder private var statusDot: some View {
+        switch assignment.status {
+        case .active: Circle().fill(.green).frame(width: 8, height: 8)
+        case .scheduled: Circle().fill(.blue).frame(width: 8, height: 8)
+        case .pendingApproval, .pendingProvisioning: Circle().fill(.yellow).frame(width: 8, height: 8)
+        case .failed: Circle().fill(.red).frame(width: 8, height: 8)
+        }
     }
 }
