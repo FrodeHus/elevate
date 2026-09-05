@@ -21,7 +21,7 @@ struct SettingsView: View {
                             .buttonStyle(.borderless).accessibilityLabel("Copy redirect URI")
                     }
                 }
-                Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId), enable public client flows, and add the Graph PIM permissions listed in the README.")
+                Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId) and add the Graph PIM permissions listed in the README.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
                 if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }

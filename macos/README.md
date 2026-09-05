@@ -44,7 +44,8 @@ Only the own-app method needs an app registration; the first-party methods need 
    - Authentication → Add a platform → Web, redirect URI
      `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
      admin-consent link the app hands out lands on a valid page.
-   - Authentication → Advanced settings → Allow public client flows: Yes.
+   - "Allow public client flows" is not needed: the iOS/macOS platform already marks the
+     redirect URI as public-client. Turn it on only if sign-in fails with AADSTS7000218.
    - API permissions (delegated, Microsoft Graph): `User.Read`,
      `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
      `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
