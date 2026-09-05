@@ -175,6 +175,30 @@ import Foundation
         #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
     }
 
+    @Test func futureStartDoesNotMaskPendingApproval() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("group-activate-response")) as! [String: Any]
+        json["status"] = "PendingApproval"
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .pendingApproval)
+    }
+
+    @Test func futureStartDoesNotMaskFailure() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("group-activate-response")) as! [String: Any]
+        json["status"] = "Denied"
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .failed("Denied"))
+    }
+
     @Test func pendingApprovalResponseIsReported() async throws {
         let http = StubHTTPClient()
         let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))

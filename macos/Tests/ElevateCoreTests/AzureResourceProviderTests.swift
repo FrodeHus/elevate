@@ -57,13 +57,15 @@ import Foundation
         await http.on("GET", "roleAssignmentScheduleRequests", body: empty)
         await http.on("GET", "roleAssignmentSchedules?", body: Fixtures.data("arm-schedules"))
         let active = try await p.activeAssignments(identity: identity, tenant: tenant)
-        #expect(active.count == 1)                        // the 2020 schedule is not upcoming
-        let contributor = try #require(active.first)
-        #expect(contributor.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId))
+        #expect(active.count == 2)                         // the 2020 schedule is not upcoming
+        let contributor = try #require(active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) })
         #expect(contributor.status == .scheduled)
         #expect(contributor.assignmentId == "sched-1")
         #expect(contributor.startDateTime == GraphJSON.parseDate("2099-01-01T09:00:00Z"))
         #expect(contributor.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+        let reader = try #require(active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) })
+        #expect(reader.status == .scheduled)
+        #expect(reader.assignmentId == "sched-pending-collision")
         let get = await http.requests(matching: "roleAssignmentSchedules?").first!
         #expect(get.url.absoluteString.contains("asTarget()"))
     }
@@ -78,6 +80,10 @@ import Foundation
         let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
         #expect(contributor.status == .active)
         #expect(contributor.assignmentId == "inst-1")
+        // A future schedule sharing the pending request's key must not override it either.
+        let reader = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) }!
+        #expect(reader.status == .pendingApproval)
+        #expect(reader.assignmentId == "req-77")
     }
 
     @Test func forbiddenIsNotTreatedAsConsent() async throws {
@@ -180,6 +186,36 @@ import Foundation
         #expect(a.status == .scheduled)
         #expect(a.startDateTime == start)
         #expect(a.endDateTime == GraphJSON.parseDate("2099-01-01T11:00:00Z"))
+    }
+
+    @Test func futureStartDoesNotMaskPendingApproval() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("arm-activate-response")) as! [String: Any]
+        var props = json["properties"] as! [String: Any]
+        props["status"] = "PendingApproval"
+        json["properties"] = props
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .pendingApproval)
+    }
+
+    @Test func futureStartDoesNotMaskFailure() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("arm-activate-response")) as! [String: Any]
+        var props = json["properties"] as! [String: Any]
+        props["status"] = "Denied"
+        json["properties"] = props
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .failed("Denied"))
     }
 
     @Test func manualRoleNameIsResolvedBeforeActivation() async throws {

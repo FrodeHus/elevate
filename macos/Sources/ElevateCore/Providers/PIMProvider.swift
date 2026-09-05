@@ -33,4 +33,17 @@ enum ScheduledStart {
         if let requested, isFuture(requested, now: now) { return requested }
         return response ?? requested ?? now
     }
+
+    /// The end time to report: an explicit end the service gave wins; failing that, the parsed ISO 8601
+    /// duration added to `start`; failing that, the caller-supplied fallback duration added to `start`.
+    static func end(explicit: Date?, duration: String?, start: Date, fallback: Duration? = nil) -> Date? {
+        if let explicit { return explicit }
+        if let duration, let parsed = ISO8601Duration.parse(duration) {
+            return start.addingTimeInterval(TimeInterval(parsed.components.seconds))
+        }
+        if let fallback {
+            return start.addingTimeInterval(TimeInterval(fallback.components.seconds))
+        }
+        return nil
+    }
 }

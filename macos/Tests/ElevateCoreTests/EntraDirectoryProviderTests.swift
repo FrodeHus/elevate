@@ -161,6 +161,28 @@ import Foundation
         #expect(gr.assignmentId == "inst-1")
     }
 
+    @Test func futureStartDoesNotMaskPendingApproval() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("entra-activate-response")) as! [String: Any]
+        json["status"] = "PendingApproval"
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: globalReader.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .pendingApproval)
+    }
+
+    @Test func futureStartDoesNotMaskFailure() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        var json = try JSONSerialization.jsonObject(with: Fixtures.data("entra-activate-response")) as! [String: Any]
+        json["status"] = "Denied"
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: try JSONSerialization.data(withJSONObject: json))
+        let start = GraphJSON.parseDate("2099-01-01T09:00:00Z")!
+        let a = try await p.activate(ActivationRequest(roleKey: globalReader.key, duration: .seconds(3600), justification: "later", startDateTime: start), identity: identity)
+        #expect(a.status == .failed("Denied"))
+    }
+
     @Test func activateReportsPendingApproval() async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "/me?", body: Fixtures.data("me"))

@@ -85,9 +85,8 @@ public struct GroupProvider: PIMProvider {
             guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: u.groupId, accessId: Self.access(u.accessId)))
             guard result[key] == nil else { continue }
-            let end = u.scheduleInfo?.expiration?.endDateTime
-                ?? u.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse)
-                    .map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
+                                         duration: u.scheduleInfo?.expiration?.duration, start: start)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
                                            endDateTime: end, status: .scheduled)
         }
@@ -160,11 +159,11 @@ public struct GroupProvider: PIMProvider {
                                          scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let created = try GraphJSON.decoder.decode(ScheduleRequest.self, from: r.body)
         let start = ScheduledStart.effective(response: created.scheduleInfo?.startDateTime, requested: request.startDateTime)
-        let end = created.scheduleInfo?.expiration?.endDateTime
-            ?? created.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
-            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
-        // A start in the future is a booking, whatever the request's own status says.
-        let status: ActiveAssignment.Status = ScheduledStart.isFuture(start) ? .scheduled : Self.status(created.status)
+        let end = ScheduledStart.end(explicit: created.scheduleInfo?.expiration?.endDateTime,
+                                     duration: created.scheduleInfo?.expiration?.duration, start: start, fallback: request.duration)
+        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
+        let reported = Self.status(created.status)
+        let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
                                 endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
     }

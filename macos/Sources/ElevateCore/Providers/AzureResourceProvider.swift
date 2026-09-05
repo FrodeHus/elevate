@@ -118,9 +118,8 @@ public struct AzureResourceProvider: PIMProvider {
             guard let start = props.scheduleInfo?.startDateTime ?? props.startDateTime, ScheduledStart.isFuture(start) else { continue }
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: props.scope, roleDefinitionId: props.roleDefinitionId))
             guard result[key] == nil else { continue }
-            let end = props.endDateTime ?? props.scheduleInfo?.expiration?.endDateTime
-                ?? props.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse)
-                    .map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
+            let end = ScheduledStart.end(explicit: props.endDateTime ?? props.scheduleInfo?.expiration?.endDateTime,
+                                         duration: props.scheduleInfo?.expiration?.duration, start: start)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.name, startDateTime: start,
                                            endDateTime: end, status: .scheduled)
         }
@@ -204,17 +203,16 @@ public struct AzureResourceProvider: PIMProvider {
         let r = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes, body: body)
         let created = try GraphJSON.decoder.decode(Instance.self, from: r.body)
         let start = ScheduledStart.effective(response: created.properties.scheduleInfo?.startDateTime, requested: request.startDateTime)
-        let end = created.properties.scheduleInfo?.expiration?.endDateTime
-            ?? created.properties.scheduleInfo?.expiration?.duration.flatMap(ISO8601Duration.parse).map { start.addingTimeInterval(TimeInterval($0.components.seconds)) }
-            ?? start.addingTimeInterval(TimeInterval(request.duration.components.seconds))
+        let end = ScheduledStart.end(explicit: created.properties.scheduleInfo?.expiration?.endDateTime,
+                                     duration: created.properties.scheduleInfo?.expiration?.duration, start: start, fallback: request.duration)
         let reported: ActiveAssignment.Status = switch created.properties.status ?? "Provisioned" {
         case "PendingApproval", "PendingAdminDecision", "PendingApprovalProvisioning": .pendingApproval
         case "PendingProvisioning", "PendingScheduleCreation", "ScheduleCreated", "Accepted", "PendingEvaluation", "ProvisioningStarted", "PendingExternalProvisioning": .pendingProvisioning
         case "Denied", "Failed", "Canceled", "Revoked", "TimedOut", "Invalid", "AdminDenied", "FailedAsResourceIsLocked": .failed(created.properties.status ?? "Failed")
         default: .active
         }
-        // A start in the future is a booking, whatever the request's own status says.
-        let status: ActiveAssignment.Status = ScheduledStart.isFuture(start) ? .scheduled : reported
+        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
+        let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         // A manual role is keyed by role name; key the assignment by the id ARM resolved it to.
         let resolvedKey = RoleKey(identityId: request.roleKey.identityId, tenantId: tenantId,
                                   scope: .azureResource(scope: scope, roleDefinitionId: roleDefinitionId))
