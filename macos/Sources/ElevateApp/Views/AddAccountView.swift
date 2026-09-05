@@ -86,7 +86,7 @@ struct AddAccountView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Capabilities depend on what the app was consented for.", systemImage: "info.circle")
                     .font(.callout.weight(.medium))
-                Text("The registration must allow public client flows (no secret) and accept the http://localhost redirect. Elevate reads the granted scopes from the token after sign-in: if RoleAssignmentSchedule.ReadWrite.Directory is missing, the account is marked as supporting Azure resource roles only; those need only ARM user_impersonation.")
+                Text("The registration needs http://localhost as a redirect URI under the Mobile and desktop applications platform (no secret is used; the \"Allow public client flows\" toggle is not required). Elevate reads the granted scopes from the token after sign-in: if RoleAssignmentSchedule.ReadWrite.Directory is missing, the account is marked as supporting Azure resource roles only; those need only ARM user_impersonation.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)

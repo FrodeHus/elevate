@@ -13,8 +13,9 @@ Elevate can add an account in two ways, chosen per account in "Add account…":
   tenant needs an admin to consent (see Prerequisites below).
 - **A custom app registration through the loopback flow** ("Custom app (loopback)"). Any
   public-client registration you have a client ID for, such as a company-wide PIM app that has
-  no macOS platform configured. It must allow public client flows and accept the
-  `http://localhost` redirect; Elevate reads the granted scopes from the token after sign-in
+  no macOS platform configured. It needs `http://localhost` registered as a redirect URI
+  under the "Mobile and desktop applications" platform (that platform marks it public-client, so
+  no secret is used and the "Allow public client flows" toggle is not required); Elevate reads the granted scopes from the token after sign-in
   and marks the account "Azure roles only" if the Entra write scope is missing. The last ID is remembered.
 - **A Microsoft first-party app** ("Azure CLI app" or "Azure PowerShell app"). No registration
   and no consent: these client IDs are already trusted in every tenant that allows the Azure CLI
