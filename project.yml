@@ -1,6 +1,6 @@
 name: Elevate
 options:
-  bundleIdPrefix: no.frodehus
+  bundleIdPrefix: no.reothor
   deploymentTarget:
     macOS: "26.0"
   createIntermediateGroups: true
@@ -30,9 +30,9 @@ targets:
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
         CFBundleURLTypes:
-          - CFBundleURLName: no.frodehus.elevate.auth
+          - CFBundleURLName: no.reothor.elevate.auth
             CFBundleURLSchemes:
-              - msauth.no.frodehus.elevate
+              - msauth.no.reothor.elevate
         LSApplicationQueriesSchemes:
           - msauthv2
           - msauthv3
@@ -40,11 +40,11 @@ targets:
       path: Sources/ElevateApp/Elevate.entitlements
       properties:
         keychain-access-groups:
-          - $(AppIdentifierPrefix)no.frodehus.elevate
+          - $(AppIdentifierPrefix)no.reothor.elevate
           - $(AppIdentifierPrefix)com.microsoft.identity.universalstorage
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.elevate
+        PRODUCT_BUNDLE_IDENTIFIER: no.reothor.elevate
         PRODUCT_NAME: Elevate
         DEVELOPMENT_TEAM: VLJKN96D7N
         CODE_SIGN_STYLE: Automatic

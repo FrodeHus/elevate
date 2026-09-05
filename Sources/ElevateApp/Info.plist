@@ -22,10 +22,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>no.frodehus.elevate.auth</string>
+			<string>no.reothor.elevate.auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>msauth.no.frodehus.elevate</string>
+				<string>msauth.no.reothor.elevate</string>
 			</array>
 		</dict>
 	</array>

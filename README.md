@@ -31,8 +31,8 @@ Only the own-app method needs an app registration; the first-party methods need 
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
 2. An Entra app registration (multi-tenant, public client):
-   - Authentication → Add a platform → iOS/macOS, bundle ID `no.frodehus.elevate`.
-     The redirect URI becomes `msauth.no.frodehus.elevate://auth`.
+   - Authentication → Add a platform → iOS/macOS, bundle ID `no.reothor.elevate`.
+     The redirect URI becomes `msauth.no.reothor.elevate://auth`.
    - Authentication → Add a platform → Web, redirect URI
      `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
      admin-consent link the app hands out lands on a valid page.
