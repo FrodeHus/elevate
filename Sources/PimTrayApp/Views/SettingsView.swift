@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var draft = ""
     @State private var error: String?
     @State private var confirmReplace = false
+    @State private var saved = false
 
     var body: some View {
         Form {
@@ -23,17 +24,19 @@ struct SettingsView: View {
                 Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId), enable public client flows, and add the Graph PIM permissions listed in the README.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                if saved { Text("Saved. Add your accounts from the PimTray menu.").font(.caption).foregroundStyle(.secondary) }
             }
             HStack {
                 Spacer()
                 Button("Save") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines) == model.settings.clientId || !AppSettings.isValidClientId(draft))
+                    .disabled(!isSaveable)
             }
         }
         .formStyle(.grouped)
         .frame(width: 480)
         .onAppear { draft = model.settings.clientId }
+        .onChange(of: draft) { saved = false }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
             Button("Sign out and change", role: .destructive) { apply() }
             Button("Cancel", role: .cancel) {}
@@ -42,11 +45,17 @@ struct SettingsView: View {
         }
     }
 
+    private var isSaveable: Bool {
+        guard AppSettings.isValidClientId(draft) else { return false }
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed != model.settings.clientId || !model.isConfigured
+    }
+
     private func save() {
         if model.identities.isEmpty { apply() } else { confirmReplace = true }
     }
 
     private func apply() {
-        do { try model.applyClientId(draft); error = nil } catch { self.error = (error as? PIMError)?.userMessage ?? error.localizedDescription }
+        do { try model.applyClientId(draft); error = nil; saved = true } catch { self.error = (error as? PIMError)?.userMessage ?? error.localizedDescription }
     }
 }

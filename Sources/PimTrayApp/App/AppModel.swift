@@ -38,6 +38,9 @@ final class AppModel {
     private var policyCache: [RoleKey: RolePolicy] = [:]
     /// Mutation order for saves, so a slow write cannot land after a newer one.
     private var saveGeneration: UInt64 = 0
+    /// Bumped by `applyClientId`; in-flight refreshes started under an older client id
+    /// check this before writing to state so they cannot repopulate what was just cleared.
+    private var configGeneration = 0
 
     /// True once the app has a usable client id and a working token provider.
     var isConfigured: Bool { settings.isConfigured && !(tokens is UnavailableTokenProvider) }
@@ -62,12 +65,21 @@ final class AppModel {
         let anchor = AuthAnchorWindow()
         let notifier = ExpiryNotifier()
         let tokens: any TokenProviding
-        if settings.isConfigured, let msal = try? MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor) {
-            tokens = msal
+        var initError: Error?
+        if settings.isConfigured {
+            do {
+                tokens = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor)
+            } catch {
+                tokens = UnavailableTokenProvider()
+                initError = error
+            }
         } else {
             tokens = UnavailableTokenProvider()
         }
         let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, settings: settings, anchor: anchor)
+        if let initError {
+            model.notice = "Could not initialise sign-in with the saved client ID: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription). Check it in Settings."
+        }
         notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
         notifier.onAuthorizationDenied = { [weak model] in
             model?.notice = "Notifications are off for PimTray; enable them in System Settings to get expiry alerts."
@@ -80,17 +92,24 @@ final class AppModel {
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
         guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
-        for identity in state.identities { Task { try? await tokens.signOut(identity) } }
+        // Construct the new provider before mutating anything, so a throwing init leaves the
+        // current client id, tokens and session state untouched.
+        let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
+        let old = tokens
+        let identity = state.identities
+        Task { for identity in identity { try? await old.signOut(identity) } }
+        configGeneration += 1
         state = AppState()
         roles = [:]; active = [:]; policyCache = [:]; tenantErrors = [:]; selection = []
+        busy = []; inFlight = []; progress = [:]; lastRefresh = .distantPast
         persist()
         settings.clientId = id
-        let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
         tokens = msal
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: msal), AzureResourceProvider(http: http, tokens: msal), GroupProvider()], tokens: msal)
         discovery = TenantDiscovery(http: http, tokens: msal)
         notice = nil
         startupError = nil
+        Task { await self.notifier.reschedule(assignments: [], names: [:], tenantNames: [:]) }
     }
 
     // MARK: Derived
@@ -108,7 +127,7 @@ final class AppModel {
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
 
     func adminConsentURL(tenantId: String) -> URL? {
-        guard settings.isConfigured else { return nil }
+        guard isConfigured else { return nil }
         var components = URLComponents()
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
@@ -204,13 +223,16 @@ final class AppModel {
     // MARK: Tenants
 
     func addTenant(identityId: String, domainOrId: String) async throws {
+        let generation = configGeneration
         guard let identity = self.identity(identityId) else { throw PIMError.unexpected(status: 0, body: "Unknown identity") }
         let tenantId = try await discovery.resolveTenantId(domainOrId: domainOrId)
+        guard generation == configGeneration else { return }
         let key = TenantKey(identityId: identityId, tenantId: tenantId)
         guard tenant(key) == nil else { return }
         let name = (try? await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: tenantId, scopes: [GraphScopes.userRead]) { @Sendable in
             try await discovery.tenantDisplayName(identity: identity, tenantId: tenantId)
         }) ?? domainOrId
+        guard generation == configGeneration else { return }
         state.upsertTenant(TenantContext(identityId: identityId, tenantId: tenantId, displayName: name, source: .manual))
         persist()
         await refresh(key)
@@ -224,6 +246,7 @@ final class AppModel {
     }
 
     func trackTenants(identityId: String, tenants: [DiscoveredTenant]) async {
+        let generation = configGeneration
         for t in tenants {
             let key = TenantKey(identityId: identityId, tenantId: t.tenantId)
             guard tenant(key) == nil else { continue }
@@ -233,7 +256,10 @@ final class AppModel {
         let keys = tenants.map { TenantKey(identityId: identityId, tenantId: $0.tenantId) }
         await withTaskGroup(of: Void.self) { group in
             for key in keys {
-                group.addTask { await self.refresh(key) }
+                group.addTask {
+                    guard await self.configGeneration == generation else { return }
+                    await self.refresh(key)
+                }
             }
         }
     }
@@ -266,15 +292,20 @@ final class AppModel {
 
     func refreshAll() async {
         lastRefresh = .now
+        let generation = configGeneration
         let keys = state.tenants.map(\.id)
         await withTaskGroup(of: Void.self) { group in
             for key in keys {
-                group.addTask { await self.refresh(key) }
+                group.addTask {
+                    guard await self.configGeneration == generation else { return }
+                    await self.refresh(key)
+                }
             }
         }
     }
 
     func refresh(_ key: TenantKey) async {
+        let generation = configGeneration
         guard let identity = self.identity(key.identityId), var tenant = self.tenant(key) else { return }
         guard !busy.contains(key) else { return }
         busy.insert(key)
@@ -299,8 +330,11 @@ final class AppModel {
                     let found = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
                         try await provider.eligibleRoles(identity: identity, tenant: tenantSnapshot)
                     }
-                    discoveredByKind[kind] = await applyPolicies(to: found, identity: identity)
+                    let withPolicies = await applyPolicies(to: found, identity: identity)
+                    guard generation == configGeneration else { return }
+                    discoveredByKind[kind] = withPolicies
                 } catch PIMError.consentRequired where isEntra {
+                    guard generation == configGeneration else { return }
                     discoveredByKind[kind] = []
                     consentBlocked = true
                     tenant.discoveryMode = .manualRoles
@@ -324,6 +358,7 @@ final class AppModel {
                         try await provider.activeAssignments(identity: identity, tenant: snapshot)
                     }
                 }
+                guard generation == configGeneration else { return }
                 current += found
                 kindsWithActive.insert(kind)
             } catch PIMError.interactionRequired where isEntra && consentBlocked {
@@ -335,6 +370,7 @@ final class AppModel {
             }
         }
 
+        guard generation == configGeneration else { return }
         let manual = ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: key).map { role -> EligibleRole in
             var r = role
             if let policy = policyCache[r.key] { r.policy = policy }
@@ -360,6 +396,7 @@ final class AppModel {
     /// Fills in policies, reusing the cache and fetching at most four at a time.
     /// A failed fetch keeps the cached policy when there is one, otherwise the manual default.
     private func applyPolicies(to roles: [EligibleRole], identity: Identity) async -> [EligibleRole] {
+        let generation = configGeneration
         var pending = roles.filter { policyCache[$0.key] == nil }
         // Pull the next role with an available provider, skipping any that have none.
         func nextRunnable() -> (EligibleRole, any PIMProvider)? {
@@ -382,6 +419,7 @@ final class AppModel {
             }
             return out
         }
+        guard generation == configGeneration else { return roles }
         for (roleKey, policy) in fetched { policyCache[roleKey] = policy }
         return roles.map { role in
             var r = role
@@ -403,6 +441,7 @@ final class AppModel {
 
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.
     func activate(_ requests: [ActivationRequest]) async {
+        let generation = configGeneration
         for r in requests { progress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
         defer { for r in requests { inFlight.remove(r.roleKey) } }
         var deactivated: Set<RoleKey> = []
@@ -428,6 +467,7 @@ final class AppModel {
                 if self.progress[outcome.roleKey] == nil { self.progress[outcome.roleKey] = outcome.result }
             }
         }
+        guard generation == configGeneration else { return }
         var consentBlocked: Set<TenantKey> = []
         for outcome in outcomes {
             progress[outcome.roleKey] = outcome.result
@@ -464,12 +504,14 @@ final class AppModel {
 
     /// A manual role has no policy until Entra accepts an activation; that is the moment we can read one.
     private func learnPoliciesForManualRoles(_ outcomes: [ActivationOutcome]) async {
+        let generation = configGeneration
         for outcome in outcomes {
             guard case .activated = outcome.result,
                   let role = self.role(for: outcome.roleKey), role.source == .manual,
                   let identity = self.identity(outcome.roleKey.identityId),
                   let provider = coordinator.provider(for: outcome.roleKey.scope.kind),
                   let policy = try? await provider.policy(for: role, identity: identity) else { continue }
+            guard generation == configGeneration else { return }
             policyCache[outcome.roleKey] = policy
             let tenantKey = outcome.roleKey.tenantKey
             guard let index = roles[tenantKey]?.firstIndex(where: { $0.key == outcome.roleKey }) else { continue }
@@ -479,27 +521,33 @@ final class AppModel {
 
     /// Withdraws a request that is still waiting for an approver.
     func cancelPending(_ key: RoleKey) async {
+        let generation = configGeneration
         inFlight.insert(key)
         defer { inFlight.remove(key) }
         guard let a = active[key], let identity = self.identity(key.identityId) else { return }
         do {
             try await coordinator.cancelPendingRequest(a, identity: identity)
+            guard generation == configGeneration else { return }
             active[key] = nil
             await rescheduleNotifications()
         } catch {
+            guard generation == configGeneration else { return }
             tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
         }
     }
 
     func deactivate(_ key: RoleKey) async {
+        let generation = configGeneration
         inFlight.insert(key)
         defer { inFlight.remove(key) }
         guard let a = active[key], let identity = self.identity(key.identityId) else { return }
         do {
             try await coordinator.deactivate(a, identity: identity)
+            guard generation == configGeneration else { return }
             active[key] = nil
             await rescheduleNotifications()
         } catch {
+            guard generation == configGeneration else { return }
             tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
         }
     }
