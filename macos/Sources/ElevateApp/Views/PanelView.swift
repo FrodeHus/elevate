@@ -23,7 +23,10 @@ struct PanelView: View {
             header
             Divider()
             Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
-                ForEach(PanelTab.allCases, id: \.self) { Text($0.title).tag($0) }
+                ForEach(PanelTab.allCases, id: \.self) { tab in
+                    let n = model.activeCount(for: tab)
+                    Text(n > 0 ? "\(tab.title) \(n)" : tab.title).tag(tab)
+                }
             }
             .pickerStyle(.segmented)
             .labelsHidden()

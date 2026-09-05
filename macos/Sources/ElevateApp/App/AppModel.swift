@@ -238,8 +238,16 @@ final class AppModel {
         }
     }
 
+    /// Active assignments of `tab`'s kinds, for the tab labels' counts.
+    func activeCount(for tab: PanelTab) -> Int {
+        let kinds = Self.kinds(for: tab)
+        return active.values.count { $0.status == .active && kinds.contains($0.roleKey.scope.kind) }
+    }
+
+    /// The "Active now" summary shows only the current tab's kinds; the tab labels carry the other counts.
     var activeAssignmentsOrdered: [ActiveAssignment] {
-        let ordered = ActiveSummary.order(Array(active.values))
+        let kinds = Self.kinds(for: panelTab)
+        let ordered = ActiveSummary.order(active.values.filter { kinds.contains($0.roleKey.scope.kind) })
         guard isFiltering else { return ordered }
         return ordered.filter { a in
             if let r = role(for: a.roleKey) { return matchesFilter(r) }
