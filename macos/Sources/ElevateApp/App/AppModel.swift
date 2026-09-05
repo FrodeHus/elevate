@@ -15,11 +15,11 @@ final class AppModel {
     private(set) var progress: [RoleKey: ActivationOutcome.Result] = [:]
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     private(set) var inFlight: Set<RoleKey> = []
-    var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
-    /// The list the panel shows; switching drops the bulk selection since it spans one tab only.
+    var selectMode = false { didSet { if !selectMode { selection.removeAll(); editingProfileId = nil } } }
+    /// The list the panel shows; the bulk selection survives switching so a profile can span tabs.
     var panelTab: PanelTab {
         get { settings.panelTab }
-        set { settings.panelTab = newValue; selection.removeAll() }
+        set { settings.panelTab = newValue }
     }
 
     var collapsedActive: Bool { settings.collapsedActive }
@@ -51,6 +51,13 @@ final class AppModel {
     func toggleTenant(_ key: TenantKey) { if collapsedTenants.contains(key) { collapsedTenants.remove(key) } else { collapsedTenants.insert(key) } }
     func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
     var selection: Set<RoleKey> = []
+    var selectionCount: Int { selection.count }
+    /// Noun for the bulk bar: roles and groups can be selected together across tabs.
+    var selectionNoun: String {
+        let kinds = Set(selection.map(\.scope.kind))
+        if kinds.isEmpty || kinds == [.group] { return kinds.isEmpty ? "role" : "group" }
+        return kinds.contains(.group) ? "item" : "role"
+    }
     var startupError: String?
     /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.
     var notice: String?
@@ -953,6 +960,78 @@ final class AppModel {
     func toggleSelection(_ key: RoleKey) {
         guard canActivate(key) else { return }
         if selection.contains(key) { selection.remove(key) } else { selection.insert(key) }
+    }
+
+    // MARK: Profiles
+
+    var profiles: [ActivationProfile] { state.profiles }
+    var editingProfileId: UUID?
+
+    private func orderedKeys(_ keys: [RoleKey]) -> [RoleKey] {
+        // Stable, readable order: by account, then tenant, then kind, then name.
+        keys.sorted { a, b in
+            let ia = identity(a.identityId)?.upn ?? "", ib = identity(b.identityId)?.upn ?? ""
+            if ia != ib { return ia < ib }
+            let ta = tenant(a.tenantKey)?.displayName ?? "", tb = tenant(b.tenantKey)?.displayName ?? ""
+            if ta != tb { return ta < tb }
+            if a.scope.kind != b.scope.kind { return a.scope.kind.rawValue < b.scope.kind.rawValue }
+            return (role(for: a)?.displayName ?? "") < (role(for: b)?.displayName ?? "")
+        }
+    }
+
+    @discardableResult
+    func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile {
+        let entries = orderedKeys(keys).map { ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
+        let profile = ActivationProfile(name: name.trimmingCharacters(in: .whitespacesAndNewlines), entries: entries)
+        state.upsertProfile(profile); persist()
+        return profile
+    }
+
+    func updateProfile(id: UUID, keys: [RoleKey]) {
+        guard var p = state.profile(id: id) else { return }
+        let old = Dictionary(uniqueKeysWithValues: p.entries.map { ($0.roleKey, $0) })
+        p.entries = orderedKeys(keys).map { old[$0] ?? ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
+        state.upsertProfile(p); persist()
+    }
+
+    func renameProfile(id: UUID, name: String) {
+        guard var p = state.profile(id: id) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        p.name = trimmed; state.upsertProfile(p); persist()
+    }
+
+    func deleteProfile(id: UUID) { state.removeProfile(id: id); persist() }
+    func moveProfile(fromOffsets: IndexSet, toOffset: Int) { state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist() }
+
+    /// Edit = reopen the selection. The bulk bar offers "Update profile" while `editingProfileId` is set.
+    func beginEditing(profileId: UUID) {
+        guard let p = state.profile(id: profileId) else { return }
+        selectMode = true
+        selection = Set(p.entries.map(\.roleKey))
+        editingProfileId = profileId
+    }
+
+    func plan(for profileId: UUID) -> [ProfilePlanItem] {
+        guard let p = state.profile(id: profileId) else { return [] }
+        var rolesByKey: [RoleKey: EligibleRole] = [:]
+        for list in roles.values { for r in list { rolesByKey[r.key] = r } }
+        let memoryByKey = Dictionary(uniqueKeysWithValues: state.memory.map { ($0.roleKey, $0) })
+        return ProfilePlanner.plan(p, roles: rolesByKey, active: active, memory: memoryByKey)
+    }
+
+    /// Activates the plan's `.activate` items, then remembers the reason and each duration on the profile.
+    func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?) async {
+        let requests = items.filter { $0.disposition == .activate }.map {
+            ActivationRequest(roleKey: $0.roleKey, duration: $0.duration, justification: justification, ticket: ticket,
+                              authenticationContext: $0.role?.policy.authenticationContext)
+        }
+        guard !requests.isEmpty else { return }
+        await activate(requests)
+        guard var p = state.profile(id: id) else { return }
+        p.lastJustification = justification
+        for item in items { if let i = p.entries.firstIndex(where: { $0.roleKey == item.roleKey }) { p.entries[i].lastDuration = item.duration } }
+        state.upsertProfile(p); persist()
     }
 
     // MARK: Manual roles

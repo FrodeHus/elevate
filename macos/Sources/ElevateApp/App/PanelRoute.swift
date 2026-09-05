@@ -7,6 +7,9 @@ enum PanelRoute: Codable, Hashable {
     case addTenant(String)        // identity id
     case discoverTenants(String)  // identity id
     case addAccount
+    case saveProfile([RoleKey])
+    case runProfile(UUID)
+    case manageProfiles
 }
 
 protocol ExpiryNotifying: Sendable {
