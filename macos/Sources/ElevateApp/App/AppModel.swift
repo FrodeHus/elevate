@@ -884,6 +884,11 @@ final class AppModel {
         if let policy = policyCache[old] { policyCache[old] = nil; policyCache[new] = policy }
         if let p = progress[old] { progress[old] = nil; progress[new] = p }
         active[old] = nil
+        for i in state.profiles.indices {
+            for j in state.profiles[i].entries.indices where state.profiles[i].entries[j].roleKey == old {
+                state.profiles[i].entries[j].roleKey = new
+            }
+        }
     }
 
     /// A manual role has no policy until Entra accepts an activation; that is the moment we can read one.
@@ -982,14 +987,15 @@ final class AppModel {
     @discardableResult
     func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile {
         let entries = orderedKeys(keys).map { ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
-        let profile = ActivationProfile(name: name.trimmingCharacters(in: .whitespacesAndNewlines), entries: entries)
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profile = ActivationProfile(name: trimmed.isEmpty ? "Untitled profile" : trimmed, entries: entries)
         state.upsertProfile(profile); persist()
         return profile
     }
 
     func updateProfile(id: UUID, keys: [RoleKey]) {
         guard var p = state.profile(id: id) else { return }
-        let old = Dictionary(uniqueKeysWithValues: p.entries.map { ($0.roleKey, $0) })
+        let old = Dictionary(p.entries.map { ($0.roleKey, $0) }, uniquingKeysWith: { _, b in b })
         p.entries = orderedKeys(keys).map { old[$0] ?? ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
         state.upsertProfile(p); persist()
     }
@@ -1016,7 +1022,7 @@ final class AppModel {
         guard let p = state.profile(id: profileId) else { return [] }
         var rolesByKey: [RoleKey: EligibleRole] = [:]
         for list in roles.values { for r in list { rolesByKey[r.key] = r } }
-        let memoryByKey = Dictionary(uniqueKeysWithValues: state.memory.map { ($0.roleKey, $0) })
+        let memoryByKey = Dictionary(state.memory.map { ($0.roleKey, $0) }, uniquingKeysWith: { _, b in b })
         return ProfilePlanner.plan(p, roles: rolesByKey, active: active, memory: memoryByKey)
     }
 
@@ -1026,8 +1032,7 @@ final class AppModel {
             ActivationRequest(roleKey: $0.roleKey, duration: $0.duration, justification: justification, ticket: ticket,
                               authenticationContext: $0.role?.policy.authenticationContext)
         }
-        guard !requests.isEmpty else { return }
-        await activate(requests)
+        if !requests.isEmpty { await activate(requests) }
         guard var p = state.profile(id: id) else { return }
         p.lastJustification = justification
         for item in items { if let i = p.entries.firstIndex(where: { $0.roleKey == item.roleKey }) { p.entries[i].lastDuration = item.duration } }

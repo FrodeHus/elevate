@@ -3,11 +3,11 @@ import Foundation
 @testable import ElevateCore
 
 @Suite struct ActivationProfileTests {
-    func key(_ n: String, kind: RoleScopeKind = .entraDirectory) -> RoleKey {
+    func key(_ n: String, kind: RoleScopeKind = .entraDirectory, tenantId: String = "t") -> RoleKey {
         switch kind {
-        case .entraDirectory: RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: n, directoryScopeId: "/"))
-        case .azureResource: RoleKey(identityId: "i", tenantId: "t", scope: .azureResource(scope: "/subscriptions/s", roleDefinitionId: n))
-        case .group: RoleKey(identityId: "i", tenantId: "t", scope: .group(groupId: n, accessId: .member))
+        case .entraDirectory: RoleKey(identityId: "i", tenantId: tenantId, scope: .entraDirectory(roleDefinitionId: n, directoryScopeId: "/"))
+        case .azureResource: RoleKey(identityId: "i", tenantId: tenantId, scope: .azureResource(scope: "/subscriptions/s", roleDefinitionId: n))
+        case .group: RoleKey(identityId: "i", tenantId: tenantId, scope: .group(groupId: n, accessId: .member))
         }
     }
 
@@ -34,6 +34,18 @@ import Foundation
         #expect(s.profiles.first?.name == "Second")
         s.removeProfile(id: p.id)
         #expect(s.profiles.count == 1)
+    }
+
+    @Test func removingTenantDropsProfileEntries() throws {
+        var s = AppState()
+        let keepKey = key("keep", tenantId: "t1")
+        let dropKey = key("drop", tenantId: "t2")
+        let p = ActivationProfile(name: "Mixed", entries: [.init(roleKey: keepKey), .init(roleKey: dropKey)])
+        s.upsertProfile(p)
+        s.removeTenant(TenantKey(identityId: "i", tenantId: "t2"))
+        let entries = s.profile(id: p.id)?.entries ?? []
+        #expect(entries.count == 1)
+        #expect(entries.first?.roleKey == keepKey)
     }
 
     @Test func summaryCaption() {
