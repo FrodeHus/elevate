@@ -82,7 +82,7 @@ final class AppModel {
         }
         notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
         notifier.onAuthorizationDenied = { [weak model] in
-            model?.notice = "Notifications are off for PimTray; enable them in System Settings to get expiry alerts."
+            model?.notice = "Notifications are off for Elevate; enable them in System Settings to get expiry alerts."
         }
         return model
     }

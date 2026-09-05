@@ -7,8 +7,14 @@ public actor AppStateStore {
     private var nextGeneration: UInt64 = 0
 
     public static var defaultDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("PimTray", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let current = base.appendingPathComponent("Elevate", isDirectory: true)
+        let legacy = base.appendingPathComponent("PimTray", isDirectory: true)
+        // One-time move of state saved under the app's former name.
+        if !FileManager.default.fileExists(atPath: current.path), FileManager.default.fileExists(atPath: legacy.path) {
+            try? FileManager.default.moveItem(at: legacy, to: current)
+        }
+        return current
     }
 
     public init(directory: URL = AppStateStore.defaultDirectory) {

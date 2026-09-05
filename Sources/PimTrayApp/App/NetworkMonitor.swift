@@ -15,7 +15,7 @@ final class NetworkMonitor {
             let online = path.status == .satisfied
             Task { @MainActor [weak self] in self?.isOnline = online }
         }
-        monitor.start(queue: DispatchQueue(label: "dev.pimtray.network-monitor"))
+        monitor.start(queue: DispatchQueue(label: "no.frodehus.elevate.network-monitor"))
     }
 
     deinit { monitor.cancel() }

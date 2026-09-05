@@ -24,7 +24,7 @@ struct PimTrayApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        WindowGroup("PimTray", for: PanelRoute.self) { $route in
+        WindowGroup("Elevate", for: PanelRoute.self) { $route in
             if let route {
                 RouteWindow(route: route).environment(model)
             }

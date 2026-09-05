@@ -1,13 +1,13 @@
-# PimTray
+# Elevate
 
-macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
+Formerly PimTray. Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
 
 ## Prerequisites
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
 2. An Entra app registration (multi-tenant, public client):
-   - Authentication → Add a platform → iOS/macOS, bundle ID `no.frodehus.pimtray`.
-     The redirect URI becomes `msauth.no.frodehus.pimtray://auth`.
+   - Authentication → Add a platform → iOS/macOS, bundle ID `no.frodehus.elevate`.
+     The redirect URI becomes `msauth.no.frodehus.elevate://auth`.
    - Authentication → Add a platform → Web, redirect URI
      `https://login.microsoftonline.com/common/oauth2/nativeclient`, so the
      admin-consent link the app hands out lands on a valid page.
@@ -17,14 +17,14 @@ macOS 26 menu bar app for activating Microsoft Entra PIM roles across several ac
      `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
    - Azure Service Management → `user_impersonation` (delegated). Required: it covers both
      tenant discovery and every Azure resource role read and activation. User consent is enough.
-3. Launch PimTray, open Settings (⌘,) from the panel, and paste the application (client) ID.
+3. Launch Elevate, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run
 
 ```bash
 xcodegen generate
-xcodebuild -project PimTray.xcodeproj -scheme PimTrayApp -configuration Debug -derivedDataPath build build
-open build/Build/Products/Debug/PimTray.app
+xcodebuild -project Elevate.xcodeproj -scheme PimTrayApp -configuration Debug -derivedDataPath build build
+open build/Build/Products/Debug/Elevate.app
 ```
 
 Core tests: `swift test`.

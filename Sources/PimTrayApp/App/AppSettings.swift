@@ -5,7 +5,9 @@ import Observation
 @MainActor
 @Observable
 final class AppSettings {
-    static let bundleId = "no.frodehus.pimtray"
+    static let bundleId = "no.frodehus.elevate"
+    /// Bundle id used before the app was renamed; its UserDefaults are migrated on first launch.
+    static let legacyBundleId = "no.frodehus.pimtray"
     static var redirectUri: String { "msauth.\(bundleId)://auth" }
     static let clientIdKey = "clientId"
 
@@ -17,7 +19,12 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        clientId = defaults.string(forKey: Self.clientIdKey) ?? ""
+        var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
+        if stored.isEmpty, let legacy = UserDefaults(suiteName: Self.legacyBundleId)?.string(forKey: Self.clientIdKey), !legacy.isEmpty {
+            stored = legacy
+            defaults.set(legacy, forKey: Self.clientIdKey)
+        }
+        clientId = stored
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }

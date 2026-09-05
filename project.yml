@@ -1,4 +1,4 @@
-name: PimTray
+name: Elevate
 options:
   bundleIdPrefix: no.frodehus
   deploymentTarget:
@@ -24,15 +24,15 @@ targets:
     info:
       path: Sources/PimTrayApp/Info.plist
       properties:
-        CFBundleDisplayName: PimTray
-        CFBundleName: PimTray
+        CFBundleDisplayName: Elevate
+        CFBundleName: Elevate
         LSUIElement: true
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
         CFBundleURLTypes:
-          - CFBundleURLName: no.frodehus.pimtray.auth
+          - CFBundleURLName: no.frodehus.elevate.auth
             CFBundleURLSchemes:
-              - msauth.no.frodehus.pimtray
+              - msauth.no.frodehus.elevate
         LSApplicationQueriesSchemes:
           - msauthv2
           - msauthv3
@@ -43,8 +43,8 @@ targets:
           - $(AppIdentifierPrefix)com.microsoft.identity.universalstorage
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.pimtray
-        PRODUCT_NAME: PimTray
+        PRODUCT_BUNDLE_IDENTIFIER: no.frodehus.elevate
+        PRODUCT_NAME: Elevate
         DEVELOPMENT_TEAM: VLJKN96D7N
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "6.0"

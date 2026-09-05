@@ -14,7 +14,7 @@ final class AuthAnchorWindow {
             label.alignment = .center
             controller.view.addSubview(label)
             let w = NSWindow(contentViewController: controller)
-            w.title = "PimTray sign-in"
+            w.title = "Elevate sign-in"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
             w.level = .floating

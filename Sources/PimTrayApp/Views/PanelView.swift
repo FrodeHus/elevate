@@ -35,7 +35,7 @@ struct PanelView: View {
             if !model.isConfigured {
                 SetupView()
             } else if let fatal = model.startupError {
-                ContentUnavailableView("PimTray cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
+                ContentUnavailableView("Elevate cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
                     .frame(height: 200)
             } else if model.identities.isEmpty {
                 ContentUnavailableView("No accounts", systemImage: "person.crop.circle.badge.plus",
@@ -79,7 +79,7 @@ struct PanelView: View {
     private var header: some View {
         @Bindable var model = model
         return HStack {
-            Text("PimTray").font(.headline)
+            Text("Elevate").font(.headline)
             if !model.isOnline {
                 Text("offline").font(.caption2).foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 1)
