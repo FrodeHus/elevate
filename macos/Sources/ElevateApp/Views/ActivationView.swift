@@ -21,6 +21,10 @@ struct ActivationView: View {
     @State private var startAt = Date.now.addingTimeInterval(3600)
 
     private var isBulk: Bool { keys.count > 1 }
+    /// Extend re-activates by deactivating first, so a scheduled start would revoke access now and
+    /// hand it back later. The row is hidden — and scheduling forced off — whenever anything in the
+    /// sheet is already active.
+    private var hasActiveItem: Bool { items.contains { model.assignment(for: $0.role.key)?.status == .active } }
     private var needsTicket: Bool { items.contains { $0.role.policy.requiresTicket } }
     private var justificationRequired: Bool { items.contains { $0.role.policy.requiresJustification } }
     private var canSubmit: Bool {
@@ -28,7 +32,7 @@ struct ActivationView: View {
             && (!justificationRequired || !justification.trimmingCharacters(in: .whitespaces).isEmpty)
             && (!needsTicket || !ticketNumber.trimmingCharacters(in: .whitespaces).isEmpty)
             // A start that has slipped into the past while the sheet sat open is not submittable.
-            && !(scheduleStart && startAt <= Date.now)
+            && !(isScheduling && startAt <= Date.now)
     }
 
     var body: some View {
@@ -57,15 +61,20 @@ struct ActivationView: View {
 
     /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
     @ViewBuilder private var startAtRow: some View {
-        let notBefore = Date.now
-        HStack(spacing: 8) {
-            Toggle("Start at", isOn: $scheduleStart)
-            if scheduleStart {
-                DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden()
+        if !hasActiveItem {
+            let notBefore = Date.now
+            HStack(spacing: 8) {
+                Toggle("Start at", isOn: $scheduleStart)
+                if scheduleStart {
+                    DatePicker("", selection: $startAt, in: notBefore..., displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden()
+                }
             }
         }
     }
+
+    /// The toggle's value only counts while the row is offered.
+    private var isScheduling: Bool { scheduleStart && !hasActiveItem }
 
     private var singleDuration: some View {
         Group {
@@ -143,7 +152,7 @@ struct ActivationView: View {
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
         // Two minutes of headroom: a start the service sees as "now" would activate immediately.
-        let start: Date? = scheduleStart ? max(startAt, Date.now.addingTimeInterval(120)) : nil
+        let start: Date? = isScheduling ? max(startAt, Date.now.addingTimeInterval(120)) : nil
         let requests = items.map {
             ActivationRequest(roleKey: $0.role.key, duration: $0.duration, justification: justification, ticket: ticket,
                               authenticationContext: $0.role.policy.authenticationContext,

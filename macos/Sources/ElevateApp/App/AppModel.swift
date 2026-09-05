@@ -52,6 +52,18 @@ final class AppModel {
     func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
     var selection: Set<RoleKey> = []
     var selectionCount: Int { selection.count }
+    /// Per-kind counts of the bulk selection, for the cross-tab hint in the bulk bar.
+    var selectionBreakdown: (entra: Int, azure: Int, groups: Int) {
+        var entra = 0, azure = 0, groups = 0
+        for key in selection {
+            switch key.scope.kind {
+            case .entraDirectory: entra += 1
+            case .azureResource: azure += 1
+            case .group: groups += 1
+            }
+        }
+        return (entra, azure, groups)
+    }
     /// Noun for the bulk bar: roles and groups can be selected together across tabs.
     var selectionNoun: String {
         let kinds = Set(selection.map(\.scope.kind))
@@ -912,7 +924,7 @@ final class AppModel {
         guard let role = role(for: key) else { return false }
         guard case .ready(let requests) = QuickActivate.decide(role: role, memory: remembered(for: key)) else { return false }
         let outcomes = await activate(requests)
-        await notifyOutcome(title: role.displayName, outcomes: outcomes)
+        await notifyOutcome(title: role.displayName, outcomes: outcomes, attempted: requests.count)
         return true
     }
 
@@ -923,37 +935,18 @@ final class AppModel {
         guard case .ready(let requests) = QuickActivate.decide(items: items, justification: profile.lastJustification) else { return false }
         guard !requests.contains(where: { inFlight.contains($0.roleKey) }) else { return true }
         let outcomes = await runProfile(id: profileId, items: items, justification: requests.first?.justification ?? "", ticket: nil)
-        await notifyOutcome(title: profile.name, outcomes: outcomes)
+        await notifyOutcome(title: profile.name, outcomes: outcomes, attempted: requests.count)
         return true
     }
 
-    /// "1 role activated" / "2 roles activated".
-    private static func roleCount(_ n: Int) -> String { n == 1 ? "1 role" : "\(n) roles" }
-
     /// Reports on the outcomes the activation returned rather than on `progress`, which a later
-    /// refresh may already have cleared or moved onto a rekeyed role.
-    private func notifyOutcome(title: String, outcomes: [ActivationOutcome]) async {
-        var ok = 0, pending = 0, scheduled = 0
-        var failures: [String] = []
-        for outcome in outcomes {
-            switch outcome.result {
-            case .activated: ok += 1
-            case .pendingApproval: pending += 1
-            case .scheduled: scheduled += 1
-            // The outcome carries the key the provider resolved to, which is where `rekey` put the row.
-            case .failed(let e): failures.append("\(summaryName(for: outcome.roleKey)): \(e.userMessage)")
-            }
-        }
-        var parts: [String] = []
-        if ok > 0 { parts.append("\(Self.roleCount(ok)) activated") }
-        if scheduled > 0 { parts.append("\(Self.roleCount(scheduled)) scheduled") }
-        if pending > 0 { parts.append("\(Self.roleCount(pending)) awaiting approval") }
-        if let first = failures.first {
-            let more = failures.count - 1
-            let detail = more > 0 ? "\(first) and \(more) more" : first
-            parts.append("\(Self.roleCount(failures.count)) failed: \(detail)")
-        }
-        await notifier.notify(title: title, body: parts.isEmpty ? "Nothing to do" : parts.joined(separator: ", "))
+    /// refresh may already have cleared or moved onto a rekeyed role. `attempted` is the number of
+    /// requests the run set out to make, so an empty outcome list can be told apart from having had
+    /// nothing to do at all.
+    private func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
+        await notifier.notify(title: title,
+                              body: ActivationSummary.body(outcomes: outcomes, attempted: attempted,
+                                                           names: summaryName(for:)))
     }
 
     /// Moves a manual role from the key the user typed to the key the provider resolved it to.
@@ -1115,7 +1108,15 @@ final class AppModel {
         p.name = trimmed; state.upsertProfile(p); persist()
     }
 
-    func deleteProfile(id: UUID) { state.removeProfile(id: id); persist() }
+    func deleteProfile(id: UUID) {
+        state.removeProfile(id: id)
+        persist()
+        // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
+        if settings.hotKeyProfileId == id {
+            settings.hotKeyProfileId = nil
+            applyHotKey()
+        }
+    }
     func moveProfile(fromOffsets: IndexSet, toOffset: Int) { state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist() }
 
     /// Edit = reopen the selection. The bulk bar offers "Update profile" while `editingProfileId` is set.

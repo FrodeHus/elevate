@@ -105,24 +105,29 @@ struct PanelView: View {
             }
             if model.selectMode {
                 Divider()
-                HStack(spacing: 8) {
-                    if let editing = model.editingProfileId {
-                        Button("Update profile") {
-                            model.updateProfile(id: editing, keys: Array(model.selection))
-                            model.selectMode = false
-                        }
-                        .disabled(model.selection.isEmpty)
-                    } else {
-                        Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        if let editing = model.editingProfileId {
+                            Button(model.profiles.first { $0.id == editing }.map { "Update \"\($0.name)\"" } ?? "Update profile") {
+                                model.updateProfile(id: editing, keys: Array(model.selection))
+                                model.selectMode = false
+                            }
                             .disabled(model.selection.isEmpty)
+                        } else {
+                            Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
+                                .disabled(model.selection.isEmpty)
+                        }
+                        Button {
+                            open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
+                        } label: {
+                            Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.selection.isEmpty)
                     }
-                    Button {
-                        open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
-                    } label: {
-                        Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
+                    if let hint = selectionHint {
+                        Text(hint).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(model.selection.isEmpty)
                 }
                 .padding(10)
             }
@@ -133,6 +138,18 @@ struct PanelView: View {
         .onChange(of: showSearch) { _, on in
             if on { searchFocused = true } else { model.searchQuery = "" }
         }
+    }
+
+    /// One line under the bulk bar naming what is picked per tab, so a selection spanning tabs is
+    /// visible from whichever tab is showing. Nil when nothing is selected.
+    private var selectionHint: String? {
+        let b = model.selectionBreakdown
+        var parts: [String] = []
+        if b.entra > 0 { parts.append("\(b.entra) Entra") }
+        if b.azure > 0 { parts.append("\(b.azure) Azure") }
+        if b.groups > 0 { parts.append("\(b.groups) groups") }
+        guard !parts.isEmpty else { return nil }
+        return "\(model.selectionCount) selected · \(parts.joined(separator: ", ")) — switch tabs to add more"
     }
 
     private func closeSearch() { showSearch = false }
