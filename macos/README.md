@@ -2,15 +2,24 @@
 
 Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
 
-**Groups.** The panel has a Roles tab and a Groups tab. The Groups tab lists your PIM for Groups
-memberships and ownerships; activation, the countdown and Deactivate work exactly as they do for
-roles. Because a group can carry Entra or Azure roles, those roles are re-read a few seconds after
-a group activation so the Roles tab catches up. Groups need the three `*.AzureADGroup` delegated
-permissions below, so they are available for your own app registration and for a custom app
-registration that carries them — never for the Microsoft first-party Azure CLI or Azure PowerShell
-apps. A first-party account is never read for groups at all; its Groups tab explains that the
-sign-in method supports Azure resource roles only. A tenant where the group read is refused for
-permissions shows a "Groups off" pill with the reason.
+**Tabs.** The panel has three tabs: Entra (directory roles), Azure (resource roles) and Groups (PIM
+for Groups). An "Active now" section pinned above the tabs lists everything active or awaiting
+approval across every account, sorted by soonest expiry, each row with its own countdown and
+Deactivate; it collapses on click and remembers that choice. The search button in the header
+filters the visible rows by name, caption, tenant and account, hiding any account or tenant that has
+no match. Extend appears next to the countdown once a role is within 15 minutes of expiring and
+re-activates it with the remembered reason; when a role expires anyway, a notification offers
+"Activate again". The menu bar icon shows a warning shield when something expires within 5 minutes
+and a clock when a request awaits approval.
+
+**Groups.** The Groups tab lists your PIM for Groups memberships and ownerships; activation, the
+countdown and Deactivate work exactly as they do for roles. Because a group can carry Entra or Azure
+roles, those roles are re-read a few seconds after a group activation so the Entra and Azure tabs
+catch up. Groups need the three `*.AzureADGroup` delegated permissions below, so they are available
+for your own app registration and for a custom app registration that carries them — never for the
+Microsoft first-party Azure CLI or Azure PowerShell apps. A first-party account is never read for
+groups at all; its Groups tab explains that the sign-in method supports Azure resource roles only. A
+tenant where the group read is refused for permissions shows a "Groups off" pill with the reason.
 
 ## Sign-in methods
 
