@@ -147,7 +147,7 @@ struct PanelView: View {
         var parts: [String] = []
         if b.entra > 0 { parts.append("\(b.entra) Entra") }
         if b.azure > 0 { parts.append("\(b.azure) Azure") }
-        if b.groups > 0 { parts.append("\(b.groups) groups") }
+        if b.groups > 0 { parts.append("\(b.groups) group\(b.groups == 1 ? "" : "s")") }
         guard !parts.isEmpty else { return nil }
         return "\(model.selectionCount) selected · \(parts.joined(separator: ", ")) — switch tabs to add more"
     }
