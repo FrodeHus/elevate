@@ -16,9 +16,6 @@ targets:
     platform: macOS
     sources:
       - path: Sources/PimTrayApp
-      - path: PimTrayConfig.plist
-        optional: true
-        buildPhase: resources
     dependencies:
       - package: PimTrayCore
         product: PimTrayCore

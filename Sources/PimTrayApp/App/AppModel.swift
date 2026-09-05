@@ -24,49 +24,73 @@ final class AppModel {
     private var lastRefresh: Date = .distantPast
     var pendingExtend: RoleKey?
 
-    private let tokens: any TokenProviding
-    private let coordinator: ActivationCoordinator
-    private let discovery: TenantDiscovery
+    let settings: AppSettings
+    private(set) var tokens: any TokenProviding
+    private(set) var coordinator: ActivationCoordinator
+    private(set) var discovery: TenantDiscovery
     private let store: AppStateStore
     private let notifier: any ExpiryNotifying
     private let network: NetworkMonitor
-    private let clientId: String?
+    private let http: any HTTPClient
+    private let anchor: AuthAnchorWindow?
     private var refreshTimer: Task<Void, Never>?
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
     private var policyCache: [RoleKey: RolePolicy] = [:]
     /// Mutation order for saves, so a slow write cannot land after a newer one.
     private var saveGeneration: UInt64 = 0
 
+    /// True once the app has a usable client id and a working token provider.
+    var isConfigured: Bool { settings.isConfigured && !(tokens is UnavailableTokenProvider) }
+
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
-         network: NetworkMonitor = NetworkMonitor(), clientId: String? = nil) {
+         network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil) {
         self.tokens = tokens
+        self.http = http
         self.store = store
         self.notifier = notifier
         self.network = network
-        self.clientId = clientId
+        self.settings = settings
+        self.anchor = anchor
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider()], tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
     }
 
-    /// Production wiring. Errors surface through `startupError` so the panel can show them.
+    /// Production wiring. The client id lives in `AppSettings`; when it is missing or unusable,
+    /// the panel shows `SetupView` instead of a startup error.
     static func live() -> AppModel {
+        let settings = AppSettings()
         let anchor = AuthAnchorWindow()
-        do {
-            let config = try AppConfig.load()
-            let tokens = try MSALTokenProvider(clientId: config.clientId, redirectUri: config.redirectUri, anchor: anchor)
-            let notifier = ExpiryNotifier()
-            let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier,
-                                 network: NetworkMonitor(), clientId: config.clientId)
-            notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
-            notifier.onAuthorizationDenied = { [weak model] in
-                model?.notice = "Notifications are off for PimTray; enable them in System Settings to get expiry alerts."
-            }
-            return model
-        } catch {
-            let model = AppModel(tokens: UnavailableTokenProvider(), http: URLSessionHTTPClient(), store: AppStateStore(), notifier: NoopNotifier(), network: NetworkMonitor())
-            model.startupError = error.localizedDescription
-            return model
+        let notifier = ExpiryNotifier()
+        let tokens: any TokenProviding
+        if settings.isConfigured, let msal = try? MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor) {
+            tokens = msal
+        } else {
+            tokens = UnavailableTokenProvider()
         }
+        let model = AppModel(tokens: tokens, http: URLSessionHTTPClient(), store: AppStateStore(), notifier: notifier, settings: settings, anchor: anchor)
+        notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
+        notifier.onAuthorizationDenied = { [weak model] in
+            model?.notice = "Notifications are off for PimTray; enable them in System Settings to get expiry alerts."
+        }
+        return model
+    }
+
+    /// Saves a new client id. Because MSAL's token cache is per client, every account is signed out.
+    func applyClientId(_ raw: String) throws {
+        let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
+        guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
+        for identity in state.identities { Task { try? await tokens.signOut(identity) } }
+        state = AppState()
+        roles = [:]; active = [:]; policyCache = [:]; tenantErrors = [:]; selection = []
+        persist()
+        settings.clientId = id
+        let msal = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor)
+        tokens = msal
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: msal), AzureResourceProvider(http: http, tokens: msal), GroupProvider()], tokens: msal)
+        discovery = TenantDiscovery(http: http, tokens: msal)
+        notice = nil
+        startupError = nil
     }
 
     // MARK: Derived
@@ -84,13 +108,13 @@ final class AppModel {
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
 
     func adminConsentURL(tenantId: String) -> URL? {
-        guard let clientId else { return nil }
+        guard settings.isConfigured else { return nil }
         var components = URLComponents()
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
         components.path = "/\(tenantId)/v2.0/adminconsent"
         components.queryItems = [
-            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
             URLQueryItem(name: "scope", value: GraphScopes.all.joined(separator: " ")),
             URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
         ]
@@ -148,6 +172,7 @@ final class AppModel {
     // MARK: Accounts
 
     func addAccount() async {
+        guard isConfigured else { notice = "Complete initial setup first"; return }
         do {
             let identity = try await tokens.signIn()
             if !state.identities.contains(where: { $0.id == identity.id }) {

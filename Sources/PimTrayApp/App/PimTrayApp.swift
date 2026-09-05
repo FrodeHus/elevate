@@ -31,6 +31,10 @@ struct PimTrayApp: App {
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
+
+        Settings {
+            SettingsView().environment(model)
+        }
     }
 }
 

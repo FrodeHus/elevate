@@ -23,7 +23,9 @@ struct PanelView: View {
                 .background(.orange.opacity(0.12))
                 Divider()
             }
-            if let fatal = model.startupError {
+            if !model.isConfigured {
+                SetupView()
+            } else if let fatal = model.startupError {
                 ContentUnavailableView("PimTray cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
                     .frame(height: 200)
             } else if model.identities.isEmpty {
@@ -91,6 +93,9 @@ struct PanelView: View {
     private var footer: some View {
         HStack {
             Button("Add account…") { Task { await model.addAccount() } }
+                .disabled(!model.isConfigured)
+            Spacer()
+            SettingsLink { Text("Settings…") }.buttonStyle(.borderless)
             Spacer()
             Button("Quit") { NSApp.terminate(nil) }
         }

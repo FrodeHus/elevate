@@ -16,7 +16,7 @@ macOS 26 menu bar app for activating Microsoft Entra PIM roles across several ac
      `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`,
      `RoleManagementPolicy.Read.Directory`. All of these need admin consent per tenant.
    - Optional: Azure Service Management → `user_impersonation` for tenant discovery.
-3. `cp PimTrayConfig.plist.example PimTrayConfig.plist` and put the application (client) ID in `ClientId`.
+3. Launch PimTray, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run
 
