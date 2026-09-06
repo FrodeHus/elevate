@@ -16,6 +16,7 @@ targets:
     platform: macOS
     sources:
       - path: Sources/ElevateApp
+      - path: Sources/ElevateApp/Assets.xcassets
     dependencies:
       - package: ElevateCore
         product: ElevateCore
@@ -48,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.reothor.elevate
         PRODUCT_NAME: Elevate
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         DEVELOPMENT_TEAM: VLJKN96D7N
