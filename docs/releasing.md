@@ -8,7 +8,10 @@ cask on `main`.
 
 1. Make sure `main` is green (the macOS workflow) and holds everything the
    release should contain.
-2. Tag and push:
+2. Move the entries under `## [Unreleased]` in [../CHANGELOG.md](../CHANGELOG.md)
+   to a new `## [x.y.z] - YYYY-MM-DD` heading, update the comparison links at the
+   bottom, and commit that before tagging.
+3. Tag and push:
 
    ```bash
    git tag v1.0.0
@@ -17,9 +20,9 @@ cask on `main`.
 
    The tag must start with `v`; the version in the release, the DMG name and
    the cask is the tag without it (`v1.0.0` → `1.0.0`).
-3. Watch the run under Actions → Release. When it finishes, the release is at
+4. Watch the run under Actions → Release. When it finishes, the release is at
    `https://github.com/FrodeHus/elevate/releases/tag/v1.0.0`.
-4. Manual checklist after the run finishes: toggle Launch at login on the
+5. Manual checklist after the run finishes: toggle Launch at login on the
    ad-hoc DMG build and confirm it registers.
 
 To redo a release, delete the tag and the GitHub Release, then push the tag
