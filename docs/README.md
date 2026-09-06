@@ -19,5 +19,6 @@
 - [Approvals](superpowers/specs/2026-09-05-elevate-approvals-design.md)
 - [Operations: launch at login, diagnostics, updates, releases](superpowers/specs/2026-09-06-elevate-operations-design.md)
 - [Windows app](superpowers/specs/2026-09-05-elevate-windows-design.md)
+- [Windows app design canvas (HTML mockups)](design/elevate-windows.html) — open locally or via https://claude.ai/code/artifact/48848273-2e63-4701-a0c8-b1d96437d085
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).
