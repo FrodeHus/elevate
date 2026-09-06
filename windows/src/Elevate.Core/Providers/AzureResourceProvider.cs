@@ -23,9 +23,9 @@ public sealed class AzureResourceProvider : IPimProvider
 
     // MARK: Wire models
 
-    private sealed record Named(string? DisplayName, string? Type, string? Id);
+    internal sealed record Named(string? DisplayName, string? Type, string? Id);
 
-    private sealed record Expanded(Named? Scope, Named? RoleDefinition, Named? Principal);
+    internal sealed record Expanded(Named? Scope, Named? RoleDefinition, Named? Principal);
 
     private sealed record Properties(
         string Scope,
@@ -45,7 +45,7 @@ public sealed class AzureResourceProvider : IPimProvider
     private sealed record Instance(string Name, string Id, Properties Properties);
 
     /// <summary>One page of an ARM list; ARM names the continuation <c>nextLink</c>, not <c>@odata.nextLink</c>.</summary>
-    private sealed record ArmPage<T>(IReadOnlyList<T>? Value, string? NextLink);
+    internal sealed record ArmPage<T>(IReadOnlyList<T>? Value, string? NextLink);
 
     private static readonly IReadOnlySet<string> PendingStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -76,14 +76,18 @@ public sealed class AzureResourceProvider : IPimProvider
     private static string Trimmed(string scope) => scope.Trim('/');
 
     /// <summary>GETs every page of an ARM list, following <c>nextLink</c>.</summary>
-    private async Task<IReadOnlyList<T>> ListAllAsync<T>(
-        Identity identity, string tenantId, Uri url, CancellationToken ct)
+    private Task<IReadOnlyList<T>> ListAllAsync<T>(Identity identity, string tenantId, Uri url, CancellationToken ct)
+        => ListAllAsync<T>(_transport, identity, tenantId, url, Scopes, ct);
+
+    /// <summary>GETs every page of an ARM list, following <c>nextLink</c>; shared with the approval provider.</summary>
+    internal static async Task<IReadOnlyList<T>> ListAllAsync<T>(
+        GraphTransport transport, Identity identity, string tenantId, Uri url, IReadOnlyList<string> scopes, CancellationToken ct)
     {
         Uri? next = url;
         var all = new List<T>();
         while (next is { } current)
         {
-            var response = await _transport.GetAsync(identity, tenantId, current, Scopes, ct).ConfigureAwait(false);
+            var response = await transport.GetAsync(identity, tenantId, current, scopes, ct).ConfigureAwait(false);
             var page = JsonSerializer.Deserialize<ArmPage<T>>(response.Body, GraphJson.Options);
             if (page?.Value is { } items)
             {
@@ -97,7 +101,7 @@ public sealed class AzureResourceProvider : IPimProvider
     }
 
     /// <summary>The scope's display name and kind, e.g. "Pay-As-You-Go · subscription".</summary>
-    private static string? Caption(Expanded? expanded)
+    internal static string? Caption(Expanded? expanded)
     {
         if (expanded?.Scope is not { DisplayName: { } name })
         {

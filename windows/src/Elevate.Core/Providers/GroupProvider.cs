@@ -14,7 +14,7 @@ namespace Elevate.Core.Providers;
 /// </summary>
 public sealed class GroupProvider : IPimProvider
 {
-    private const string Base = "/identityGovernance/privilegedAccess/group";
+    internal const string Base = "/identityGovernance/privilegedAccess/group";
 
     private readonly GraphTransport _transport;
 
@@ -48,7 +48,7 @@ public sealed class GroupProvider : IPimProvider
         DateTimeOffset? CreatedDateTime,
         ScheduleInfo? ScheduleInfo);
 
-    private static GroupAccess Access(string raw) =>
+    internal static GroupAccess Access(string raw) =>
         string.Equals(raw, "owner", StringComparison.OrdinalIgnoreCase) ? GroupAccess.Owner : GroupAccess.Member;
 
     private static bool IsGroupMember(string? memberType) =>
