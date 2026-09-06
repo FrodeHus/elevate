@@ -86,7 +86,7 @@ submit` on it.
 
 ## Optional signing secrets
 
-The workflow works with no secrets at all and produces an ad-hoc signed build.
+The workflow works with no secrets at all and produces an ad-hoc signed build; since 1.2.2 the secrets are set and every release is signed and notarized.
 Adding all six repository secrets (Settings → Secrets and variables →
 Actions) switches it to Developer ID signing and notarization. They require an
 Apple Developer Program membership.
@@ -183,7 +183,6 @@ instead of the default browser, and SSO with other MSAL apps on the Mac.
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
 brew trust frodehus/elevate        # Homebrew 6 requires trusting third-party taps
 brew install --cask frodehus/elevate/elevate
-xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
 ```
 
 Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`

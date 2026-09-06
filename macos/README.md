@@ -101,7 +101,6 @@ Homebrew (the cask lives in this repository, which doubles as a tap):
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
 brew trust frodehus/elevate        # Homebrew 6 requires trusting third-party taps
 brew install --cask frodehus/elevate/elevate
-xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
 ```
 
 Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`
@@ -115,33 +114,19 @@ and drag **Elevate** to Applications.
 
 ```bash
 brew upgrade --cask frodehus/elevate/elevate
-xattr -d com.apple.quarantine /Applications/Elevate.app   # rerun while builds are unsigned
 ```
 
-The upgrade replaces the app bundle, so the quarantine flag comes back and the `xattr` command has
-to be rerun until builds are signed and notarized. Elevate also checks the GitHub releases API for a
-newer version once a day and shows a notice in the panel when one is available.
+Elevate also checks the GitHub releases API for a newer version once a day and shows a notice in
+the panel when one is available.
 
-### Opening an unsigned build
+### Signing
 
-Releases today are ad-hoc signed, not signed with an Apple Developer ID and not notarized, so macOS
-refuses to open them on a double-click. Either remove the quarantine flag as shown above with
-`xattr -d com.apple.quarantine /Applications/Elevate.app`, or after copying the app to Applications:
-
-1. Open **Elevate.app** once.
-2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
-   about Elevate and click **Open Anyway**.
-3. Confirm **Open Anyway** again when prompted. macOS remembers the choice; later launches are normal.
-
-If macOS still refuses, remove the quarantine flag directly:
-
-```bash
-xattr -d com.apple.quarantine /Applications/Elevate.app
-```
-
-Signed and notarized builds — no prompts, no `xattr` step — will ship as soon as an Apple
-Developer ID is available; the release workflow already switches over automatically once the
-signing secrets exist. See [docs/releasing.md](../docs/releasing.md).
+Releases from 1.2.2 on are signed with a Developer ID and notarized, so the DMG and the app open
+without Gatekeeper prompts. Releases before 1.2.2 were ad-hoc signed; if you still run one, remove
+the quarantine flag once with `xattr -d com.apple.quarantine /Applications/Elevate.app` or approve
+it under System Settings → Privacy & Security. Accounts added through the own-app method on an
+unsigned build sign in once more after upgrading, because signed builds use MSAL instead of the
+loopback flow. How the release is signed: [docs/releasing.md](../docs/releasing.md).
 
 ## Prerequisites
 
