@@ -258,7 +258,7 @@ jobs:
           {
             # The changelog section for this version, when there is one.
             awk -v v="$VERSION" '
-              /^## \[/ { on = ($0 ~ "^## \\[" v "\\]") ; if (on) { next } }
+              /^## \[/ { on = (index($0, "## [" v "]") == 1); if (on) { next } }
               on { print }
             ' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
             echo
