@@ -114,19 +114,23 @@ jobs:
         run: |
           $x64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-x64.msi.sha256").Split(' ')[0]
           $arm64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256").Split(' ')[0]
-          $signed = if ($env:SIGN -eq '1') { "Signed with Azure Trusted Signing." } else { "Unsigned build: SmartScreen will ask for confirmation on first run." }
+          if ($env:SIGN -eq '1') {
+            $signing = "Signed with Azure Artifact Signing."
+          } else {
+            $signing = "This build is not code-signed. Windows SmartScreen will show `"Windows protected your PC`" the first time you run the installer: choose **More info**, then **Run anyway**. Verify the download against the SHA-256 below first."
+          }
           @"
-          Elevate for Windows $env:VERSION. $signed
+          Elevate for Windows $env:VERSION.
 
-          Install with winget once the manifest is published:
+          Download the MSI for your architecture below and run it. It installs for the current user (no admin rights) into %LOCALAPPDATA%\Programs\Elevate and needs the .NET 10 runtime: ``winget install Microsoft.DotNet.Runtime.10``.
 
-              winget install Reothor.Elevate
-
-          Or download the MSI for your architecture below (needs the .NET 10 runtime, `winget install Microsoft.DotNet.Runtime.10`).
+          $signing
 
           SHA-256:
           - x64: $x64
           - arm64: $arm64
+
+          To verify: ``(Get-FileHash .\Elevate-$env:VERSION-x64.msi).Hash``
           "@ | Set-Content -Path notes.md
 
       - name: Create GitHub release
@@ -141,17 +145,10 @@ jobs:
             "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256" `
             --title "Elevate for Windows $env:VERSION" --notes-file notes.md
 
+      # The manifest is kept as an artifact for a later submission to microsoft/winget-pkgs; winget
+      # moderation requires signed installers, so nothing is submitted automatically.
       - name: Manifest artifact
         uses: actions/upload-artifact@v4
         with:
           name: winget-manifest
           path: windows/winget/manifests
-
-      - name: Submit to winget-pkgs
-        if: env.WINGET_TOKEN != ''
-        shell: pwsh
-        env:
-          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
-        run: |
-          winget install --id Microsoft.WingetCreate --disable-interactivity --accept-source-agreements --accept-package-agreements
-          wingetcreate submit --token $env:WINGET_TOKEN "windows/winget/manifests/r/Reothor/Elevate/$env:VERSION"

@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   roles with policies, remembered reasons, bulk activation, scheduled starts, deactivation with
   the five-minute lock, cancelling pending requests, live countdowns and expiry toasts with
   Extend; manual roles for tenants that refuse discovery; offline awareness; start with sign-in.
-  Distributed as per-user x64 and arm64 MSIs from `windows-v*` releases and a winget manifest
-  (`Reothor.Elevate`). The Windows and macOS apps share the `state.json` schema.
+  Distributed as unsigned per-user x64 and arm64 MSIs from `windows-v*` releases (a winget
+  manifest for `Reothor.Elevate` is generated but not yet submitted). The Windows and macOS apps
+  share the `state.json` schema.
 
 ## [1.0.2] - 2026-09-06
 

@@ -2,27 +2,31 @@
 
 The Windows 11 counterpart of the macOS menu bar app: a system-tray flyout for just-in-time
 Microsoft Entra and Azure PIM role activation, built with WinUI 3 on .NET 10, installed from a
-per-user MSI and published to winget as `Reothor.Elevate`.
+per-user MSI downloaded from the GitHub releases (a winget package is prepared for later).
 
 UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the
 flyout, windows, tray states and tokens; open the file in a browser, it follows the OS theme).
 
 ## Install
 
-With winget, once the manifest is published:
+Download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
+[releases](https://github.com/FrodeHus/elevate/releases) tagged `windows-v*` and run it. The MSI
+installs for the current user into `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a
+Start Menu entry and can launch Elevate when it finishes. It needs the .NET 10 runtime
+(`winget install Microsoft.DotNet.Runtime.10`); the Windows App SDK runtime is bundled. Windows 11
+(build 22000) or newer.
+
+Releases are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" the first
+time the installer runs: choose **More info**, then **Run anyway**. Check the download against the
+SHA-256 in the release notes first:
 
 ```powershell
-winget install Reothor.Elevate
+(Get-FileHash .\Elevate-<version>-x64.msi).Hash
 ```
 
-Or download `Elevate-<version>-x64.msi` (or `-arm64.msi`) from the
-[releases](https://github.com/FrodeHus/elevate/releases) tagged `windows-v*`. The MSI installs for the
-current user into `%LOCALAPPDATA%\Programs\Elevate`, adds a Start Menu entry and can launch Elevate
-when it finishes. It needs the .NET 10 runtime (`winget install Microsoft.DotNet.Runtime.10`); the
-Windows App SDK runtime is bundled. Windows 11 (build 22000) or newer.
-
-Upgrade with `winget upgrade Reothor.Elevate` or by running a newer MSI; uninstall from Settings >
-Apps or with `winget uninstall Reothor.Elevate`.
+Upgrade by running a newer MSI; uninstall from Settings > Apps. A winget package
+(`Reothor.Elevate`) is prepared but not submitted, because winget moderation requires signed
+installers; see [Release](#release).
 
 ## Use
 
@@ -88,8 +92,11 @@ in `winget/templates` with the release URLs and hashes.
 ## Release
 
 Tag `windows-v<version>` on `main`. The [Windows workflow](../.github/workflows/windows.yml) tests the
-solution, builds and (with the `AZURE_TRUSTED_SIGNING_*`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
-`AZURE_SUBSCRIPTION_ID` secrets) signs both MSIs, creates the GitHub release with the MSIs and their
-SHA-256 files, validates the generated winget manifest and, when `WINGET_TOKEN` is set, submits it to
-`microsoft/winget-pkgs` with `wingetcreate`. Unsigned MSIs work but trigger SmartScreen and are
-refused by winget moderation, so configure signing before the first submission.
+solution, builds both MSIs, creates the GitHub release with the MSIs and their SHA-256 files, and
+attaches the generated winget manifest as a workflow artifact.
+
+Releases are unsigned unless the Azure Artifact Signing secrets are configured
+(`AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`, `AZURE_TRUSTED_SIGNING_PROFILE`,
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`), in which case the same job signs the
+MSIs. Submitting the manifest to `microsoft/winget-pkgs` is a manual step for later, once signing is
+in place: download the `winget-manifest` artifact and run `wingetcreate submit` on it.
