@@ -67,7 +67,24 @@ public sealed record ActiveAssignment(
     string? AssignmentId,
     DateTimeOffset StartDateTime,
     DateTimeOffset? EndDateTime,
-    AssignmentStatus Status);
+    AssignmentStatus Status)
+{
+    /// <summary>
+    /// Decoding entry point. The positional constructor's nullable members carry no default, which
+    /// under <c>RespectRequiredConstructorParameters</c> would make them required in JSON; Swift
+    /// decodes both with <c>decodeIfPresent</c>, so they are optional here.
+    /// </summary>
+    [JsonConstructor]
+    public ActiveAssignment(
+        RoleKey roleKey,
+        DateTimeOffset startDateTime,
+        AssignmentStatus status,
+        string? assignmentId = null,
+        DateTimeOffset? endDateTime = null)
+        : this(roleKey, assignmentId, startDateTime, endDateTime, status)
+    {
+    }
+}
 
 public sealed record TicketInfo(string Number, string System);
 

@@ -36,7 +36,9 @@ public sealed class ActivationCoordinator
     public ActivationCoordinator(IEnumerable<IPimProvider> providers, ITokenProvider tokens)
     {
         ArgumentNullException.ThrowIfNull(providers);
-        _providers = providers.ToDictionary(p => p.Kind);
+        // First wins: a duplicated kind or identity id must not throw out of the constructor
+        // or out of ActivateAsync as a non-PimException.
+        _providers = providers.DistinctBy(p => p.Kind).ToDictionary(p => p.Kind);
         _tokens = tokens;
     }
 
@@ -51,7 +53,7 @@ public sealed class ActivationCoordinator
         ArgumentNullException.ThrowIfNull(requests);
         ArgumentNullException.ThrowIfNull(identities);
 
-        var identityById = identities.ToDictionary(i => i.Id);
+        var identityById = identities.DistinctBy(i => i.Id).ToDictionary(i => i.Id);
         var groups = requests.GroupBy(r => r.RoleKey.TenantKey).ToList();
 
         var batches = await Task.WhenAll(groups.Select(group => Task.Run(async () =>

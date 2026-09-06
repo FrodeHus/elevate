@@ -297,8 +297,8 @@ public sealed class AzureResourceProvider : IPimProvider
             throw new PimException(PimErrorKind.NotEligible);
         }
 
-        var name = schedule.Split('/') is { Length: > 0 } parts ? parts[^1] : schedule;
-        return (principal, name.Length == 0 ? schedule : name);
+        // Swift: components(separatedBy: "/").last ?? schedule — a trailing slash yields "".
+        return (principal, schedule[(schedule.LastIndexOf('/') + 1)..]);
     }
 
     /// <summary>

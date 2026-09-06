@@ -33,6 +33,13 @@ public sealed record ActivationProfile
     /// <summary>Reason entered on the last run; prefilled next time.</summary>
     public string? LastJustification { get; set; }
 
+    /// <summary>
+    /// A copy with its own <see cref="Entries"/> list, so mutating one profile's entries does not
+    /// touch the other's. <see cref="Entry"/> is an immutable record, so the entries are shared.
+    /// (Records may not declare a member named <c>Clone</c>, hence the name.)
+    /// </summary>
+    public ActivationProfile DeepCopy() => new(Id, Name, [.. Entries], LastJustification);
+
     public bool Equals(ActivationProfile? other) =>
         other is not null
         && Id == other.Id

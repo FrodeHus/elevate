@@ -125,6 +125,78 @@ public class AppStateStoreTests
     }
 
     [Fact]
+    public void MissingRequiredFieldThrowsJsonException()
+    {
+        // Swift's Identity requires upn, displayName and homeTenantId; strict decoding must fail
+        // rather than bind nulls into non-nullable strings.
+        var decode = () => Json.Deserialize<AppState>("""{"identities":[{"id":"x"}]}""");
+
+        decode.Should().Throw<JsonException>();
+    }
+
+    [Fact]
+    public void OptionalSwiftFieldsStillDecodeWhenAbsent()
+    {
+        const string json = """
+        {
+          "identities": [{"id": "i", "upn": "u@x", "displayName": "U", "homeTenantId": "t"}],
+          "tenants": [{"identityId": "i", "tenantId": "t", "displayName": "Home", "source": "home"}],
+          "memory": [{"roleKey": {"identityId": "i", "tenantId": "t",
+                                  "scope": {"entraDirectory": {"roleDefinitionId": "r", "directoryScopeId": "/"}}},
+                      "justification": "j"}],
+          "profiles": [{"id": "8E6A1B2C-3D4E-4F50-8112-A3B4C5D6E7F8", "name": "P", "entries": []}]
+        }
+        """;
+
+        var state = Json.Deserialize<AppState>(json)!;
+
+        state.Identities[0].SignInMethod.Should().Be(SignInMethod.OwnApp);
+        state.Tenants[0].DiscoveryMode.Should().Be(DiscoveryMode.Automatic);
+        state.Tenants[0].PrincipalObjectId.Should().BeNull();
+        state.Tenants[0].EntraActivation.Should().BeNull();
+        state.Memory[0].LastDuration.Should().BeNull();
+        state.Profiles[0].LastJustification.Should().BeNull();
+        state.ManualRoles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void LoadThrowsJsonExceptionForAFileMissingRequiredFields()
+    {
+        var dir = TempDir();
+        File.WriteAllText(Path.Combine(dir, "state.json"), """{"identities":[{"id":"x"}]}""");
+        var store = new AppStateStore(dir);
+
+        store.Invoking(s => s.Load()).Should().Throw<JsonException>();
+        store.QuarantineCorruptFile().Should().NotBeNull();
+        store.Load().Should().Be(new AppState());
+    }
+
+    [Fact]
+    public void CloneIsIndependentOfTheOriginal()
+    {
+        var state = new AppState();
+        state.Identities.Add(new Identity("i", "u@x", "U", "t"));
+        state.UpsertTenant(new TenantContext("i", "t", "Home", TenantSource.Home));
+        var roleKey = new RoleKey("i", "t", new EntraDirectoryScope("r", "/"));
+        state.Remember(roleKey, "j", TimeSpan.FromHours(1));
+        state.UpsertProfile(new ActivationProfile("P", [new ActivationProfile.Entry(roleKey)]));
+
+        var clone = state.Clone();
+        clone.Should().Be(state);
+
+        clone.Identities.Add(new Identity("i2", "u2@x", "U2", "t"));
+        clone.Tenants.Clear();
+        clone.Memory.Clear();
+        clone.Profiles[0].Entries.Clear();
+
+        state.Identities.Should().ContainSingle();
+        state.Tenants.Should().ContainSingle();
+        state.Memory.Should().ContainSingle();
+        state.Profiles[0].Entries.Should().ContainSingle();
+        clone.Profiles[0].Entries.Should().BeEmpty();
+    }
+
+    [Fact]
     public void SavedFileIsPrettyPrintedWithSortedKeys()
     {
         var dir = TempDir();

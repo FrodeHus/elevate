@@ -15,11 +15,16 @@ public static class RoleCatalogue
     /// <summary>The name the catalogue is embedded under; see the csproj's <c>LogicalName</c>.</summary>
     internal const string ResourceName = "Elevate.Core.Resources.EntraBuiltInRoles.json";
 
+    /// <summary>Parsed once; the resource never changes for the life of the process.</summary>
+    private static readonly Lazy<IReadOnlyList<CatalogueRole>> Cached = new(Parse);
+
     /// <summary>
     /// Built-in Entra directory roles bundled with the app, sorted by display name.
-    /// Regenerate with <c>Scripts/update-role-catalogue.pl</c>.
+    /// Parsed on first use and cached. Regenerate with <c>Scripts/update-role-catalogue.pl</c>.
     /// </summary>
-    public static IReadOnlyList<CatalogueRole> EntraBuiltInRoles()
+    public static IReadOnlyList<CatalogueRole> EntraBuiltInRoles() => Cached.Value;
+
+    private static IReadOnlyList<CatalogueRole> Parse()
     {
         using var stream = typeof(RoleCatalogue).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new PimException(PimErrorKind.Unexpected, "EntraBuiltInRoles.json missing from bundle");
@@ -28,6 +33,6 @@ public static class RoleCatalogue
             ?? throw new PimException(PimErrorKind.Unexpected, "EntraBuiltInRoles.json is empty");
 
         roles.Sort((a, b) => string.CompareOrdinal(a.DisplayName, b.DisplayName));
-        return roles;
+        return roles.AsReadOnly();
     }
 }

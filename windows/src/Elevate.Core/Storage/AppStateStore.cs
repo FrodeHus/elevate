@@ -32,7 +32,14 @@ public sealed class AppStateStore
 
     public string FilePath => _filePath;
 
-    /// <summary>The saved state, or an empty one when nothing has been written yet.</summary>
+    /// <summary>
+    /// The saved state, or an empty one when nothing has been written yet. The returned graph is
+    /// freshly built and owned by the caller.
+    /// </summary>
+    /// <exception cref="JsonException">
+    /// The file is not valid JSON, or is missing a field the model requires. Callers move the bad
+    /// file aside with <see cref="QuarantineCorruptFile"/> and continue from an empty state.
+    /// </exception>
     public AppState Load()
     {
         lock (_gate)
@@ -99,8 +106,11 @@ public sealed class AppStateStore
     }
 
     /// <summary>
-    /// Pretty-printed with sorted keys, matching the macOS encoder's
-    /// <c>[.prettyPrinted, .sortedKeys]</c> output so the same file is produced on both platforms.
+    /// Pretty-printed with sorted keys, like the macOS encoder's
+    /// <c>[.prettyPrinted, .sortedKeys]</c>. Interop is semantic, not byte-for-byte: Swift writes
+    /// <c>"key" : value</c> with a space before the colon, escapes <c>/</c> as <c>\/</c>, and emits
+    /// non-ASCII characters literally, none of which System.Text.Json does. Both files decode to
+    /// the same state on both platforms, which is what the golden fixture test asserts.
     /// </summary>
     internal static byte[] Encode(AppState state)
     {

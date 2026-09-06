@@ -243,6 +243,32 @@ public class ActivationCoordinatorTests
             .Which.Status.Should().Be(501);
     }
 
+    [Fact]
+    public async Task DuplicateIdentityIdsDoNotThrowAndTheFirstWins()
+    {
+        var provider = new FakeProvider(RoleScopeKind.EntraDirectory);
+        var coordinator = new ActivationCoordinator([provider], new FakeTokenProvider());
+        var duplicate = Account with { Upn = "other@x", DisplayName = "Other" };
+
+        var outcomes = await coordinator.ActivateAsync(
+            [Request("t1", "r1", "a"), Request("t2", "r2", "b")], [Account, duplicate]);
+
+        outcomes.Should().HaveCount(2);
+        outcomes.Should().OnlyContain(o => o.Result is ActivationResult.Activated);
+        provider.Activated.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void DuplicateProviderKindsDoNotThrowAndTheFirstWins()
+    {
+        var first = new FakeProvider(RoleScopeKind.EntraDirectory);
+        var second = new FakeProvider(RoleScopeKind.EntraDirectory);
+
+        var coordinator = new ActivationCoordinator([first, second], new FakeTokenProvider());
+
+        coordinator.Provider(RoleScopeKind.EntraDirectory).Should().BeSameAs(first);
+    }
+
     /// <summary>Answers every activation with one fixed status, to exercise the result mapping.</summary>
     private sealed class ScriptedStatusProvider : Elevate.Core.Providers.IPimProvider
     {

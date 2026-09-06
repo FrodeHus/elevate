@@ -4,7 +4,7 @@ using Elevate.Core.Models;
 namespace Elevate.Core.Storage;
 
 /// <summary>The justification and duration last used for one role, prefilled next time.</summary>
-public sealed record RoleMemory(RoleKey RoleKey, string Justification, TimeSpan? LastDuration);
+public sealed record RoleMemory(RoleKey RoleKey, string Justification, TimeSpan? LastDuration = null);
 
 /// <summary>
 /// Everything the app persists: the signed-in accounts, their tenants, manually named roles,
@@ -144,6 +144,25 @@ public sealed class AppState : IEquatable<AppState>
             Memory.Add(entry);
         }
     }
+
+    /// <summary>
+    /// A deep, independent copy: every list is new and every profile gets its own
+    /// <see cref="ActivationProfile.Entries"/> list. The elements themselves are immutable
+    /// records and are shared.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AppStateStore.Load"/> and <see cref="Clone"/> are the only ways to obtain an
+    /// independent graph: an <see cref="AppState"/> handed around otherwise shares its lists and
+    /// its profiles, so mutating one observer's copy mutates them all.
+    /// </remarks>
+    public AppState Clone() => new()
+    {
+        Identities = [.. Identities],
+        Tenants = [.. Tenants],
+        ManualRoles = [.. ManualRoles],
+        Memory = [.. Memory],
+        Profiles = [.. Profiles.Select(p => p.DeepCopy())],
+    };
 
     public bool Equals(AppState? other) =>
         other is not null
