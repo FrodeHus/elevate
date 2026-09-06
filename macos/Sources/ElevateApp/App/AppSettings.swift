@@ -27,7 +27,7 @@ final class AppSettings {
         didSet { defaults.set(clientId, forKey: Self.clientIdKey) }
     }
 
-    /// Last client id typed into "Custom app (loopback)" in Add account, so the next account
+    /// Last client id typed into "Custom app" in Add account, so the next account
     /// from the same company app needs no retyping. Not a configuration value in its own right.
     var customClientId: String {
         didSet { defaults.set(customClientId, forKey: Self.customClientIdKey) }

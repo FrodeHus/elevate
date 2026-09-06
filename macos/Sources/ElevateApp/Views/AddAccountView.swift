@@ -39,7 +39,7 @@ struct AddAccountView: View {
                     .disabled(!model.isAvailable(m))
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Custom app (loopback)")
+                    Text("Custom app")
                     Text("An Entra app registration without a macOS platform, e.g. your company's PIM app; signs in through the browser with the standard http://localhost loopback redirect")
                         .font(.caption).foregroundStyle(.secondary)
                 }
