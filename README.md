@@ -1,6 +1,6 @@
 <h1><img src="docs/images/icon.png" width="48" alt="" align="absmiddle"> Elevate</h1>
 
-[![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](#install-macos)
+[![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Windows CI](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](#install-macos) [![Windows 11](https://img.shields.io/badge/Windows-11-blue)](windows/README.md#install)
 
 Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
 
@@ -11,6 +11,7 @@ Elevate lists every account you have signed in with, each tenant that account ca
 | App | Status | Docs |
 |---|---|---|
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, profiles, sign-in methods | [macos/README.md](macos/README.md) |
+| [Windows](windows/) — WinUI 3 tray app, Windows 11 | Usable: the same features, unsigned MSI for now | [windows/README.md](windows/README.md) |
 
 ## Install (macOS)
 
@@ -113,7 +114,7 @@ flow; see [Sign-in methods](macos/README.md#sign-in-methods).
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
 | Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
-| Windows app plan | [windows/README.md](windows/README.md) |
+| Windows app: build, install, installer and winget manifest, release | [windows/README.md](windows/README.md) |
 | Design specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
 | Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |
 
@@ -126,8 +127,8 @@ the [issue tracker](https://github.com/FrodeHus/elevate/issues); what changed in
 
 ## Roadmap
 
-- **Windows 11 tray app (WinUI 3, .NET 10): designed, not yet implemented** — see
-  [windows/README.md](windows/README.md).
+- **Windows: code signing and winget submission** — releases are unsigned until Azure Artifact
+  Signing is set up; see [windows/README.md](windows/README.md).
 
 ## License
 

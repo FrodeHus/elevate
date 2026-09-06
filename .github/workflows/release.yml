@@ -128,7 +128,7 @@ jobs:
           gh release create "$TAG"
           "dist/Elevate-$VERSION.dmg"
           "dist/Elevate-$VERSION.dmg.sha256"
-          --title "Elevate $VERSION" --notes-file notes.md
+          --title "Elevate for Mac $VERSION" --notes-file notes.md
 
       - name: Update cask on main
         working-directory: ${{ github.workspace }}
