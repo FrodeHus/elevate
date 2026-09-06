@@ -85,10 +85,7 @@ public sealed partial class PanelView : UserControl
     /// </summary>
     public event EventHandler? ContentChanged;
 
-    /// <summary>
-    /// Whether the grouped list is showing. An unbounded measure of it comes out a few pixels short
-    /// of what it draws, so the flyout adds a little height while it is visible.
-    /// </summary>
+    /// <summary>Whether the grouped list is showing; the flyout keeps a fixed height while it is.</summary>
     public bool ListVisible => List.Visibility == Visibility.Visible;
 
     private void Draw(AppModel model)
