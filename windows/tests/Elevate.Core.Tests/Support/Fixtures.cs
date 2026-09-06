@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Elevate.Core.Tests.Support;
@@ -12,4 +13,10 @@ public static class Fixtures
     }
 
     public static string Text(string name) => Encoding.UTF8.GetString(Data(name));
+
+    /// <summary>A Graph-style timestamp as the providers decode it (UTC). Stands in for the Swift tests' <c>GraphJSON.parseDate</c>.</summary>
+    public static DateTimeOffset? Date(string s) =>
+        DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var value)
+            ? value
+            : null;
 }

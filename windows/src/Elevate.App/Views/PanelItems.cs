@@ -207,8 +207,81 @@ public sealed class RoleRow : PanelItem
     public void RaiseAll() => OnPropertyChanged(string.Empty);
 }
 
+/// <summary>One request awaiting this user's decision, in the pinned "Approvals" group.</summary>
+public sealed class ApprovalRow(string requestId) : PanelItem
+{
+    private string _requesterName = string.Empty;
+    private string _target = string.Empty;
+    private string _caption = string.Empty;
+    private string? _justification;
+    private string? _error;
+    private bool _inFlight;
+    private bool _canDecide;
+    private bool _online = true;
+
+    public override string Key { get; } = "approval:" + requestId;
+
+    public string RequestId { get; } = requestId;
+
+    public string RequesterName { get => _requesterName; set => SetProperty(ref _requesterName, value); }
+
+    /// <summary>"Reader · rg-ops · resource group": the target with its scope caption.</summary>
+    public string Target { get => _target; set => SetProperty(ref _target, value); }
+
+    /// <summary>"Contoso · 04:00 · 2 hours ago".</summary>
+    public string Caption { get => _caption; set => SetProperty(ref _caption, value); }
+
+    public string? Justification { get => _justification; set => SetProperty(ref _justification, value); }
+
+    public string? Error { get => _error; set => SetProperty(ref _error, value); }
+
+    public bool InFlight { get => _inFlight; set => SetProperty(ref _inFlight, value); }
+
+    /// <summary>Only an activation can be decided through the APIs; extend, renew and other point at the portal.</summary>
+    public bool CanDecide { get => _canDecide; set => SetProperty(ref _canDecide, value); }
+
+    public bool Online { get => _online; set => SetProperty(ref _online, value); }
+
+    public Visibility InFlightVisibility => InFlight ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility DecideVisibility => CanDecide && !InFlight ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility PortalVisibility => !CanDecide && !InFlight ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility ErrorVisibility => string.IsNullOrEmpty(Error) ? Visibility.Collapsed : Visibility.Visible;
+
+    public void CopyFrom(ApprovalRow other)
+    {
+        RequesterName = other.RequesterName;
+        Target = other.Target;
+        Caption = other.Caption;
+        Justification = other.Justification;
+        Error = other.Error;
+        InFlight = other.InFlight;
+        CanDecide = other.CanDecide;
+        Online = other.Online;
+        OnPropertyChanged(string.Empty);
+    }
+}
+
+/// <summary>One saved profile, as a chip in the profiles row.</summary>
+public sealed class ProfileChip(Guid id) : ObservableObject
+{
+    private string _name = string.Empty;
+    private string _caption = string.Empty;
+
+    public Guid Id { get; } = id;
+
+    public string Name { get => _name; set => SetProperty(ref _name, value); }
+
+    public string Caption { get => _caption; set => SetProperty(ref _caption, value); }
+
+    public string Tooltip => $"Run {Name}. Ctrl-click to run with the last reason and durations";
+}
+
 public enum GroupKind
 {
+    Approvals,
     ActiveNow,
     Identity,
     Tenant,
@@ -277,11 +350,20 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public Visibility ActiveVisibility => ActiveCount > 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    private int _pendingCount;
+
+    /// <summary>Requests in the pinned "Approvals" group.</summary>
+    public int PendingCount { get => _pendingCount; set => Set(ref _pendingCount, value); }
+
+    public string PendingText => PendingCount > 0 ? $"{PendingCount} pending" : string.Empty;
+
+    public Visibility PendingVisibility => PendingCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+
     public Visibility CaptionVisibility => string.IsNullOrEmpty(Caption) ? Visibility.Collapsed : Visibility.Visible;
 
     public Visibility AvatarVisibility => Kind == GroupKind.Identity ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility MenuVisibility => Kind == GroupKind.ActiveNow ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility MenuVisibility => Kind is GroupKind.ActiveNow or GroupKind.Approvals ? Visibility.Collapsed : Visibility.Visible;
 
     public Visibility HomeVisibility => IsHome && Kind == GroupKind.Tenant ? Visibility.Visible : Visibility.Collapsed;
 
@@ -310,6 +392,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         Caption = other.Caption;
         Initials = other.Initials;
         ActiveCount = other.ActiveCount;
+        PendingCount = other.PendingCount;
         Expanded = other.Expanded;
         IsHome = other.IsHome;
         ViewOnlyReason = other.ViewOnlyReason;
@@ -338,7 +421,14 @@ public sealed partial class PanelItemTemplateSelector : DataTemplateSelector
 
     public DataTemplate? Note { get; set; }
 
-    protected override DataTemplate? SelectTemplateCore(object item) => item is RoleRow ? Role : Note;
+    public DataTemplate? Approval { get; set; }
+
+    protected override DataTemplate? SelectTemplateCore(object item) => item switch
+    {
+        RoleRow => Role,
+        ApprovalRow => Approval,
+        _ => Note,
+    };
 
     protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => SelectTemplateCore(item);
 }
@@ -353,6 +443,26 @@ public static class PanelListBuilder
     {
         ArgumentNullException.ThrowIfNull(model);
         var groups = new List<PanelGroup>();
+
+        var approvals = model.ApprovalsOrdered;
+        if (approvals.Count > 0)
+        {
+            var group = new PanelGroup("approvals", GroupKind.Approvals)
+            {
+                Title = "Approvals",
+                PendingCount = approvals.Count,
+                Expanded = !model.CollapsedApprovals,
+            };
+            if (group.Expanded)
+            {
+                foreach (var request in approvals)
+                {
+                    group.Add(ApprovalRowFor(model, request, now));
+                }
+            }
+
+            groups.Add(group);
+        }
 
         var active = model.ActiveAssignmentsOrdered;
         if (active.Count > 0)
@@ -538,6 +648,57 @@ public static class PanelListBuilder
         return row;
     }
 
+    private static ApprovalRow ApprovalRowFor(AppModel model, ApprovalRequest request, DateTimeOffset now)
+    {
+        var caption = new List<string> { model.ApprovalTenantName(request) };
+        if (request.RequestedDuration is { } d)
+        {
+            caption.Add(Countdown.Label(d));
+        }
+
+        if (request.CreatedAt is { } created)
+        {
+            caption.Add(Relative(created, now));
+        }
+
+        return new ApprovalRow(request.Id)
+        {
+            RequesterName = request.RequesterName,
+            Target = string.IsNullOrEmpty(request.ScopeCaption) ? request.TargetName : $"{request.TargetName} · {request.ScopeCaption}",
+            Caption = string.Join(" · ", caption),
+            Justification = request.Justification ?? "No reason given",
+            Error = model.ApprovalErrors.GetValueOrDefault(request.Id),
+            InFlight = model.DecisionInFlight.Contains(request.Id),
+            CanDecide = request.Action == ApprovalAction.Activate,
+            Online = model.IsOnline,
+        };
+    }
+
+    /// <summary>"just now", "5 minutes ago", "2 hours ago", "3 days ago".</summary>
+    public static string Relative(DateTimeOffset date, DateTimeOffset now)
+    {
+        var elapsed = now - date;
+        if (elapsed < TimeSpan.FromMinutes(1))
+        {
+            return "just now";
+        }
+
+        if (elapsed < TimeSpan.FromHours(1))
+        {
+            var m = (int)elapsed.TotalMinutes;
+            return m == 1 ? "1 minute ago" : $"{m} minutes ago";
+        }
+
+        if (elapsed < TimeSpan.FromDays(1))
+        {
+            var h = (int)elapsed.TotalHours;
+            return h == 1 ? "1 hour ago" : $"{h} hours ago";
+        }
+
+        var days = (int)elapsed.TotalDays;
+        return days == 1 ? "yesterday" : $"{days} days ago";
+    }
+
     private static RoleRow SummaryRow(AppModel model, ActiveAssignment assignment, DateTimeOffset now)
     {
         var key = assignment.RoleKey;
@@ -650,6 +811,9 @@ public static class PanelListBuilder
                         break;
                     case NoteRow note when f is NoteRow freshNote:
                         note.Text = freshNote.Text;
+                        break;
+                    case ApprovalRow approval when f is ApprovalRow freshApproval:
+                        approval.CopyFrom(freshApproval);
                         break;
                     default:
                         break;

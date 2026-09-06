@@ -14,7 +14,7 @@ namespace Elevate.Core.Providers;
 /// </summary>
 public sealed class GroupProvider : IPimProvider
 {
-    private const string Base = "/identityGovernance/privilegedAccess/group";
+    internal const string Base = "/identityGovernance/privilegedAccess/group";
 
     private readonly GraphTransport _transport;
 
@@ -48,7 +48,7 @@ public sealed class GroupProvider : IPimProvider
         DateTimeOffset? CreatedDateTime,
         ScheduleInfo? ScheduleInfo);
 
-    private static GroupAccess Access(string raw) =>
+    internal static GroupAccess Access(string raw) =>
         string.Equals(raw, "owner", StringComparison.OrdinalIgnoreCase) ? GroupAccess.Owner : GroupAccess.Member;
 
     private static bool IsGroupMember(string? memberType) =>
@@ -199,35 +199,9 @@ public sealed class GroupProvider : IPimProvider
     /// <summary>Always the caller: an eligibility inherited through another group names that group, which Graph refuses.</summary>
     private async Task<string> RequestPrincipalIdAsync(
         string groupId, GroupAccess access, Identity identity, string tenantId, CancellationToken ct)
-    {
-        try
-        {
-            var token = await _transport.Tokens.AccessTokenAsync(identity, tenantId, Scopes, ct).ConfigureAwait(false);
-            if (AccessTokenClaims.ObjectId(token) is { } oid)
-            {
-                return oid;
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (PimException)
-        {
-            // Fall through to the eligibility's own principal, like the Swift `try?`.
-        }
-
-        return await EligibilityPrincipalIdAsync(groupId, access, identity, tenantId, ct).ConfigureAwait(false)
+        => await _transport.CallerObjectIdAsync(identity, tenantId, Scopes, ct).ConfigureAwait(false)
+            ?? await EligibilityPrincipalIdAsync(groupId, access, identity, tenantId, ct).ConfigureAwait(false)
             ?? throw new PimException(PimErrorKind.NotEligible);
-    }
-
-    private static AssignmentStatus Status(string raw) => raw switch
-    {
-        "PendingApproval" or "PendingAdminDecision" => AssignmentStatus.PendingApproval,
-        "PendingProvisioning" or "PendingScheduleCreation" or "ScheduleCreated" => AssignmentStatus.PendingProvisioning,
-        "Denied" or "Failed" or "Canceled" or "Revoked" => AssignmentStatus.Failed(raw),
-        _ => AssignmentStatus.Active,
-    };
 
     public async Task<ActiveAssignment> ActivateAsync(
         ActivationRequest request, Identity identity, CancellationToken ct = default)
@@ -282,16 +256,8 @@ public sealed class GroupProvider : IPimProvider
             created.ScheduleInfo?.Expiration?.EndDateTime, created.ScheduleInfo?.Expiration?.Duration,
             start, request.Duration);
 
-        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
-        var reported = Status(created.Status);
-        var status = reported == AssignmentStatus.Active && ScheduleRules.IsFuture(start)
-            ? AssignmentStatus.Scheduled
-            : reported;
-
-        return new ActiveAssignment(
-            request.RoleKey, created.Id, start,
-            status == AssignmentStatus.Active || status == AssignmentStatus.Scheduled ? end : null,
-            status);
+        var (status, reportedEnd) = GraphSchedule.Settle(created.Status, start, end);
+        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)

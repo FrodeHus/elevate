@@ -61,6 +61,9 @@ internal sealed unsafe class TrayIcon : IDisposable
     /// <summary>Raised when another launch of Elevate asked the running instance to open its flyout.</summary>
     public event Action? OpenRequested;
 
+    /// <summary>Raised on the UI thread when the global shortcut registered on this window is pressed.</summary>
+    public event Action? HotKeyPressed;
+
     public HWND Handle => _hwnd;
 
     /// <summary>Adds the icon, or replaces its image once added. Takes ownership of <paramref name="icon"/>.</summary>
@@ -245,6 +248,12 @@ internal sealed unsafe class TrayIcon : IDisposable
         if (msg == _openRequested && !_disposed)
         {
             OpenRequested?.Invoke();
+            return new LRESULT(0);
+        }
+
+        if (msg == PInvoke.WM_HOTKEY && !_disposed)
+        {
+            HotKeyPressed?.Invoke();
             return new LRESULT(0);
         }
 

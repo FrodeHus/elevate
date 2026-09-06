@@ -57,12 +57,10 @@ public sealed class EntraDirectoryProvider : IPimProvider
         ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(tenant);
 
-        var response = await _transport.GetAsync(
+        var items = await _transport.ListAllAsync<Schedule>(
             identity, tenant.TenantId,
             _transport.GraphUrl("/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
             Scopes, ct).ConfigureAwait(false);
-
-        var items = Decode<Collection<Schedule>>(response).Value;
         var seen = new HashSet<RoleScope>();
         var roles = new List<EligibleRole>();
         foreach (var s in items)
@@ -89,21 +87,19 @@ public sealed class EntraDirectoryProvider : IPimProvider
         ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(tenant);
 
-        var instances = await _transport.GetAsync(
+        var instances = await _transport.ListAllAsync<Schedule>(
             identity, tenant.TenantId,
             _transport.GraphUrl("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
             Scopes, ct).ConfigureAwait(false);
 
         // Widened past PendingApproval so a booked-ahead request, which the service has already
         // turned into a schedule, is the source for the scheduled rows below.
-        var requests = await _transport.GetAsync(
+        var all = await _transport.ListAllAsync<ScheduleRequest>(
             identity, tenant.TenantId,
             _transport.GraphUrl("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"),
             Scopes, ct).ConfigureAwait(false);
 
-        var activated = Decode<Collection<Schedule>>(instances).Value
-            .Where(s => s.AssignmentType == "Activated");
-        var all = Decode<Collection<ScheduleRequest>>(requests).Value;
+        var activated = instances.Where(s => s.AssignmentType == "Activated");
 
         var result = new Dictionary<RoleKey, ActiveAssignment>();
         foreach (var s in activated)
@@ -232,23 +228,8 @@ public sealed class EntraDirectoryProvider : IPimProvider
             created.ScheduleInfo?.Expiration?.EndDateTime, created.ScheduleInfo?.Expiration?.Duration,
             start, request.Duration);
 
-        var reported = created.Status switch
-        {
-            "PendingApproval" or "PendingAdminDecision" => AssignmentStatus.PendingApproval,
-            "PendingProvisioning" or "PendingScheduleCreation" or "ScheduleCreated" => AssignmentStatus.PendingProvisioning,
-            "Denied" or "Failed" or "Canceled" or "Revoked" => AssignmentStatus.Failed(created.Status),
-            _ => AssignmentStatus.Active,
-        };
-
-        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
-        var status = reported == AssignmentStatus.Active && ScheduleRules.IsFuture(start)
-            ? AssignmentStatus.Scheduled
-            : reported;
-
-        return new ActiveAssignment(
-            request.RoleKey, created.Id, start,
-            status == AssignmentStatus.Active || status == AssignmentStatus.Scheduled ? end : null,
-            status);
+        var (status, reportedEnd) = GraphSchedule.Settle(created.Status, start, end);
+        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)

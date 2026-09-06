@@ -1,19 +1,43 @@
 # Contributing to Elevate
 
-Thanks for taking the time. Elevate is a macOS 26 menu bar app for just-in-time Microsoft Entra and
-Azure PIM role activation. Bugs, feature ideas and pull requests are all welcome — please read
+Thanks for taking the time. Elevate is a macOS 26 menu bar app and a Windows 11 tray app for
+just-in-time Microsoft Entra and Azure PIM role activation. Bugs, feature ideas and pull requests
+are all welcome — please read
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) first, and report anything security-sensitive privately as
 described in [SECURITY.md](SECURITY.md) rather than in an issue.
 
 ## Prerequisites
 
+macOS app (`macos/`):
+
 - macOS 26 (Tahoe) and **Xcode 26.6 or newer**.
 - `brew install xcodegen` — the Xcode project is generated, never committed.
-- To sign in from a local build, an Entra app registration; see
-  [docs/entra-app-registration.md](docs/entra-app-registration.md). Only the own-app method needs
-  one — the Azure CLI and Azure PowerShell methods need no registration.
 
-## Build and run
+Windows app (`windows/`):
+
+- Windows 11 (23H2 or newer), the **.NET 10 SDK** and the Windows 11 SDK 10.0.22621 (the Visual
+  Studio *Windows application development* workload, or standalone); `dotnet build` needs no
+  Visual Studio. `Elevate.Core` and its tests also build on macOS and Linux with the .NET SDK.
+- **WiX 5.0.2** (`dotnet tool install --global wix --version 5.0.2`) only to build the MSI; WiX 6
+  and 7 require accepting a maintenance-fee EULA and are not used.
+
+Either app: to sign in from a local build, an Entra app registration; see
+[docs/entra-app-registration.md](docs/entra-app-registration.md). Only the own-app method needs
+one — the Azure CLI and Azure PowerShell methods need no registration.
+
+## Build and run (Windows)
+
+```powershell
+cd windows
+dotnet build src/Elevate.App/Elevate.App.csproj
+src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --flyout
+```
+
+`dotnet test Elevate.sln` runs the Core and App suites; both must pass with warnings as errors.
+[windows/README.md](windows/README.md) has the developer switches and the installer steps,
+[windows/CONTINUING.md](windows/CONTINUING.md) the rulings and gotchas.
+
+## Build and run (macOS)
 
 ```bash
 cd macos
@@ -51,6 +75,9 @@ Both suites must pass before a pull request is merged.
 
 - **ElevateCore imports only `Foundation`** (plus `CryptoKit`, for PKCE). Anything AppKit, SwiftUI
   or MSAL belongs in `ElevateApp`. Core stays testable without a UI.
+- **`Elevate.Core` is a straight port of ElevateCore** with no Windows, WinUI or MSAL reference;
+  the app model lives in `Elevate.App.Model` so it stays testable without a window. Port a Core
+  change to both platforms in the same pull request, with the same fixtures.
 - **Swift 6 strict concurrency.** The package builds in Swift language mode 6; do not silence
   concurrency diagnostics to get a change through.
 - **Swift Testing** (`import Testing`, `@Test`, `#expect`) for new tests, not XCTest.
@@ -58,8 +85,9 @@ Both suites must pass before a pull request is merged.
   `project.yml`; project changes go into `project.yml`.
 - **Never commit a real client id, tenant id, token or account name** — not in code, tests,
   fixtures, screenshots or issue text. Client ids are configured at runtime in Settings.
-- Keep documentation next to the change: user-visible behaviour in `README.md` or
-  `macos/README.md`, notable changes in [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`.
+- Keep documentation next to the change: user-visible behaviour in `README.md`,
+  `macos/README.md` or `windows/README.md`, notable changes in [CHANGELOG.md](CHANGELOG.md)
+  under `## [Unreleased]`.
 
 ## Pull requests
 
@@ -83,6 +111,7 @@ Commit the regenerated JSON together with a note of when it was refreshed.
 
 ## Releases
 
-Releases are tag-driven: pushing a `v*` tag builds, packages, publishes and updates the Homebrew
-cask. Maintainers only — the full procedure, including the optional signing secrets, is in
+Releases are tag-driven: pushing a `v*` tag builds, packages and publishes the macOS app and
+updates the Homebrew cask; pushing a `windows-v*` tag builds the Windows MSIs and publishes them.
+Maintainers only — the full procedure, including the optional signing secrets, is in
 [docs/releasing.md](docs/releasing.md).

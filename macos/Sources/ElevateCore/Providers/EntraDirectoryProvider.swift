@@ -35,10 +35,9 @@ public struct EntraDirectoryProvider: PIMProvider {
     // MARK: Reads
 
     public func eligibleRoles(identity: Identity, tenant: TenantContext) async throws -> [EligibleRole] {
-        let r = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                        url: try transport.graphURL("/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
-                                        scopes: scopes)
-        let items = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: r.body).value
+        let items = try await transport.listAll(Schedule.self, identity: identity, tenantId: tenant.tenantId,
+                                                url: try transport.graphURL("/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
+                                                scopes: scopes)
         var seen = Set<RoleScope>()
         var roles: [EligibleRole] = []
         for s in items {
@@ -53,17 +52,15 @@ public struct EntraDirectoryProvider: PIMProvider {
     }
 
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
-        let instances = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                                url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
-                                                scopes: scopes)
+        let instances = try await transport.listAll(Schedule.self, identity: identity, tenantId: tenant.tenantId,
+                                                    url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$expand=roleDefinition"),
+                                                    scopes: scopes)
         // Widened past PendingApproval so a booked-ahead request, which the service has already
         // turned into a schedule, is the source for the `.scheduled` rows below.
-        let requests = try await transport.get(identity: identity, tenantId: tenant.tenantId,
-                                               url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"),
-                                               scopes: scopes)
-        let activated = try GraphJSON.decoder.decode(Collection<Schedule>.self, from: instances.body).value
-            .filter { $0.assignmentType == "Activated" }
-        let all = try GraphJSON.decoder.decode(Collection<ScheduleRequest>.self, from: requests.body).value
+        let all = try await transport.listAll(ScheduleRequest.self, identity: identity, tenantId: tenant.tenantId,
+                                              url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$filter=status eq 'PendingApproval' or status eq 'ScheduleCreated' or status eq 'Provisioned'"),
+                                              scopes: scopes)
+        let activated = instances.filter { $0.assignmentType == "Activated" }
         let pending = all.filter { $0.status == "PendingApproval" }
 
         var result: [RoleKey: ActiveAssignment] = [:]

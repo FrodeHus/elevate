@@ -49,3 +49,7 @@ HWND_MESSAGE
 RECT
 DestroyMenu
 HWND_BROADCAST
+RegisterHotKey
+UnregisterHotKey
+WM_HOTKEY
+HOT_KEY_MODIFIERS

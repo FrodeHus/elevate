@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Elevate.Core;
 using Elevate.Core.Models;
+using Elevate.Core.Support;
 using FluentAssertions;
 
 namespace Elevate.Core.Tests;
@@ -324,4 +325,33 @@ public class ModelsTests
     }
 
     private sealed record DurationHolder(TimeSpan LastDuration);
+}
+
+public class TextTests
+{
+    [Fact]
+    public void PrefixCountsUserPerceivedCharacters()
+    {
+        Text.Prefix("abc", 5).Should().Be("abc");
+        Text.Prefix("abcdef", 3).Should().Be("abc");
+        // Two flag emoji are four UTF-16 code units each; a code-unit cut would split them.
+        Text.Prefix("🇳🇴🇩🇰x", 2).Should().Be("🇳🇴🇩🇰");
+        Text.Prefix("éx", 1).Should().Be("é");
+    }
+
+    [Fact]
+    public void UnexpectedResponseTruncatesByCharacterNotCodeUnit()
+    {
+        var body = string.Concat(Enumerable.Repeat("🇳🇴", 400));
+        var message = new PimException(PimErrorKind.Unexpected, body, 500).UserMessage;
+        message.Should().StartWith("Unexpected response (500): ");
+        message.Should().EndWith("🇳🇴");
+        new System.Globalization.StringInfo(message["Unexpected response (500): ".Length..]).LengthInTextElements.Should().Be(300);
+    }
+
+    [Fact]
+    public void JsonKeepsNonAsciiTextUnescaped()
+    {
+        Json.Serialize(new TicketInfo("42", "Jira Ø")).Should().Contain("Jira Ø");
+    }
 }

@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Distributed as unsigned per-user x64 and arm64 MSIs from `windows-v*` releases (a winget
   manifest for `Reothor.Elevate` is generated but not yet submitted). The Windows and macOS apps
   share the `state.json` schema.
+- Elevate for Windows, phase 3: activation profiles (save from the bulk bar, a chip row under the
+  pivots, Manage and Run windows), Ctrl-click quick activation and a global shortcut that runs a
+  profile, a pinned Approvals group with Approve/Deny, approval toasts and a tray badge, Copy
+  diagnostics and a daily update check with an in-flyout banner. The flyout's bulk bar and footer
+  stay visible when the list is tall.
+
+### Changed
+
+- The macOS GitHub release is titled "Elevate for Mac x.y.z", matching "Elevate for Windows".
+- Entra directory role reads follow `@odata.nextLink` on both platforms.
 
 ## [1.0.2] - 2026-09-06
 

@@ -23,9 +23,9 @@ public sealed class AzureResourceProvider : IPimProvider
 
     // MARK: Wire models
 
-    private sealed record Named(string? DisplayName, string? Type, string? Id);
+    internal sealed record Named(string? DisplayName, string? Type, string? Id);
 
-    private sealed record Expanded(Named? Scope, Named? RoleDefinition, Named? Principal);
+    internal sealed record Expanded(Named? Scope, Named? RoleDefinition, Named? Principal);
 
     private sealed record Properties(
         string Scope,
@@ -45,7 +45,7 @@ public sealed class AzureResourceProvider : IPimProvider
     private sealed record Instance(string Name, string Id, Properties Properties);
 
     /// <summary>One page of an ARM list; ARM names the continuation <c>nextLink</c>, not <c>@odata.nextLink</c>.</summary>
-    private sealed record ArmPage<T>(IReadOnlyList<T>? Value, string? NextLink);
+    internal sealed record ArmPage<T>(IReadOnlyList<T>? Value, string? NextLink);
 
     private static readonly IReadOnlySet<string> PendingStatuses = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -56,7 +56,7 @@ public sealed class AzureResourceProvider : IPimProvider
     internal static Uri ArmUrl(string path, string apiVersion = "2020-10-01", IReadOnlyDictionary<string, string>? query = null)
     {
         var builder = new StringBuilder(GraphTransport.ArmBase)
-            .Append('/').Append(path)
+            .Append('/').Append(GraphTransport.PercentEncodePath(path))
             .Append("?api-version=").Append(GraphTransport.PercentEncodeQuery(apiVersion));
 
         foreach (var (key, value) in (query ?? new Dictionary<string, string>()).OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -76,14 +76,18 @@ public sealed class AzureResourceProvider : IPimProvider
     private static string Trimmed(string scope) => scope.Trim('/');
 
     /// <summary>GETs every page of an ARM list, following <c>nextLink</c>.</summary>
-    private async Task<IReadOnlyList<T>> ListAllAsync<T>(
-        Identity identity, string tenantId, Uri url, CancellationToken ct)
+    private Task<IReadOnlyList<T>> ListAllAsync<T>(Identity identity, string tenantId, Uri url, CancellationToken ct)
+        => ListAllAsync<T>(_transport, identity, tenantId, url, Scopes, ct);
+
+    /// <summary>GETs every page of an ARM list, following <c>nextLink</c>; shared with the approval provider.</summary>
+    internal static async Task<IReadOnlyList<T>> ListAllAsync<T>(
+        GraphTransport transport, Identity identity, string tenantId, Uri url, IReadOnlyList<string> scopes, CancellationToken ct)
     {
         Uri? next = url;
         var all = new List<T>();
         while (next is { } current)
         {
-            var response = await _transport.GetAsync(identity, tenantId, current, Scopes, ct).ConfigureAwait(false);
+            var response = await transport.GetAsync(identity, tenantId, current, scopes, ct).ConfigureAwait(false);
             var page = JsonSerializer.Deserialize<ArmPage<T>>(response.Body, GraphJson.Options);
             if (page?.Value is { } items)
             {
@@ -97,7 +101,7 @@ public sealed class AzureResourceProvider : IPimProvider
     }
 
     /// <summary>The scope's display name and kind, e.g. "Pay-As-You-Go · subscription".</summary>
-    private static string? Caption(Expanded? expanded)
+    internal static string? Caption(Expanded? expanded)
     {
         if (expanded?.Scope is not { DisplayName: { } name })
         {
@@ -309,26 +313,7 @@ public sealed class AzureResourceProvider : IPimProvider
     /// </summary>
     private async Task<string> RequestPrincipalIdAsync(
         string eligibilityPrincipalId, Identity identity, string tenantId, CancellationToken ct)
-    {
-        try
-        {
-            var token = await _transport.Tokens.AccessTokenAsync(identity, tenantId, Scopes, ct).ConfigureAwait(false);
-            if (AccessTokenClaims.ObjectId(token) is { } oid)
-            {
-                return oid;
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (PimException)
-        {
-            // Fall through to the eligibility's own principal, like the Swift `try?`.
-        }
-
-        return eligibilityPrincipalId;
-    }
+        => await _transport.CallerObjectIdAsync(identity, tenantId, Scopes, ct).ConfigureAwait(false) ?? eligibilityPrincipalId;
 
     private static Uri RequestUrl(string scope) =>
         ArmUrl(Trimmed(scope) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/"
@@ -391,31 +376,14 @@ public sealed class AzureResourceProvider : IPimProvider
             created.Properties.ScheduleInfo?.Expiration?.Duration,
             start, request.Duration);
 
-        var raw = created.Properties.Status ?? "Provisioned";
-        var reported = raw switch
-        {
-            "PendingApproval" or "PendingAdminDecision" or "PendingApprovalProvisioning" => AssignmentStatus.PendingApproval,
-            "PendingProvisioning" or "PendingScheduleCreation" or "ScheduleCreated" or "Accepted"
-                or "PendingEvaluation" or "ProvisioningStarted" or "PendingExternalProvisioning"
-                => AssignmentStatus.PendingProvisioning,
-            "Denied" or "Failed" or "Canceled" or "Revoked" or "TimedOut" or "Invalid" or "AdminDenied"
-                or "FailedAsResourceIsLocked" => AssignmentStatus.Failed(raw),
-            _ => AssignmentStatus.Active,
-        };
-
-        // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
-        var status = reported == AssignmentStatus.Active && ScheduleRules.IsFuture(start)
-            ? AssignmentStatus.Scheduled
-            : reported;
+        var (status, reportedEnd) = GraphSchedule.Settle(created.Properties.Status ?? "Provisioned", start, end);
 
         // A manual role is keyed by role name; key the assignment by the id ARM resolved it to.
         var resolvedKey = new RoleKey(
             request.RoleKey.IdentityId, tenantId, new AzureResourceScope(scope.Scope, roleDefinitionId));
 
         return new ActiveAssignment(
-            resolvedKey, created.Name, start,
-            status == AssignmentStatus.Active || status == AssignmentStatus.Scheduled ? end : null,
-            status);
+            resolvedKey, created.Name, start, reportedEnd, status);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)

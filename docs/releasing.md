@@ -1,8 +1,12 @@
 # Releasing Elevate
 
-Releases are cut by pushing a tag. `.github/workflows/release.yml` builds the
-macOS app, packages a DMG, publishes a GitHub Release and updates the Homebrew
-cask on `main`.
+Releases are cut by pushing a tag, one per platform. `.github/workflows/release.yml`
+builds the macOS app from a `v*` tag, packages a DMG, publishes a GitHub Release
+titled "Elevate for Mac x.y.z" and updates the Homebrew cask on `main`.
+`.github/workflows/windows.yml` builds the Windows app from a `windows-v*` tag
+and publishes "Elevate for Windows x.y.z" with the x64 and arm64 MSIs; see
+[Releasing the Windows app](#releasing-the-windows-app) at the end. The two
+platforms version independently: a tag on one never rebuilds the other.
 
 ## Cutting a release
 
@@ -158,3 +162,23 @@ ruby -c Casks/elevate.rb
 `~/Library/Preferences/no.reothor.elevate.plist`. The repository ships a
 placeholder cask at version `0.0.0` so the tap resolves before the first
 release; the first release overwrites it.
+
+## Releasing the Windows app
+
+1. Make sure `main` is green (the Windows workflow) and holds the change.
+2. Move the Windows entries under `## [Unreleased]` in the changelog as for macOS.
+3. Tag and push `windows-v<version>`; the version in the release, the MSI names
+   and the winget manifest is the tag without the prefix.
+4. Watch Actions → Windows. The release carries `Elevate-<version>-x64.msi`,
+   `Elevate-<version>-arm64.msi` and their `.sha256` files; the generated winget
+   manifest is a workflow artifact named `winget-manifest`.
+
+Releases are unsigned until Azure Artifact Signing is set up. The workflow signs
+the MSIs when the repository has `AZURE_TRUSTED_SIGNING_ENDPOINT`,
+`AZURE_TRUSTED_SIGNING_ACCOUNT`, `AZURE_TRUSTED_SIGNING_PROFILE`, `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`; that needs a paid subscription, the
+`Microsoft.CodeSigning` provider, an *organization* Public Trust identity validation
+and a certificate profile, plus an app registration holding the *Artifact Signing
+Certificate Profile Signer* role. Once releases are signed, submit the manifest
+artifact with `wingetcreate submit` and re-enable submission in the workflow with
+`WINGET_TOKEN`. [windows/README.md](../windows/README.md) has the installer details.

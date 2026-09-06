@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -38,6 +39,8 @@ public static class Json
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            // Swift's JSONEncoder writes non-ASCII text as is; the default encoder would \u-escape it.
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             // Strict decoding: a state.json missing a required field, or holding null where the
             // model says non-null, fails with JsonException instead of binding nulls into
             // non-nullable strings. Optional Swift fields keep their C# default values.

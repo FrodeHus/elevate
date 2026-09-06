@@ -34,6 +34,13 @@ public sealed class AppSettings : ObservableObject
     private string _customClientId = string.Empty;
     private PanelTab _panelTab = PanelTab.Roles;
     private bool _collapsedActive;
+    private bool _collapsedApprovals;
+    private string _lastApprovalJustification = string.Empty;
+    private HashSet<string> _seenApprovalIds = new(StringComparer.Ordinal);
+    private HotKeyBinding? _hotKey;
+    private Guid? _hotKeyProfileId;
+    private DateTimeOffset? _lastUpdateCheck;
+    private string? _dismissedUpdateVersion;
 
     public AppSettings(string? directory = null)
     {
@@ -48,7 +55,14 @@ public sealed class AppSettings : ObservableObject
         string? ClientId = null,
         string? CustomClientId = null,
         PanelTab? PanelTab = null,
-        bool? CollapsedActive = null);
+        bool? CollapsedActive = null,
+        bool? CollapsedApprovals = null,
+        string? LastApprovalJustification = null,
+        List<string>? SeenApprovalIds = null,
+        HotKeyBinding? HotKey = null,
+        Guid? HotKeyProfileId = null,
+        DateTimeOffset? LastUpdateCheck = null,
+        string? DismissedUpdateVersion = null);
 
     public string Directory { get; }
 
@@ -110,6 +124,103 @@ public sealed class AppSettings : ObservableObject
         }
     }
 
+    /// <summary>Whether the flyout's pinned "Approvals" group is collapsed; remembered between launches.</summary>
+    public bool CollapsedApprovals
+    {
+        get => _collapsedApprovals;
+        set
+        {
+            if (SetProperty(ref _collapsedApprovals, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The justification typed into the last decision window, used to prefill the next one.</summary>
+    public string LastApprovalJustification
+    {
+        get => _lastApprovalJustification;
+        set
+        {
+            if (SetProperty(ref _lastApprovalJustification, value ?? string.Empty))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ids of approval requests already notified about, so a relaunch does not re-notify. Pruned
+    /// after each full refresh to the ids still pending.
+    /// </summary>
+    public IReadOnlySet<string> SeenApprovalIds
+    {
+        get => _seenApprovalIds;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (!_seenApprovalIds.SetEquals(value))
+            {
+                _seenApprovalIds = new HashSet<string>(value, StringComparer.Ordinal);
+                OnPropertyChanged();
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The global shortcut. Null means no shortcut is registered.</summary>
+    public HotKeyBinding? HotKey
+    {
+        get => _hotKey;
+        set
+        {
+            if (SetProperty(ref _hotKey, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The profile the global shortcut runs. Without it the shortcut stays unregistered.</summary>
+    public Guid? HotKeyProfileId
+    {
+        get => _hotKeyProfileId;
+        set
+        {
+            if (SetProperty(ref _hotKeyProfileId, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>When the automatic update check last ran, so it can be throttled to once a day.</summary>
+    public DateTimeOffset? LastUpdateCheck
+    {
+        get => _lastUpdateCheck;
+        set
+        {
+            if (SetProperty(ref _lastUpdateCheck, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The release version the user dismissed in the flyout; that version is never offered again.</summary>
+    public string? DismissedUpdateVersion
+    {
+        get => _dismissedUpdateVersion;
+        set
+        {
+            if (SetProperty(ref _dismissedUpdateVersion, value))
+            {
+                Save();
+            }
+        }
+    }
+
     public bool IsConfigured => IsValidClientId(ClientId);
 
     /// <summary>The redirect URI the Windows broker (WAM) expects the registration to list for a client id.</summary>
@@ -141,6 +252,13 @@ public sealed class AppSettings : ObservableObject
             _customClientId = model.CustomClientId ?? string.Empty;
             _panelTab = model.PanelTab ?? PanelTab.Roles;
             _collapsedActive = model.CollapsedActive ?? false;
+            _collapsedApprovals = model.CollapsedApprovals ?? false;
+            _lastApprovalJustification = model.LastApprovalJustification ?? string.Empty;
+            _seenApprovalIds = new HashSet<string>(model.SeenApprovalIds ?? [], StringComparer.Ordinal);
+            _hotKey = model.HotKey;
+            _hotKeyProfileId = model.HotKeyProfileId;
+            _lastUpdateCheck = model.LastUpdateCheck;
+            _dismissedUpdateVersion = model.DismissedUpdateVersion;
         }
         catch (JsonException)
         {
@@ -151,7 +269,10 @@ public sealed class AppSettings : ObservableObject
 
     private void Save()
     {
-        var model = new FileModel(_clientId, _customClientId, _panelTab, _collapsedActive);
+        var model = new FileModel(
+            _clientId, _customClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
+            _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
+            _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);

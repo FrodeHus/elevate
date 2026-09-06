@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Elevate.App.Views.RunProfileWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+            <FontIcon Glyph="&#xE945;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+            <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <Border Grid.Row="1" CornerRadius="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+            <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="Rows" />
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="2" x:Name="Inputs" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <ToggleSwitch x:Name="ScheduleToggle" Header="" OnContent="Start at" OffContent="Start now" Toggled="OnScheduleToggled" MinWidth="0" />
+                <DatePicker x:Name="StartDate" Visibility="Collapsed" />
+                <TimePicker x:Name="StartTime" Visibility="Collapsed" MinuteIncrement="5" />
+            </StackPanel>
+            <StackPanel Spacing="6">
+                <TextBlock Text="Reason" FontSize="13" />
+                <TextBox x:Name="Reason" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxHeight="120" TextChanged="OnInputChanged"
+                         PlaceholderText="Why you need this access" />
+            </StackPanel>
+            <Grid x:Name="TicketRow" Visibility="Collapsed" ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Ticket number" FontSize="13" />
+                    <TextBox x:Name="TicketNumber" TextChanged="OnInputChanged" PlaceholderText="Required by policy" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Ticket system" FontSize="13" />
+                    <TextBox x:Name="TicketSystem" PlaceholderText="e.g. ServiceNow" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" Text="Entries already active are skipped. Approval-required entries are requested and shown as pending."
+                   FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+        <InfoBar Grid.Row="4" x:Name="Failure" IsOpen="False" IsClosable="False" Severity="Error" />
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <ProgressRing x:Name="Running" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" MinWidth="90" />
+            <Button x:Name="SubmitButton" Content="Activate" Style="{StaticResource AccentButtonStyle}" Click="OnSubmit" MinWidth="120" />
+        </StackPanel>
+    </Grid>
+</Window>

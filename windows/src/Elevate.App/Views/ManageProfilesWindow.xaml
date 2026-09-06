@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Elevate.App.Views.ManageProfilesWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Profiles" FontSize="18" FontWeight="SemiBold" />
+        <Grid Grid.Row="1">
+            <TextBlock x:Name="Empty" Visibility="Collapsed" MinHeight="120" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
+                       FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="No profiles yet. Select roles in the flyout and choose &quot;Save as profile…&quot;." />
+            <Border x:Name="ListBorder" CornerRadius="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="Rows" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        <TextBlock Grid.Row="2" x:Name="EditingHint" Visibility="Collapsed" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button x:Name="DoneButton" Content="Done" Style="{StaticResource AccentButtonStyle}" Click="OnDone" MinWidth="90" />
+        </StackPanel>
+    </Grid>
+</Window>

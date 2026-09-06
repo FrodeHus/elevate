@@ -2,7 +2,9 @@
 <Window
     x:Class="Elevate.App.Views.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Elevate.App.Views">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -65,10 +67,58 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Text="Version" FontWeight="SemiBold" />
-                    <TextBlock x:Name="Version" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" />
+                    <TextBlock x:Name="Version" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                    <TextBlock x:Name="UpdateMessage" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" TextWrapping="Wrap" />
                 </StackPanel>
-                <HyperlinkButton Grid.Column="1" Content="Release notes" NavigateUri="https://github.com/FrodeHus/elevate/releases" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <ProgressRing x:Name="Checking" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
+                    <Button x:Name="CheckUpdates" Content="Check for updates" Click="OnCheckUpdates" />
+                    <HyperlinkButton Content="Release notes" NavigateUri="https://github.com/FrodeHus/elevate/releases" />
+                </StackPanel>
             </Grid>
+            <Grid Padding="14,12" CornerRadius="4" ColumnSpacing="14" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="Diagnostics" FontWeight="SemiBold" />
+                    <TextBlock Text="Copies a report of your accounts, tenants, profiles and recent errors. It never contains tokens or client IDs."
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="CopyDiagnostics" Content="Copy diagnostics" Click="OnCopyDiagnostics" VerticalAlignment="Center" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Global shortcut -->
+        <StackPanel Grid.Row="3" Spacing="8">
+            <TextBlock Text="GLOBAL SHORTCUT" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <StackPanel Padding="14,12" Spacing="10" CornerRadius="4" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Shortcut" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <views:HotKeyRecorder x:Name="Recorder" BindingChanged="OnHotKeyChanged" />
+                        <Button x:Name="ClearHotKey" Content="Clear" Click="OnClearHotKey" />
+                    </StackPanel>
+                </Grid>
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Runs profile" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" x:Name="HotKeyProfile" MinWidth="220" SelectionChanged="OnHotKeyProfileChanged" />
+                </Grid>
+                <TextBlock Text="Runs the profile like Ctrl-clicking its chip; opens the run window if input is needed."
+                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                <TextBlock x:Name="HotKeyError" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
@@ -76,4 +126,5 @@
             <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" Click="OnSave" MinWidth="110" />
         </StackPanel>
     </Grid>
+    </ScrollViewer>
 </Window>

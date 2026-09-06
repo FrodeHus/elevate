@@ -30,17 +30,17 @@ public static class Scopes
 public interface ITokenProvider
 {
     /// <summary>Interactive sign-in against the <c>organizations</c> authority. Returns the new identity.</summary>
-    Task<Identity> SignInAsync(SignInMethod method, CancellationToken ct);
+    Task<Identity> SignInAsync(SignInMethod method, CancellationToken ct = default);
 
-    Task SignOutAsync(Identity identity, CancellationToken ct);
+    Task SignOutAsync(Identity identity, CancellationToken ct = default);
 
-    Task<IReadOnlyList<Identity>> IdentitiesAsync(CancellationToken ct);
+    Task<IReadOnlyList<Identity>> IdentitiesAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Silent acquisition for <paramref name="tenantId"/>. Throws
     /// <see cref="PimException"/> with <see cref="PimErrorKind.InteractionRequired"/> when a prompt is needed.
     /// </summary>
-    Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct);
+    Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default);
 
     /// <summary>
     /// Interactive acquisition, optionally carrying a claims challenge. Throws
@@ -51,7 +51,7 @@ public interface ITokenProvider
         string tenantId,
         IReadOnlyList<string> scopes,
         string? claims,
-        CancellationToken ct);
+        CancellationToken ct = default);
 }
 
 /// <summary>Port of the Swift <c>InteractionRetry</c>: one interactive attempt, one retry.</summary>
