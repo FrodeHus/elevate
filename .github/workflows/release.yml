@@ -145,7 +145,6 @@ jobs:
           if [ "$SIGNED" = "1" ]; then
             codesign --force --timestamp -s "Developer ID Application" "dist/Elevate-$VERSION.dmg"
           fi
-          shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
 
       - name: Notarize DMG
         if: env.SIGNED == '1'
@@ -156,6 +155,10 @@ jobs:
         run: |
           xcrun notarytool submit "dist/Elevate-$VERSION.dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
           xcrun stapler staple "dist/Elevate-$VERSION.dmg"
+
+      # After stapling: the ticket changes the DMG's bytes, so the checksum must come last.
+      - name: Checksum DMG
+        run: shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
