@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   macos:
@@ -310,19 +311,23 @@ jobs:
           "dist/Elevate-$VERSION-arm64.msi.sha256"
           --title "Elevate $VERSION" --notes-file notes.md
 
-      - name: Update cask on main
+      # main only takes changes through pull requests, so the cask bump is proposed as one. The
+      # macOS workflow runs on Casks/** and provides the required check; merge it (or enable
+      # auto-merge on the repository) to publish the cask.
+      - name: Propose the cask update
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          git checkout -B main origin/main
+          git checkout -B "cask/elevate-$VERSION" origin/main
           ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
           if git diff --quiet -- Casks/elevate.rb; then
             echo "Cask already up to date."
-          else
-            git add Casks/elevate.rb
-            git commit -m "Cask: Elevate $VERSION"
-            git push origin main
+            exit 0
           fi
+          git add Casks/elevate.rb
+          git commit -m "Cask: Elevate $VERSION"
+          git push --force origin "cask/elevate-$VERSION"
+          gh pr create --base main --head "cask/elevate-$VERSION"             --title "Cask: Elevate $VERSION"             --body "Homebrew cask for the [$VERSION release](https://github.com/${{ github.repository }}/releases/tag/$TAG), opened by the release workflow. Merge to publish it."             || echo "A pull request for this cask already exists."

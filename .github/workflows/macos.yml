@@ -3,9 +3,9 @@ name: macOS
 on:
   push:
     branches: [main]
-    paths: ["macos/**", "shared/**", ".github/workflows/macos.yml"]
+    paths: ["macos/**", "shared/**", "Casks/**", ".github/workflows/macos.yml"]
   pull_request:
-    paths: ["macos/**", "shared/**", ".github/workflows/macos.yml"]
+    paths: ["macos/**", "shared/**", "Casks/**", ".github/workflows/macos.yml"]
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
