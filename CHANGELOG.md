@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Access") under the role name, with a tooltip that names the authentication context; the
   activation window lists the same notices, and the bulk table and the profile run window show the
   combined caption in their status column.
+- Windows: the bulk activation table and the profile run window box the rows of each tenant, headed
+  by the tenant name with the account address as a caption, instead of a small "account · tenant"
+  caption line.
+- Windows: tenant and account headers show one warning glyph instead of a run of pills ("Azure
+  off", "Groups off", "error", "Azure roles only"): orange when the tenant has limitations, red when
+  discovery or refresh failed. Hover lists them; clicking opens a flyout with each reason in full.
+  The "manual roles" pill stays, since it is a mode rather than a problem. The account-level badge
+  only appears while no tenant is known yet.
+- Windows: the custom client id sign-in method reads "Custom app", without a "(loopback)" note.
+
+### Fixed
+
+- Windows: the bulk activation table and the profile run window keep their duration and status
+  columns aligned when a row has nothing to report, and longer status texts trim instead of
+  overflowing the column.
+- Windows: Azure resource roles in the activation window, the bulk table and the profile run window
+  show the scope under the role name, with the full ARM path as a tooltip.
 
 ## [1.2.4] - 2026-09-06
 

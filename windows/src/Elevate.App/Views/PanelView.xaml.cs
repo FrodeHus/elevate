@@ -496,6 +496,34 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
+    private void OnIssuesClick(object sender, RoutedEventArgs e)
+    {
+        if (Group(sender) is not { } group || group.Issues.Count == 0 || sender is not FrameworkElement anchor)
+        {
+            return;
+        }
+
+        var resources = Application.Current.Resources;
+        var list = new StackPanel { Spacing = 10, Width = 320 };
+        foreach (var issue in group.Issues)
+        {
+            var entry = new StackPanel { Spacing = 2 };
+            entry.Children.Add(new TextBlock { Text = issue.Title, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            entry.Children.Add(new TextBlock
+            {
+                Text = issue.Detail,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["TextFillColorSecondaryBrush"],
+            });
+            list.Children.Add(entry);
+        }
+
+        new Flyout { Content = list, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom }.ShowAt(anchor);
+    }
+
     private void OnGroupMenu(object sender, RoutedEventArgs e)
     {
         if (Group(sender) is not { } group || _model is null || sender is not FrameworkElement anchor)

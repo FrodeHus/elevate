@@ -38,7 +38,7 @@ public sealed partial class ActivationWindow : Window
         _model = model;
         _keys = keys;
         var isBulk = keys.Count > 1;
-        DialogWindows.Configure(this, isBulk ? $"Activate {keys.Count} roles" : "Activate role", isBulk ? 560 : 420, isBulk ? 520 : 440, Root, autoHeight: true);
+        DialogWindows.Configure(this, isBulk ? $"Activate {keys.Count} roles" : "Activate role", isBulk ? 600 : 420, isBulk ? 520 : 440, Root, autoHeight: true);
         DialogWindows.DefaultButton(Root, SubmitButton);
         Load();
         _model.Changed += OnModelChanged;
@@ -102,6 +102,10 @@ public sealed partial class ActivationWindow : Window
         }
 
         Heading.Text = IsBulk ? $"Activate {_keys.Count} roles" : _items.FirstOrDefault()?.Role.DisplayName ?? "Activate role";
+        var scope = IsBulk ? null : _items.FirstOrDefault()?.Role;
+        Scope.Text = scope?.Detail ?? string.Empty;
+        Scope.Visibility = scope?.Detail is null ? Visibility.Collapsed : Visibility.Visible;
+        ToolTipService.SetToolTip(Scope, scope?.Key.Scope is AzureResourceScope azure ? azure.Scope : scope?.Detail);
         var tenantKeys = _items.Select(i => i.Role.Key.TenantKey).Distinct().ToList();
         Subtitle.Text = tenantKeys.Count == 1
             ? $"{_model.Tenant(tenantKeys[0])?.DisplayName ?? tenantKeys[0].TenantId} · {_model.Identity(tenantKeys[0].IdentityId)?.Upn ?? tenantKeys[0].IdentityId}"
@@ -144,36 +148,41 @@ public sealed partial class ActivationWindow : Window
         }
     }
 
+    // Fixed columns: the picker and the status keep their width even when a row has nothing to
+    // report, so the rows line up; "7 h 30 min" fits the picker without truncation.
+    private const double DurationColumn = 130;
+    private const double StatusColumn = 160;
+
     private void BuildBulkRows(IReadOnlyList<TenantKey> tenantKeys)
     {
         BulkRows.Children.Clear();
-        BulkRows.Children.Add(HeaderRow());
+        HeaderRow(BulkHeader);
         foreach (var tenantKey in tenantKeys)
         {
-            var caption = new TextBlock
-            {
-                Text = $"{_model.Identity(tenantKey.IdentityId)?.Upn ?? tenantKey.IdentityId} · {_model.Tenant(tenantKey)?.DisplayName ?? tenantKey.TenantId}",
-                FontSize = 12,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-                Padding = new Thickness(10, 8, 10, 4),
-            };
-            BulkRows.Children.Add(caption);
+            var box = TenantGroupBox.Create(_model, tenantKey, out var boxRows);
+            var first = true;
             foreach (var item in _items.Where(i => i.Role.Key.TenantKey == tenantKey))
             {
-                BulkRows.Children.Add(Row(item));
+                boxRows.Children.Add(Row(item, first));
+                first = false;
             }
+
+            BulkRows.Children.Add(box);
         }
     }
 
-    private static Grid HeaderRow()
+    private static void HeaderRow(Grid grid)
     {
-        var grid = RowGrid();
-        grid.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["LayerOnMicaBaseAltFillColorSecondaryBrush"];
+        grid.Children.Clear();
+        grid.ColumnDefinitions.Clear();
+        grid.Padding = new Thickness(10, 0, 10, 0);
+        grid.ColumnSpacing = 10;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(DurationColumn) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(StatusColumn) });
         grid.Children.Add(Cell("Role", 0));
         grid.Children.Add(Cell("Duration", 1));
         grid.Children.Add(Cell("Status", 2));
-        return grid;
     }
 
     private static TextBlock Cell(string text, int column)
@@ -184,38 +193,23 @@ public sealed partial class ActivationWindow : Window
         return block;
     }
 
-    private static Grid RowGrid()
+    private Grid Row(Item item, bool first)
     {
-        var grid = new Grid { Padding = new Thickness(10, 6, 10, 6), ColumnSpacing = 10, MinHeight = 40 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
-        grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
-        grid.BorderThickness = new Thickness(0, 1, 0, 0);
-        return grid;
-    }
-
-    private Grid Row(Item item)
-    {
-        var grid = RowGrid();
-        var name = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        name.Children.Add(new TextBlock { Text = item.Role.DisplayName, TextTrimming = TextTrimming.CharacterEllipsis });
-        // The policy's demands live in the status column; the caption names the kind and the ceiling.
-        var captionParts = new List<string> { Kind(item.Role.Key), $"max {DurationPicker.Label(item.Role.Policy.MaximumDuration)}" };
-        name.Children.Add(new TextBlock
+        var grid = TenantGroupBox.RowGrid(DurationColumn, StatusColumn);
+        if (!first)
         {
-            Text = string.Join(" · ", captionParts),
-            FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
-        grid.Children.Add(name);
+            grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
+            grid.BorderThickness = new Thickness(0, 1, 0, 0);
+        }
+
+        // The scope caption for Azure roles; otherwise the kind. The policy's demands live in the status column.
+        var caption = $"{item.Role.Detail ?? Kind(item.Role.Key)} · max {DurationPicker.Label(item.Role.Policy.MaximumDuration)}";
+        grid.Children.Add(TenantGroupBox.NameCell(item.Role.DisplayName, caption, item.Role.Key));
         Grid.SetColumn(item.Duration, 1);
         item.Duration.VerticalAlignment = VerticalAlignment.Center;
+        item.Duration.HorizontalAlignment = HorizontalAlignment.Stretch;
         grid.Children.Add(item.Duration);
-        var status = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        status.Children.Add(item.Ring!);
-        status.Children.Add(item.Status!);
+        var status = TenantGroupBox.StatusCell(item.Ring, item.Status!, HorizontalAlignment.Left);
         Grid.SetColumn(status, 2);
         grid.Children.Add(status);
         UpdateStatus(item);

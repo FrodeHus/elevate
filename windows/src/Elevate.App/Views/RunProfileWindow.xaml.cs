@@ -111,55 +111,50 @@ public sealed partial class RunProfileWindow : Window
         UpdateSubmit();
     }
 
+    // Fixed columns: the picker and the status keep their width even when a row has nothing to
+    // report, so the rows line up; "7 h 30 min" fits the picker without truncation.
+    private const double DurationColumn = 130;
+    private const double StatusColumn = 160;
+
     private void Build()
     {
         Rows.Children.Clear();
-        var resources = Application.Current.Resources;
-        var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
-        var divider = (Brush)resources["DividerStrokeColorDefaultBrush"];
+        var divider = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
         foreach (var tenantKey in _rows.Select(r => r.Item.RoleKey.TenantKey).Distinct())
         {
-            Rows.Children.Add(new TextBlock
-            {
-                Text = $"{_model.Identity(tenantKey.IdentityId)?.Upn ?? tenantKey.IdentityId} · {_model.Tenant(tenantKey)?.DisplayName ?? tenantKey.TenantId}",
-                FontSize = 12,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = secondary,
-                Padding = new Thickness(10, 8, 10, 4),
-            });
+            var box = TenantGroupBox.Create(_model, tenantKey, out var boxRows);
+            var first = true;
             foreach (var row in _rows.Where(r => r.Item.RoleKey.TenantKey == tenantKey))
             {
-                var grid = new Grid { Padding = new Thickness(10, 6, 10, 6), ColumnSpacing = 10, MinHeight = 40, BorderBrush = divider, BorderThickness = new Thickness(0, 1, 0, 0) };
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                var name = new TextBlock
+                var grid = TenantGroupBox.RowGrid(DurationColumn, StatusColumn);
+                if (!first)
                 {
-                    Text = row.Item.Role?.DisplayName ?? _model.SummaryName(row.Item.RoleKey),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Opacity = row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6,
-                };
-                grid.Children.Add(name);
+                    grid.BorderBrush = divider;
+                    grid.BorderThickness = new Thickness(0, 1, 0, 0);
+                }
+
+                first = false;
+                grid.Children.Add(TenantGroupBox.NameCell(
+                    row.Item.Role?.DisplayName ?? _model.SummaryName(row.Item.RoleKey),
+                    row.Item.Role?.Detail,
+                    row.Item.RoleKey,
+                    opacity: row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6));
                 if (row.Duration is { } picker)
                 {
                     picker.VerticalAlignment = VerticalAlignment.Center;
+                    picker.HorizontalAlignment = HorizontalAlignment.Stretch;
                     Grid.SetColumn(picker, 1);
                     grid.Children.Add(picker);
                 }
 
-                var status = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                if (row.Ring is not null)
-                {
-                    status.Children.Add(row.Ring);
-                }
-
-                status.Children.Add(row.Status!);
+                var status = TenantGroupBox.StatusCell(row.Ring, row.Status!, HorizontalAlignment.Right);
                 Grid.SetColumn(status, 2);
                 grid.Children.Add(status);
-                Rows.Children.Add(grid);
+                boxRows.Children.Add(grid);
                 UpdateStatus(row);
             }
+
+            Rows.Children.Add(box);
         }
     }
 
