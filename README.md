@@ -4,7 +4,7 @@
 
 Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
 
-![Elevate panel](docs/images/panel.png)
+![Elevate panel](docs/images/social-preview.png)
 
 Elevate lists every account you have signed in with, each tenant that account can reach, and everything you are eligible for in it: Entra directory roles, Azure resource roles and PIM for Groups memberships. Activate with the policy's default duration and a reason Elevate remembers, select several across tenants and activate them together, or save a selection as a profile and run it with one click. Active roles show a live countdown, can be extended or deactivated, and raise notifications before and at expiry. Sign in with your own app registration, a company app registration, or the Azure CLI / Azure PowerShell app for Azure resource roles.
 
