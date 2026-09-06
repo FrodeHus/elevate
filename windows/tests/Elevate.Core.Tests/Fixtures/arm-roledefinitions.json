@@ -1,0 +1,5 @@
+{
+  "value": [
+    { "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", "name": "b24988ac-6180-42a0-ab88-20f7382dd24c", "properties": { "roleName": "Contributor", "type": "BuiltInRole" } }
+  ]
+}

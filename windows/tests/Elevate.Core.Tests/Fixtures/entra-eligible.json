@@ -1,0 +1,16 @@
+{
+  "value": [
+    {
+      "id": "elig-1", "principalId": "user-obj-1",
+      "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+      "memberType": "Direct", "status": "Provisioned",
+      "roleDefinition": { "id": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "displayName": "Global Reader" }
+    },
+    {
+      "id": "elig-2", "principalId": "user-obj-1",
+      "roleDefinitionId": "fe930be7-5e62-47db-91af-98c3a49a38b1", "directoryScopeId": "/",
+      "memberType": "Group", "status": "Provisioned",
+      "roleDefinition": { "id": "fe930be7-5e62-47db-91af-98c3a49a38b1", "displayName": "User Administrator" }
+    }
+  ]
+}

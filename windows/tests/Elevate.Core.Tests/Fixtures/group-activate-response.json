@@ -1,0 +1,5 @@
+{
+  "id": "greq-new", "status": "Provisioned", "action": "selfActivate",
+  "principalId": "caller-oid", "groupId": "grp-ops", "accessId": "member",
+  "scheduleInfo": { "startDateTime": "2026-09-04T12:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": "2026-09-04T14:00:00Z" } }
+}

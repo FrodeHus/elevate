@@ -1,0 +1,7 @@
+{
+  "value": [
+    { "id": "/tenants/t-home", "tenantId": "t-home", "displayName": "Contoso", "defaultDomain": "contoso.onmicrosoft.com", "tenantCategory": "Home" },
+    { "id": "/tenants/t-cust", "tenantId": "t-cust", "displayName": "Fabrikam", "defaultDomain": "fabrikam.onmicrosoft.com", "tenantCategory": "Home" },
+    { "id": "/tenants/t-nodisplay", "tenantId": "t-nodisplay", "tenantCategory": "Home" }
+  ]
+}

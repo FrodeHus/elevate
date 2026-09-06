@@ -1,0 +1,17 @@
+{
+  "value": [
+    {
+      "id": "Group_grp-ops_member_p1",
+      "scopeId": "grp-ops", "scopeType": "Group", "roleDefinitionId": "member",
+      "policy": {
+        "id": "Group_grp-ops_p1",
+        "rules": [
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyExpirationRule", "id": "Expiration_EndUser_Assignment", "isExpirationRequired": true, "maximumDuration": "PT8H" },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyEnablementRule", "id": "Enablement_EndUser_Assignment", "enabledRules": ["Justification", "Ticketing"] },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyApprovalRule", "id": "Approval_EndUser_Assignment", "setting": { "isApprovalRequired": false } },
+          { "@odata.type": "#microsoft.graph.unifiedRoleManagementPolicyAuthenticationContextRule", "id": "AuthenticationContext_EndUser_Assignment", "isEnabled": true, "claimValue": "c3" }
+        ]
+      }
+    }
+  ]
+}

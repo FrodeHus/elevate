@@ -1,0 +1,30 @@
+{
+  "value": [
+    {
+      "name": "p1_b24988ac",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicyAssignment/p1_b24988ac",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "policyId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicies/p1",
+        "effectiveRules": [
+          { "id": "Expiration_Admin_Eligibility", "ruleType": "RoleManagementPolicyExpirationRule", "isExpirationRequired": false, "maximumDuration": "P365D" },
+          { "id": "Expiration_EndUser_Assignment", "ruleType": "RoleManagementPolicyExpirationRule", "isExpirationRequired": true, "maximumDuration": "PT4H" },
+          { "id": "Enablement_EndUser_Assignment", "ruleType": "RoleManagementPolicyEnablementRule", "enabledRules": ["MultiFactorAuthentication", "Justification", "Ticketing"] },
+          { "id": "Approval_EndUser_Assignment", "ruleType": "RoleManagementPolicyApprovalRule", "setting": { "isApprovalRequired": true } },
+          { "id": "AuthenticationContext_EndUser_Assignment", "ruleType": "RoleManagementPolicyAuthenticationContextRule", "isEnabled": true, "claimValue": "c2" }
+        ]
+      }
+    },
+    {
+      "name": "p1_other",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicyAssignment/p1_other",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "policyId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleManagementPolicies/p1",
+        "effectiveRules": [ { "id": "Expiration_EndUser_Assignment", "ruleType": "RoleManagementPolicyExpirationRule", "isExpirationRequired": true, "maximumDuration": "PT1H" } ]
+      }
+    }
+  ]
+}

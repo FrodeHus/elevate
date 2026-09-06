@@ -1,0 +1,22 @@
+{
+  "value": [
+    {
+      "name": "elig-2",
+      "id": "/subscriptions/sub-1/resourceGroups/rg-ops/providers/Microsoft.Authorization/RoleEligibilityScheduleInstances/elig-2",
+      "properties": {
+        "scope": "/subscriptions/sub-1/resourceGroups/rg-ops",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+        "principalId": "user-obj-1",
+        "status": "Provisioned",
+        "roleEligibilityScheduleId": "/subscriptions/sub-1/resourceGroups/rg-ops/providers/Microsoft.Authorization/RoleEligibilitySchedules/22222222-2222-2222-2222-222222222222",
+        "startDateTime": "2026-01-01T00:00:00Z",
+        "memberType": "Group",
+        "expandedProperties": {
+          "scope": { "id": "/subscriptions/sub-1/resourceGroups/rg-ops", "displayName": "rg-ops", "type": "resourcegroup" },
+          "roleDefinition": { "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7", "displayName": "Reader", "type": "BuiltInRole" },
+          "principal": { "id": "grp-1", "displayName": "Platform Team", "type": "Group" }
+        }
+      }
+    }
+  ]
+}
