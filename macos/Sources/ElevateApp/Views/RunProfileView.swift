@@ -90,7 +90,13 @@ struct RunProfileView: View {
     @ViewBuilder private func row(_ item: Binding<ProfilePlanItem>) -> some View {
         let it = item.wrappedValue
         HStack(spacing: 8) {
-            Text(it.role?.displayName ?? model.summaryName(for: it.roleKey)).opacity(it.disposition == .activate ? 1 : 0.6)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(it.role?.displayName ?? model.summaryName(for: it.roleKey))
+                if let detail = it.role?.detail {
+                    Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(it.roleKey) ?? detail)
+                }
+            }
+            .opacity(it.disposition == .activate ? 1 : 0.6)
             Spacer()
             switch it.disposition {
             case .activate:
@@ -113,6 +119,12 @@ struct RunProfileView: View {
                 }
             }
         }
+    }
+
+    /// Azure captions are the scope's display name; the full ARM path is one hover away.
+    private func scopeTooltip(_ key: RoleKey) -> String? {
+        if case .azureResource(let scope, _) = key.scope { return scope }
+        return nil
     }
 
     @ViewBuilder private func statusLabel(for it: ProfilePlanItem) -> some View {
