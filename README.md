@@ -15,8 +15,13 @@ Homebrew (the cask lives in this repository, which doubles as a tap):
 
 ```bash
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
-brew install --cask --no-quarantine elevate
+brew trust frodehus/elevate        # Homebrew 6 requires trusting third-party taps
+brew install --cask frodehus/elevate/elevate
+xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
 ```
+
+Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`
+named repository, so the fully qualified `frodehus/elevate/elevate` name is required.
 
 Or download the DMG from the [latest release](https://github.com/FrodeHus/elevate/releases/latest) —
 the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it
@@ -27,8 +32,8 @@ Elevate requires macOS 26 (Tahoe).
 ### Opening an unsigned build
 
 Releases today are ad-hoc signed, not signed with an Apple Developer ID and not notarized, so macOS
-refuses to open them on a double-click. Either install with `--no-quarantine` as above, or after
-copying the app to Applications:
+refuses to open them on a double-click. Either remove the quarantine flag as shown above with
+`xattr -d com.apple.quarantine /Applications/Elevate.app`, or after copying the app to Applications:
 
 1. Open **Elevate.app** once.
 2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
@@ -41,7 +46,7 @@ If macOS still refuses, remove the quarantine flag directly:
 xattr -d com.apple.quarantine /Applications/Elevate.app
 ```
 
-Signed and notarized builds — no prompts, no `--no-quarantine` — will ship as soon as an Apple
+Signed and notarized builds — no prompts, no `xattr` step — will ship as soon as an Apple
 Developer ID is available; the release workflow already switches over automatically once the
 signing secrets exist. See [docs/releasing.md](docs/releasing.md).
 

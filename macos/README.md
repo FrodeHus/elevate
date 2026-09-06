@@ -86,8 +86,13 @@ To just run Elevate, install a release rather than building it:
 
 ```bash
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
-brew install --cask --no-quarantine elevate
+brew trust frodehus/elevate        # Homebrew 6 requires trusting third-party taps
+brew install --cask frodehus/elevate/elevate
+xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
 ```
+
+Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`
+named repository, so the fully qualified `frodehus/elevate/elevate` name is required.
 
 or download `Elevate-<version>.dmg` from the
 [latest release](https://github.com/FrodeHus/elevate/releases/latest). Current builds are unsigned,

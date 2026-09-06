@@ -26,7 +26,7 @@ mkdir -p "$(dirname "$OUT")"
 CAVEATS=""
 if [ "$SIGNED" != "1" ]; then
   CAVEATS='
-  caveats "This build is not signed with a Developer ID and is not notarized. Install it with --no-quarantine, or open the app once and, when macOS blocks it, open System Settings > Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm."'
+  caveats "This build is not signed with a Developer ID. After installing, run: xattr -d com.apple.quarantine /Applications/Elevate.app — or open the app once and approve it under System Settings > Privacy & Security > Open Anyway."'
 fi
 
 cat > "$OUT" <<EOF
@@ -39,7 +39,7 @@ cask "elevate" do
   desc "Just-in-time Entra, Azure and PIM for Groups activation from the menu bar"
   homepage "https://github.com/$REPO"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Elevate.app"
 

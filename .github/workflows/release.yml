@@ -116,9 +116,9 @@ jobs:
       - name: Release notes
         run: |
           if [ "${SIGNED:-}" = "1" ]; then
-            printf 'Signed with Developer ID and notarized.\n\nInstall with Homebrew:\n\n    brew install --cask elevate\n\nOr download the DMG below and drag Elevate to Applications.\n\nSHA-256: %s\n' "$SHA256" > notes.md
+            printf 'Signed with Developer ID and notarized.\n\nInstall with Homebrew:\n\n    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate\n    brew trust frodehus/elevate\n    brew install --cask frodehus/elevate/elevate\n\nOr download the DMG below and drag Elevate to Applications.\n\nSHA-256: %s\n' "$SHA256" > notes.md
           else
-            printf 'Unsigned build (ad-hoc signature). Open the app once; when macOS blocks it, open System Settings -> Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm. Or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew:\n\n    brew install --cask --no-quarantine elevate\n\nSHA-256: %s\n' "$SHA256" > notes.md
+            printf 'Unsigned build (ad-hoc signature). Open the app once; when macOS blocks it, open System Settings -> Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm. Or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew (the fully qualified cask name is required - this tap is not a homebrew- named repository, so plain "brew install --cask elevate" does not resolve):\n\n    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate\n    brew trust frodehus/elevate\n    brew install --cask frodehus/elevate/elevate\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nSHA-256: %s\n' "$SHA256" > notes.md
           fi
 
       - name: Create GitHub Release
