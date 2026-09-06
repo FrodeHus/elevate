@@ -14,14 +14,14 @@ namespace Elevate.App.Shell;
 
 /// <summary>
 /// The tray flyout: a borderless, non-resizable, always-on-top window with a Mica Alt backdrop,
-/// 380 px wide and as tall as its content (up to 640), placed above the taskbar near the icon.
+/// 380 px wide and 640 px tall while the list is showing (the list scrolls), sized to its content
+/// in the setup and no-accounts states, placed above the taskbar near the icon.
 /// Hides when it loses activation, like the Wi-Fi and Quick Settings flyouts.
 /// </summary>
 public sealed partial class FlyoutWindow : Window
 {
     private const int Width = 380;
     private const int MaxHeight = 640;
-    private const int ListSlack = 12;
 
     private readonly OverlappedPresenter _presenter;
     private DateTimeOffset _hiddenAt = DateTimeOffset.MinValue;
@@ -125,8 +125,10 @@ public sealed partial class FlyoutWindow : Window
         // Let the list realise its containers first, so the unbounded measure below sees every row.
         Root.UpdateLayout();
         Root.Measure(new Windows.Foundation.Size(Width, double.PositiveInfinity));
-        // The list's unbounded measure runs a few pixels short of its drawn height; give it room.
-        var desired = Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height + (Panel.ListVisible ? ListSlack : 0)));
+        // With the list showing, the flyout keeps one height and the list scrolls inside it: a
+        // panel that grows and shrinks with every pivot moves the pivots and footer under the
+        // cursor. Only the setup and no-accounts states, which have no list, size to their content.
+        var desired = Panel.ListVisible ? MaxHeight : Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height));
         return ((int)Math.Round(Width * Scale), (int)Math.Round(desired * Scale));
     }
 
