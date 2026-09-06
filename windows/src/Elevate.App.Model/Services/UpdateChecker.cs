@@ -5,29 +5,31 @@ using Elevate.Core.Networking;
 namespace Elevate.App.Services;
 
 /// <summary>
-/// Reads the latest published Windows release of Elevate from GitHub. Port of the macOS
-/// <c>UpdateChecker</c>, over the releases list rather than <c>releases/latest</c>: the repository
-/// tags macOS releases too, and only <c>windows-v*</c> tags describe this app.
+/// Reads the latest published release of Elevate that ships a Windows installer. Port of the
+/// macOS <c>UpdateChecker</c>, over the releases list rather than <c>releases/latest</c>: both
+/// platforms share one <c>v*</c> tag, but a hotfix may ship for one platform only, so the newest
+/// release is the newest one carrying an MSI.
 /// </summary>
 public sealed class UpdateChecker(IHttpClient http, Uri? url = null)
 {
     public static readonly Uri ReleasesUrl = new("https://api.github.com/repos/FrodeHus/elevate/releases?per_page=20");
 
-    public const string TagPrefix = "windows-v";
-
     public sealed record Release(string Tag, Uri Url)
     {
-        /// <summary>"1.2.3" for the tag "windows-v1.2.3".</summary>
-        public string Version => Tag[TagPrefix.Length..];
+        /// <summary>"1.2.3" for the tag "v1.2.3".</summary>
+        public string Version => Tag.StartsWith('v') || Tag.StartsWith('V') ? Tag[1..] : Tag;
     }
 
-    private sealed record Wire(string? Tag_name, Uri? Html_url, bool? Draft, bool? Prerelease);
+    private sealed record Asset(string? Name);
+
+    private sealed record Wire(string? Tag_name, Uri? Html_url, bool? Draft, bool? Prerelease, List<Asset>? Assets);
 
     private readonly Uri _url = url ?? ReleasesUrl;
 
     /// <summary>
-    /// The newest Windows release, or null when there is none yet (including a 404 on a repository
-    /// without releases). Throws on any other failure (offline, rate limited, unreadable body).
+    /// The newest published release with an MSI, or null when there is none yet (including a 404
+    /// on a repository without releases). Throws on any other failure (offline, rate limited,
+    /// unreadable body).
     /// </summary>
     public async Task<Release?> LatestAsync(CancellationToken ct = default)
     {
@@ -58,8 +60,9 @@ public sealed class UpdateChecker(IHttpClient http, Uri? url = null)
         }
 
         var release = releases?.FirstOrDefault(r =>
-            r.Tag_name is { } tag && tag.StartsWith(TagPrefix, StringComparison.Ordinal)
-            && r.Html_url is not null && r.Draft != true && r.Prerelease != true);
+            r.Tag_name is { } tag && tag.StartsWith('v')
+            && r.Html_url is not null && r.Draft != true && r.Prerelease != true
+            && r.Assets?.Any(a => a.Name?.EndsWith(".msi", StringComparison.OrdinalIgnoreCase) == true) == true);
         return release is null ? null : new Release(release.Tag_name!, release.Html_url!);
     }
 }

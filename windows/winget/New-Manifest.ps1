@@ -5,7 +5,7 @@
 .DESCRIPTION
   Fills the three templates in this directory (version, installer, locale) and writes them to
   manifests\r\Reothor\Elevate\<version>\, the layout microsoft/winget-pkgs expects. The installer
-  URLs point at the GitHub release for tag windows-v<version>. Validate the result with
+  URLs point at the GitHub release for tag v<version>. Validate the result with
   `winget validate manifests\r\Reothor\Elevate\<version>`.
 
 .PARAMETER Version
@@ -36,8 +36,8 @@ New-Item -ItemType Directory -Force -Path $target | Out-Null
 $values = @{
     VERSION      = $Version
     RELEASE_DATE = $ReleaseDate
-    X64_URL      = "https://github.com/$Repository/releases/download/windows-v$Version/Elevate-$Version-x64.msi"
-    ARM64_URL    = "https://github.com/$Repository/releases/download/windows-v$Version/Elevate-$Version-arm64.msi"
+    X64_URL      = "https://github.com/$Repository/releases/download/v$Version/Elevate-$Version-x64.msi"
+    ARM64_URL    = "https://github.com/$Repository/releases/download/v$Version/Elevate-$Version-arm64.msi"
     X64_SHA256   = $X64Sha256.ToUpperInvariant()
     ARM64_SHA256 = $Arm64Sha256.ToUpperInvariant()
 }

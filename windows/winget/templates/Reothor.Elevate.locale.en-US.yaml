@@ -26,7 +26,7 @@ Tags:
 - pim
 - privileged-identity-management
 - rbac
-ReleaseNotesUrl: https://github.com/FrodeHus/elevate/releases/tag/windows-v{{VERSION}}
+ReleaseNotesUrl: https://github.com/FrodeHus/elevate/releases/tag/v{{VERSION}}
 Documentations:
 - DocumentLabel: Set up the app registration
   DocumentUrl: https://github.com/FrodeHus/elevate/blob/main/docs/entra-app-registration.md

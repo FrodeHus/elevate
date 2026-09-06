@@ -1,44 +1,46 @@
 # Releasing Elevate
 
-Releases are cut by pushing a tag, one per platform. `.github/workflows/release.yml`
-builds the macOS app from a `v*` tag, packages a DMG, publishes a GitHub Release
-titled "Elevate for Mac x.y.z" and updates the Homebrew cask on `main`.
-`.github/workflows/windows.yml` builds the Windows app from a `windows-v*` tag
-and publishes "Elevate for Windows x.y.z" with the x64 and arm64 MSIs; see
-[Releasing the Windows app](#releasing-the-windows-app) at the end. The two
-platforms version independently: a tag on one never rebuilds the other.
+Releases are cut by pushing one tag. `.github/workflows/release.yml` builds the
+macOS app and the Windows app from that commit, publishes a single GitHub
+Release "Elevate x.y.z" with the DMG, the x64 and arm64 MSIs and their SHA-256
+files, and updates the Homebrew cask on `main`. Both apps carry the same version
+number; a platform without code changes since the last release is simply rebuilt.
 
 ## Cutting a release
 
-1. Make sure `main` is green (the macOS workflow) and holds everything the
-   release should contain.
+1. Make sure `main` is green (the macOS and Windows workflows) and holds
+   everything the release should contain.
 2. Move the entries under `## [Unreleased]` in [../CHANGELOG.md](../CHANGELOG.md)
    to a new `## [x.y.z] - YYYY-MM-DD` heading, update the comparison links at the
-   bottom, and commit that before tagging.
+   bottom, and commit that before tagging. The release notes quote that section.
 3. Tag and push:
 
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.2.0
+   git push origin v1.2.0
    ```
 
-   The tag must start with `v`; the version in the release, the DMG name and
-   the cask is the tag without it (`v1.0.0` → `1.0.0`).
+   The tag must start with `v`; the version in the release, the DMG and MSI
+   names, the cask and the winget manifest is the tag without it
+   (`v1.2.0` → `1.2.0`).
 4. Watch the run under Actions → Release. When it finishes, the release is at
-   `https://github.com/FrodeHus/elevate/releases/tag/v1.0.0`.
+   `https://github.com/FrodeHus/elevate/releases/tag/v1.2.0` and the generated
+   winget manifest is a workflow artifact named `winget-manifest`.
 5. Manual checklist after the run finishes: toggle Launch at login on the
-   ad-hoc DMG build and confirm it registers.
+   ad-hoc DMG build and confirm it registers; run one MSI on a Windows machine
+   and confirm SmartScreen's "Run anyway" opens the app.
 
 To redo a release, delete the tag and the GitHub Release, then push the tag
-again — the workflow always overwrites its own DMG but `gh release create`
+again — the workflow always overwrites its own assets but `gh release create`
 fails if the release already exists.
 
 ## What the workflow does
 
-Runs on `macos-26`, working directory `macos`:
+Three jobs. `macos` and `windows` run in parallel; `publish` waits for both.
 
-1. Checks out the repo (full history — the cask commit needs `main`), selects
-   Xcode 26, installs XcodeGen and runs `xcodegen generate`.
+**macos** (`macos-26`, working directory `macos`):
+
+1. Selects Xcode 26, installs XcodeGen and runs `xcodegen generate`.
 2. Derives `VERSION` from the tag and `BUILD` from the workflow run number, and
    passes them to `xcodebuild` as `MARKETING_VERSION` and
    `CURRENT_PROJECT_VERSION` on the command line, so no file is edited for a
@@ -50,18 +52,37 @@ Runs on `macos-26`, working directory `macos`:
 4. Packages `dist/Elevate-$VERSION.dmg` with `hdiutil create` — the app plus an
    `/Applications` symlink so the DMG window supports drag-to-install — and
    writes `dist/Elevate-$VERSION.dmg.sha256`. On the signed path the DMG
-   itself is then notarized and stapled too (`xcrun notarytool submit
-   --wait` followed by `xcrun stapler staple`, same credentials as the app
-   notarize step), so the downloaded disk image opens without a Gatekeeper
-   prompt even before the user drags the app out.
-5. Creates the GitHub Release with both files attached. The notes say whether
-   the build is notarized or unsigned; the unsigned notes carry the macOS 26
-   Open Anyway instructions, the `xattr -d com.apple.quarantine` command and the
-   Homebrew install sequence.
-6. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
+   itself is then notarized and stapled too, so the downloaded disk image opens
+   without a Gatekeeper prompt even before the user drags the app out.
+5. Uploads the DMG and its hash as the `macos` artifact.
+
+**windows** (`windows-latest`):
+
+1. Restores the .NET 10 SDK from `windows/global.json`, runs the test suites and
+   installs WiX 5.0.2.
+2. Builds the x64 and arm64 MSIs with `windows/installer/build.ps1`, signing
+   them with Azure Artifact Signing when the secrets below are set, else
+   unsigned.
+3. Generates and validates the winget manifest, uploads it as the
+   `winget-manifest` artifact, and uploads the MSIs and their hashes as the
+   `windows` artifact.
+
+**publish** (`ubuntu-latest`):
+
+1. Downloads both artifacts and reads the three hashes.
+2. Writes the notes: the changelog section for the version, then a macOS
+   section (notarized or the Open Anyway steps, the Homebrew sequence, the DMG
+   hash) and a Windows section (signed or the SmartScreen step, the MSI hashes).
+3. Creates the GitHub Release with every asset attached.
+4. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
    `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
    commits it to `main` as `github-actions[bot]` using the workflow token.
    The `caveats` block is included only for unsigned builds.
+
+The winget manifest is not submitted automatically: winget moderation requires
+signed installers, so submission waits for Azure Artifact Signing. Once releases
+are signed, download the `winget-manifest` artifact and run `wingetcreate
+submit` on it.
 
 ## Optional signing secrets
 
@@ -163,22 +184,14 @@ ruby -c Casks/elevate.rb
 placeholder cask at version `0.0.0` so the tap resolves before the first
 release; the first release overwrites it.
 
-## Releasing the Windows app
+## Windows signing secrets
 
-1. Make sure `main` is green (the Windows workflow) and holds the change.
-2. Move the Windows entries under `## [Unreleased]` in the changelog as for macOS.
-3. Tag and push `windows-v<version>`; the version in the release, the MSI names
-   and the winget manifest is the tag without the prefix.
-4. Watch Actions → Windows. The release carries `Elevate-<version>-x64.msi`,
-   `Elevate-<version>-arm64.msi` and their `.sha256` files; the generated winget
-   manifest is a workflow artifact named `winget-manifest`.
-
-Releases are unsigned until Azure Artifact Signing is set up. The workflow signs
-the MSIs when the repository has `AZURE_TRUSTED_SIGNING_ENDPOINT`,
-`AZURE_TRUSTED_SIGNING_ACCOUNT`, `AZURE_TRUSTED_SIGNING_PROFILE`, `AZURE_CLIENT_ID`,
-`AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`; that needs a paid subscription, the
-`Microsoft.CodeSigning` provider, an *organization* Public Trust identity validation
-and a certificate profile, plus an app registration holding the *Artifact Signing
-Certificate Profile Signer* role. Once releases are signed, submit the manifest
-artifact with `wingetcreate submit` and re-enable submission in the workflow with
-`WINGET_TOKEN`. [windows/README.md](../windows/README.md) has the installer details.
+Without them the Windows job publishes unsigned MSIs. With all six, the same job
+signs them with Azure Artifact Signing (formerly Trusted Signing):
+`AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`,
+`AZURE_TRUSTED_SIGNING_PROFILE`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
+`AZURE_SUBSCRIPTION_ID`. That needs a paid subscription, the
+`Microsoft.CodeSigning` provider, an *organization* Public Trust identity
+validation (individual validation is US/Canada only) and a certificate profile,
+plus an app registration holding the *Artifact Signing Certificate Profile
+Signer* role for the workflow's OIDC login.

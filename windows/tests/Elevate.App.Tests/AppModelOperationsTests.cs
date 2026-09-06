@@ -9,24 +9,25 @@ namespace Elevate.App.Tests;
 
 public class AppModelOperationsTests
 {
+    /// <summary>A draft, a macOS-only hotfix without an MSI, the newest full release, and the older ones.</summary>
     private const string Releases = """
         [
-          {"tag_name":"windows-v2.0.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/windows-v2.0.0","draft":true},
-          {"tag_name":"v9.9.9","html_url":"https://github.com/FrodeHus/elevate/releases/tag/v9.9.9"},
-          {"tag_name":"windows-v1.1.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/windows-v1.1.0","prerelease":false},
-          {"tag_name":"windows-v1.0.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/windows-v1.0.0"}
+          {"tag_name":"v2.0.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/v2.0.0","draft":true,"assets":[{"name":"Elevate-2.0.0-x64.msi"}]},
+          {"tag_name":"v1.1.1","html_url":"https://github.com/FrodeHus/elevate/releases/tag/v1.1.1","assets":[{"name":"Elevate-1.1.1.dmg"}]},
+          {"tag_name":"v1.1.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/v1.1.0","prerelease":false,"assets":[{"name":"Elevate-1.1.0.dmg"},{"name":"Elevate-1.1.0-x64.msi"},{"name":"Elevate-1.1.0-arm64.msi"}]},
+          {"tag_name":"windows-v1.0.0","html_url":"https://github.com/FrodeHus/elevate/releases/tag/windows-v1.0.0","assets":[{"name":"Elevate-1.0.0-x64.msi"}]}
         ]
         """;
 
     [Fact]
-    public async Task UpdateCheckerPicksTheNewestPublishedWindowsRelease()
+    public async Task UpdateCheckerPicksTheNewestPublishedReleaseWithAnInstaller()
     {
         var http = new StubHttpClient();
         http.On("GET", "releases", Releases);
         var latest = await new UpdateChecker(http).LatestAsync();
-        latest!.Tag.Should().Be("windows-v1.1.0");
+        latest!.Tag.Should().Be("v1.1.0");
         latest.Version.Should().Be("1.1.0");
-        latest.Url.AbsoluteUri.Should().EndWith("windows-v1.1.0");
+        latest.Url.AbsoluteUri.Should().EndWith("/v1.1.0");
         http.Requests[0].Headers["User-Agent"].Should().Be("Elevate");
 
         http.On("GET", "releases", "[]");

@@ -10,7 +10,7 @@ flyout, windows, tray states and tokens; open the file in a browser, it follows 
 ## Install
 
 Download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
-[releases](https://github.com/FrodeHus/elevate/releases) tagged `windows-v*` and run it. The MSI
+[latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it. The MSI
 installs for the current user into `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a
 Start Menu entry and can launch Elevate when it finishes. It needs the .NET 10 runtime
 (`winget install Microsoft.DotNet.Runtime.10`); the Windows App SDK runtime is bundled. Windows 11
@@ -57,7 +57,7 @@ group above *Active now* with Approve and Deny; a toast announces each new reque
 tray icon carries an orange dot while any are pending.
 
 Settings also holds *Start Elevate when I sign in* (a per-user Run entry), *Check for updates*
-(the flyout offers a newer `windows-v*` release once a day, with Open and Dismiss) and *Copy
+(the flyout offers a newer release with a Windows installer once a day, with Open and Dismiss) and *Copy
 diagnostics* (a plain-text report of accounts, tenants, profiles, the shortcut and recent errors,
 never a token or client ID).
 
@@ -108,12 +108,9 @@ in `winget/templates` with the release URLs and hashes.
 
 ## Release
 
-Tag `windows-v<version>` on `main`. The [Windows workflow](../.github/workflows/windows.yml) tests the
-solution, builds both MSIs, creates the GitHub release with the MSIs and their SHA-256 files, and
-attaches the generated winget manifest as a workflow artifact.
-
-Releases are unsigned unless the Azure Artifact Signing secrets are configured
-(`AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`, `AZURE_TRUSTED_SIGNING_PROFILE`,
-`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`), in which case the same job signs the
-MSIs. Submitting the manifest to `microsoft/winget-pkgs` is a manual step for later, once signing is
-in place: download the `winget-manifest` artifact and run `wingetcreate submit` on it.
+Releases are shared with the macOS app: tag `v<version>` on `main` and the
+[release workflow](../.github/workflows/release.yml) builds both apps, publishes one GitHub
+release with the DMG, both MSIs and their SHA-256 files, and attaches the generated winget
+manifest as a workflow artifact. The Windows MSIs are unsigned unless the Azure Artifact Signing
+secrets are configured, and the manifest is not submitted to `microsoft/winget-pkgs` until they
+are. The full procedure is in [docs/releasing.md](../docs/releasing.md).

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-06
+
+The first release with one version number for both apps: from here on a `v<version>` tag
+builds the macOS DMG and the Windows MSIs from the same commit and publishes them as one
+release. Elevate for Windows 1.0.0 (tag `windows-v1.0.0`) stays as history.
+
 ### Added
 
 - Elevate for Windows: a Windows 11 system-tray flyout with the macOS app's phase-1 and phase-2
@@ -16,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   roles with policies, remembered reasons, bulk activation, scheduled starts, deactivation with
   the five-minute lock, cancelling pending requests, live countdowns and expiry toasts with
   Extend; manual roles for tenants that refuse discovery; offline awareness; start with sign-in.
-  Distributed as unsigned per-user x64 and arm64 MSIs from `windows-v*` releases (a winget
-  manifest for `Reothor.Elevate` is generated but not yet submitted). The Windows and macOS apps
+  Distributed as unsigned per-user x64 and arm64 MSIs (a winget manifest for `Reothor.Elevate`
+  is generated but not yet submitted). The Windows and macOS apps
   share the `state.json` schema.
 - Elevate for Windows, phase 3: activation profiles (save from the bulk bar, a chip row under the
   pivots, Manage and Run windows), Ctrl-click quick activation and a global shortcut that runs a
@@ -27,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The macOS GitHub release is titled "Elevate for Mac x.y.z", matching "Elevate for Windows".
+- One release for both platforms, titled "Elevate x.y.z", with the changelog section, the
+  install steps and the SHA-256 of every asset in its notes.
 - Entra directory role reads follow `@odata.nextLink` on both platforms.
 
 ## [1.0.2] - 2026-09-06
@@ -91,7 +98,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/FrodeHus/elevate/compare/v1.0.2...v1.2.0
 [1.0.2]: https://github.com/FrodeHus/elevate/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FrodeHus/elevate/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/FrodeHus/elevate/releases/tag/v1.0.0
