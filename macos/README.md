@@ -80,6 +80,20 @@ Caveats:
 - Changing the client ID in Settings only affects own-app accounts: they are signed out and
   removed. Azure CLI and Azure PowerShell accounts and their tenants are left alone.
 
+## Install
+
+To just run Elevate, install a release rather than building it:
+
+```bash
+brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
+brew install --cask --no-quarantine elevate
+```
+
+or download `Elevate-<version>.dmg` from the
+[latest release](https://github.com/FrodeHus/elevate/releases/latest). Current builds are unsigned,
+so the first launch needs a right-click → Open — see
+[Install in the root README](../README.md#install-macos). Building from source is below.
+
 ## Prerequisites
 
 Only the own-app method needs an app registration; the first-party methods need none of this.

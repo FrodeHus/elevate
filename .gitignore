@@ -1,6 +1,8 @@
 # macOS app
 macos/.build/
 macos/build/
+macos/build-adhoc/
+macos/dist/
 macos/*.xcodeproj/
 macos/.swiftpm/
 *.xcworkspace/

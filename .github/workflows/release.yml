@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, package and publish
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: macos
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Versions
+        run: |
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "BUILD=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Detect signing secrets
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$P12" ]; then
+            echo "HAVE_CERT=1" >> "$GITHUB_ENV"
+          else
+            echo "Developer ID secrets not configured; building an ad-hoc signed release."
+          fi
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Import Developer ID certificate
+        if: env.HAVE_CERT == '1'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm -f cert.p12
+          echo "SIGNED=1" >> "$GITHUB_ENV"
+
+      - name: Build (Developer ID)
+        if: env.SIGNED == '1'
+        run: >
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build
+          MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD"
+          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application"
+          DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+          ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
+          build | tail -5
+
+      - name: Build (unsigned, ad-hoc signature)
+        if: env.SIGNED != '1'
+        run: |
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build | tail -5
+          codesign --force --deep -s - build/Build/Products/Release/Elevate.app
+
+      - name: Notarize
+        if: env.SIGNED == '1'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          ditto -c -k --keepParent build/Build/Products/Release/Elevate.app Elevate.zip
+          xcrun notarytool submit Elevate.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple build/Build/Products/Release/Elevate.app
+
+      - name: Package DMG
+        run: |
+          rm -rf dist && mkdir -p dist/dmg
+          cp -R build/Build/Products/Release/Elevate.app dist/dmg/
+          ln -s /Applications dist/dmg/Applications
+          hdiutil create -volname "Elevate" -srcfolder dist/dmg -ov -format UDZO "dist/Elevate-$VERSION.dmg"
+          shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
+          echo "SHA256=$(cut -d' ' -f1 "dist/Elevate-$VERSION.dmg.sha256")" >> "$GITHUB_ENV"
+
+      - name: Release notes
+        run: |
+          if [ "${SIGNED:-}" = "1" ]; then
+            printf 'Signed with Developer ID and notarized.\n\nInstall with Homebrew:\n\n    brew install --cask elevate\n\nOr download the DMG below and drag Elevate to Applications.\n\nSHA-256: %s\n' "$SHA256" > notes.md
+          else
+            printf 'Unsigned build (ad-hoc signature). On first launch, right-click Elevate.app in Applications and choose Open, then confirm; or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew:\n\n    brew install --cask --no-quarantine elevate\n\nSHA-256: %s\n' "$SHA256" > notes.md
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$TAG"
+          "dist/Elevate-$VERSION.dmg"
+          "dist/Elevate-$VERSION.dmg.sha256"
+          --title "Elevate $VERSION" --notes-file notes.md
+
+      - name: Update cask on main
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          ./scripts/update-cask.sh "$VERSION" "$SHA256" "${{ github.repository }}" "${SIGNED:-}"
+          if git diff --quiet -- Casks/elevate.rb; then
+            echo "Cask already up to date."
+          else
+            git add Casks/elevate.rb
+            git commit -m "Cask: Elevate $VERSION"
+            git push origin main
+          fi
