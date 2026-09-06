@@ -30,9 +30,10 @@ Releases today are ad-hoc signed, not signed with an Apple Developer ID and not 
 refuses to open them on a double-click. Either install with `--no-quarantine` as above, or after
 copying the app to Applications:
 
-1. Open the Applications folder in Finder.
-2. Right-click (or Control-click) **Elevate.app** and choose **Open**.
-3. Confirm **Open** in the dialog. macOS remembers the choice; later launches are normal.
+1. Open **Elevate.app** once.
+2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
+   about Elevate and click **Open Anyway**.
+3. Confirm **Open Anyway** again when prompted. macOS remembers the choice; later launches are normal.
 
 If macOS still refuses, remove the quarantine flag directly:
 

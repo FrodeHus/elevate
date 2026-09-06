@@ -25,8 +25,8 @@ mkdir -p "$(dirname "$OUT")"
 
 CAVEATS=""
 if [ "$SIGNED" != "1" ]; then
-  CAVEATS='  caveats "This build is not signed with a Developer ID and is not notarized. Install it with --no-quarantine, or right-click Elevate.app in Applications and choose Open the first time."
-'
+  CAVEATS='
+  caveats "This build is not signed with a Developer ID and is not notarized. Install it with --no-quarantine, or open the app once and, when macOS blocks it, open System Settings > Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm."'
 fi
 
 cat > "$OUT" <<EOF
@@ -43,10 +43,10 @@ cask "elevate" do
 
   app "Elevate.app"
 
-$CAVEATS  zap trash: [
+  zap trash: [
     "~/Library/Application Support/Elevate",
     "~/Library/Preferences/no.reothor.elevate.plist",
-  ]
+  ]$CAVEATS
 end
 EOF
 

@@ -42,8 +42,8 @@ Runs on `macos-26`, working directory `macos`:
    `/Applications` symlink so the DMG window supports drag-to-install — and
    writes `dist/Elevate-$VERSION.dmg.sha256`.
 5. Creates the GitHub Release with both files attached. The notes say whether
-   the build is notarized or unsigned; the unsigned notes carry the right-click
-   Open instructions and the `--no-quarantine` Homebrew line.
+   the build is notarized or unsigned; the unsigned notes carry the macOS 26
+   Open Anyway instructions and the `--no-quarantine` Homebrew line.
 6. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
    `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
    commits it to `main` as `github-actions[bot]` using the workflow token.
@@ -93,13 +93,24 @@ Creating them:
 - The app is zipped and submitted with `xcrun notarytool submit --wait`, then
   `xcrun stapler staple` attaches the ticket, so the DMG opens without any
   Gatekeeper prompt.
-- The release notes drop the right-click instructions, and the cask drops its
+- The release notes drop the Open Anyway instructions, and the cask drops its
   `caveats`, so `brew install --cask elevate` no longer needs
   `--no-quarantine`.
 
-Secrets are detected by a step that reads `MACOS_CERT_P12` into an environment
-variable; the `secrets` context is not available in step `if:` expressions, so
-the signing steps key off `env.SIGNED` instead.
+A step reads `MACOS_CERT_P12` into `HAVE_CERT` before anything is generated or
+built, so the decision to sign is made once, explicitly, and out of any `if:`
+expression — the `secrets` context isn't available there, and env comparisons
+keep the actual certificate value out of the workflow's expressions entirely.
+The signing steps then key off `env.SIGNED`, which is only set once the
+certificate has actually been imported.
+
+**Ad-hoc builds carry no entitlements.** Because they aren't signed with a
+Developer ID, an ad-hoc signed build has none of the app's entitlements
+(keychain access groups, associated domains, etc.), so sign-in with Elevate's
+own app registration (MSAL, using the system webview) does not work on these
+builds. The Azure CLI and custom/company-app-registration sign-in methods
+still work, but store their tokens in the user's login keychain rather than
+relying on the app's entitlements.
 
 ## The Homebrew cask
 

@@ -53,8 +53,10 @@ jobs:
         run: |
           echo "$P12" | base64 --decode > cert.p12
           security create-keychain -p ci build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p ci build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
           security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
           rm -f cert.p12
@@ -62,13 +64,16 @@ jobs:
 
       - name: Build (Developer ID)
         if: env.SIGNED == '1'
-        run: >
-          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build
-          MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD"
-          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application"
-          DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
-          ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
-          build | tail -5
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID secret missing"; exit 1; }
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
+            build | tail -5
 
       - name: Build (unsigned, ad-hoc signature)
         if: env.SIGNED != '1'
@@ -103,7 +108,7 @@ jobs:
           if [ "${SIGNED:-}" = "1" ]; then
             printf 'Signed with Developer ID and notarized.\n\nInstall with Homebrew:\n\n    brew install --cask elevate\n\nOr download the DMG below and drag Elevate to Applications.\n\nSHA-256: %s\n' "$SHA256" > notes.md
           else
-            printf 'Unsigned build (ad-hoc signature). On first launch, right-click Elevate.app in Applications and choose Open, then confirm; or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew:\n\n    brew install --cask --no-quarantine elevate\n\nSHA-256: %s\n' "$SHA256" > notes.md
+            printf 'Unsigned build (ad-hoc signature). Open the app once; when macOS blocks it, open System Settings -> Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm. Or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew:\n\n    brew install --cask --no-quarantine elevate\n\nSHA-256: %s\n' "$SHA256" > notes.md
           fi
 
       - name: Create GitHub Release
