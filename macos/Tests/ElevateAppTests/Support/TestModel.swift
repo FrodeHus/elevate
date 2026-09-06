@@ -34,12 +34,13 @@ func makeSettings() -> AppSettings {
 @MainActor
 func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClient(),
                online: Bool = false, settings: AppSettings? = nil,
+               tokens: FakeTokenProvider = FakeTokenProvider(),
                ownAppViaLoopback: Bool? = nil) async -> AppModel {
     let directory = URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("elevate-tests-\(UUID().uuidString)", isDirectory: true)
     let store = AppStateStore(directory: directory)
     if state != AppState() { try? await store.save(state) }
-    let model = AppModel(tokens: FakeTokenProvider(), http: http, store: store, notifier: NoopNotifier(),
+    let model = AppModel(tokens: tokens, http: http, store: store, notifier: NoopNotifier(),
                          network: NetworkMonitor(forcedOnline: online),
                          settings: settings ?? makeSettings(),
                          ownAppViaLoopbackOverride: ownAppViaLoopback)

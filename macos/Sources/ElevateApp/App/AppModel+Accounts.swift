@@ -26,6 +26,15 @@ extension AppModel {
         }
     }
 
+    /// The client id whose keychain refresh-token store `method` uses, or nil when it has none of
+    /// its own: `.ownApp` on a signed build keeps its tokens in MSAL's cache, not the keychain
+    /// store, so it shares nothing with any loopback method.
+    private func loopbackClientId(for method: SignInMethod) -> String? {
+        guard method.usesMSAL else { return method.clientId }
+        guard ownAppViaLoopback, settings.isConfigured else { return nil }
+        return settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: Accounts
 
     /// Signs in with `method` and adds the resulting account, its home tenant and its roles.
@@ -49,7 +58,15 @@ extension AppModel {
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.displayName)"
                 logError("Add account: already added with \(existing.signInMethod.displayName)")
-                try? await tokens.signOut(identity)
+                // Discard the sign-in we just made, but only when it does not share a keychain
+                // item with the account that is already there: refresh tokens are keyed
+                // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
+                // `.custom` account over the same Settings client id are the *same* item, and
+                // signing out would delete the existing account's token.
+                let added = loopbackClientId(for: method)
+                if added == nil || added != loopbackClientId(for: existing.signInMethod) {
+                    try? await tokens.signOut(identity)
+                }
                 return false
             }
             if !state.identities.contains(where: { $0.id == identity.id }) {

@@ -18,7 +18,8 @@ final class LoopbackProviderRegistry: Sendable {
         self.makeStore = makeStore
     }
 
-    /// The provider for a loopback method, or nil for `ownApp` (which MSAL owns).
+    /// The provider for a loopback method, or nil for `ownApp`, which carries no client id of its
+    /// own — on unsigned builds it goes through `provider(clientId:reportedMethod:)` instead.
     func provider(for method: SignInMethod) -> LoopbackTokenProvider? {
         guard let clientId = method.clientId else { return nil }
         return provider(clientId: clientId, method: method, reportedMethod: method)

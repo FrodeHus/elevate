@@ -21,7 +21,14 @@ struct AppModelSignInTransportTests {
         // Tokens are keyed by the client id; the identity is still recorded as `.ownApp`.
         #expect(model.ownAppLoopbackProvider?.method == .custom(clientId: Self.clientId))
         #expect(model.ownAppLoopbackProvider?.reportedMethod == .ownApp)
-        #expect(model.adminConsentURL(identityId: Sample.identityId, tenantId: Sample.tenantId) == nil)
+        // Admin consent is about the registration, not the transport, so it works here too.
+        // The identity is set after `bootstrap()`, which would otherwise drop an own-app account
+        // with no refresh token in the loopback store.
+        model.state.identities = [Sample.identity(method: .ownApp)]
+        let consent = model.adminConsentURL(identityId: Sample.identityId, tenantId: Sample.tenantId)
+        #expect(consent != nil)
+        #expect(consent?.absoluteString.contains(Self.clientId) == true)
+        #expect(consent?.absoluteString.contains(Sample.tenantId) == true)
         cleanup(model)
     }
 
@@ -32,6 +39,37 @@ struct AppModelSignInTransportTests {
         #expect(!model.isConfigured)
         #expect(!model.isAvailable(.ownApp))
         #expect(model.ownAppLoopbackProvider == nil)
+        cleanup(model)
+    }
+
+    /// The `.ownApp` stand-in and a `.custom` account over the same Settings client id share one
+    /// keychain item ("<clientId>|<identityId>"), so refusing the duplicate must not sign the new
+    /// identity out — that would delete the existing account's refresh token.
+    @Test func duplicateAccountOnTheSameClientIdKeepsTheSharedRefreshToken() async {
+        let settings = makeSettings()
+        settings.clientId = Self.clientId
+        let tokens = FakeTokenProvider()
+        let model = await makeModel(settings: settings, tokens: tokens, ownAppViaLoopback: true)
+        // `FakeTokenProvider.signIn` always returns the identity id "new".
+        model.state.identities = [Sample.identity("new", method: .custom(clientId: Self.clientId))]
+        let added = await model.addAccount(method: .ownApp)
+        #expect(!added)
+        #expect(model.notice?.contains("already added") == true)
+        #expect(await tokens.signOutCalls.isEmpty)
+        cleanup(model)
+    }
+
+    /// A duplicate under a method with a *different* client id owns its own keychain item, so the
+    /// sign-in that was just made is still discarded.
+    @Test func duplicateAccountOnAnotherClientIdIsSignedOut() async {
+        let settings = makeSettings()
+        settings.clientId = Self.clientId
+        let tokens = FakeTokenProvider()
+        let model = await makeModel(settings: settings, tokens: tokens, ownAppViaLoopback: true)
+        model.state.identities = [Sample.identity("new", method: .azureCLI)]
+        let added = await model.addAccount(method: .ownApp)
+        #expect(!added)
+        #expect(await tokens.signOutCalls == ["new"])
         cleanup(model)
     }
 

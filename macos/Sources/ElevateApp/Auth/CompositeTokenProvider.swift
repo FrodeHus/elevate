@@ -47,12 +47,6 @@ final class CompositeTokenProvider: TokenProviding, Sendable {
 
     // MARK: Routing
 
-    /// The provider for `identityId`'s method, or nil when nothing owns that identity.
-    func loopbackProvider(for method: SignInMethod) -> LoopbackTokenProvider? {
-        if method.usesMSAL { return msal == nil ? ownAppLoopback : nil }
-        return loopback.provider(for: method)
-    }
-
     private func provider(for method: SignInMethod) throws -> any TokenProviding {
         if method.usesMSAL {
             if let msal { return msal }

@@ -37,7 +37,7 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
     // MARK: TokenProviding
 
     func signIn(method: SignInMethod) async throws -> Identity {
-        guard method == self.method || method == reportedMethod else {
+        guard method == reportedMethod else {
             throw PIMError.unexpected(status: 0, body: "Unsupported sign-in method")
         }
         return try await gate.run { [self] in
