@@ -6,9 +6,9 @@ activates PIM roles. Security reports are taken seriously — please report them
 ## Reporting a vulnerability
 
 Use GitHub's private reporting:
-[Report a vulnerability](https://github.com/FrodeHus/elevate/security/advisories/new). If you cannot
-use it, email the maintainer at the address listed on the
-[maintainer's GitHub profile](https://github.com/FrodeHus).
+[Report a vulnerability](https://github.com/FrodeHus/elevate/security/advisories/new). Private
+vulnerability reporting is enabled on this repository, so no email address is needed; if the form
+is unavailable to you, open a regular issue that only asks for a private channel, without details.
 
 Please do **not** open a public issue for a vulnerability, and do not include real tokens, client
 ids, tenant ids or account names in the report — a redacted transcript is enough.

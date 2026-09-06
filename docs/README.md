@@ -16,6 +16,8 @@
 - [Daily-use panel](superpowers/specs/2026-09-05-elevate-daily-panel-design.md)
 - [Activation profiles](superpowers/specs/2026-09-05-elevate-profiles-design.md)
 - [Activation shortcuts](superpowers/specs/2026-09-05-elevate-shortcuts-design.md)
+- [Approvals](superpowers/specs/2026-09-05-elevate-approvals-design.md)
+- [Operations: launch at login, diagnostics, updates, releases](superpowers/specs/2026-09-06-elevate-operations-design.md)
 - [Windows app](superpowers/specs/2026-09-05-elevate-windows-design.md)
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).
