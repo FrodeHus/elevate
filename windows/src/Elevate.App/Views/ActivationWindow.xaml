@@ -18,6 +18,8 @@
 
         <StackPanel Grid.Row="0" Spacing="2">
             <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" />
+            <!-- An Azure role's scope ("rg-prod · resource group"); the full ARM path is the tooltip. -->
+            <TextBlock x:Name="Scope" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
             <TextBlock x:Name="Subtitle" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
         </StackPanel>
 
@@ -45,10 +47,13 @@
             </StackPanel>
         </StackPanel>
 
-        <Border Grid.Row="2" x:Name="BulkPane" Visibility="Collapsed" CornerRadius="4"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
-            <StackPanel x:Name="BulkRows" />
-        </Border>
+        <!-- Bulk: a column header, then one boxed group per tenant. -->
+        <StackPanel Grid.Row="2" x:Name="BulkPane" Visibility="Collapsed" Spacing="6">
+            <Grid x:Name="BulkHeader" />
+            <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="BulkRows" Spacing="8" />
+            </ScrollViewer>
+        </StackPanel>
 
         <!-- Start at -->
         <StackPanel Grid.Row="3" x:Name="ScheduleRow" Orientation="Horizontal" Spacing="12">

@@ -1,7 +1,9 @@
 using Elevate.App.Services;
 using Elevate.App.ViewModels;
+using Elevate.Core.Models;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
@@ -226,6 +228,115 @@ public sealed partial class SegmentedPivots : ContentControl
         {
             _applying = false;
         }
+    }
+}
+
+/// <summary>
+/// A boxed group of sheet rows that belong to one tenant: the tenant name leads in bold, the
+/// account address is the caption, and a soft rounded fill ties the rows to their header so a
+/// mixed-tenant window reads at a glance instead of by parsing "user · tenant" lines. Port of the
+/// macOS <c>TenantGroup</c>; the activation and profile run windows both build their tables from it.
+/// </summary>
+public static class TenantGroupBox
+{
+    /// <summary>The box for one tenant; add the rows to <paramref name="rows"/>.</summary>
+    public static Border Create(AppModel model, TenantKey tenantKey, out StackPanel rows)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        var resources = Application.Current.Resources;
+        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Padding = new Thickness(10, 6, 10, 4) };
+        header.Children.Add(new FontIcon
+        {
+            Glyph = "",
+            FontSize = 12,
+            Foreground = (Brush)resources["AccentFillColorDefaultBrush"],
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        header.Children.Add(new TextBlock
+        {
+            Text = model.Tenant(tenantKey)?.DisplayName ?? tenantKey.TenantId,
+            FontSize = 13,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        header.Children.Add(new TextBlock { Text = "·", Foreground = (Brush)resources["TextFillColorTertiaryBrush"], VerticalAlignment = VerticalAlignment.Center });
+        header.Children.Add(new TextBlock
+        {
+            Text = model.Identity(tenantKey.IdentityId)?.Upn ?? tenantKey.IdentityId,
+            FontSize = 12,
+            Foreground = (Brush)resources["TextFillColorSecondaryBrush"],
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        AutomationProperties.SetName(header, $"{model.Tenant(tenantKey)?.DisplayName ?? tenantKey.TenantId}, {model.Identity(tenantKey.IdentityId)?.Upn ?? tenantKey.IdentityId}");
+
+        rows = new StackPanel();
+        var content = new StackPanel();
+        content.Children.Add(header);
+        content.Children.Add(rows);
+        return new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Background = (Brush)resources["SubtleFillColorSecondaryBrush"],
+            Padding = new Thickness(0, 0, 0, 2),
+            Child = content,
+        };
+    }
+
+    /// <summary>The fixed columns every tenant row shares: name (fills), duration, status. Rows line up even when a cell is empty.</summary>
+    public static Grid RowGrid(double durationWidth, double statusWidth)
+    {
+        var grid = new Grid { Padding = new Thickness(10, 6, 10, 6), ColumnSpacing = 10, MinHeight = 40 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(durationWidth) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(statusWidth) });
+        return grid;
+    }
+
+    /// <summary>The role name with its scope caption underneath (an Azure role's "rg-prod · resource group"), the full ARM path as tooltip.</summary>
+    public static StackPanel NameCell(string name, string? detail, RoleKey key, double opacity = 1)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        var cell = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1, Opacity = opacity };
+        cell.Children.Add(new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis });
+        if (detail is not null)
+        {
+            var caption = new TextBlock
+            {
+                Text = detail,
+                FontSize = 12,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            ToolTipService.SetToolTip(caption, key.Scope is AzureResourceScope azure ? azure.Scope : detail);
+            cell.Children.Add(caption);
+        }
+
+        return cell;
+    }
+
+    /// <summary>
+    /// The status cell: an optional ring, then text that trims inside the fixed column. A Grid rather
+    /// than a horizontal StackPanel, which would hand the text unbounded width and let it overflow.
+    /// </summary>
+    public static Grid StatusCell(ProgressRing? ring, TextBlock text, HorizontalAlignment alignment)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var cell = new Grid { ColumnSpacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        cell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        cell.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        if (ring is not null)
+        {
+            ring.VerticalAlignment = VerticalAlignment.Center;
+            cell.Children.Add(ring);
+        }
+
+        text.TextTrimming = TextTrimming.CharacterEllipsis;
+        text.VerticalAlignment = VerticalAlignment.Center;
+        text.HorizontalAlignment = alignment;
+        Grid.SetColumn(text, 1);
+        cell.Children.Add(text);
+        return cell;
     }
 }
 

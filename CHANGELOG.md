@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Access") under the role name, with a tooltip that names the authentication context; the
   activation window lists the same notices, and the bulk table and the profile run window show the
   combined caption in their status column.
+- Windows: the bulk activation table and the profile run window box the rows of each tenant, headed
+  by the tenant name with the account address as a caption, instead of a small "account · tenant"
+  caption line.
+
+### Fixed
+
+- Windows: the bulk activation table and the profile run window keep their duration and status
+  columns aligned when a row has nothing to report, and longer status texts trim instead of
+  overflowing the column.
+- Windows: Azure resource roles in the activation window, the bulk table and the profile run window
+  show the scope under the role name, with the full ARM path as a tooltip.
 
 ## [1.2.4] - 2026-09-06
 
