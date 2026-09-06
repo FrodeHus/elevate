@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Elevate for Windows: a per-user MSI that installs the published app into
+  %LOCALAPPDATA%\Programs\Elevate with a Start Menu shortcut. Built by build.ps1 for x64 and arm64
+  with `wix build`, which needs the WixToolset.UI.wixext extension for the exit-dialog checkbox.
+
+  Preprocessor variables (all passed by build.ps1):
+    Version     the product version, e.g. 1.0.0
+    PublishDir  the `dotnet publish` output for this architecture
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Elevate"
+           Manufacturer="Reothor"
+           Version="$(var.Version)"
+           UpgradeCode="7B2E8C3A-5D41-4F0B-9C6E-2A1F3D4E5B60"
+           Scope="perUser"
+           Language="1033"
+           InstallerVersion="500"
+           Compressed="yes">
+
+    <SummaryInformation Description="Elevate: just-in-time Entra and Azure PIM role activation from the system tray"
+                        Manufacturer="Reothor" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Elevate is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="ElevateIcon" SourceFile="..\src\Elevate.App\Assets\Elevate.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ElevateIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/FrodeHus/elevate" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/FrodeHus/elevate/issues" />
+
+    <!-- %LOCALAPPDATA%\Programs\Elevate -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="Elevate" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Elevate" Level="1">
+      <ComponentGroupRef Id="PublishedFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- Everything `dotnet publish` produced, including the self-contained Windows App SDK runtime. -->
+    <ComponentGroup Id="PublishedFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <!-- A per-user install has no reliable file key path; the registry value stands in for it. -->
+    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="9F1D6A2B-3C4E-4D5F-8A7B-6C5D4E3F2A10">
+      <Shortcut Id="ElevateShortcut" Name="Elevate" Description="Activate Entra and Azure PIM roles"
+                Target="[INSTALLFOLDER]Elevate.exe" WorkingDirectory="INSTALLFOLDER" Icon="ElevateIcon" />
+      <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\Reothor\Elevate" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- Launch after install (the checkbox on the exit dialog, on by default). -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Elevate" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <CustomAction Id="LaunchElevate" Directory="INSTALLFOLDER" ExeCommand="[INSTALLFOLDER]Elevate.exe"
+                  Execute="immediate" Return="asyncNoWait" Impersonate="yes" />
+
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchElevate"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
+  </Package>
+</Wix>

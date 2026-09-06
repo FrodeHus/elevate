@@ -7,6 +7,10 @@
     <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
     <RootNamespace>Elevate.App</RootNamespace>
     <AssemblyName>Elevate</AssemblyName>
+    <!-- Overridden by installer/build.ps1 (-p:Version) from the windows-v* tag. -->
+    <Version>1.0.0</Version>
+    <Company>Reothor</Company>
+    <Product>Elevate</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64;arm64</Platforms>
     <!-- A direct `dotnet build` of this project has no solution platform; WinUI cannot target AnyCPU. -->

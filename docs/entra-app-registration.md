@@ -16,8 +16,12 @@ Elevate signs in with this registration through MSAL:
 
 - On macOS, MSAL uses the redirect `msauth.<bundle id>://auth` — for the standard build, bundle
   id `no.reothor.elevate`, so the redirect is `msauth.no.reothor.elevate://auth`.
-- On Windows, and for the custom-app sign-in method on macOS, sign-in instead uses the
-  `http://localhost` loopback redirect.
+- On Windows, the own-app sign-in goes through the Windows account picker (the WAM broker), which
+  needs the redirect `ms-appx-web://microsoft.aad.brokerplugin/<client id>`, with the
+  `http://localhost` loopback redirect as the fallback when the broker is unavailable. Elevate's
+  Windows Settings window shows both, ready to copy.
+- For the custom-app sign-in method on either platform, sign-in uses the `http://localhost`
+  loopback redirect.
 
 You only need to create this registration once per organization; every tenant that wants to use
 it then grants it admin consent (see step 2 or 3).
@@ -98,7 +102,9 @@ Use this if you would rather click through the portal, or cannot run the Azure C
    - Choose **iOS/macOS**, enter the bundle ID `no.reothor.elevate`, and select **Configure**.
      The portal derives the redirect URI `msauth.no.reothor.elevate://auth` for you.
    - Select **Add a platform** again, choose **Mobile and desktop applications**, and add the
-     custom redirect URI `http://localhost`.
+     custom redirect URIs `http://localhost` and, for Windows,
+     `ms-appx-web://microsoft.aad.brokerplugin/<client id>` (the application (client) ID from the
+     registration's Overview page).
    - Select **Add a platform** again, choose **Web**, and add the redirect URI
      `https://login.microsoftonline.com/common/oauth2/nativeclient`. This one is not used for
      sign-in; it only exists so the admin consent link (step 2 above) opens a valid page instead

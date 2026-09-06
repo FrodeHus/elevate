@@ -1,0 +1,157 @@
+name: Windows
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+    tags: ["windows-v*"]
+  pull_request:
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+
+      - name: Restore
+        run: dotnet restore windows/Elevate.sln
+
+      - name: Build
+        run: dotnet build windows/Elevate.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test windows/Elevate.sln --no-build -c Release --logger "trx;LogFileName=results.trx"
+
+      - name: Test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+
+  release:
+    name: Package and publish
+    if: startsWith(github.ref, 'refs/tags/windows-v')
+    needs: test
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+
+      - name: Version
+        shell: pwsh
+        run: |
+          $version = $env:TAG -replace '^windows-v', ''
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install WiX
+        # v5: later majors require accepting the Open Source Maintenance Fee EULA.
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Detect signing secrets
+        shell: pwsh
+        env:
+          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+        run: |
+          if ($env:ENDPOINT) {
+            "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } else {
+            Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned MSIs."
+          }
+
+      - name: Azure login for signing
+        if: env.SIGN == '1'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Trusted Signing client
+        if: env.SIGN == '1'
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
+          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          "AZURE_TRUSTED_SIGNING_DLIB=$($dlib.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $signtool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build MSIs
+        shell: pwsh
+        env:
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: |
+          $sign = $env:SIGN -eq '1'
+          ./windows/installer/build.ps1 -Version $env:VERSION -Sign:$sign
+
+      - name: winget manifest
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-x64.msi.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256").Split(' ')[0]
+          ./windows/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
+          winget validate --manifest "windows/winget/manifests/r/Reothor/Elevate/$env:VERSION"
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-x64.msi.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256").Split(' ')[0]
+          $signed = if ($env:SIGN -eq '1') { "Signed with Azure Trusted Signing." } else { "Unsigned build: SmartScreen will ask for confirmation on first run." }
+          @"
+          Elevate for Windows $env:VERSION. $signed
+
+          Install with winget once the manifest is published:
+
+              winget install Reothor.Elevate
+
+          Or download the MSI for your architecture below (needs the .NET 10 runtime, `winget install Microsoft.DotNet.Runtime.10`).
+
+          SHA-256:
+          - x64: $x64
+          - arm64: $arm64
+          "@ | Set-Content -Path notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create $env:TAG `
+            "windows/installer/out/Elevate-$env:VERSION-x64.msi" `
+            "windows/installer/out/Elevate-$env:VERSION-x64.msi.sha256" `
+            "windows/installer/out/Elevate-$env:VERSION-arm64.msi" `
+            "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256" `
+            --title "Elevate for Windows $env:VERSION" --notes-file notes.md
+
+      - name: Manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifest
+          path: windows/winget/manifests
+
+      - name: Submit to winget-pkgs
+        if: env.WINGET_TOKEN != ''
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          winget install --id Microsoft.WingetCreate --disable-interactivity --accept-source-agreements --accept-package-agreements
+          wingetcreate submit --token $env:WINGET_TOKEN "windows/winget/manifests/r/Reothor/Elevate/$env:VERSION"
