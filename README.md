@@ -1,15 +1,22 @@
 # Elevate
 
+[![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](#install-macos)
+
 Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
+
+![Elevate panel](docs/images/panel.png)
 
 Elevate lists every account you have signed in with, each tenant that account can reach, and everything you are eligible for in it: Entra directory roles, Azure resource roles and PIM for Groups memberships. Activate with the policy's default duration and a reason Elevate remembers, select several across tenants and activate them together, or save a selection as a profile and run it with one click. Active roles show a live countdown, can be extended or deactivated, and raise notifications before and at expiry. Sign in with your own app registration, a company app registration, or the Azure CLI / Azure PowerShell app for Azure resource roles.
 
 | App | Status | Docs |
 |---|---|---|
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, profiles, sign-in methods | [macos/README.md](macos/README.md) |
-| [Windows 11](windows/) — WinUI 3 tray app, .NET 10, MSI + winget | Designed, not yet implemented | [windows/README.md](windows/README.md) |
 
 ## Install (macOS)
+
+**Requirements:** macOS 26 (Tahoe), and an Entra app registration — either your own or a company one
+— to sign in with; the Microsoft Azure CLI or Azure PowerShell app needs no registration but covers
+Azure resource roles only.
 
 Homebrew (the cask lives in this repository, which doubles as a tap):
 
@@ -27,7 +34,16 @@ Or download the DMG from the [latest release](https://github.com/FrodeHus/elevat
 the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it
 and drag **Elevate** to Applications.
 
-Elevate requires macOS 26 (Tahoe).
+**Upgrade:**
+
+```bash
+brew upgrade --cask frodehus/elevate/elevate
+xattr -d com.apple.quarantine /Applications/Elevate.app   # rerun while builds are unsigned
+```
+
+The upgrade replaces the app bundle, so the quarantine flag comes back and the `xattr` command has
+to be rerun until builds are signed and notarized. Elevate also checks the GitHub releases API for a
+newer version once a day and shows a notice in the panel when one is available.
 
 ### Opening an unsigned build
 
@@ -76,10 +92,24 @@ Accounts that cannot use your registration can be added with the Azure CLI or Az
 app (Azure resource roles only) or with another company app registration through the loopback
 flow; see [Sign-in methods](macos/README.md#sign-in-methods).
 
+## Security
+
+- **Tokens stay in the macOS keychain.** The loopback browser flow stores its refresh token in your
+  login keychain (this device only); signed builds sign in with MSAL, which keeps its own cache in
+  the keychain. Nothing is written to disk in plain text.
+- **Where Elevate connects.** Microsoft identity platform (login), Microsoft Graph and the Azure
+  Resource Manager endpoints, plus the GitHub releases API for the once-a-day update check. Nothing
+  else.
+- **No telemetry.** No analytics, no crash reporting, no phone-home of any kind.
+- **Diagnostics are safe to paste.** The report behind Settings → Copy diagnostics has no field for
+  a token or a client id, so neither can appear in it.
+- **Reporting a vulnerability:** see [SECURITY.md](SECURITY.md).
+
 ## Documentation
 
 | Topic | Where |
 |---|---|
+| Documentation index | [docs/README.md](docs/README.md) |
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
 | Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
@@ -87,16 +117,17 @@ flow; see [Sign-in methods](macos/README.md#sign-in-methods).
 | Design specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
 | Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |
 
-## Design documents
+## Contributing and support
 
-- [Phase 1: core app](docs/superpowers/specs/2026-09-04-pimtray-design.md)
-- [Phase 2: Azure resource roles](docs/superpowers/specs/2026-09-04-pimtray-phase2-azure-design.md)
-- [Sign-in methods](docs/superpowers/specs/2026-09-05-elevate-signin-methods-design.md)
-- [Phase 3: PIM for Groups](docs/superpowers/specs/2026-09-05-elevate-phase3-groups-design.md)
-- [Daily-use panel](docs/superpowers/specs/2026-09-05-elevate-daily-panel-design.md)
-- [Activation profiles](docs/superpowers/specs/2026-09-05-elevate-profiles-design.md)
-- [Activation shortcuts](docs/superpowers/specs/2026-09-05-elevate-shortcuts-design.md)
-- [Windows app](docs/superpowers/specs/2026-09-05-elevate-windows-design.md)
+Contributions are welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md) for the prerequisites,
+build and test commands, and the conventions this repository keeps. Bugs and feature requests go to
+the [issue tracker](https://github.com/FrodeHus/elevate/issues); what changed in each release is in
+[CHANGELOG.md](CHANGELOG.md).
+
+## Roadmap
+
+- **Windows 11 tray app (WinUI 3, .NET 10): designed, not yet implemented** — see
+  [windows/README.md](windows/README.md).
 
 ## License
 
