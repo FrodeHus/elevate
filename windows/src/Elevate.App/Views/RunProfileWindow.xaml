@@ -19,11 +19,10 @@
             <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
         </StackPanel>
 
-        <Border Grid.Row="1" CornerRadius="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
-            <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="Rows" />
-            </ScrollViewer>
-        </Border>
+        <!-- One boxed group per tenant, each headed by the tenant name with the account as caption. -->
+        <ScrollViewer Grid.Row="1" MaxHeight="320" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="Rows" Spacing="8" />
+        </ScrollViewer>
 
         <StackPanel Grid.Row="2" x:Name="Inputs" Spacing="12">
             <StackPanel Orientation="Horizontal" Spacing="12">
