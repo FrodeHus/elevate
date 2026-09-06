@@ -94,12 +94,15 @@ struct RunProfileView: View {
             Spacer()
             switch it.disposition {
             case .activate:
+                // Fixed columns: the picker without its label, then the status. Both keep their width
+                // even when empty so the rows line up.
                 if !finished {
-                    DurationPicker(duration: item.duration, maximum: it.role?.policy.maximumDuration ?? RolePolicy.manualDefault.maximumDuration).frame(width: 150)
+                    DurationPicker(duration: item.duration, maximum: it.role?.policy.maximumDuration ?? RolePolicy.manualDefault.maximumDuration)
+                        .labelsHidden().frame(width: 110)
                 } else {
-                    Text(Countdown.label(it.duration)).font(.caption).foregroundStyle(.secondary).frame(width: 150, alignment: .trailing)
+                    Text(Countdown.label(it.duration)).font(.caption).foregroundStyle(.secondary).frame(width: 110, alignment: .trailing)
                 }
-                statusLabel(for: it).frame(width: 130, alignment: .trailing)
+                HStack(spacing: 0) { Spacer(minLength: 0); statusLabel(for: it) }.frame(width: 150)
             case .alreadyActive: Text("already active · skipped").font(.caption).foregroundStyle(.secondary)
             case .pending: Text("pending · skipped").font(.caption).foregroundStyle(.secondary)
             case .notEligible: Text("not eligible · skipped").font(.caption).foregroundStyle(.orange)
@@ -120,8 +123,10 @@ struct RunProfileView: View {
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil:
             if running { ProgressView().controlSize(.small) }
-            else if it.role?.policy.requiresApproval == true { Label("approval", systemImage: "person.badge.clock").font(.caption) }
-            else if it.role?.policy.requiresMFA == true { Text("MFA").font(.caption).foregroundStyle(.secondary) }
+            else if let policy = it.role?.policy, let caption = PolicyNotes.caption(for: policy) {
+                Label(caption, systemImage: policy.requiresApproval ? "person.badge.clock" : "lock.shield")
+                    .font(.caption).lineLimit(1).help(PolicyNotes.explanation(for: policy) ?? "")
+            }
         }
     }
 
