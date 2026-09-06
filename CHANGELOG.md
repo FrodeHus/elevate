@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-06
+
+### Fixed
+
+- Windows: the MSI's license dialog showed an empty box; it now shows the MIT license.
+- The release workflow proposes the Homebrew cask bump as a pull request instead of pushing to
+  `main`, which the branch rules refuse.
+
 ## [1.2.0] - 2026-09-06
 
 The first release with one version number for both apps: from here on a `v<version>` tag
@@ -98,7 +106,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/FrodeHus/elevate/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/FrodeHus/elevate/compare/v1.0.2...v1.2.0
 [1.0.2]: https://github.com/FrodeHus/elevate/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FrodeHus/elevate/compare/v1.0.0...v1.0.1
