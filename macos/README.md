@@ -91,7 +91,11 @@ Caveats:
 
 ## Install
 
-To just run Elevate, install a release rather than building it:
+**Requirements:** macOS 26 (Tahoe), and an Entra app registration — either your own or a company one
+— to sign in with; the Microsoft Azure CLI or Azure PowerShell app needs no registration but covers
+Azure resource roles only. Building from source is [below](#build-and-run).
+
+Homebrew (the cask lives in this repository, which doubles as a tap):
 
 ```bash
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
@@ -103,11 +107,41 @@ xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
 Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`
 named repository, so the fully qualified `frodehus/elevate/elevate` name is required.
 
-or download `Elevate-<version>.dmg` from the
-[latest release](https://github.com/FrodeHus/elevate/releases/latest). Current builds are unsigned,
-so macOS blocks the first launch; approve it under System Settings → Privacy & Security → Open
-Anyway — see [Install in the root README](../README.md#install-macos). Building from source is
-below.
+Or download the DMG from the [latest release](https://github.com/FrodeHus/elevate/releases/latest) —
+the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it
+and drag **Elevate** to Applications.
+
+**Upgrade:**
+
+```bash
+brew upgrade --cask frodehus/elevate/elevate
+xattr -d com.apple.quarantine /Applications/Elevate.app   # rerun while builds are unsigned
+```
+
+The upgrade replaces the app bundle, so the quarantine flag comes back and the `xattr` command has
+to be rerun until builds are signed and notarized. Elevate also checks the GitHub releases API for a
+newer version once a day and shows a notice in the panel when one is available.
+
+### Opening an unsigned build
+
+Releases today are ad-hoc signed, not signed with an Apple Developer ID and not notarized, so macOS
+refuses to open them on a double-click. Either remove the quarantine flag as shown above with
+`xattr -d com.apple.quarantine /Applications/Elevate.app`, or after copying the app to Applications:
+
+1. Open **Elevate.app** once.
+2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
+   about Elevate and click **Open Anyway**.
+3. Confirm **Open Anyway** again when prompted. macOS remembers the choice; later launches are normal.
+
+If macOS still refuses, remove the quarantine flag directly:
+
+```bash
+xattr -d com.apple.quarantine /Applications/Elevate.app
+```
+
+Signed and notarized builds — no prompts, no `xattr` step — will ship as soon as an Apple
+Developer ID is available; the release workflow already switches over automatically once the
+signing secrets exist. See [docs/releasing.md](../docs/releasing.md).
 
 ## Prerequisites
 
@@ -174,9 +208,7 @@ row is re-keyed to the resolved role definition id at that point.
 - Discover tenants… lists other tenants; Add tenant… accepts a domain.
 - A role expiring within 5 minutes produces a notification with Extend.
 
-## Regenerating the role catalogue
-
-Save the markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
-and run `perl shared/entra-roles/update-role-catalogue.pl page.md > macos/Sources/ElevateCore/Resources/EntraBuiltInRoles.json (from the repo root)`.
+The Entra roles catalogue is regenerated as described in
+[CONTRIBUTING.md](../CONTRIBUTING.md#the-entra-roles-catalogue).
 
 UI design canvas: [docs/design/elevate-macos-canvas.html](../docs/design/elevate-macos-canvas.html) (Claude Design artboards for the panel, select mode, activation, profiles).

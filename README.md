@@ -1,6 +1,6 @@
 <h1><img src="docs/images/icon.png" width="48" alt="" align="absmiddle"> Elevate</h1>
 
-[![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Windows CI](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](#install-macos) [![Windows 11](https://img.shields.io/badge/Windows-11-blue)](windows/README.md#install)
+[![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Windows CI](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](macos/README.md#install) [![Windows 11](https://img.shields.io/badge/Windows-11-blue)](windows/README.md#install)
 
 Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
 
@@ -13,59 +13,14 @@ Elevate lists every account you have signed in with, each tenant that account ca
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, profiles, sign-in methods | [macos/README.md](macos/README.md) |
 | [Windows](windows/) — WinUI 3 tray app, Windows 11 | Usable: the same features, unsigned MSI for now | [windows/README.md](windows/README.md) |
 
-## Install (macOS)
+## Install
 
-**Requirements:** macOS 26 (Tahoe), and an Entra app registration — either your own or a company one
-— to sign in with; the Microsoft Azure CLI or Azure PowerShell app needs no registration but covers
-Azure resource roles only.
+- **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install).
+- **Windows 11**: per-user MSI, see [windows/README.md](windows/README.md#install).
 
-Homebrew (the cask lives in this repository, which doubles as a tap):
-
-```bash
-brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
-brew trust frodehus/elevate        # Homebrew 6 requires trusting third-party taps
-brew install --cask frodehus/elevate/elevate
-xattr -d com.apple.quarantine /Applications/Elevate.app   # unsigned builds only
-```
-
-Plain `brew install --cask elevate` does not resolve: this tap is not a `homebrew-`
-named repository, so the fully qualified `frodehus/elevate/elevate` name is required.
-
-Or download the DMG from the [latest release](https://github.com/FrodeHus/elevate/releases/latest) —
-the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it
-and drag **Elevate** to Applications.
-
-**Upgrade:**
-
-```bash
-brew upgrade --cask frodehus/elevate/elevate
-xattr -d com.apple.quarantine /Applications/Elevate.app   # rerun while builds are unsigned
-```
-
-The upgrade replaces the app bundle, so the quarantine flag comes back and the `xattr` command has
-to be rerun until builds are signed and notarized. Elevate also checks the GitHub releases API for a
-newer version once a day and shows a notice in the panel when one is available.
-
-### Opening an unsigned build
-
-Releases today are ad-hoc signed, not signed with an Apple Developer ID and not notarized, so macOS
-refuses to open them on a double-click. Either remove the quarantine flag as shown above with
-`xattr -d com.apple.quarantine /Applications/Elevate.app`, or after copying the app to Applications:
-
-1. Open **Elevate.app** once.
-2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
-   about Elevate and click **Open Anyway**.
-3. Confirm **Open Anyway** again when prompted. macOS remembers the choice; later launches are normal.
-
-If macOS still refuses, remove the quarantine flag directly:
-
-```bash
-xattr -d com.apple.quarantine /Applications/Elevate.app
-```
-
-Signed and notarized builds — no prompts, no `xattr` step — will ship as soon as an Apple
-Developer ID is available; the release workflow already switches over automatically once the
-signing secrets exist. See [docs/releasing.md](docs/releasing.md).
+Both apps sign in with an Entra app registration, either your own or a company one; the Microsoft
+Azure CLI or Azure PowerShell app needs no registration but covers Azure resource roles only. Each
+app checks the GitHub releases API for a newer version once a day and offers it in the panel.
 
 ## Repository layout
 
@@ -83,21 +38,23 @@ docs/      Design specs and implementation plans (docs/superpowers/specs, docs/s
    [docs/entra-app-registration.md](docs/entra-app-registration.md).
    - Script: [docs/entra-app/create-app-registration.sh](docs/entra-app/create-app-registration.sh)
    - Permissions manifest for `az ad app create`: [docs/entra-app/required-resource-access.json](docs/entra-app/required-resource-access.json)
-2. **Build and run the macOS app**: [macos/README.md](macos/README.md) — prerequisites, build
-   steps, sign-in methods, and what each account type can and cannot activate.
+2. **Install or build the app** for your platform: [macos/README.md](macos/README.md) or
+   [windows/README.md](windows/README.md) — prerequisites, build steps, sign-in methods, and
+   what each account type can and cannot activate.
 3. **Consent per tenant**: an admin grants the delegated permissions once per tenant, either with
    `az ad app permission admin-consent` or through the consent link Elevate offers from each
    tenant's menu. Details in the guide's "Consent" section.
 
 Accounts that cannot use your registration can be added with the Azure CLI or Azure PowerShell
-app (Azure resource roles only) or with another company app registration through the loopback
-flow; see [Sign-in methods](macos/README.md#sign-in-methods).
+app (Azure resource roles only) or with another company app registration; see the sign-in
+methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README.md](windows/README.md#use).
 
 ## Security
 
-- **Tokens stay in the macOS keychain.** The loopback browser flow stores its refresh token in your
-  login keychain (this device only); signed builds sign in with MSAL, which keeps its own cache in
-  the keychain. Nothing is written to disk in plain text.
+- **Tokens stay in the platform's protected store.** On macOS the loopback browser flow keeps its
+  refresh token in your login keychain (this device only) and signed builds sign in with MSAL,
+  which keeps its own cache in the keychain; on Windows MSAL keeps a DPAPI-protected cache under
+  your profile. Nothing is written to disk in plain text.
 - **Where Elevate connects.** Microsoft identity platform (login), Microsoft Graph and the Azure
   Resource Manager endpoints, plus the GitHub releases API for the once-a-day update check. Nothing
   else.
