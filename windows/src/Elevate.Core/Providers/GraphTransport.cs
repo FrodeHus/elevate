@@ -35,6 +35,29 @@ public sealed partial class GraphTransport
     /// <summary>The token provider, so a provider can read the caller's claims from its own token.</summary>
     internal ITokenProvider Tokens { get; }
 
+    /// <summary>
+    /// The caller's object id in <paramref name="tenantId"/>, read from the <c>oid</c> claim of the
+    /// token this transport would send. Null for an opaque token or when the silent acquisition
+    /// fails, like the Swift <c>try?</c>; the caller then falls back to the id the service reported.
+    /// </summary>
+    internal async Task<string?> CallerObjectIdAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct)
+    {
+        try
+        {
+            var token = await Tokens.AccessTokenAsync(identity, tenantId, scopes, ct).ConfigureAwait(false);
+            return AccessTokenClaims.ObjectId(token);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (PimException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A Graph URL for <paramref name="path"/>, percent-encoding it only when it is not already a valid URL.</summary>
     public Uri GraphUrl(string path) => Url(GraphBase, path);
 
@@ -63,9 +86,17 @@ public sealed partial class GraphTransport
     /// Percent-encodes everything outside Foundation's <c>urlQueryAllowed</c> character set, which is
     /// what the Swift providers use before dropping an OData <c>$filter</c> into a URL.
     /// </summary>
-    public static string PercentEncodeQuery(string value)
+    public static string PercentEncodeQuery(string value) => PercentEncode(value, "!$&'()*+,-./:;=?@_~");
+
+    /// <summary>
+    /// Percent-encodes everything outside Foundation's <c>urlPathAllowed</c> set, which is what
+    /// <c>appendingPathComponent</c> applies on the Swift side; <c>/</c> keeps its meaning.
+    /// </summary>
+    public static string PercentEncodePath(string value) => PercentEncode(value, "!$&'()*+,-./:=@_~");
+
+    private static string PercentEncode(string value, string allowed)
     {
-        const string allowed = "!$&'()*+,-./:;=?@_~";
+        ArgumentNullException.ThrowIfNull(value);
         var builder = new StringBuilder(value.Length);
         foreach (var b in Encoding.UTF8.GetBytes(value))
         {
@@ -260,7 +291,7 @@ public sealed partial class GraphTransport
     internal static string FirstPartyForbiddenMessage(string body, SignInMethod method)
     {
         var message = GraphMessage(body)
-            ?? (body.Length == 0 ? "HTTP 403" : body[..Math.Min(300, body.Length)]);
+            ?? (body.Length == 0 ? "HTTP 403" : Text.Prefix(body, 300));
 
         if (!body.Contains("PermissionScopeNotGranted", StringComparison.Ordinal))
         {

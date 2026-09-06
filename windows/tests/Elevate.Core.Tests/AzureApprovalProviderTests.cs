@@ -45,7 +45,7 @@ public class AzureApprovalProviderTests
         items[1].TargetName.Should().Be("/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c");
         items[0].RequestedDuration.Should().Be(TimeSpan.FromHours(4));
         items[0].Justification.Should().Be("Incident 4711");
-        items[0].CreatedAt.Should().Be(GraphJson.ParseDate("2026-09-05T08:00:00Z"));
+        items[0].CreatedAt.Should().Be(Fixtures.Date("2026-09-05T08:00:00Z"));
         items.Should().OnlyContain(i => i.Kind == RoleScopeKind.AzureResource && i.TenantKey == Tenant.Key);
 
         var url = Uri.UnescapeDataString(http.Requests[0].Url.AbsoluteUri);

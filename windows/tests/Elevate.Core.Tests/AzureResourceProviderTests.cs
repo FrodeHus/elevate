@@ -119,7 +119,7 @@ public class AzureResourceProviderTests
         var contributor = active.Single(a => a.RoleKey.Scope == new AzureResourceScope("/subscriptions/sub-1", ContributorId));
         contributor.Status.Should().Be(AssignmentStatus.Active);
         contributor.AssignmentId.Should().Be("inst-1");
-        contributor.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T12:00:00Z"));
+        contributor.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T12:00:00Z"));
 
         var reader = active.Single(a =>
             a.RoleKey.Scope == new AzureResourceScope("/subscriptions/sub-1/resourceGroups/rg-ops", ReaderId));
@@ -140,8 +140,8 @@ public class AzureResourceProviderTests
         var contributor = active.Single(a => a.RoleKey.Scope == new AzureResourceScope("/subscriptions/sub-1", ContributorId));
         contributor.Status.Should().Be(AssignmentStatus.Scheduled);
         contributor.AssignmentId.Should().Be("req-71");
-        contributor.StartDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T09:00:00Z"));
-        contributor.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        contributor.StartDateTime.Should().Be(Fixtures.Date("2099-01-01T09:00:00Z"));
+        contributor.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
 
         // req-72 is a future request on the pending request's key: the pending one still wins.
         var reader = active.Single(a =>
@@ -238,7 +238,7 @@ public class AzureResourceProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("fea7a502-9a96-4806-a26f-eee560e52045");
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T11:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T11:00:00Z"));
 
         var put = http.RequestsMatching("roleAssignmentScheduleRequests").First(r => r.Method == "PUT");
         put.Method.Should().Be("PUT");
@@ -267,18 +267,18 @@ public class AzureResourceProviderTests
         http.On("GET", "roleEligibilityScheduleInstances", body: Fixtures.Data("arm-eligible-page2"));
         StubEligibilityPages(http);
         http.On("PUT", "roleAssignmentScheduleRequests", 201, body: Fixtures.Data("arm-activate-response"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(Contributor.Key, TimeSpan.FromHours(2), "later", StartDateTime: start), TestIdentity);
 
         var sent = PutProperties(http)["scheduleInfo"]!["startDateTime"]!.GetValue<string>();
-        GraphJson.ParseDate(sent).Should().Be(start);
+        Fixtures.Date(sent).Should().Be(start);
 
         // The response echoes a start in the past; the request's future start wins.
         assignment.Status.Should().Be(AssignmentStatus.Scheduled);
         assignment.StartDateTime.Should().Be(start);
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
     }
 
     [Fact]
@@ -292,7 +292,7 @@ public class AzureResourceProviderTests
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(
                 Contributor.Key, TimeSpan.FromHours(1), "later",
-                StartDateTime: GraphJson.ParseDate("2099-01-01T09:00:00Z")),
+                StartDateTime: Fixtures.Date("2099-01-01T09:00:00Z")),
             TestIdentity);
 
         assignment.Status.Should().Be(AssignmentStatus.PendingApproval);
@@ -309,7 +309,7 @@ public class AzureResourceProviderTests
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(
                 Contributor.Key, TimeSpan.FromHours(1), "later",
-                StartDateTime: GraphJson.ParseDate("2099-01-01T09:00:00Z")),
+                StartDateTime: Fixtures.Date("2099-01-01T09:00:00Z")),
             TestIdentity);
 
         assignment.Status.Should().Be(AssignmentStatus.Failed("Denied"));
@@ -411,5 +411,15 @@ public class AzureResourceProviderTests
         url.AbsoluteUri.Should().Be(
             "https://management.azure.com/providers/Microsoft.Authorization/roleDefinitions"
             + "?api-version=2022-04-01&$filter=asTarget()&$top=1");
+    }
+
+    [Fact]
+    public void ArmUrl_PercentEncodesThePathLikeAppendingPathComponent()
+    {
+        var url = AzureResourceProvider.ArmUrl("subscriptions/sub-1/resourceGroups/rg ops (prod)/providers/Microsoft.Authorization/x");
+
+        url.AbsoluteUri.Should().Be(
+            "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg%20ops%20(prod)/providers/Microsoft.Authorization/x"
+            + "?api-version=2020-10-01");
     }
 }

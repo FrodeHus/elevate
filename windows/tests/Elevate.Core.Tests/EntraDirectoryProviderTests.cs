@@ -30,6 +30,47 @@ public class EntraDirectoryProviderTests
         JsonNode.Parse(Encoding.UTF8.GetString(request.Body!))!.AsObject();
 
     [Fact]
+    public async Task EligibleRoles_FollowsNextLinkAcrossPages()
+    {
+        var (provider, http, _) = MakeProvider();
+        var page1 = """
+            {"@odata.nextLink":"https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilitySchedules/filterByCurrentUser(on='principal')?$skiptoken=page2",
+             "value":[{"id":"elig-1","roleDefinitionId":"r1","directoryScopeId":"/","roleDefinition":{"id":"r1","displayName":"Alpha"}}]}
+            """;
+        http.On("GET", "roleEligibilitySchedules/filterByCurrentUser", page1);
+        http.On("GET", "skiptoken=page2", body: Fixtures.Data("entra-eligible"));
+
+        var roles = await provider.EligibleRolesAsync(TestIdentity, Tenant);
+
+        roles.Select(r => r.DisplayName).Should().Equal("Alpha", "Global Reader", "User Administrator");
+        http.Requests.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task ActiveAssignments_FollowsNextLinkOnBothLists()
+    {
+        var (provider, http, _) = MakeProvider();
+        var instances1 = """
+            {"@odata.nextLink":"https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleInstances/filterByCurrentUser(on='principal')?$skiptoken=i2",
+             "value":[{"id":"inst-0","roleDefinitionId":"r0","directoryScopeId":"/","assignmentType":"Activated","startDateTime":"2026-09-04T12:00:00Z"}]}
+            """;
+        http.On("GET", "roleAssignmentScheduleInstances/filterByCurrentUser", instances1);
+        http.On("GET", "skiptoken=i2", body: Fixtures.Data("entra-active"));
+        var requests1 = """
+            {"@odata.nextLink":"https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests/filterByCurrentUser(on='principal')?$skiptoken=q2",
+             "value":[{"id":"req-0","status":"PendingApproval","roleDefinitionId":"rq","directoryScopeId":"/"}]}
+            """;
+        http.On("GET", "roleAssignmentScheduleRequests/filterByCurrentUser", requests1);
+        http.On("GET", "skiptoken=q2", body: Fixtures.Data("entra-pending-requests"));
+
+        var active = await provider.ActiveAssignmentsAsync(TestIdentity, Tenant);
+
+        active.Should().Contain(a => a.AssignmentId == "inst-0" && a.Status == AssignmentStatus.Active);
+        active.Should().Contain(a => a.AssignmentId == "req-0" && a.Status == AssignmentStatus.PendingApproval);
+        http.Requests.Should().HaveCount(4);
+    }
+
+    [Fact]
     public async Task EligibleRoles_ListsRolesWithBearerTokenForTenant()
     {
         var (provider, http, _) = MakeProvider();
@@ -61,7 +102,7 @@ public class EntraDirectoryProviderTests
         var globalReader = active.Single(a => a.RoleKey.Scope == new EntraDirectoryScope("f2ef992c-3afb-46b9-b7cf-a126ee74c451", "/"));
         globalReader.Status.Should().Be(AssignmentStatus.Active);
         globalReader.AssignmentId.Should().Be("inst-1");
-        globalReader.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T16:00:00Z"));
+        globalReader.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T16:00:00Z"));
 
         var userAdmin = active.Single(a => a.RoleKey.Scope == new EntraDirectoryScope("fe930be7-5e62-47db-91af-98c3a49a38b1", "/"));
         userAdmin.Status.Should().Be(AssignmentStatus.PendingApproval);
@@ -140,8 +181,8 @@ public class EntraDirectoryProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("req-1");
-        assignment.StartDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T09:00:00Z"));
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T11:00:00Z"));
+        assignment.StartDateTime.Should().Be(Fixtures.Date("2026-09-04T09:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T11:00:00Z"));
 
         var body = BodyOf(http.RequestsMatching("roleAssignmentScheduleRequests")[0]);
         body["action"]!.GetValue<string>().Should().Be("selfActivate");
@@ -161,17 +202,17 @@ public class EntraDirectoryProviderTests
         var (provider, http, _) = MakeProvider();
         http.On("GET", "/me?", body: Fixtures.Data("me"));
         http.On("POST", "roleAssignmentScheduleRequests", 201, body: Fixtures.Data("entra-activate-response"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(GlobalReader.Key, TimeSpan.FromSeconds(7200), "later", StartDateTime: start), TestIdentity);
 
         var schedule = BodyOf(http.RequestsMatching("roleAssignmentScheduleRequests")[0])["scheduleInfo"]!;
-        GraphJson.ParseDate(schedule["startDateTime"]!.GetValue<string>()).Should().Be(start);
+        Fixtures.Date(schedule["startDateTime"]!.GetValue<string>()).Should().Be(start);
         // The response echoes a start in the past; the request's future start wins.
         assignment.Status.Should().Be(AssignmentStatus.Scheduled);
         assignment.StartDateTime.Should().Be(start);
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
     }
 
     [Fact]
@@ -187,8 +228,8 @@ public class EntraDirectoryProviderTests
         var globalReader = active.Single(a => a.RoleKey.Scope == new EntraDirectoryScope("f2ef992c-3afb-46b9-b7cf-a126ee74c451", "/"));
         globalReader.Status.Should().Be(AssignmentStatus.Scheduled);
         globalReader.AssignmentId.Should().Be("req-7");
-        globalReader.StartDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T09:00:00Z"));
-        globalReader.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        globalReader.StartDateTime.Should().Be(Fixtures.Date("2099-01-01T09:00:00Z"));
+        globalReader.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
 
         var url = Uri.UnescapeDataString(http.RequestsMatching("roleAssignmentScheduleRequests")[0].Url.AbsoluteUri);
         url.Should().Contain("status eq 'ScheduleCreated'").And.Contain("status eq 'Provisioned'");
@@ -225,7 +266,7 @@ public class EntraDirectoryProviderTests
         var (provider, http, _) = MakeProvider();
         http.On("GET", "/me?", body: Fixtures.Data("me"));
         http.On("POST", "roleAssignmentScheduleRequests", 201, body: ActivateResponseWithStatus("PendingApproval"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(GlobalReader.Key, TimeSpan.FromSeconds(3600), "later", StartDateTime: start), TestIdentity);
@@ -239,7 +280,7 @@ public class EntraDirectoryProviderTests
         var (provider, http, _) = MakeProvider();
         http.On("GET", "/me?", body: Fixtures.Data("me"));
         http.On("POST", "roleAssignmentScheduleRequests", 201, body: ActivateResponseWithStatus("Denied"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(GlobalReader.Key, TimeSpan.FromSeconds(3600), "later", StartDateTime: start), TestIdentity);

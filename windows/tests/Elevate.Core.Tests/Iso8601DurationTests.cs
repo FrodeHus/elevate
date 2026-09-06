@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Elevate.Core.Support;
+using Elevate.Core.Tests.Support;
 using FluentAssertions;
 
 namespace Elevate.Core.Tests;
@@ -36,11 +37,11 @@ public class Iso8601DurationTests
     [Fact]
     public void ParseDateIsTolerantOfFractionalDigitsAndOffsets()
     {
-        GraphJson.ParseDate("2026-09-04T08:00:00Z").Should().NotBeNull();
-        GraphJson.ParseDate("2026-09-04T08:00:00.1Z").Should().NotBeNull();
-        GraphJson.ParseDate("2026-09-04T08:00:00.1234567Z").Should().NotBeNull();
-        GraphJson.ParseDate("2026-09-04T08:00:00.1234567+02:00").Should().NotBeNull();
-        GraphJson.ParseDate("not a date").Should().BeNull();
+        Fixtures.Date("2026-09-04T08:00:00Z").Should().NotBeNull();
+        Fixtures.Date("2026-09-04T08:00:00.1Z").Should().NotBeNull();
+        Fixtures.Date("2026-09-04T08:00:00.1234567Z").Should().NotBeNull();
+        Fixtures.Date("2026-09-04T08:00:00.1234567+02:00").Should().NotBeNull();
+        Fixtures.Date("not a date").Should().BeNull();
     }
 
     private sealed record Box(DateTimeOffset D);

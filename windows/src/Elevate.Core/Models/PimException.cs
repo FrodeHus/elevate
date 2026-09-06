@@ -60,7 +60,7 @@ public sealed class PimException : Exception
                 ? (text.Length == 0 ? "Unexpected error" : text)
                 : (text.Length == 0
                     ? $"Unexpected response ({status})"
-                    : $"Unexpected response ({status}): {text[..Math.Min(300, text.Length)]}"),
+                    : $"Unexpected response ({status}): {Support.Text.Prefix(text, 300)}"),
         };
     }
 }

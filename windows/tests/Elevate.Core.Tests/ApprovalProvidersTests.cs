@@ -57,7 +57,7 @@ public class EntraApprovalProviderTests
         items.Select(i => i.RequesterName).Take(2).Should().Equal("Ann Approver", "user-obj-2");
         items[0].RequestedDuration.Should().Be(TimeSpan.FromHours(4));
         items[0].Justification.Should().Be("Incident 4711");
-        items[0].CreatedAt.Should().Be(GraphJson.ParseDate("2026-09-05T08:00:00Z"));
+        items[0].CreatedAt.Should().Be(Fixtures.Date("2026-09-05T08:00:00Z"));
         items[0].DecisionRef.Should().Be("areq-1");
         items.Should().OnlyContain(i => i.Kind == RoleScopeKind.EntraDirectory && i.TenantKey == ApprovalTestSupport.Tenant.Key);
 

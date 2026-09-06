@@ -109,7 +109,7 @@ public class GroupProviderTests
         var ops = active.Single(a => a.RoleKey.Scope == new GroupScope("grp-ops", GroupAccess.Member));
         ops.Status.Should().Be(AssignmentStatus.Active);
         ops.AssignmentId.Should().Be("ginst-1");
-        ops.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T16:00:00Z"));
+        ops.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T16:00:00Z"));
 
         var sec = active.Single(a => a.RoleKey.Scope == new GroupScope("grp-sec", GroupAccess.Owner));
         sec.Status.Should().Be(AssignmentStatus.PendingApproval);
@@ -133,8 +133,8 @@ public class GroupProviderTests
         var ops = active.Single(a => a.RoleKey.Scope == new GroupScope("grp-ops", GroupAccess.Member));
         ops.Status.Should().Be(AssignmentStatus.Scheduled);
         ops.AssignmentId.Should().Be("greq-1");
-        ops.StartDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T09:00:00Z"));
-        ops.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        ops.StartDateTime.Should().Be(Fixtures.Date("2099-01-01T09:00:00Z"));
+        ops.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
 
         var url = Uri.UnescapeDataString(http.RequestsMatching("assignmentScheduleRequests")[0].Url.AbsoluteUri);
         url.Should().Contain("status eq 'ScheduleCreated'").And.Contain("status eq 'Provisioned'");
@@ -204,7 +204,7 @@ public class GroupProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("greq-new");
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2026-09-04T14:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T14:00:00Z"));
         assignment.RoleKey.Should().Be(OpsMember.Key);
 
         var post = http.RequestsMatching("assignmentScheduleRequests").First(r => r.Method == "POST");
@@ -242,17 +242,17 @@ public class GroupProviderTests
         // Same response as a normal activation, but with no echoed end: the service works it out from the duration.
         http.On("POST", "assignmentScheduleRequests", 201, body: ActivateResponse(json =>
             json["scheduleInfo"]!["expiration"] = new JsonObject { ["type"] = "afterDuration", ["duration"] = "PT2H" }));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(OpsMember.Key, TimeSpan.FromSeconds(7200), "later", StartDateTime: start), TestIdentity);
 
         var schedule = PostBody(http)["scheduleInfo"]!;
-        GraphJson.ParseDate(schedule["startDateTime"]!.GetValue<string>()).Should().Be(start);
+        Fixtures.Date(schedule["startDateTime"]!.GetValue<string>()).Should().Be(start);
         // The response echoes a start in the past; the request's future start wins.
         assignment.Status.Should().Be(AssignmentStatus.Scheduled);
         assignment.StartDateTime.Should().Be(start);
-        assignment.EndDateTime.Should().Be(GraphJson.ParseDate("2099-01-01T11:00:00Z"));
+        assignment.EndDateTime.Should().Be(Fixtures.Date("2099-01-01T11:00:00Z"));
     }
 
     [Fact]
@@ -261,7 +261,7 @@ public class GroupProviderTests
         var (provider, http) = MakeCallerProvider();
         http.On("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.Data("group-eligible-page2"));
         http.On("POST", "assignmentScheduleRequests", 201, body: ActivateResponse(json => json["status"] = "PendingApproval"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(OpsMember.Key, TimeSpan.FromSeconds(3600), "later", StartDateTime: start), TestIdentity);
@@ -275,7 +275,7 @@ public class GroupProviderTests
         var (provider, http) = MakeCallerProvider();
         http.On("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.Data("group-eligible-page2"));
         http.On("POST", "assignmentScheduleRequests", 201, body: ActivateResponse(json => json["status"] = "Denied"));
-        var start = GraphJson.ParseDate("2099-01-01T09:00:00Z")!.Value;
+        var start = Fixtures.Date("2099-01-01T09:00:00Z")!.Value;
 
         var assignment = await provider.ActivateAsync(
             new ActivationRequest(OpsMember.Key, TimeSpan.FromSeconds(3600), "later", StartDateTime: start), TestIdentity);

@@ -1,5 +1,6 @@
 using Elevate.Core.Models;
 using Elevate.Core.Support;
+using Elevate.Core.Tests.Support;
 using FluentAssertions;
 
 namespace Elevate.Core.Tests;
@@ -40,7 +41,7 @@ public class ApprovalDiffTests
     {
         var r = new ApprovalRequest("r1", Tenant, RoleScopeKind.Group, ApprovalAction.Extend, "Ops Admins", "Bo",
             scopeCaption: "member", justification: "need it", requestedDuration: TimeSpan.FromHours(1),
-            createdAt: GraphJson.ParseDate("2026-09-04T09:00:00Z"), decisionRef: "appr-1");
+            createdAt: Fixtures.Date("2026-09-04T09:00:00Z"), decisionRef: "appr-1");
 
         var json = Json.Serialize(r);
         Json.Deserialize<ApprovalRequest>(json).Should().Be(r);
