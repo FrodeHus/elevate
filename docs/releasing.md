@@ -134,8 +134,10 @@ Creating them:
    `build-export/export/Elevate.app/Contents/embedded.provisionprofile`; base64 that
    file into `MACOS_PROVISIONING_PROFILE`. Alternatively create a "Developer ID
    Application" profile for the App ID in the developer portal and download it. The
-   workflow installs it and builds with `PROVISIONING_PROFILE_SPECIFIER` set to its
-   name, so renaming the profile in the portal does not matter.
+   workflow builds unsigned, copies the profile to `Contents/embedded.provisionprofile`
+   and signs with `codesign` (frameworks first, then the app with its entitlements), the
+   same result as an Xcode Developer ID export; Xcode itself refuses Xcode-managed
+   profiles under manual signing.
 
 ### What changes when they are present
 
