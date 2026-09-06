@@ -4,6 +4,7 @@ using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Models;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -18,6 +19,7 @@ namespace Elevate.App.Views;
 public sealed partial class PanelView : UserControl
 {
     private readonly ObservableCollection<PanelGroup> _groups = [];
+    private readonly ObservableCollection<ProfileChip> _chips = [];
     private readonly DispatcherQueueTimer _clock;
     private AppModel? _model;
     private FlyoutWindow? _window;
@@ -28,6 +30,7 @@ public sealed partial class PanelView : UserControl
     {
         InitializeComponent();
         GroupedSource.Source = _groups;
+        ProfileChips.ItemsSource = _chips;
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
@@ -91,6 +94,16 @@ public sealed partial class PanelView : UserControl
             NoticeBar.IsOpen = false;
         }
 
+        if (model.UpdateAvailable is { } update)
+        {
+            UpdateBar.Message = $"Elevate {update.Version} is available";
+            UpdateBar.IsOpen = true;
+        }
+        else
+        {
+            UpdateBar.IsOpen = false;
+        }
+
         EntraCount.Count = model.ActiveCount(PanelTab.Roles);
         AzureCount.Count = model.ActiveCount(PanelTab.Azure);
         GroupsCount.Count = model.ActiveCount(PanelTab.Groups);
@@ -107,6 +120,8 @@ public sealed partial class PanelView : UserControl
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
+        DrawProfiles(model, hidden: setup || noAccounts);
+
         BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
         {
@@ -118,6 +133,9 @@ public sealed partial class PanelView : UserControl
                 : $"{count} {noun}{(count == 1 ? "" : "s")} selected · {tenants} tenant{(tenants == 1 ? "" : "s")}";
             BulkActivate.Content = count == 0 ? "Activate" : $"Activate {count} {noun}{(count == 1 ? "" : "s")}";
             BulkActivate.IsEnabled = count > 0 && model.IsOnline;
+            var editing = model.EditingProfileId is { } id ? model.Profile(id) : null;
+            BulkProfile.Content = editing is null ? "Save as profile…" : $"Update \"{editing.Name}\"";
+            BulkProfile.IsEnabled = count > 0;
             var (entra, azure, groups) = model.SelectionBreakdown;
             var parts = new List<string>();
             if (entra > 0)
@@ -137,6 +155,48 @@ public sealed partial class PanelView : UserControl
 
             BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch pivots to add more" : string.Empty;
             BulkHint.Visibility = parts.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void DrawProfiles(AppModel model, bool hidden)
+    {
+        var profiles = model.Profiles;
+        ProfilesRow.Visibility = hidden || profiles.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        // Reconcile by id so the repeater keeps its elements and the chips do not flash.
+        for (var i = _chips.Count - 1; i >= 0; i--)
+        {
+            if (!profiles.Any(p => p.Id == _chips[i].Id))
+            {
+                _chips.RemoveAt(i);
+            }
+        }
+
+        for (var i = 0; i < profiles.Count; i++)
+        {
+            var profile = profiles[i];
+            var at = -1;
+            for (var j = i; j < _chips.Count; j++)
+            {
+                if (_chips[j].Id == profile.Id)
+                {
+                    at = j;
+                    break;
+                }
+            }
+
+            if (at < 0)
+            {
+                _chips.Insert(i, new ProfileChip(profile.Id) { Name = profile.Name, Caption = ProfileSummary.Caption(profile.Entries) });
+                continue;
+            }
+
+            if (at != i)
+            {
+                _chips.Move(at, i);
+            }
+
+            _chips[i].Name = profile.Name;
+            _chips[i].Caption = ProfileSummary.Caption(profile.Entries);
         }
     }
 
@@ -266,16 +326,96 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    private void OnUpdateClosed(InfoBar sender, InfoBarClosedEventArgs args) => _model?.DismissUpdate();
+
+    private void OnUpdateOpen(object sender, RoutedEventArgs e)
+    {
+        if (_model?.UpdateAvailable is { } update)
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(update.Url);
+        }
+    }
+
+    /// <summary>Whether Ctrl is held: the quick-activate modifier, read at click time like the macOS Option check.</summary>
+    private static bool IsControlDown() =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+    // MARK: Profiles
+
+    private void OnManageProfiles(object sender, RoutedEventArgs e) => App.Current.OpenManageProfiles();
+
+    private async void OnProfileChipClick(object sender, RoutedEventArgs e)
+    {
+        if (_model is null || (sender as FrameworkElement)?.DataContext is not ProfileChip chip)
+        {
+            return;
+        }
+
+        var id = chip.Id;
+        if (IsControlDown() && await _model.QuickRunAsync(id))
+        {
+            return;
+        }
+
+        _model.RequestRun(id);
+        App.Current.OpenRunProfile(id);
+    }
+
+    private void OnBulkProfile(object sender, RoutedEventArgs e)
+    {
+        if (_model is null || _model.Selection.Count == 0)
+        {
+            return;
+        }
+
+        if (_model.EditingProfileId is { } editing)
+        {
+            _model.UpdateProfile(editing, _model.Selection);
+            _model.SelectMode = false;
+            return;
+        }
+
+        App.Current.OpenSaveProfile([.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
+    }
+
+    // MARK: Approvals
+
+    private static ApprovalRow? ApprovalOf(object sender) => (sender as FrameworkElement)?.DataContext as ApprovalRow;
+
+    private void OnApproveClick(object sender, RoutedEventArgs e)
+    {
+        if (ApprovalOf(sender) is { } row)
+        {
+            App.Current.OpenDecision(row.RequestId, approve: true);
+        }
+    }
+
+    private void OnDenyClick(object sender, RoutedEventArgs e)
+    {
+        if (ApprovalOf(sender) is { } row)
+        {
+            App.Current.OpenDecision(row.RequestId, approve: false);
+        }
+    }
+
     // MARK: Row actions
 
     private static RoleRow? Row(object sender) => (sender as FrameworkElement)?.DataContext as RoleRow;
 
-    private void OnActivateClick(object sender, RoutedEventArgs e)
+    private async void OnActivateClick(object sender, RoutedEventArgs e)
     {
-        if (Row(sender) is { } row)
+        if (Row(sender) is not { } row)
         {
-            App.Current.OpenActivation([row.RoleKey]);
+            return;
         }
+
+        // Ctrl-click activates with the last reason and duration when the policy allows it.
+        if (IsControlDown() && _model is not null && await _model.QuickActivateAsync(row.RoleKey))
+        {
+            return;
+        }
+
+        App.Current.OpenActivation([row.RoleKey]);
     }
 
     private void OnExtendClick(object sender, RoutedEventArgs e) => OnActivateClick(sender, e);
@@ -327,6 +467,9 @@ public sealed partial class PanelView : UserControl
 
         switch (group.Kind)
         {
+            case GroupKind.Approvals:
+                _model.ToggleApprovals();
+                break;
             case GroupKind.ActiveNow:
                 _model.ToggleActive();
                 break;

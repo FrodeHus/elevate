@@ -20,6 +20,7 @@ public partial class App : Application
     private FlyoutWindow? _flyout;
     private ExpiryNotifier? _notifier;
     private PanelStatus _drawnStatus = new(-1, false, false);
+    private int _drawnApprovals;
 
     public App()
     {
@@ -71,7 +72,9 @@ public partial class App : Application
             Log("Notification registration failed: " + e.Message);
         }
 
-        Model = Live(_notifier);
+        // The tray window exists before the model: the global shortcut registers on it.
+        _tray = new TrayIcon("Elevate");
+        Model = Live(_notifier, new HotKeyCenter(_tray));
         Model.Changed += (_, _) =>
         {
             UpdateTray();
@@ -80,15 +83,21 @@ public partial class App : Application
                 Model.PendingExtend = null;
                 OpenActivation([key]);
             }
+
+            if (Model.PendingProfileRun is { } profileId)
+            {
+                Model.PendingProfileRun = null;
+                OpenRunProfile(profileId);
+            }
         };
 
-        _tray = new TrayIcon("Elevate");
         _tray.LeftClick += anchor => _flyout?.Toggle(anchor);
         _tray.MenuCommand += OnTrayMenu;
         _tray.OpenRequested += () => _flyout?.Show(_tray?.IconRect);
         _tray.Invalidated += () =>
         {
             _drawnStatus = new PanelStatus(-1, false, false);
+            _drawnApprovals = 0;
             UpdateTray();
         };
         UpdateTray();
@@ -116,7 +125,7 @@ public partial class App : Application
                 _notifier?.HandleLaunch(toast);
             }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
-            // `--show <settings|add-account|configure|activation|bulk|add-tenant|discover>` opens one window.
+            // `--show <settings|add-account|configure|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window.
             var args = Environment.GetCommandLineArgs();
             if (args.Contains("--flyout", StringComparer.OrdinalIgnoreCase))
             {
@@ -164,7 +173,7 @@ public partial class App : Application
     /// Production wiring. The client id lives in AppSettings; when it is missing or unusable the
     /// flyout shows the setup state instead of a startup error.
     /// </summary>
-    private AppModel Live(IExpiryNotifier notifier)
+    private AppModel Live(IExpiryNotifier notifier, IHotKeyCenter hotKeys)
     {
         var settings = new AppSettings();
         var http = new HttpClientAdapter();
@@ -191,7 +200,7 @@ public partial class App : Application
 
         var tokens = new CompositeTokenProvider(ownApp, firstParty);
         var model = new AppModel(tokens, http, new AppStateStore(), notifier, new NetworkMonitor(), settings,
-            firstParty, ownApp, MakeOwnApp);
+            firstParty, ownApp, MakeOwnApp, hotKeys);
         if (initError is not null)
         {
             model.Notice = $"Could not initialise sign-in with the saved client ID: {initError}. Check it in Settings.";
@@ -229,6 +238,19 @@ public partial class App : Application
             case "discover" when identity is not null:
                 OpenDiscoverTenants(identity.Id);
                 break;
+            case "save-profile" when tenant is not null:
+                OpenSaveProfile([.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
+                break;
+            case "manage-profiles":
+                OpenManageProfiles();
+                break;
+            case "run-profile" when model.Profiles.Count > 0:
+                model.RequestRun(model.Profiles[0].Id);
+                OpenRunProfile(model.Profiles[0].Id);
+                break;
+            case "decision" when model.ApprovalsOrdered.Count > 0:
+                OpenDecision(model.ApprovalsOrdered[0].Id, approve: true);
+                break;
             default:
                 Log("Nothing to show for --show " + name);
                 break;
@@ -243,13 +265,15 @@ public partial class App : Application
         }
 
         var status = PanelStatus.Compute(Model.Active.Values, Model.Clock);
-        if (status == _drawnStatus)
+        var approvals = Model.PendingApprovalCount;
+        if (status == _drawnStatus && approvals == _drawnApprovals)
         {
             return;
         }
 
         _drawnStatus = status;
-        _tray.SetIcon(TrayIconRenderer.Render(status));
+        _drawnApprovals = approvals;
+        _tray.SetIcon(TrayIconRenderer.Render(status, approvals));
     }
 
     private void OnTrayMenu(TrayMenuItem item)
@@ -318,6 +342,24 @@ public partial class App : Application
     public void OpenAddTenant(string identityId) => Open("add-tenant:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Add));
 
     public void OpenDiscoverTenants(string identityId) => Open("discover:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Discover));
+
+    public void OpenSaveProfile(IReadOnlyList<RoleKey> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        if (keys.Count == 0)
+        {
+            return;
+        }
+
+        Open("save-profile", () => new SaveProfileWindow(Model!, keys));
+    }
+
+    public void OpenManageProfiles() => Open("manage-profiles", () => new ManageProfilesWindow(Model!));
+
+    public void OpenRunProfile(Guid profileId) => Open("run-profile:" + profileId, () => new RunProfileWindow(Model!, profileId));
+
+    public void OpenDecision(string requestId, bool approve) =>
+        Open($"decision:{requestId}:{approve}", () => new DecisionWindow(Model!, requestId, approve));
 
     public void Quit()
     {

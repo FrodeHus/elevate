@@ -1,4 +1,3 @@
-using System.Reflection;
 using Elevate.App.Services;
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
@@ -12,29 +11,142 @@ namespace Elevate.App.Views;
 /// <summary>The client id with the redirect URIs the registration needs, run at sign-in, and the version. Port of the macOS <c>SettingsView</c>.</summary>
 public sealed partial class SettingsWindow : Window
 {
+    private sealed record ProfileOption(Guid? Id, string Name)
+    {
+        public override string ToString() => Name;
+    }
+
     private readonly AppModel _model;
     private bool _syncingToggle;
+    private bool _syncingHotKey;
 
     public SettingsWindow(AppModel model)
     {
         InitializeComponent();
         _model = model;
-        DialogWindows.Configure(this, "Settings", 500, 620, Root, autoHeight: true);
+        DialogWindows.Configure(this, "Settings", 520, 760, Root, autoHeight: true);
         DialogWindows.DefaultButton(Root, SaveButton);
         ClientId.Text = model.Settings.ClientId;
         LoopbackUri.Text = AppSettings.LoopbackRedirectUri;
         Version.Text = VersionText();
         SyncStartup();
+        SyncHotKey();
         UpdateUris();
         UpdateSave();
+        UpdateOperations();
+        _model.Changed += OnModelChanged;
+        Closed += (_, _) => _model.Changed -= OnModelChanged;
     }
 
-    private static string VersionText()
+    private static string VersionText() =>
+        $"Elevate {BuildInfo.Version} ({BuildInfo.Build}) · {BuildInfo.SigningDescription} · Windows App SDK 1.8";
+
+    private void OnModelChanged(object? sender, EventArgs e)
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        var version = informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
-        return $"Elevate {version} · Windows App SDK 1.8";
+        UpdateOperations();
+        // The profile list changes under the picker when profiles are added or deleted elsewhere.
+        var ids = HotKeyProfile.Items.OfType<ProfileOption>().Select(o => o.Id).ToList();
+        if (!ids.SequenceEqual(new Guid?[] { null }.Concat(_model.Profiles.Select(p => (Guid?)p.Id))))
+        {
+            SyncHotKey();
+        }
+    }
+
+    // MARK: Global shortcut
+
+    private void SyncHotKey()
+    {
+        _syncingHotKey = true;
+        try
+        {
+            Recorder.Binding = _model.Settings.HotKey;
+            ClearHotKey.Visibility = _model.Settings.HotKey is null ? Visibility.Collapsed : Visibility.Visible;
+            HotKeyProfile.Items.Clear();
+            HotKeyProfile.Items.Add(new ProfileOption(null, "None"));
+            foreach (var profile in _model.Profiles)
+            {
+                HotKeyProfile.Items.Add(new ProfileOption(profile.Id, profile.Name));
+            }
+
+            var wanted = _model.Settings.HotKeyProfileId;
+            HotKeyProfile.SelectedItem = HotKeyProfile.Items.OfType<ProfileOption>().FirstOrDefault(o => o.Id == wanted) ?? HotKeyProfile.Items[0];
+        }
+        finally
+        {
+            _syncingHotKey = false;
+        }
+    }
+
+    private void OnHotKeyChanged(object? sender, EventArgs e)
+    {
+        if (_syncingHotKey)
+        {
+            return;
+        }
+
+        _model.Settings.HotKey = Recorder.Binding;
+        ClearHotKey.Visibility = Recorder.Binding is null ? Visibility.Collapsed : Visibility.Visible;
+        _model.ApplyHotKey();
+    }
+
+    private void OnClearHotKey(object sender, RoutedEventArgs e)
+    {
+        Recorder.Binding = null;
+        OnHotKeyChanged(sender, EventArgs.Empty);
+    }
+
+    private void OnHotKeyProfileChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingHotKey)
+        {
+            return;
+        }
+
+        _model.Settings.HotKeyProfileId = (HotKeyProfile.SelectedItem as ProfileOption)?.Id;
+        _model.ApplyHotKey();
+    }
+
+    // MARK: Updates and diagnostics
+
+    private void UpdateOperations()
+    {
+        HotKeyError.Text = _model.HotKeyError ?? string.Empty;
+        HotKeyError.Visibility = _model.HotKeyError is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateMessage.Text = _model.UpdateCheckMessage ?? string.Empty;
+        UpdateMessage.Visibility = _model.UpdateCheckMessage is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void OnCheckUpdates(object sender, RoutedEventArgs e)
+    {
+        CheckUpdates.IsEnabled = false;
+        Checking.IsActive = true;
+        Checking.Visibility = Visibility.Visible;
+        try
+        {
+            await _model.CheckForUpdatesAsync(force: true);
+        }
+        finally
+        {
+            Checking.IsActive = false;
+            Checking.Visibility = Visibility.Collapsed;
+            CheckUpdates.IsEnabled = true;
+            UpdateOperations();
+        }
+    }
+
+    private void OnCopyDiagnostics(object sender, RoutedEventArgs e)
+    {
+        var package = new DataPackage();
+        package.SetText(_model.DiagnosticsText());
+        Clipboard.SetContent(package);
+        CopyDiagnostics.Content = "Copied";
+        _ = ResetDiagnosticsLabelAsync();
+    }
+
+    private async Task ResetDiagnosticsLabelAsync()
+    {
+        await Task.Delay(2000);
+        CopyDiagnostics.Content = "Copy diagnostics";
     }
 
     private void SyncStartup()

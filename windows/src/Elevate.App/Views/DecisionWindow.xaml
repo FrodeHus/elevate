@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Elevate.App.Views.DecisionWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" x:Name="Heading" FontSize="18" FontWeight="SemiBold" />
+        <StackPanel Grid.Row="1" x:Name="Details" Spacing="4" />
+        <StackPanel Grid.Row="2" x:Name="Inputs" Spacing="6">
+            <TextBlock Text="Justification" FontSize="13" />
+            <TextBox x:Name="Justification" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxHeight="120" TextChanged="OnInputChanged" />
+        </StackPanel>
+        <InfoBar Grid.Row="3" x:Name="Error" IsOpen="False" IsClosable="False" Severity="Error" />
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <ProgressRing x:Name="Running" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" MinWidth="90" />
+            <Button x:Name="SubmitButton" Style="{StaticResource AccentButtonStyle}" Click="OnSubmit" MinWidth="110" />
+        </StackPanel>
+    </Grid>
+</Window>

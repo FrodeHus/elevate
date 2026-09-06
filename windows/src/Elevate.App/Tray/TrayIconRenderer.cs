@@ -15,8 +15,11 @@ namespace Elevate.App.Tray;
 /// </summary>
 internal static class TrayIconRenderer
 {
-    /// <summary>A new icon for <paramref name="status"/>; the caller owns (and must destroy) the handle.</summary>
-    public static HICON Render(PanelStatus status)
+    /// <summary>
+    /// A new icon for <paramref name="status"/>, with an orange dot at the bottom right while
+    /// <paramref name="pendingApprovals"/> requests await this user's decision; the caller owns (and must destroy) the handle.
+    /// </summary>
+    public static HICON Render(PanelStatus status, int pendingApprovals = 0)
     {
         var size = Math.Max(16, (int)Math.Round(16 * PInvoke.GetDpiForSystem() / 96.0));
         using var bitmap = new Bitmap(size, size);
@@ -54,6 +57,13 @@ internal static class TrayIconRenderer
             using var pen = new Pen(ink, 1f * scale);
             var d = 4f * scale;
             g.DrawEllipse(pen, size - d - 0.5f * scale, 0.5f * scale, d, d);
+        }
+
+        if (pendingApprovals > 0)
+        {
+            using var approvals = new SolidBrush(Color.FromArgb(0xF7, 0x63, 0x0C));
+            var d = 5f * scale;
+            g.FillEllipse(approvals, size - d, size - d, d, d);
         }
 
         return new HICON(bitmap.GetHicon());

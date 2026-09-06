@@ -55,7 +55,7 @@
                                   ToolTipService.ToolTip="Request in progress" />
                     <Button Content="Extend" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind ExtendVisibility, Mode=OneWay}"
                             IsEnabled="{x:Bind ExtendEnabled, Mode=OneWay}" Click="OnExtendClick"
-                            ToolTipService.ToolTip="Extend by activating again" />
+                            ToolTipService.ToolTip="Extend by activating again; Ctrl-click to extend with the last reason" />
                     <Button Content="Deactivate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind DeactivateVisibility, Mode=OneWay}"
                             IsEnabled="{x:Bind DeactivateEnabled, Mode=OneWay}" Click="OnDeactivateClick"
                             ToolTipService.ToolTip="{x:Bind DeactivateTooltip, Mode=OneWay}" />
@@ -67,7 +67,7 @@
                             ToolTipService.ToolTip="Withdraw this request" />
                     <Button Content="Activate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind ActivateVisibility, Mode=OneWay}"
                             IsEnabled="{x:Bind ActivateEnabled, Mode=OneWay}" Click="OnActivateClick"
-                            ToolTipService.ToolTip="Activate this role" />
+                            ToolTipService.ToolTip="Activate this role. Ctrl-click to activate with the last reason and duration" />
                 </StackPanel>
             </Grid>
         </DataTemplate>
@@ -77,9 +77,52 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </DataTemplate>
 
-        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" />
+        <!-- One request awaiting this user's decision, in the pinned "Approvals" group. -->
+        <DataTemplate x:Key="ApprovalRowTemplate" x:DataType="views:ApprovalRow">
+            <StackPanel Padding="14,6,14,6" Spacing="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1"
+                        ToolTipService.ToolTip="{x:Bind Justification, Mode=OneWay}">
+                <Grid MinHeight="32" ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0" Glyph="&#xE823;" FontSize="14" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{x:Bind RequesterName, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind Target, Mode=OneWay}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <ProgressRing Width="16" Height="16" IsActive="True" Visibility="{x:Bind InFlightVisibility, Mode=OneWay}" />
+                        <Button Content="Approve" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind DecideVisibility, Mode=OneWay}"
+                                IsEnabled="{x:Bind Online, Mode=OneWay}" Click="OnApproveClick" />
+                        <Button Content="Deny" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind DecideVisibility, Mode=OneWay}"
+                                IsEnabled="{x:Bind Online, Mode=OneWay}" Click="OnDenyClick" />
+                        <TextBlock Text="Decide in the portal" Visibility="{x:Bind PortalVisibility, Mode=OneWay}" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="{x:Bind Error, Mode=OneWay}" Visibility="{x:Bind ErrorVisibility, Mode=OneWay}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" IsTextSelectionEnabled="True" Margin="24,0,0,0" />
+            </StackPanel>
+        </DataTemplate>
 
-        <!-- Group headers: the pinned "Active now" summary, an account row, or a tenant header. -->
+        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" Approval="{StaticResource ApprovalRowTemplate}" />
+
+        <!-- One saved profile in the profiles row. -->
+        <DataTemplate x:Key="ProfileChipTemplate" x:DataType="views:ProfileChip">
+            <Button Style="{StaticResource SmallButtonStyle}" Height="28" MinHeight="28" Padding="9,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                    CornerRadius="14" Click="OnProfileChipClick" ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <FontIcon Glyph="&#xE945;" FontSize="10" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </DataTemplate>
+
+        <!-- Group headers: the pinned "Approvals" and "Active now" groups, an account row, or a tenant header. -->
         <DataTemplate x:Key="GroupHeaderTemplate" x:DataType="views:PanelGroup">
             <Grid Padding="10,6,6,6" ColumnSpacing="8" Background="{x:Bind HeaderBrush, Mode=OneWay}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,1" MinHeight="40">
@@ -114,8 +157,12 @@
                     <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Visibility="{x:Bind CaptionVisibility, Mode=OneWay}" FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
-                <TextBlock Grid.Column="3" Text="{x:Bind ActiveText, Mode=OneWay}" Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"
-                           FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ActiveText, Mode=OneWay}" Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Bind PendingText, Mode=OneWay}" Visibility="{x:Bind PendingVisibility, Mode=OneWay}"
+                               FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
+                </StackPanel>
                 <Button Grid.Column="4" Style="{StaticResource SubtleButtonStyle}" Width="28" Height="28" Click="OnGroupMenu"
                         Visibility="{x:Bind MenuVisibility, Mode=OneWay}" AutomationProperties.Name="Actions">
                     <FontIcon Glyph="&#xE712;" FontSize="14" />
@@ -131,6 +178,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -179,21 +227,41 @@
             </SelectorBarItem>
         </SelectorBar>
 
+        <!-- Profiles: one chip per saved profile; hidden when there are none -->
+        <StackPanel Grid.Row="2" x:Name="ProfilesRow" Visibility="Collapsed" Padding="12,6,12,8" Spacing="6"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Grid>
+                <TextBlock Text="PROFILES" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                <HyperlinkButton Content="Manage…" Click="OnManageProfiles" FontSize="12" Padding="4,0" HorizontalAlignment="Right" />
+            </Grid>
+            <ItemsRepeater x:Name="ProfileChips" ItemTemplate="{StaticResource ProfileChipTemplate}">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout MinItemWidth="172" MinRowSpacing="6" MinColumnSpacing="6" ItemsStretch="Fill" />
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </StackPanel>
+
         <!-- Search -->
-        <Grid Grid.Row="2" x:Name="SearchRow" Visibility="Collapsed" Padding="12,4,12,6"
+        <Grid Grid.Row="3" x:Name="SearchRow" Visibility="Collapsed" Padding="12,4,12,6"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <TextBox x:Name="SearchBox" PlaceholderText="Filter roles" TextChanged="OnSearchChanged" KeyDown="OnSearchKeyDown" />
         </Grid>
 
         <!-- Notices -->
-        <StackPanel Grid.Row="3" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+        <StackPanel Grid.Row="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <InfoBar x:Name="OfflineBar" IsOpen="False" IsClosable="False" Severity="Warning" Margin="12,8,12,0"
                      Title="You're offline." Message="Countdowns keep running; refresh and activation resume when the network is back." />
             <InfoBar x:Name="NoticeBar" IsOpen="False" Severity="Warning" Margin="12,8,12,0" Closed="OnNoticeClosed" />
+            <InfoBar x:Name="UpdateBar" IsOpen="False" Severity="Informational" Margin="12,8,12,0" Closed="OnUpdateClosed">
+                <InfoBar.ActionButton>
+                    <Button Content="Open" Click="OnUpdateOpen" />
+                </InfoBar.ActionButton>
+            </InfoBar>
         </StackPanel>
 
         <!-- Body -->
-        <Grid Grid.Row="4">
+        <Grid Grid.Row="5">
             <!-- First run: no client id and no account yet -->
             <StackPanel x:Name="SetupView" Visibility="Collapsed" Padding="22,18,22,24" Spacing="10" HorizontalAlignment="Stretch">
                 <views:ChevronGlyph Width="40" Height="40" HorizontalAlignment="Center" />
@@ -214,7 +282,7 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
-            <ListView x:Name="List" Visibility="Collapsed" MaxHeight="460" SelectionMode="None" IsItemClickEnabled="False"
+            <ListView x:Name="List" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False"
                       ItemsSource="{x:Bind GroupedSource.View, Mode=OneWay}" ItemTemplateSelector="{StaticResource ItemSelector}">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
@@ -240,22 +308,24 @@
         </Grid>
 
         <!-- Select mode: sticky bulk bar -->
-        <Grid Grid.Row="5" x:Name="BulkBar" Visibility="Collapsed" Padding="14,10" ColumnSpacing="10"
+        <Grid Grid.Row="6" x:Name="BulkBar" Visibility="Collapsed" Padding="14,10" ColumnSpacing="8"
               Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                 <TextBlock x:Name="BulkCaption" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                 <TextBlock x:Name="BulkHint" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
             </StackPanel>
-            <Button Grid.Column="1" x:Name="BulkActivate" Style="{StaticResource AccentButtonStyle}" Content="Activate" Click="OnBulkActivate" />
+            <Button Grid.Column="1" x:Name="BulkProfile" Content="Save as profile…" Click="OnBulkProfile" />
+            <Button Grid.Column="2" x:Name="BulkActivate" Style="{StaticResource AccentButtonStyle}" Content="Activate" Click="OnBulkActivate" />
         </Grid>
 
         <!-- Footer -->
-        <Grid Grid.Row="6" Padding="8,4" Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
+        <Grid Grid.Row="7" Padding="8,4" Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
