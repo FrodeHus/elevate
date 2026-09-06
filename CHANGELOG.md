@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: the primary action in a role row is the one prominent button ("Activate", or "Request"
+  when the policy needs an approver); Deactivate stays a quiet button. The activation window's
+  confirm button says "Request" when every role in it waits for approval.
+- Windows: eligible rows show what the PIM policy will ask for ("approval", "MFA", "Conditional
+  Access") under the role name, with a tooltip that names the authentication context; the
+  activation window lists the same notices, and the bulk table and the profile run window show the
+  combined caption in their status column.
+
 ## [1.2.4] - 2026-09-06
 
 ### Fixed

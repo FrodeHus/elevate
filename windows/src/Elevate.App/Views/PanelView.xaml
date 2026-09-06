@@ -34,6 +34,9 @@
                                ToolTipService.ToolTip="This eligibility is granted through a group; activating it activates the role for you" />
                     <TextBlock Text="manual" Visibility="{x:Bind ManualVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind PolicyNotes, Mode=OneWay}" Visibility="{x:Bind PolicyVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="{x:Bind PolicyTooltip, Mode=OneWay}" AutomationProperties.Name="Policy" />
                     <TextBlock Text="{x:Bind FailedText, Mode=OneWay}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextTrimming="CharacterEllipsis"
                                ToolTipService.ToolTip="{x:Bind FailedText, Mode=OneWay}" />
@@ -65,9 +68,10 @@
                     <Button Content="Cancel" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind CancelPendingVisibility, Mode=OneWay}"
                             IsEnabled="{x:Bind CancelEnabled, Mode=OneWay}" Click="OnCancelPendingClick"
                             ToolTipService.ToolTip="Withdraw this request" />
-                    <Button Content="Activate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind ActivateVisibility, Mode=OneWay}"
+                    <!-- The one prominent control in a row: Activate, or Request when an approver must accept it. Deactivate stays quiet. -->
+                    <Button Content="{x:Bind ActivateText, Mode=OneWay}" Style="{StaticResource SmallAccentButtonStyle}" Visibility="{x:Bind ActivateVisibility, Mode=OneWay}"
                             IsEnabled="{x:Bind ActivateEnabled, Mode=OneWay}" Click="OnActivateClick"
-                            ToolTipService.ToolTip="Activate this role. Ctrl-click to activate with the last reason and duration" />
+                            ToolTipService.ToolTip="{x:Bind ActivateTooltip, Mode=OneWay}" />
                 </StackPanel>
             </Grid>
         </DataTemplate>

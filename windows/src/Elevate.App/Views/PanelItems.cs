@@ -83,6 +83,9 @@ public sealed class RoleRow : PanelItem
     private bool _selectEnabled;
     private string? _viewOnlyReason;
     private bool _online = true;
+    private string? _policyNotes;
+    private string? _policyTooltip;
+    private bool _requiresApproval;
 
     public string Name { get => _name; set => SetProperty(ref _name, value); }
 
@@ -133,8 +136,24 @@ public sealed class RoleRow : PanelItem
 
     public bool Online { get => _online; set => SetProperty(ref _online, value); }
 
+    /// <summary>"approval · MFA · Conditional Access": what the policy will ask for, shown while nothing is active.</summary>
+    public string? PolicyNotes { get => _policyNotes; set => SetProperty(ref _policyNotes, value); }
+
+    public string? PolicyTooltip { get => _policyTooltip; set => SetProperty(ref _policyTooltip, value); }
+
+    /// <summary>The primary action is a request, not an activation, when an approver must accept it.</summary>
+    public bool RequiresApproval { get => _requiresApproval; set => SetProperty(ref _requiresApproval, value); }
+
     // Derived, for x:Bind (recomputed through the notifications of the properties above).
     public Visibility DetailVisibility => string.IsNullOrEmpty(Detail) ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility PolicyVisibility => string.IsNullOrEmpty(PolicyNotes) ? Visibility.Collapsed : Visibility.Visible;
+
+    public string ActivateText => RequiresApproval ? "Request" : "Activate";
+
+    public string ActivateTooltip => RequiresApproval
+        ? "Request activation; an approver must accept it first. Ctrl-click to request with the last reason and duration"
+        : "Activate this role. Ctrl-click to activate with the last reason and duration";
 
     public Visibility ViaVisibility => string.IsNullOrEmpty(Via) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -200,6 +219,9 @@ public sealed class RoleRow : PanelItem
         SelectEnabled = other.SelectEnabled;
         ViewOnlyReason = other.ViewOnlyReason;
         Online = other.Online;
+        PolicyNotes = other.PolicyNotes;
+        PolicyTooltip = other.PolicyTooltip;
+        RequiresApproval = other.RequiresApproval;
         OnPropertyChanged(string.Empty);
     }
 
@@ -630,21 +652,15 @@ public static class PanelListBuilder
             Via = role.ViaGroup is { } via ? (via == "group" ? "via group" : $"via {via}") : null,
             IsManual = role.Source == RoleSource.Manual,
         };
-        var detail = new List<string>();
-        if (role.Detail is { } d)
-        {
-            detail.Add(d);
-        }
-
-        if (role.Policy.RequiresApproval)
-        {
-            detail.Add("Approval required");
-        }
-
-        row.Detail = detail.Count > 0 ? string.Join(" · ", detail) : null;
+        row.Detail = role.Detail;
         row.DetailTooltip = role.Key.Scope is AzureResourceScope azure ? azure.Scope : role.Detail;
+        var assignment = model.Assignment(role.Key);
+        // The policy notes matter before pressing anything; once something is active or pending the row's status says it.
+        row.PolicyNotes = assignment is null ? PolicyNotes.Caption(role.Policy) : null;
+        row.PolicyTooltip = assignment is null ? PolicyNotes.Explanation(role.Policy) : null;
+        row.RequiresApproval = role.Policy.RequiresApproval;
         var viewOnly = role.Key.Scope.Kind == RoleScopeKind.EntraDirectory ? model.EntraViewOnlyReason(role.Key.TenantKey) : null;
-        Fill(model, row, model.Assignment(role.Key), role.Policy, viewOnly, now, allowActivate: true);
+        Fill(model, row, assignment, role.Policy, viewOnly, now, allowActivate: true);
         return row;
     }
 
