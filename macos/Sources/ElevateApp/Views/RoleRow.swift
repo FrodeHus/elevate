@@ -30,6 +30,11 @@ struct RoleRow: View {
                         .help("This eligibility is granted through a group; activating it activates the role for you")
                 }
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
+                if assignment == nil, let notes = PolicyNotes.caption(for: role.policy) {
+                    Text(notes).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .help(PolicyNotes.explanation(for: role.policy) ?? "")
+                        .accessibilityLabel("Policy: \(notes)")
+                }
             }
             Spacer()
             AssignmentControls(key: role.key, assignment: assignment, viewOnlyReason: viewOnlyReason, policy: role.policy)

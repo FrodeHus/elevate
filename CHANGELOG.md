@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS: the primary action in a role row is the one prominent button ("Activate", or "Request"
+  when the policy needs an approver); Deactivate stays a quiet button. The activation sheet's
+  confirm button says "Request" when every role in it waits for approval.
+- macOS: eligible rows show what the PIM policy will ask for ("approval", "MFA", "Conditional
+  Access") under the role name, with a tooltip that names the authentication context; the
+  activation sheet lists the same notices.
+
 ## [1.2.2] - 2026-09-06
 
 ### Changed

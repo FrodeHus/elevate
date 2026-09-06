@@ -70,13 +70,17 @@ struct AssignmentControls: View {
             if let viewOnlyReason {
                 Text("cannot activate").font(.caption).foregroundStyle(.secondary).help(viewOnlyReason)
             } else if allowActivate && !model.selectMode {
-                Button("Activate") {
+                // The primary action is the one prominent control in a row; Deactivate stays quiet.
+                Button(PolicyNotes.actionTitle(for: policy)) {
                     if NSEvent.modifierFlags.contains(.option) {
                         Task { if await !model.quickActivate(key) { open(.activate([key])) } }
                     } else { open(.activate([key])) }
                 }
+                .buttonStyle(.borderedProminent)
                 .controlSize(.small).disabled(!model.isOnline)
-                .help("Activate this role. Option-click to activate with the last reason and duration")
+                .help(policy.requiresApproval
+                      ? "Request activation; an approver must accept it first. Option-click to request with the last reason and duration"
+                      : "Activate this role. Option-click to activate with the last reason and duration")
             }
         }
     }

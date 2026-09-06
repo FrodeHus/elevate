@@ -193,12 +193,12 @@ table.map th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:
       <div class="ghead"><span class="chev">⌄</span>Active now <span class="cnt">1</span><span class="sp"></span></div>
       <div class="r"><i class="dot on"></i><div class="name"><b>Application Administrator</b><span>Contoso · alex.rivera@contoso.com</span></div><span class="cd mono">07:51</span><button class="btn sm dis">Deactivate</button></div>
       <div class="acct"><div class="av">AR</div><div class="who"><b>alex.rivera@contoso.com</b><span>Contoso · home · Own app</span></div><span class="act">1 active</span><div class="ib" style="width:26px;height:26px">···</div></div>
-      <div class="r"><i class="dot on"></i><div class="name"><b>Application Administrator</b></div><span class="cd mono">07:51</span><button class="btn sm dis">Deactivate</button></div>
-      <div class="r"><i class="dot"></i><div class="name"><b>Billing Administrator</b></div><button class="btn sm">Activate</button></div>
-      <div class="r"><i class="dot"></i><div class="name"><b>Global Administrator</b><span>Approval required</span></div><button class="btn sm">Activate</button></div>
-      <div class="r"><i class="dot"></i><div class="name"><b>Global Reader</b></div><button class="btn sm">Activate</button></div>
-      <div class="r"><i class="dot"></i><div class="name"><b>Intune Administrator</b></div><button class="btn sm">Activate</button></div>
-      <div class="r"><i class="dot"></i><div class="name"><b>Security Administrator</b></div><button class="btn sm">Activate</button></div>
+      <div class="r"><i class="dot on"></i><div class="name"><b>Application Administrator</b></div><span class="cd mono soon">04:51</span><button class="btn sm">Extend</button><button class="btn sm">Deactivate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Billing Administrator</b></div><button class="btn primary sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Global Administrator</b><span>approval · Conditional Access</span></div><button class="btn primary sm">Request</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Global Reader</b></div><button class="btn primary sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Intune Administrator</b><span>MFA</span></div><button class="btn primary sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Security Administrator</b></div><button class="btn primary sm">Activate</button></div>
       <div class="foot"><span>Add account…</span><span>Settings…</span><span>Quit</span></div>
     </div>
     <div class="taskbar">
@@ -218,7 +218,7 @@ table.map th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:
     <ol>
       <li><b>Pivots carry counts.</b> The Windows tab strip is a <code>SelectorBar</code> with an accent underline; the count pill is filled when non-zero, outlined when zero. Same numbers as the macOS tabs.</li>
       <li><b>Group headers pin.</b> Active now and each tenant are <code>ListView</code> groups, so the header stays put while the list scrolls. The account row is the group header and carries the sign-in caption, exactly like the folded single-tenant layout on macOS.</li>
-      <li><b>Controls are Fluent sizes.</b> Rows are 44 px, buttons 30 px with 4 px corners, subtle on dark, standard on light. Deactivate is disabled for the first five minutes with a tooltip.</li>
+      <li><b>One prominent action per row.</b> Activate (or Request, when the policy needs an approver) is the accent-filled button; Deactivate stays a quiet standard button and is disabled for the first five minutes with a tooltip. Extend appears beside the countdown during the last 15 minutes.</li><li><b>Policy notes under the name.</b> "approval", "MFA" and "Conditional Access" come straight from the PIM policy (approval setting, MFA enablement rule, authentication-context rule), with a tooltip explaining each; users know before pressing anything whether a step-up or an approver is coming.</li>
       <li><b>Countdown is tabular.</b> Segoe UI Variable has tabular figures; the countdown never jitters. Under ten minutes it turns to the warning colour and bold.</li>
       <li><b>The tray icon</b> is the app icon's double chevron as a monochrome 16 px glyph with the active count beside it, matching the macOS menu bar item.</li>
     </ol>
@@ -283,7 +283,7 @@ table.map th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:
       <div class="table">
         <div class="tr"><span></span><span>Role</span><span>Duration</span><span>Status</span></div>
         <div class="tr"><i class="dot"></i><div class="n"><b>Billing Administrator</b><span>Entra directory role</span></div><div class="sel">1 hour <span>⌄</span></div><span class="tag neutral">Ready</span></div>
-        <div class="tr"><i class="dot"></i><div class="n"><b>Global Administrator</b><span>Requires approval · max 4 hours</span></div><div class="sel">4 hours <span>⌄</span></div><span class="tag warn">Approval</span></div>
+        <div class="tr"><i class="dot"></i><div class="n"><b>Global Administrator</b><span>Requires approval · max 4 hours</span></div><div class="sel">4 hours <span>⌄</span></div><span class="tag warn">Approval · CA</span></div>
       </div>
       <div class="field"><label>Reason</label><div class="in ta focus">Incident 4821: rotate billing contact and review sign-in logs</div></div>
       <div class="two">
