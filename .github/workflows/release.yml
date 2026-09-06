@@ -59,6 +59,7 @@ jobs:
         env:
           P12: ${{ secrets.MACOS_CERT_P12 }}
           P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.MACOS_PROVISIONING_PROFILE }}
         run: |
           echo "$P12" | base64 --decode > cert.p12
           security create-keychain -p ci build.keychain
@@ -69,6 +70,13 @@ jobs:
           security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
           rm -f cert.p12
+          test -n "$PROFILE" || { echo "MACOS_PROVISIONING_PROFILE secret missing (Developer ID apps with keychain sharing need a provisioning profile)"; exit 1; }
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$PROFILE" | base64 --decode > profile.provisionprofile
+          UUID=$(security cms -D -i profile.provisionprofile | plutil -extract UUID raw -)
+          NAME=$(security cms -D -i profile.provisionprofile | plutil -extract Name raw -)
+          mv profile.provisionprofile "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.provisionprofile"
+          echo "PROFILE_NAME=$NAME" >> "$GITHUB_ENV"
           echo "SIGNED=1" >> "$GITHUB_ENV"
 
       - name: Build (Developer ID)
@@ -76,17 +84,20 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          set -o pipefail
           test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID secret missing"; exit 1; }
           xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
             build | tail -5
+          codesign -dvv build/Build/Products/Release/Elevate.app 2>&1 | grep -E "Authority=Developer ID Application|TeamIdentifier"
 
       - name: Build (unsigned, ad-hoc signature)
         if: env.SIGNED != '1'
         run: |
+          set -o pipefail
           xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
             CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build | tail -5

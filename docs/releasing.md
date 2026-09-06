@@ -87,7 +87,7 @@ submit` on it.
 ## Optional signing secrets
 
 The workflow works with no secrets at all and produces an ad-hoc signed build.
-Adding all five repository secrets (Settings → Secrets and variables →
+Adding all six repository secrets (Settings → Secrets and variables →
 Actions) switches it to Developer ID signing and notarization. They require an
 Apple Developer Program membership.
 
@@ -98,6 +98,7 @@ Apple Developer Program membership.
 | `APPLE_ID` | The Apple ID email used for notarization |
 | `APPLE_TEAM_ID` | The 10-character Developer Team ID |
 | `APPLE_APP_PASSWORD` | An app-specific password for that Apple ID |
+| `MACOS_PROVISIONING_PROFILE` | Base64 of a "Developer ID Application" provisioning profile for `no.reothor.elevate` (a `.provisionprofile`; needed because the keychain-sharing entitlement is restricted and macOS refuses to launch a Developer ID app that carries it without a profile) |
 
 Creating them:
 
@@ -118,6 +119,23 @@ Creating them:
    App-Specific Passwords → generate one named e.g. "Elevate notarization".
    That value is `APPLE_APP_PASSWORD`; the Apple ID it belongs to is
    `APPLE_ID`.
+
+4. **Provisioning profile.** The easiest way is to let Xcode create it: with your
+   Apple ID signed in to Xcode, run
+
+   ```bash
+   cd macos && xcodegen generate
+   xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build-export -archivePath build-export/Elevate.xcarchive -allowProvisioningUpdates archive
+   xcodebuild -exportArchive -archivePath build-export/Elevate.xcarchive -exportPath build-export/export -allowProvisioningUpdates -exportOptionsPlist <(printf '<plist version="1.0"><dict><key>method</key><string>developer-id</string><key>teamID</key><string>VLJKN96D7N</string><key>signingStyle</key><string>automatic</string></dict></plist>')
+   ```
+
+   The exported app embeds the profile ("Mac Team Direct Provisioning Profile:
+   no.reothor.elevate", valid for 18 years) at
+   `build-export/export/Elevate.app/Contents/embedded.provisionprofile`; base64 that
+   file into `MACOS_PROVISIONING_PROFILE`. Alternatively create a "Developer ID
+   Application" profile for the App ID in the developer portal and download it. The
+   workflow installs it and builds with `PROVISIONING_PROFILE_SPECIFIER` set to its
+   name, so renaming the profile in the portal does not matter.
 
 ### What changes when they are present
 
