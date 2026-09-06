@@ -1,0 +1,136 @@
+{
+  "identities" : [
+    {
+      "id" : "id1",
+      "upn" : "u@contoso.com",
+      "displayName" : "Ulla",
+      "homeTenantId" : "t-home",
+      "signInMethod" : "azureCLI"
+    }
+  ],
+  "tenants" : [
+    {
+      "identityId" : "id1",
+      "tenantId" : "t-home",
+      "displayName" : "Contoso",
+      "source" : "home",
+      "discoveryMode" : "automatic",
+      "principalObjectId" : "obj-1",
+      "entraActivation" : {
+        "unsupported" : {
+          "reason" : "The Azure CLI app is not granted RoleAssignmentSchedule.ReadWrite.Directory"
+        }
+      }
+    },
+    {
+      "identityId" : "id1",
+      "tenantId" : "t-cust",
+      "displayName" : "Fabrikam",
+      "source" : "manual",
+      "discoveryMode" : "manualRoles",
+      "lastDiscoveryError" : "Admin consent required for this tenant",
+      "azureUnavailableReason" : "No subscriptions",
+      "groupsUnavailableReason" : "Missing admin consent",
+      "entraActivation" : {
+        "supported" : {}
+      }
+    }
+  ],
+  "manualRoles" : [
+    {
+      "tenantKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-cust"
+      },
+      "scope" : {
+        "azureResource" : {
+          "scope" : "/subscriptions/sub-1",
+          "roleDefinitionId" : "Contributor"
+        }
+      },
+      "displayName" : "Contributor"
+    },
+    {
+      "tenantKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-cust"
+      },
+      "scope" : {
+        "group" : {
+          "groupId" : "g-1",
+          "accessId" : "owner"
+        }
+      },
+      "displayName" : "Platform owners"
+    }
+  ],
+  "memory" : [
+    {
+      "roleKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-home",
+        "scope" : {
+          "entraDirectory" : {
+            "roleDefinitionId" : "62e90394-69f5-4237-9190-012177145e10",
+            "directoryScopeId" : "/"
+          }
+        }
+      },
+      "justification" : "INC-1234 · escalation",
+      "lastDuration" : [
+        97,
+        10665824850173493248
+      ]
+    },
+    {
+      "roleKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-cust",
+        "scope" : {
+          "azureResource" : {
+            "scope" : "/subscriptions/sub-1",
+            "roleDefinitionId" : "Contributor"
+          }
+        }
+      },
+      "justification" : "Deploy"
+    }
+  ],
+  "profiles" : [
+    {
+      "id" : "A1B2C3D4-E5F6-4A5B-8C7D-9E0FABCDEF12",
+      "name" : "Incident response",
+      "entries" : [
+        {
+          "roleKey" : {
+            "identityId" : "id1",
+            "tenantId" : "t-home",
+            "scope" : {
+              "entraDirectory" : {
+                "roleDefinitionId" : "62e90394-69f5-4237-9190-012177145e10",
+                "directoryScopeId" : "/"
+              }
+            }
+          },
+          "lastDuration" : [
+            195,
+            2884905626637434880
+          ]
+        },
+        {
+          "roleKey" : {
+            "identityId" : "id1",
+            "tenantId" : "t-cust",
+            "scope" : {
+              "group" : {
+                "groupId" : "g-1",
+                "accessId" : "member"
+              }
+            }
+          }
+        }
+      ],
+      "lastJustification" : "INC-1234"
+    }
+  ]
+}

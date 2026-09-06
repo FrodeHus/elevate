@@ -21,6 +21,7 @@ public static class Json
         };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         options.Converters.Add(new DurationJsonConverter());
+        options.Converters.Add(new GuidJsonConverter());
         options.Converters.Add(new Iso8601DateTimeOffsetConverter());
         options.Converters.Add(new SignInMethodJsonConverter());
         options.Converters.Add(new EntraActivationSupportJsonConverter());
