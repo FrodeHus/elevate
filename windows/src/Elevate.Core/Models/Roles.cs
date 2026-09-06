@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Elevate.Core;
 
 namespace Elevate.Core.Models;
 
@@ -32,7 +33,33 @@ public sealed record EligibleRole(
     // Name of the group that grants this eligibility; null for a direct eligibility.
     string? ViaGroup = null);
 
-public enum AssignmentStatus { Active, PendingApproval, PendingProvisioning, Scheduled, Failed }
+public enum AssignmentStatusKind { Active, PendingApproval, PendingProvisioning, Scheduled, Failed }
+
+/// <summary>
+/// Swift's <c>ActiveAssignment.Status</c>: four plain cases plus <c>failed(String)</c>.
+/// Encoded as Swift synthesises it — <c>{"active":{}}</c>, <c>{"failed":{"_0":"reason"}}</c>.
+/// </summary>
+[JsonConverter(typeof(AssignmentStatusJsonConverter))]
+public sealed record AssignmentStatus
+{
+    private AssignmentStatus(AssignmentStatusKind kind, string? failureReason)
+    {
+        Kind = kind;
+        FailureReason = failureReason;
+    }
+
+    public AssignmentStatusKind Kind { get; }
+
+    /// <summary>Server message carried by <see cref="AssignmentStatusKind.Failed"/>; null otherwise.</summary>
+    public string? FailureReason { get; }
+
+    public static readonly AssignmentStatus Active = new(AssignmentStatusKind.Active, null);
+    public static readonly AssignmentStatus PendingApproval = new(AssignmentStatusKind.PendingApproval, null);
+    public static readonly AssignmentStatus PendingProvisioning = new(AssignmentStatusKind.PendingProvisioning, null);
+    public static readonly AssignmentStatus Scheduled = new(AssignmentStatusKind.Scheduled, null);
+
+    public static AssignmentStatus Failed(string reason) => new(AssignmentStatusKind.Failed, reason);
+}
 
 /// <summary>A role assignment that currently exists (active, pending, scheduled, or failed).</summary>
 public sealed record ActiveAssignment(
@@ -40,9 +67,7 @@ public sealed record ActiveAssignment(
     string? AssignmentId,
     DateTimeOffset StartDateTime,
     DateTimeOffset? EndDateTime,
-    AssignmentStatus Status,
-    // Server message for AssignmentStatus.Failed; null otherwise.
-    string? FailureReason = null);
+    AssignmentStatus Status);
 
 public sealed record TicketInfo(string Number, string System);
 

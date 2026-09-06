@@ -24,6 +24,8 @@ public static class Json
         options.Converters.Add(new Iso8601DateTimeOffsetConverter());
         options.Converters.Add(new SignInMethodJsonConverter());
         options.Converters.Add(new EntraActivationSupportJsonConverter());
+        options.Converters.Add(new RoleScopeJsonConverter());
+        options.Converters.Add(new AssignmentStatusJsonConverter());
         options.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
         options.MakeReadOnly();
         return options;

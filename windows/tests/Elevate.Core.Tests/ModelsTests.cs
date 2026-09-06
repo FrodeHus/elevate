@@ -24,7 +24,26 @@ public class ModelsTests
     }
 
     [Fact]
-    public void RoleScope_RoundTripsThroughJsonWithKindDiscriminator()
+    public void RoleScope_UsesSwiftsSingleKeyCaseObjects()
+    {
+        const string entra = """{"entraDirectory":{"roleDefinitionId":"r","directoryScopeId":"/"}}""";
+        const string azure = """{"azureResource":{"scope":"/subscriptions/s","roleDefinitionId":"d"}}""";
+        const string group = """{"group":{"groupId":"g","accessId":"member"}}""";
+
+        Json.Serialize<RoleScope>(new EntraDirectoryScope("r", "/")).Should().Be(entra);
+        Json.Serialize<RoleScope>(new AzureResourceScope("/subscriptions/s", "d")).Should().Be(azure);
+        Json.Serialize<RoleScope>(new GroupScope("g", GroupAccess.Member)).Should().Be(group);
+
+        Json.Deserialize<RoleScope>(entra).Should().Be(new EntraDirectoryScope("r", "/"));
+        Json.Deserialize<RoleScope>(azure).Should().Be(new AzureResourceScope("/subscriptions/s", "d"));
+        Json.Deserialize<RoleScope>(group).Should().Be(new GroupScope("g", GroupAccess.Member));
+
+        Json.Serialize<RoleScope>(new GroupScope("g", GroupAccess.Owner))
+            .Should().Be("""{"group":{"groupId":"g","accessId":"owner"}}""");
+    }
+
+    [Fact]
+    public void RoleScope_RoundTripsThroughJson()
     {
         var scopes = new List<RoleScope>
         {
@@ -34,10 +53,7 @@ public class ModelsTests
         };
 
         var json = Json.Serialize(scopes);
-        json.Should().Contain("\"kind\":\"entraDirectory\"")
-            .And.Contain("\"kind\":\"azureResource\"")
-            .And.Contain("\"kind\":\"group\"")
-            .And.Contain("\"accessId\":\"owner\"");
+        json.Should().NotContain("\"kind\"");
 
         var back = Json.Deserialize<List<RoleScope>>(json);
 
@@ -130,20 +146,43 @@ public class ModelsTests
     }
 
     [Fact]
+    public void AssignmentStatus_UsesSwiftsSingleKeyCaseObjects()
+    {
+        Json.Serialize(AssignmentStatus.Failed("x")).Should().Be("""{"failed":{"_0":"x"}}""");
+        Json.Serialize(AssignmentStatus.Active).Should().Be("""{"active":{}}""");
+        Json.Serialize(AssignmentStatus.PendingApproval).Should().Be("""{"pendingApproval":{}}""");
+        Json.Serialize(AssignmentStatus.PendingProvisioning).Should().Be("""{"pendingProvisioning":{}}""");
+        Json.Serialize(AssignmentStatus.Scheduled).Should().Be("""{"scheduled":{}}""");
+
+        Json.Deserialize<AssignmentStatus>("""{"failed":{"_0":"x"}}""").Should().Be(AssignmentStatus.Failed("x"));
+        Json.Deserialize<AssignmentStatus>("""{"active":{}}""").Should().Be(AssignmentStatus.Active);
+        Json.Deserialize<AssignmentStatus>("""{"pendingApproval":{}}""").Should().Be(AssignmentStatus.PendingApproval);
+        Json.Deserialize<AssignmentStatus>("""{"pendingProvisioning":{}}""").Should().Be(AssignmentStatus.PendingProvisioning);
+        Json.Deserialize<AssignmentStatus>("""{"scheduled":{}}""").Should().Be(AssignmentStatus.Scheduled);
+
+        var bad = () => Json.Deserialize<AssignmentStatus>("""{"failed":"x"}""");
+        bad.Should().Throw<JsonException>();
+    }
+
+    [Fact]
     public void ActiveAssignment_StatusRoundTrips()
     {
         var a = new ActiveAssignment(
-            EntraKey(), "x", DateTimeOffset.FromUnixTimeSeconds(0), null, AssignmentStatus.Failed, "boom");
+            EntraKey(), "x", DateTimeOffset.FromUnixTimeSeconds(0), null, AssignmentStatus.Failed("boom"));
 
         var json = Json.Serialize(a);
 
-        json.Should().Contain("\"status\":\"failed\"")
+        json.Should().Contain("""
+            "status":{"failed":{"_0":"boom"}}
+            """.Trim())
             .And.Contain("\"startDateTime\":\"1970-01-01T00:00:00Z\"")
             .And.NotContain("endDateTime");
         Json.Deserialize<ActiveAssignment>(json).Should().Be(a);
 
-        var active = a with { Status = AssignmentStatus.PendingProvisioning, FailureReason = null, EndDateTime = DateTimeOffset.FromUnixTimeSeconds(3600) };
-        Json.Serialize(active).Should().Contain("\"status\":\"pendingProvisioning\"");
+        var active = a with { Status = AssignmentStatus.PendingProvisioning, EndDateTime = DateTimeOffset.FromUnixTimeSeconds(3600) };
+        Json.Serialize(active).Should().Contain("""
+            "status":{"pendingProvisioning":{}}
+            """.Trim());
         Json.Deserialize<ActiveAssignment>(Json.Serialize(active)).Should().Be(active);
     }
 

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Elevate.Core;
 
 namespace Elevate.Core.Models;
 
@@ -6,11 +7,12 @@ public enum RoleScopeKind { EntraDirectory, AzureResource, Group }
 
 public enum GroupAccess { Member, Owner }
 
-/// <summary>What a role assignment applies to. Serialised with a "kind" discriminator.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
-[JsonDerivedType(typeof(EntraDirectoryScope), "entraDirectory")]
-[JsonDerivedType(typeof(AzureResourceScope), "azureResource")]
-[JsonDerivedType(typeof(GroupScope), "group")]
+/// <summary>
+/// What a role assignment applies to. Serialised exactly like Swift's synthesised enum coding:
+/// a single-key object keyed by the case name, e.g.
+/// <c>{"entraDirectory":{"roleDefinitionId":"…","directoryScopeId":"…"}}</c>.
+/// </summary>
+[JsonConverter(typeof(RoleScopeJsonConverter))]
 public abstract record RoleScope
 {
     [JsonIgnore]
