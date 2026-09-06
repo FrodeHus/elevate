@@ -142,6 +142,9 @@ jobs:
           cp -R build/Build/Products/Release/Elevate.app dist/dmg/
           ln -s /Applications dist/dmg/Applications
           hdiutil create -volname "Elevate" -srcfolder dist/dmg -ov -format UDZO "dist/Elevate-$VERSION.dmg"
+          if [ "$SIGNED" = "1" ]; then
+            codesign --force --timestamp -s "Developer ID Application" "dist/Elevate-$VERSION.dmg"
+          fi
           shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
 
       - name: Notarize DMG
