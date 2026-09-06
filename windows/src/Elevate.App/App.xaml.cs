@@ -63,14 +63,66 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Production wiring. The client id lives in AppSettings; when it is missing the flyout shows the setup state.</summary>
-    private static AppModel Live()
+    /// <summary>
+    /// The window a sign-in dialog should be parented to: the window that asked for it when one is
+    /// open, else the flyout, else the tray's hidden window (a top-level window is all WAM needs).
+    /// </summary>
+    public IntPtr InteractionAnchor { get; set; }
+
+    private IntPtr AnchorHandle()
+    {
+        if (InteractionAnchor != IntPtr.Zero)
+        {
+            return InteractionAnchor;
+        }
+
+        if (_flyout is { IsOpen: true })
+        {
+            return _flyout.Handle;
+        }
+
+        return _tray?.Handle ?? IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Production wiring. The client id lives in AppSettings; when it is missing or unusable the
+    /// flyout shows the setup state instead of a startup error.
+    /// </summary>
+    private AppModel Live()
     {
         var settings = new AppSettings();
         var http = new HttpClientAdapter();
-        var firstParty = new NoFirstPartyProviders();
-        var tokens = new CompositeTokenProvider(null, firstParty);
-        return new AppModel(tokens, http, new AppStateStore(), new NoopNotifier(), new NetworkMonitor(), settings, firstParty);
+        var cache = new TokenCache(settings.Directory);
+        // One gate across every provider, so no two interactive sign-ins can run at the same time.
+        var gate = new InteractiveGate();
+        Func<IntPtr> anchor = AnchorHandle;
+        var firstParty = new FirstPartyProviderRegistry(cache, gate, anchor);
+        IOwnAppTokenProvider MakeOwnApp(string clientId) => new MsalTokenProvider(clientId, cache, gate, anchor);
+
+        IOwnAppTokenProvider? ownApp = null;
+        string? initError = null;
+        if (settings.IsConfigured)
+        {
+            try
+            {
+                ownApp = MakeOwnApp(settings.ClientId);
+            }
+            catch (Exception e) when (e is PimException or InvalidOperationException)
+            {
+                initError = e is PimException pim ? pim.UserMessage : e.Message;
+            }
+        }
+
+        var tokens = new CompositeTokenProvider(ownApp, firstParty);
+        var model = new AppModel(tokens, http, new AppStateStore(), new NoopNotifier(), new NetworkMonitor(), settings,
+            firstParty, ownApp, MakeOwnApp);
+        if (initError is not null)
+        {
+            model.Notice = $"Could not initialise sign-in with the saved client ID: {initError}. Check it in Settings.";
+            model.LogError($"Sign-in setup: {initError}");
+        }
+
+        return model;
     }
 
     private void UpdateTray()
@@ -127,13 +179,5 @@ public partial class App : Application
         _tray = null;
         Model?.Dispose();
         Exit();
-    }
-
-    /// <summary>Stands in until the MSAL providers land: no first-party sign-in is possible yet.</summary>
-    private sealed class NoFirstPartyProviders : IFirstPartyProviders
-    {
-        public ITokenProvider? Provider(SignInMethod method) => null;
-
-        public IReadOnlyCollection<ITokenProvider> Known { get; } = [];
     }
 }

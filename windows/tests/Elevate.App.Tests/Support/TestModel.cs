@@ -54,7 +54,7 @@ public sealed class TestModel : IDisposable
         AppState? state = null,
         StubHttpClient? http = null,
         bool online = false,
-        FakeTokenProvider? tokens = null,
+        ITokenProvider? tokens = null,
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null)
@@ -74,6 +74,7 @@ public sealed class TestModel : IDisposable
 
         Http = http ?? new StubHttpClient();
         Tokens = tokens ?? new FakeTokenProvider();
+        // Every method routes to the same fake: the composite's routing has tests of its own.
         FirstParty = new FakeFirstPartyProviders(Tokens);
         Model = new AppModel(Tokens, Http, Store, new NoopNotifier(), new FixedNetworkMonitor(online), Settings, FirstParty,
             ownApp, ownAppFactory);
@@ -87,7 +88,7 @@ public sealed class TestModel : IDisposable
 
     public StubHttpClient Http { get; }
 
-    public FakeTokenProvider Tokens { get; }
+    public ITokenProvider Tokens { get; }
 
     public FakeFirstPartyProviders FirstParty { get; }
 
@@ -97,7 +98,7 @@ public sealed class TestModel : IDisposable
         AppState? state = null,
         StubHttpClient? http = null,
         bool online = false,
-        FakeTokenProvider? tokens = null,
+        ITokenProvider? tokens = null,
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null)
