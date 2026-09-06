@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-06
+
+### Added
+
+- A menu bar icon drawn from the app icon's double chevron, rendered as a template image so it
+  follows the menu bar's light, dark and tinted appearance. An exclamation badge appears next to
+  the count when an activation is about to expire.
+- Community files: CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, issue and pull request templates,
+  Dependabot for GitHub Actions, and this changelog.
+
+### Changed
+
+- README: badges, requirements, upgrade instructions, security and contributing sections; the
+  design document list moved to `docs/README.md`.
+
 ## [1.0.1] - 2026-09-06
 
 ### Added
@@ -23,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the cask referred to by its fully qualified name (`frodehus/elevate/elevate`), because this
   repository is not a `homebrew-` named tap. `--no-quarantine` is gone; unsigned builds use
   `xattr -d com.apple.quarantine` instead.
-- The cask's macOS dependency now uses the symbolic form (`depends_on macos: ">= :tahoe"`).
+- The cask's macOS dependency now uses the symbolic form (`depends_on macos: :tahoe`).
 
 ## [1.0.0] - 2026-09-06
 
@@ -53,6 +68,7 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/FrodeHus/elevate/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/FrodeHus/elevate/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/FrodeHus/elevate/releases/tag/v1.0.0
