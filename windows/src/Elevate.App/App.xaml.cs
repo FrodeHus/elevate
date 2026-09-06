@@ -4,6 +4,7 @@ using Elevate.App.Services;
 using Elevate.App.Shell;
 using Elevate.App.Tray;
 using Elevate.App.ViewModels;
+using Elevate.App.Views;
 using Elevate.Core.Auth;
 using Elevate.Core.Models;
 using Elevate.Core.Networking;
@@ -72,10 +73,18 @@ public partial class App : Application
         try
         {
             await Model!.BootstrapAsync();
-            // Developer switch: `Elevate.exe --flyout` opens the flyout at once, for screenshots and smoke tests.
-            if (Environment.GetCommandLineArgs().Contains("--flyout", StringComparer.OrdinalIgnoreCase))
+            // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
+            // `--show <settings|add-account|configure|activation|bulk|add-tenant|discover>` opens one window.
+            var args = Environment.GetCommandLineArgs();
+            if (args.Contains("--flyout", StringComparer.OrdinalIgnoreCase))
             {
                 _flyout?.Show(_tray?.IconRect);
+            }
+
+            var show = Array.IndexOf(args, "--show");
+            if (show >= 0 && show + 1 < args.Length)
+            {
+                ShowForDevelopment(args[show + 1]);
             }
         }
         catch (Exception e)
@@ -150,6 +159,40 @@ public partial class App : Application
         return model;
     }
 
+    private void ShowForDevelopment(string name)
+    {
+        var model = Model!;
+        var identity = model.Identities.FirstOrDefault();
+        var tenant = model.State.Tenants.FirstOrDefault();
+        switch (name.ToLowerInvariant())
+        {
+            case "settings":
+                OpenSettings();
+                break;
+            case "add-account":
+                OpenAddAccount();
+                break;
+            case "configure" when tenant is not null:
+                OpenConfigureRoles(tenant.Key);
+                break;
+            case "activation" when tenant is not null:
+                OpenActivation([.. model.RolesFor(tenant.Key).Take(1).Select(r => r.Key)]);
+                break;
+            case "bulk" when tenant is not null:
+                OpenActivation([.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
+                break;
+            case "add-tenant" when identity is not null:
+                OpenAddTenant(identity.Id);
+                break;
+            case "discover" when identity is not null:
+                OpenDiscoverTenants(identity.Id);
+                break;
+            default:
+                Log("Nothing to show for --show " + name);
+                break;
+        }
+    }
+
     private void UpdateTray()
     {
         if (Model is null || _tray is null)
@@ -185,19 +228,54 @@ public partial class App : Application
         }
     }
 
-    // The windows themselves arrive with the windows task; until then these only close the flyout.
+    // MARK: Windows
 
-    public void OpenSettings() => _flyout?.Hide();
+    /// <summary>The open secondary windows, one per kind (and per activation key set), so a repeat request fronts the existing one.</summary>
+    private readonly Dictionary<string, Window> _windows = new(StringComparer.Ordinal);
 
-    public void OpenAddAccount(SignInMethod? preselected = null) => _flyout?.Hide();
+    private void Open(string key, Func<Window> create)
+    {
+        _flyout?.Hide();
+        if (_windows.TryGetValue(key, out var existing))
+        {
+            DialogWindows.Front(existing);
+            return;
+        }
 
-    public void OpenActivation(IReadOnlyList<RoleKey> keys) => _flyout?.Hide();
+        var window = create();
+        _windows[key] = window;
+        window.Closed += (_, _) => _windows.Remove(key);
+        window.Activate();
+        DialogWindows.Front(window);
+    }
 
-    public void OpenConfigureRoles(TenantKey tenantKey) => _flyout?.Hide();
+    public void OpenSettings() => Open("settings", () => new SettingsWindow(Model!));
 
-    public void OpenAddTenant(string identityId) => _flyout?.Hide();
+    public void OpenAddAccount(SignInMethod? preselected = null) => Open("add-account", () => new AddAccountWindow(Model!, preselected));
 
-    public void OpenDiscoverTenants(string identityId) => _flyout?.Hide();
+    public void OpenActivation(IReadOnlyList<RoleKey> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        if (keys.Count == 0)
+        {
+            return;
+        }
+
+        // One activation window at a time: a new request replaces the old one.
+        var wanted = "activate:" + string.Join("|", keys);
+        foreach (var (key, window) in _windows.Where(p => p.Key.StartsWith("activate:", StringComparison.Ordinal) && p.Key != wanted).ToList())
+        {
+            window.Close();
+        }
+
+        Open(wanted, () => new ActivationWindow(Model!, keys));
+    }
+
+    public void OpenConfigureRoles(TenantKey tenantKey) => Open("configure:" + tenantKey, () => new ConfigureRolesWindow(Model!, tenantKey));
+
+    public void OpenAddTenant(string identityId) => Open("add-tenant:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Add));
+
+    public void OpenDiscoverTenants(string identityId) => Open("discover:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Discover));
 
     public void Quit()
     {

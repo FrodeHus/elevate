@@ -601,6 +601,6 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         }
     }
 
-    internal static string Describe(Exception error) =>
+    public static string Describe(Exception error) =>
         error is PimException pim ? pim.UserMessage : error.Message;
 }
