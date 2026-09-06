@@ -21,6 +21,13 @@
                 <Setter Property="Padding" Value="10,0" />
                 <Setter Property="FontSize" Value="12" />
             </Style>
+            <!-- The same 26 px row button in the accent fill: the one primary action of a role row. -->
+            <Style x:Key="SmallAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                <Setter Property="MinHeight" Value="26" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="FontSize" Value="12" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

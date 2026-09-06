@@ -28,8 +28,21 @@
                 <TextBlock Text="Duration" VerticalAlignment="Center" FontSize="13" />
                 <views:DurationPicker x:Name="SingleDuration" />
             </StackPanel>
-            <TextBlock x:Name="SingleApproval" Text="This role requires approval; it will not be active until an approver decides." FontSize="12"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" TextWrapping="Wrap" />
+            <!-- What the policy will ask for, one line each; shared wording with the flyout's policy notes. -->
+            <StackPanel Spacing="4">
+                <StackPanel x:Name="ApprovalNotice" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE823;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Requires approval before it becomes active" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel x:Name="MfaNotice" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE72E;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="Requires MFA; you may be asked to sign in again" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel x:Name="ConditionalAccessNotice" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xEA18;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="ConditionalAccessText" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
         </StackPanel>
 
         <Border Grid.Row="2" x:Name="BulkPane" Visibility="Collapsed" CornerRadius="4"

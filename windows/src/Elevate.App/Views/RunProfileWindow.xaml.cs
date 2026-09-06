@@ -229,13 +229,10 @@ public sealed partial class RunProfileWindow : Window
                         row.Ring.IsActive = true;
                     }
                 }
-                else if (row.Item.Role?.Policy.RequiresApproval == true)
+                else if (row.Item.Role?.Policy is { } policy && PolicyNotes.Caption(policy) is { } notes)
                 {
-                    status.Text = "approval";
-                }
-                else if (row.Item.Role?.Policy.RequiresMfa == true)
-                {
-                    status.Text = "MFA";
+                    status.Text = notes;
+                    ToolTipService.SetToolTip(status, PolicyNotes.Explanation(policy));
                 }
                 else
                 {

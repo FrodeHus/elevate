@@ -2,6 +2,7 @@ using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
+using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -111,7 +112,7 @@ public sealed partial class ActivationWindow : Window
         var start = DateTimeOffset.Now.AddHours(1);
         StartDate.Date = start;
         StartTime.Time = new TimeSpan(start.Hour, start.Minute - start.Minute % 5, 0);
-        SubmitButton.Content = IsBulk ? "Activate all" : "Activate";
+        SubmitButton.Content = SubmitTitle;
         _model.ClearProgress(_keys);
 
         if (IsBulk)
@@ -122,11 +123,25 @@ public sealed partial class ActivationWindow : Window
         }
         else if (_items.Count > 0)
         {
-            var role = _items[0].Role;
-            SingleApproval.Visibility = role.Policy.RequiresApproval ? Visibility.Visible : Visibility.Collapsed;
+            var policy = _items[0].Role.Policy;
+            ApprovalNotice.Visibility = policy.RequiresApproval ? Visibility.Visible : Visibility.Collapsed;
+            MfaNotice.Visibility = policy.RequiresMfa ? Visibility.Visible : Visibility.Collapsed;
+            ConditionalAccessNotice.Visibility = policy.AuthenticationContext is null ? Visibility.Collapsed : Visibility.Visible;
+            ConditionalAccessText.Text = $"Conditional Access applies (context {policy.AuthenticationContext}); a step-up sign-in may follow";
         }
 
         UpdateSubmit();
+    }
+
+    /// <summary>"Request" when every role in the window waits for an approver; otherwise the plain verb.</summary>
+    private string SubmitTitle
+    {
+        get
+        {
+            var allApproval = _items.Count > 0 && _items.All(i => i.Role.Policy.RequiresApproval);
+            var verb = allApproval ? "Request" : "Activate";
+            return IsBulk ? $"{verb} all" : verb;
+        }
     }
 
     private void BuildBulkRows(IReadOnlyList<TenantKey> tenantKeys)
@@ -185,13 +200,8 @@ public sealed partial class ActivationWindow : Window
         var grid = RowGrid();
         var name = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         name.Children.Add(new TextBlock { Text = item.Role.DisplayName, TextTrimming = TextTrimming.CharacterEllipsis });
-        var captionParts = new List<string> { Kind(item.Role.Key) };
-        if (item.Role.Policy.RequiresApproval)
-        {
-            captionParts.Add("Requires approval");
-        }
-
-        captionParts.Add($"max {DurationPicker.Label(item.Role.Policy.MaximumDuration)}");
+        // The policy's demands live in the status column; the caption names the kind and the ceiling.
+        var captionParts = new List<string> { Kind(item.Role.Key), $"max {DurationPicker.Label(item.Role.Policy.MaximumDuration)}" };
         name.Children.Add(new TextBlock
         {
             Text = string.Join(" · ", captionParts),
@@ -260,8 +270,12 @@ public sealed partial class ActivationWindow : Window
                 }
                 else
                 {
-                    item.Status.Text = item.Role.Policy.RequiresApproval ? "Approval" : "Ready";
+                    // Before anything runs, the column says what the policy will ask for: "approval · MFA · Conditional Access".
+                    var notes = PolicyNotes.Caption(item.Role.Policy);
+                    item.Status.Text = notes ?? "Ready";
+                    item.Status.TextTrimming = TextTrimming.CharacterEllipsis;
                     item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources[item.Role.Policy.RequiresApproval ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
+                    ToolTipService.SetToolTip(item.Status, PolicyNotes.Explanation(item.Role.Policy));
                 }
 
                 break;
