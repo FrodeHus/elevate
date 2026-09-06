@@ -1,8 +1,8 @@
 import SwiftUI
 import ElevateCore
 
-/// Pinned per-tenant header: carries the account caption above the tenant line so the account
-/// context stays visible while its roles scroll underneath.
+/// Pinned per-tenant header: one line with the tenant name, its status and the tenant menu. The
+/// account is named once on its own row above; repeating it here read as noise.
 struct TenantHeader: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
@@ -18,16 +18,6 @@ struct TenantHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // Accent only on the glyph: tinted text on a material reads badly in dark mode,
-            // so the caption itself uses the standard secondary colour.
-            HStack(spacing: 4) {
-                Image(systemName: "person.crop.circle.fill").font(.caption2).foregroundStyle(Color.accentColor)
-                Text(identity.upn).font(.caption2.weight(.medium)).lineLimit(1).truncationMode(.middle)
-                if identity.signInMethod != .ownApp {
-                    Text(identity.signInMethod.displayName).font(.caption2)
-                }
-            }
-            .foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 // One plain button for chevron + name: a bare tap gesture next to a borderless Menu
                 // loses to the menu's hit area, which stretches across the row.
