@@ -39,9 +39,9 @@ struct IdentityHeader: View {
                 if identity.signInMethod != .ownApp {
                     Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
                 }
-                // Account-level badge follows the tenants: it disappears once every tenant's token proves the write scope.
-                if let reason = model.tenants(for: identity.id).lazy.compactMap({ model.entraViewOnlyReason(for: $0.id) }).first
-                    ?? (model.tenants(for: identity.id).isEmpty ? identity.signInMethod.entraViewOnlyReason : nil) {
+                // Each tenant header carries its own status glyph; the account-level badge only covers the
+                // moment before any tenant is known.
+                if model.tenants(for: identity.id).isEmpty, let reason = identity.signInMethod.entraViewOnlyReason {
                     ViewOnlyBadge(reason: reason)
                 }
                 if let t = soleTenant { TenantPills(tenant: t) }

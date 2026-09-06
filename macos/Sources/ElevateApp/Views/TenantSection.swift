@@ -42,7 +42,6 @@ struct TenantHeader: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(expanded ? "Collapse tenant" : "Expand tenant")
                 if tenant.source == .home { Text("home").font(.caption2).foregroundStyle(.secondary) }
-                if let reason = model.entraViewOnlyReason(for: tenant.id) { ViewOnlyBadge(reason: reason) }
                 TenantPills(tenant: tenant)
                 Spacer()
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
@@ -94,23 +93,53 @@ struct TenantRoles: View {
     }
 }
 
-/// The tenant's status pills: manual mode, Azure off, discovery/refresh error, busy spinner.
+/// The tenant's status: a "manual roles" pill (a mode, not a problem), then one warning glyph in
+/// place of a run of pills for everything that limits this tenant — hover for a summary, click for
+/// the full list — and a spinner while busy.
 struct TenantPills: View {
     @Environment(AppModel.self) private var model
     let tenant: TenantContext
+    @State private var showingIssues = false
+
+    private struct Issue: Identifiable { let title: String; let detail: String; var id: String { title } }
+
+    private var issues: [Issue] {
+        var out: [Issue] = []
+        if let r = model.entraViewOnlyReason(for: tenant.id) { out.append(Issue(title: "Entra roles are view-only", detail: r)) }
+        if let r = tenant.azureUnavailableReason { out.append(Issue(title: "Azure resource roles are off", detail: r)) }
+        if let r = tenant.groupsUnavailableReason { out.append(Issue(title: "PIM for Groups is off", detail: r)) }
+        if let e = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError { out.append(Issue(title: "Discovery or refresh failed", detail: e)) }
+        return out
+    }
+    private var hasError: Bool { (model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError) != nil }
+
     var body: some View {
         if tenant.discoveryMode == .manualRoles {
             Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
                 .background(.orange.opacity(0.2), in: Capsule())
         }
-        if let reason = tenant.azureUnavailableReason {
-            Text("Azure off").font(.caption2).foregroundStyle(.secondary).help(reason)
-        }
-        if let reason = tenant.groupsUnavailableReason {
-            StatusPill(text: "Groups off", help: reason)
-        }
-        if let err = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError {
-            StatusPill(text: "error", tint: .red, help: err)
+        let issues = issues
+        if !issues.isEmpty {
+            Button { showingIssues.toggle() } label: {
+                Image(systemName: hasError ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
+                    .font(.caption).foregroundStyle(hasError ? .red : .orange)
+                    .frame(width: 16, height: 16).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(issues.map(\.title).joined(separator: "\n"))
+            .accessibilityLabel(issues.count == 1 ? "1 limitation" : "\(issues.count) limitations")
+            .popover(isPresented: $showingIssues, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(issues) { issue in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(issue.title).font(.subheadline.weight(.semibold))
+                            Text(issue.detail).font(.caption).foregroundStyle(.secondary)
+                                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(12).frame(width: 320, alignment: .leading)
+            }
         }
         if model.busy.contains(tenant.id) { ProgressView().controlSize(.mini) }
     }
