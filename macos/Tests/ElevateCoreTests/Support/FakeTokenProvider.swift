@@ -1,5 +1,5 @@
 import Foundation
-@testable import ElevateCore
+import ElevateCore
 
 actor FakeTokenProvider: TokenProviding {
     struct InteractiveCall: Equatable { let tenantId: String; let scopes: [String]; let claims: String? }

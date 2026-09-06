@@ -23,26 +23,8 @@ struct ActiveHeader: View {
     @Environment(AppModel.self) private var model
     let count: Int
     var body: some View {
-        let expanded = !model.collapsedActive
-        HStack(spacing: 6) {
-            Button { withAnimation(.snappy) { model.toggleActive() } } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
-                    Text("Active now").font(.subheadline.weight(.semibold))
-                    Text("\(count)").font(.caption).foregroundStyle(.green)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(expanded ? "Collapse active now" : "Expand active now")
-            Spacer()
-        }
-        .padding(.horizontal, PanelMetrics.headerInset)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .overlay(alignment: .bottom) { Divider() }
+        PinnedSectionHeader(title: "Active now", accessibilityName: "active now", count: count, tint: .green,
+                            expanded: !model.collapsedActive, onToggle: { withAnimation(.snappy) { model.toggleActive() } })
     }
 }
 

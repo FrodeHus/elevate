@@ -1,5 +1,5 @@
 import Foundation
-@testable import ElevateCore
+import ElevateCore
 
 /// Scriptable provider. `failures` is consumed one error per activate call, in order, before succeeding.
 actor FakeProviderState {

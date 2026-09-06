@@ -24,8 +24,6 @@ public struct GroupProvider: PIMProvider {
         let endDateTime: Date?
         let group: GroupRef?
     }
-    struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
-    struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
     struct ScheduleRequest: Decodable {
         let id: String
         let status: String

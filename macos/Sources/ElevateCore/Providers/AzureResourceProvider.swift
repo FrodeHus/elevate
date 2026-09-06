@@ -14,8 +14,6 @@ public struct AzureResourceProvider: PIMProvider {
 
     struct Named: Decodable { let displayName: String?; let type: String?; let id: String? }
     struct Expanded: Decodable { let scope: Named?; let roleDefinition: Named?; let principal: Named? }
-    struct Expiration: Decodable { let type: String?; let duration: String?; let endDateTime: Date? }
-    struct ScheduleInfo: Decodable { let startDateTime: Date?; let expiration: Expiration? }
     struct Properties: Decodable {
         let scope: String
         let roleDefinitionId: String
@@ -36,7 +34,7 @@ public struct AzureResourceProvider: PIMProvider {
 
     static let pendingStatuses: Set<String> = ["PendingApproval", "PendingAdminDecision", "PendingApprovalProvisioning"]
 
-    func armURL(_ path: String, apiVersion: String = "2020-10-01", query: [String: String] = [:]) throws -> URL {
+    static func armURL(_ path: String, apiVersion: String = "2020-10-01", query: [String: String] = [:]) throws -> URL {
         guard var components = URLComponents(url: GraphTransport.armBase.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
             throw PIMError.unexpected(status: 0, body: "Bad ARM path \(path)")
         }
@@ -76,7 +74,7 @@ public struct AzureResourceProvider: PIMProvider {
     // MARK: Reads
 
     public func eligibleRoles(identity: Identity, tenant: TenantContext) async throws -> [EligibleRole] {
-        let url = try armURL("providers/Microsoft.Authorization/roleEligibilityScheduleInstances", query: ["$filter": "asTarget()"])
+        let url = try Self.armURL("providers/Microsoft.Authorization/roleEligibilityScheduleInstances", query: ["$filter": "asTarget()"])
         let items = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId, url: url)
         var seen = Set<RoleScope>()
         var roles: [EligibleRole] = []
@@ -95,9 +93,9 @@ public struct AzureResourceProvider: PIMProvider {
 
     public func activeAssignments(identity: Identity, tenant: TenantContext) async throws -> [ActiveAssignment] {
         let instances = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                          url: try armURL("providers/Microsoft.Authorization/roleAssignmentScheduleInstances", query: ["$filter": "asTarget()"]))
+                                          url: try Self.armURL("providers/Microsoft.Authorization/roleAssignmentScheduleInstances", query: ["$filter": "asTarget()"]))
         let requests = try await listAll(Instance.self, identity: identity, tenantId: tenant.tenantId,
-                                         url: try armURL("providers/Microsoft.Authorization/roleAssignmentScheduleRequests", query: ["$filter": "asTarget()"]))
+                                         url: try Self.armURL("providers/Microsoft.Authorization/roleAssignmentScheduleRequests", query: ["$filter": "asTarget()"]))
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.properties.assignmentType == "Activated" {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: i.properties.scope, roleDefinitionId: i.properties.roleDefinitionId))
@@ -132,7 +130,7 @@ public struct AzureResourceProvider: PIMProvider {
 
     public func policy(for role: EligibleRole, identity: Identity) async throws -> RolePolicy {
         guard case .azureResource(let scope, let roleDefinitionId) = role.key.scope else { throw PIMError.notEligible }
-        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleManagementPolicyAssignments")
+        let url = try Self.armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleManagementPolicyAssignments")
         let assignments = try await listAll(PolicyAssignment.self, identity: identity, tenantId: role.key.tenantId, url: url)
         guard let match = assignments.first(where: { $0.properties.roleDefinitionId?.caseInsensitiveCompare(roleDefinitionId) == .orderedSame }),
               let rules = match.properties.effectiveRules else { return .manualDefault }
@@ -146,7 +144,7 @@ public struct AzureResourceProvider: PIMProvider {
     /// Manual roles carry a role *name*; ARM wants the definition id at that scope.
     func resolveRoleDefinitionId(_ nameOrId: String, scope: String, identity: Identity, tenantId: String) async throws -> String {
         if nameOrId.contains("/") { return nameOrId }
-        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleDefinitions",
+        let url = try Self.armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleDefinitions",
                              apiVersion: "2022-04-01", query: ["$filter": "roleName eq '\(GraphTransport.odataEscaped(nameOrId))'"])
         let defs = try await listAll(RoleDefinition.self, identity: identity, tenantId: tenantId, url: url)
         guard let id = defs.first?.id else { throw PIMError.notEligible }
@@ -155,7 +153,7 @@ public struct AzureResourceProvider: PIMProvider {
 
     /// Finds the caller's eligibility for a scope + role; ARM needs its principal id and schedule name to activate.
     func eligibility(scope: String, roleDefinitionId: String, identity: Identity, tenantId: String) async throws -> (principalId: String, scheduleName: String) {
-        let url = try armURL("providers/Microsoft.Authorization/roleEligibilityScheduleInstances", query: ["$filter": "asTarget()"])
+        let url = try Self.armURL("providers/Microsoft.Authorization/roleEligibilityScheduleInstances", query: ["$filter": "asTarget()"])
         let items = try await listAll(Instance.self, identity: identity, tenantId: tenantId, url: url)
         guard let match = items.first(where: {
             $0.properties.scope.caseInsensitiveCompare(scope) == .orderedSame &&
@@ -177,7 +175,7 @@ public struct AzureResourceProvider: PIMProvider {
     }
 
     func requestURL(scope: String) throws -> URL {
-        try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/" + UUID().uuidString.lowercased())
+        try Self.armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/" + UUID().uuidString.lowercased())
     }
 
     public func activate(_ request: ActivationRequest, identity: Identity) async throws -> ActiveAssignment {
@@ -237,7 +235,7 @@ public struct AzureResourceProvider: PIMProvider {
 
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard case .azureResource(let scope, _) = assignment.roleKey.scope, let name = assignment.assignmentId else { throw PIMError.notEligible }
-        let url = try armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/\(name)/cancel")
+        let url = try Self.armURL(scope.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/\(name)/cancel")
         _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId, url: url, scopes: scopes, body: Data())
     }
 }

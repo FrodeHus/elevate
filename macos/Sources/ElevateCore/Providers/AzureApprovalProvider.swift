@@ -20,7 +20,7 @@ public struct AzureApprovalProvider: ApprovalProvider {
         let approvalId: String?
         let justification: String?
         let createdOn: Date?
-        let scheduleInfo: AzureResourceProvider.ScheduleInfo?
+        let scheduleInfo: ScheduleInfo?
         let expandedProperties: AzureResourceProvider.Expanded?
     }
     struct Request: Decodable { let name: String; let properties: RequestProperties }
@@ -33,21 +33,10 @@ public struct AzureApprovalProvider: ApprovalProvider {
     static let listAPIVersion = "2020-10-01"
     static let approvalAPIVersion = "2021-01-01-preview"
 
-    static func armURL(_ path: String, apiVersion: String, query: [String: String] = [:]) throws -> URL {
-        guard var components = URLComponents(url: GraphTransport.armBase.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
-            throw PIMError.unexpected(status: 0, body: "Bad ARM path \(path)")
-        }
-        var items = [URLQueryItem(name: "api-version", value: apiVersion)]
-        for (k, v) in query.sorted(by: { $0.key < $1.key }) { items.append(URLQueryItem(name: k, value: v)) }
-        components.queryItems = items
-        guard let url = components.url else { throw PIMError.unexpected(status: 0, body: "Bad ARM URL \(path)") }
-        return url
-    }
-
     // MARK: Reads
 
     public func pendingApprovals(identity: Identity, tenant: TenantContext) async throws -> [ApprovalRequest] {
-        var next: URL? = try Self.armURL("providers/Microsoft.Authorization/roleAssignmentScheduleRequests",
+        var next: URL? = try AzureResourceProvider.armURL("providers/Microsoft.Authorization/roleAssignmentScheduleRequests",
                                          apiVersion: Self.listAPIVersion, query: ["$filter": "asApprover()"])
         var items: [Request] = []
         while let current = next {
@@ -88,10 +77,10 @@ public struct AzureApprovalProvider: ApprovalProvider {
         let tenantId = request.tenantKey.tenantId
         let base = "providers/Microsoft.Authorization/roleAssignmentApprovals/\(approvalId)"
         let r = try await transport.get(identity: identity, tenantId: tenantId,
-                                        url: try Self.armURL(base, apiVersion: Self.approvalAPIVersion), scopes: scopes)
+                                        url: try AzureResourceProvider.armURL(base, apiVersion: Self.approvalAPIVersion), scopes: scopes)
         let approval = try GraphJSON.decoder.decode(Approval.self, from: r.body)
         let stage = try Self.stage(approval.properties?.stages ?? [])
-        let url = try Self.armURL("\(base)/stages/\(stage)", apiVersion: Self.approvalAPIVersion)
+        let url = try AzureResourceProvider.armURL("\(base)/stages/\(stage)", apiVersion: Self.approvalAPIVersion)
         let decision = ["reviewResult": approve ? "Approve" : "Deny", "justification": justification]
         do {
             _ = try await transport.patch(identity: identity, tenantId: tenantId, url: url, scopes: scopes,
