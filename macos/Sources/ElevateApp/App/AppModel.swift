@@ -1367,6 +1367,8 @@ final class AppModel {
         roles[key] = ManualRoleSource.merge(discovered: discovered, manual: ManualRoleSource.eligibleRoles(from: manual, tenantKey: key))
     }
 
+    func manualRoles(for key: TenantKey) -> [ManualRole] { state.manualRoles.filter { $0.tenantKey == key } }
+
     // MARK: Diagnostics, launch at login and updates
 
     /// The last errors the user was shown, for "Copy diagnostics". Session only: a support
@@ -1422,7 +1424,7 @@ final class AppModel {
     /// reports it, so "Check for updates" is never silent.
     func checkForUpdates(force: Bool = false) async {
         if !force {
-            if let last = settings.lastUpdateCheck, Date().timeIntervalSince(last) < 24 * 60 * 60 { return }
+            if let last = settings.lastUpdateCheck, abs(Date().timeIntervalSince(last)) < 24 * 60 * 60 { return }
             guard isOnline else { return }
         }
         do {
@@ -1438,6 +1440,9 @@ final class AppModel {
                 return
             }
             updateCheckMessage = "Elevate \(version) is available"
+            // updateCheckMessage is set above, before the dismissal guard below, so Settings
+            // always reports what the check actually found even when the banner itself stays
+            // suppressed because the user already dismissed this version.
             // Compare the normalised version, not the raw tag: whether the release is tagged
             // "1.1.0" or "v1.1.0" must not decide whether a dismissal still holds.
             guard force || settings.dismissedUpdateVersion != version else { return }
@@ -1490,6 +1495,4 @@ final class AppModel {
                                      errors: errorLog.entries)
         return DiagnosticsReport.render(input)
     }
-
-    func manualRoles(for key: TenantKey) -> [ManualRole] { state.manualRoles.filter { $0.tenantKey == key } }
 }

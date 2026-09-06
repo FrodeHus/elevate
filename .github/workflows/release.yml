@@ -103,6 +103,16 @@ jobs:
           shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
           echo "SHA256=$(cut -d' ' -f1 "dist/Elevate-$VERSION.dmg.sha256")" >> "$GITHUB_ENV"
 
+      - name: Notarize DMG
+        if: env.SIGNED == '1'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool submit "dist/Elevate-$VERSION.dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "dist/Elevate-$VERSION.dmg"
+
       - name: Release notes
         run: |
           if [ "${SIGNED:-}" = "1" ]; then

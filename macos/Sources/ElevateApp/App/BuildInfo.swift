@@ -63,9 +63,11 @@ enum BuildInfo {
     private static func hasDeveloperIDLeaf() -> Bool {
         var code: SecCode?
         guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return false }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
         var info: CFDictionary?
         let flags = SecCSFlags(rawValue: kSecCSSigningInformation)
-        guard SecCodeCopySigningInformation(unsafeBitCast(code, to: SecStaticCode.self), flags, &info) == errSecSuccess,
+        guard SecCodeCopySigningInformation(staticCode, flags, &info) == errSecSuccess,
               let dictionary = info as? [String: Any],
               let certificates = dictionary[kSecCodeInfoCertificates as String] as? [SecCertificate],
               let leaf = certificates.first,

@@ -19,6 +19,8 @@ cask on `main`.
    the cask is the tag without it (`v1.0.0` → `1.0.0`).
 3. Watch the run under Actions → Release. When it finishes, the release is at
    `https://github.com/FrodeHus/elevate/releases/tag/v1.0.0`.
+4. Manual checklist after the run finishes: toggle Launch at login on the
+   ad-hoc DMG build and confirm it registers.
 
 To redo a release, delete the tag and the GitHub Release, then push the tag
 again — the workflow always overwrites its own DMG but `gh release create`
@@ -37,10 +39,14 @@ Runs on `macos-26`, working directory `macos`:
 3. Builds the `ElevateApp` scheme in Release. Without signing secrets it builds
    with code signing disabled and then applies an ad-hoc signature
    (`codesign --force --deep -s -`). With secrets it signs with Developer ID
-   and hardened runtime, then notarizes and staples (see below).
+   and hardened runtime, then notarizes and staples the app (see below).
 4. Packages `dist/Elevate-$VERSION.dmg` with `hdiutil create` — the app plus an
    `/Applications` symlink so the DMG window supports drag-to-install — and
-   writes `dist/Elevate-$VERSION.dmg.sha256`.
+   writes `dist/Elevate-$VERSION.dmg.sha256`. On the signed path the DMG
+   itself is then notarized and stapled too (`xcrun notarytool submit
+   --wait` followed by `xcrun stapler staple`, same credentials as the app
+   notarize step), so the downloaded disk image opens without a Gatekeeper
+   prompt even before the user drags the app out.
 5. Creates the GitHub Release with both files attached. The notes say whether
    the build is notarized or unsigned; the unsigned notes carry the macOS 26
    Open Anyway instructions and the `--no-quarantine` Homebrew line.

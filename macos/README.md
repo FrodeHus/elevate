@@ -91,8 +91,9 @@ brew install --cask --no-quarantine elevate
 
 or download `Elevate-<version>.dmg` from the
 [latest release](https://github.com/FrodeHus/elevate/releases/latest). Current builds are unsigned,
-so the first launch needs a right-click → Open — see
-[Install in the root README](../README.md#install-macos). Building from source is below.
+so macOS blocks the first launch; approve it under System Settings → Privacy & Security → Open
+Anyway — see [Install in the root README](../README.md#install-macos). Building from source is
+below.
 
 ## Prerequisites
 

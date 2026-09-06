@@ -9,20 +9,24 @@ import ElevateCore
 /// One item per identity, account `"<clientId>|<identityId>"` so two sign-in methods never
 /// collide, and `AfterFirstUnlockThisDeviceOnly` so a background refresh works after a reboot
 /// without the tokens ever leaving this Mac. The access group is set explicitly so the items
-/// land in Elevate's own group rather than whichever group the entitlement happens to list first.
+/// land in Elevate's own group rather than whichever group the entitlement happens to list first
+/// — except on an ad-hoc build, where `baseQuery` omits the access group entirely (see there).
 final class KeychainRefreshTokenStore: RefreshTokenStore {
     static let service = "no.reothor.elevate.refresh"
-    /// Fallback used only if the running process's own entitlements cannot be read.
-    /// Must match the first `keychain-access-groups` entry in `project.yml`
-    /// (`$(AppIdentifierPrefix)no.reothor.elevate`, with the team id as the prefix).
-    static let fallbackAccessGroup = "VLJKN96D7N.no.reothor.elevate"
     /// The access group actually used: the running app's own team-id prefix (read from its
     /// `application-identifier` entitlement) plus the bundle suffix, so a build signed by a
     /// different team still lands in its own group instead of failing every Keychain call.
+    ///
+    /// `applicationIdentifier` is nil only on an ad-hoc build (`BuildInfo.signingState ==
+    /// .adHoc`), and `baseQuery` never adds this access group for that signing state — so the
+    /// fallback below is never reached in practice. It is kept only as a defined value matching
+    /// the first `keychain-access-groups` entry in `project.yml`
+    /// (`$(AppIdentifierPrefix)no.reothor.elevate`, with the team id as the prefix), in case
+    /// `baseQuery`'s signing-state check is ever removed or bypassed.
     static let accessGroup: String = {
         guard let identifier = BuildInfo.applicationIdentifier,
               let prefix = identifier.split(separator: ".", maxSplits: 1).first, !prefix.isEmpty
-        else { return fallbackAccessGroup }
+        else { return "VLJKN96D7N.no.reothor.elevate" }
         return "\(prefix).no.reothor.elevate"
     }()
 
