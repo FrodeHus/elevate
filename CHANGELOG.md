@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-09-06
+
+### Changed
+
+- macOS: tenant and account headers show one status glyph (orange for limitations, red for a
+  failed discovery or refresh) instead of a run of pills; hover for a summary, click for a popover
+  listing each limitation with its reason. The "manual roles" pill stays.
+- macOS: tenant headers no longer repeat the account address and sign-in method.
+- macOS: the activation sheet and the profile run sheet box each tenant's rows under the tenant
+  name, with the account as a caption.
+- macOS: the custom client id sign-in method reads "Custom app".
+
+### Fixed
+
+- macOS: pinned account and section headers are opaque, so rows scrolling underneath no longer
+  show through them in a Liquid Glass window.
+
 ### Changed
 
 - Windows: the primary action in a role row is the one prominent button ("Activate", or "Request"
@@ -162,7 +179,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.4...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/FrodeHus/elevate/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/FrodeHus/elevate/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/FrodeHus/elevate/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/FrodeHus/elevate/compare/v1.2.1...v1.2.2
