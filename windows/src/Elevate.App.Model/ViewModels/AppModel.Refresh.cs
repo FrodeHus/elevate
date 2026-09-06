@@ -467,7 +467,10 @@ public sealed partial class AppModel
             }
         }
 
-        var tenantNames = State.Tenants.ToDictionary(t => t.Key, t => t.DisplayName);
+        // "Contoso · alex@contoso.com": the toast body names the tenant and the account it belongs to.
+        var tenantNames = State.Tenants.ToDictionary(
+            t => t.Key,
+            t => Identity(t.IdentityId) is { } identity ? $"{t.DisplayName} · {identity.Upn}" : t.DisplayName);
         try
         {
             await Notifier.RescheduleAsync([.. Active.Values], names, tenantNames);

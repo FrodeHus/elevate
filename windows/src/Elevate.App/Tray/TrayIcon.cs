@@ -21,6 +21,7 @@ internal sealed unsafe class TrayIcon : IDisposable
 
     private readonly WNDPROC _wndProc;
     private readonly uint _taskbarCreated;
+    private readonly uint _openRequested;
     private readonly string _tooltip;
     private HWND _hwnd;
     private HICON _icon;
@@ -32,6 +33,7 @@ internal sealed unsafe class TrayIcon : IDisposable
         _tooltip = tooltip;
         _wndProc = WndProc;
         _taskbarCreated = PInvoke.RegisterWindowMessage("TaskbarCreated");
+        _openRequested = PInvoke.RegisterWindowMessage(Program.OpenMessageName);
         RegisterClass();
         fixed (char* className = ClassName)
         fixed (char* title = "Elevate")
@@ -55,6 +57,9 @@ internal sealed unsafe class TrayIcon : IDisposable
 
     /// <summary>Raised when the taskbar's DPI or theme changed, so the icon can be redrawn.</summary>
     public event Action? Invalidated;
+
+    /// <summary>Raised when another launch of Elevate asked the running instance to open its flyout.</summary>
+    public event Action? OpenRequested;
 
     public HWND Handle => _hwnd;
 
@@ -234,6 +239,12 @@ internal sealed unsafe class TrayIcon : IDisposable
             }
 
             Invalidated?.Invoke();
+            return new LRESULT(0);
+        }
+
+        if (msg == _openRequested && !_disposed)
+        {
+            OpenRequested?.Invoke();
             return new LRESULT(0);
         }
 

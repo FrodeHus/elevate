@@ -18,6 +18,7 @@ public partial class App : Application
 {
     private TrayIcon? _tray;
     private FlyoutWindow? _flyout;
+    private ExpiryNotifier? _notifier;
     private PanelStatus _drawnStatus = new(-1, false, false);
 
     public App()
@@ -51,12 +52,40 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        Model = Live();
-        Model.Changed += (_, _) => UpdateTray();
+        // Toast activation must be wired before anything else: a click on a toast while the app is
+        // not running launches it, and the platform expects the registration to happen first.
+        _notifier = new ExpiryNotifier(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+        _notifier.OnExtend = key =>
+        {
+            if (Model is not null)
+            {
+                Model.PendingExtend = key;
+            }
+        };
+        try
+        {
+            _notifier.Register();
+        }
+        catch (Exception e)
+        {
+            Log("Notification registration failed: " + e.Message);
+        }
+
+        Model = Live(_notifier);
+        Model.Changed += (_, _) =>
+        {
+            UpdateTray();
+            if (Model.PendingExtend is { } key)
+            {
+                Model.PendingExtend = null;
+                OpenActivation([key]);
+            }
+        };
 
         _tray = new TrayIcon("Elevate");
         _tray.LeftClick += anchor => _flyout?.Toggle(anchor);
         _tray.MenuCommand += OnTrayMenu;
+        _tray.OpenRequested += () => _flyout?.Show(_tray?.IconRect);
         _tray.Invalidated += () =>
         {
             _drawnStatus = new PanelStatus(-1, false, false);
@@ -73,6 +102,19 @@ public partial class App : Application
         try
         {
             await Model!.BootstrapAsync();
+            if (_notifier is { IsEnabled: false })
+            {
+                Model.Notice = "Notifications are off for Elevate; enable them in Settings > System > Notifications to get expiry alerts.";
+                Model.LogError("Notifications are not enabled for Elevate");
+            }
+
+            // Launched by a toast (the app was not running): the toast's role goes straight to activation.
+            var activation = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+            if (activation.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.AppNotification
+                && activation.Data is Microsoft.Windows.AppNotifications.AppNotificationActivatedEventArgs toast)
+            {
+                _notifier?.HandleLaunch(toast);
+            }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
             // `--show <settings|add-account|configure|activation|bulk|add-tenant|discover>` opens one window.
             var args = Environment.GetCommandLineArgs();
@@ -122,7 +164,7 @@ public partial class App : Application
     /// Production wiring. The client id lives in AppSettings; when it is missing or unusable the
     /// flyout shows the setup state instead of a startup error.
     /// </summary>
-    private AppModel Live()
+    private AppModel Live(IExpiryNotifier notifier)
     {
         var settings = new AppSettings();
         var http = new HttpClientAdapter();
@@ -148,7 +190,7 @@ public partial class App : Application
         }
 
         var tokens = new CompositeTokenProvider(ownApp, firstParty);
-        var model = new AppModel(tokens, http, new AppStateStore(), new NoopNotifier(), new NetworkMonitor(), settings,
+        var model = new AppModel(tokens, http, new AppStateStore(), notifier, new NetworkMonitor(), settings,
             firstParty, ownApp, MakeOwnApp);
         if (initError is not null)
         {
@@ -280,8 +322,15 @@ public partial class App : Application
     public void Quit()
     {
         _flyout?.Hide();
+        foreach (var window in _windows.Values.ToList())
+        {
+            window.Close();
+        }
+
         _tray?.Dispose();
         _tray = null;
+        _notifier?.Dispose();
+        _notifier = null;
         Model?.Dispose();
         Exit();
     }
