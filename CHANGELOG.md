@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Elevate for Windows: a Windows 11 system-tray flyout with the macOS app's phase-1 and phase-2
+  functionality, built with WinUI 3 on .NET 10. Multi-account sign-in with your own app
+  registration through the Windows account picker (WAM), a custom client ID, or the Azure CLI and
+  Azure PowerShell apps; tenant discovery; Entra directory, Azure resource and PIM-for-Groups
+  roles with policies, remembered reasons, bulk activation, scheduled starts, deactivation with
+  the five-minute lock, cancelling pending requests, live countdowns and expiry toasts with
+  Extend; manual roles for tenants that refuse discovery; offline awareness; start with sign-in.
+  Distributed as unsigned per-user x64 and arm64 MSIs from `windows-v*` releases (a winget
+  manifest for `Reothor.Elevate` is generated but not yet submitted). The Windows and macOS apps
+  share the `state.json` schema.
+
 ## [1.0.2] - 2026-09-06
 
 ### Added

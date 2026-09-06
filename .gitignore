@@ -11,6 +11,9 @@ macos/.swiftpm/
 windows/**/bin/
 windows/**/obj/
 windows/.vs/
+windows/installer/out/
+windows/installer/publish/
+windows/winget/manifests/
 # Tooling
 .superpowers/
 .DS_Store
