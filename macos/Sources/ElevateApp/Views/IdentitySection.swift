@@ -64,7 +64,14 @@ struct IdentityHeader: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // A neutral fill keeps the primary text at full contrast in both appearances; the accent
         // survives as the glyph and a left edge, which is enough to tell accounts from tenants.
-        .background(.quaternary.opacity(0.5))
+        // Opaque under the tint: this row pins while the list scrolls, and a translucent fill let
+        // the rows beneath show through it in a Liquid Glass window.
+        .background {
+            ZStack {
+                Color(nsColor: .windowBackgroundColor)
+                Rectangle().fill(.quaternary.opacity(0.5))
+            }
+        }
         .overlay(alignment: .leading) { Rectangle().fill(Color.accentColor).frame(width: 3) }
         .overlay(alignment: .bottom) { Divider() }
     }

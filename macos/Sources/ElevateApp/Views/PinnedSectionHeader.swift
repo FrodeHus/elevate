@@ -8,7 +8,15 @@ struct PinnedHeaderChrome: ViewModifier {
             .padding(.trailing, PanelMetrics.trailingInset)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial)
+            // Material alone is translucent in a Liquid Glass menu bar window, so rows scrolling
+            // underneath bled through the pinned header; an opaque window colour under the material
+            // keeps the header readable while it still picks up the panel's tint.
+            .background {
+                ZStack {
+                    Color(nsColor: .windowBackgroundColor)
+                    Rectangle().fill(.regularMaterial)
+                }
+            }
             .overlay(alignment: .bottom) { Divider() }
     }
 }
