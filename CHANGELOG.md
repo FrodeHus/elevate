@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-09-06
+
+### Fixed
+
+- macOS: the bulk activation table and the profile run sheet keep their duration and status
+  columns aligned when a row has nothing to report, and longer durations are no longer truncated.
+- macOS: Azure resource roles in the activation sheet, the bulk table and the profile run sheet show
+  the scope under the role name, with the full ARM path as a tooltip.
+
 ## [1.2.3] - 2026-09-06
 
 ### Changed
@@ -126,7 +135,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/FrodeHus/elevate/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/FrodeHus/elevate/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/FrodeHus/elevate/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/FrodeHus/elevate/compare/v1.2.0...v1.2.1
