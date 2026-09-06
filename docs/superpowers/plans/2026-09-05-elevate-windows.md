@@ -1,6 +1,6 @@
 # Elevate for Windows Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. **This plan must be executed on Windows 11 with the .NET 10 SDK, the Windows App SDK 1.8 workload, WiX v5 (`dotnet tool install --global wix`) and `winget` installed.** Tasks 1–7 (Core) also build on macOS/Linux with the .NET 10 SDK.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. **Tasks 1–7 are complete on branch `windows-phase-1` (see `windows/CONTINUING.md`). Tasks 8–13 must be executed on Windows 11 with the .NET 10 SDK, the Windows App SDK 1.8 workload, WiX v5 (`dotnet tool install --global wix`) and `winget` installed.** Tasks 1–7 (Core) also build on macOS/Linux with the .NET 10 SDK.
 
 **Goal:** A Windows 11 tray app with the macOS app's functionality: multi-account Entra sign-in (own app via WAM, or Azure CLI / Azure PowerShell apps), tenant and role discovery (Entra directory + Azure resource roles), activation with remembered reason, bulk activation, deactivation, cancel, countdown, expiry toasts, manual roles, offline awareness, Settings; shipped as a signed MSI and a winget manifest.
 
@@ -63,9 +63,9 @@ windows/
 
 **Files:** `windows/Elevate.sln`, `windows/Directory.Build.props`, `windows/global.json`, `windows/src/Elevate.Core/Elevate.Core.csproj`, `windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj`, `windows/tests/Elevate.Core.Tests/SmokeTests.cs`, `windows/src/Elevate.Core/Resources/EntraBuiltInRoles.json` (copied from `macos/Sources/ElevateCore/Resources/`).
 
-- [ ] Create the solution with `dotnet new sln`, `dotnet new classlib -f net10.0 -n Elevate.Core`, `dotnet new xunit -f net10.0 -n Elevate.Core.Tests`, add project reference, add `FluentAssertions`. Embed the catalogue: `<EmbeddedResource Include="Resources\EntraBuiltInRoles.json" LogicalName="Elevate.Core.Resources.EntraBuiltInRoles.json" />`.
-- [ ] `SmokeTests`: `Assembly.GetManifestResourceStream("Elevate.Core.Resources.EntraBuiltInRoles.json")` is non-null and parses to ≥130 entries.
-- [ ] `dotnet test windows/Elevate.sln` green. Commit: "Scaffold the Windows solution with Elevate.Core and tests".
+- [x] Create the solution with `dotnet new sln`, `dotnet new classlib -f net10.0 -n Elevate.Core`, `dotnet new xunit -f net10.0 -n Elevate.Core.Tests`, add project reference, add `FluentAssertions`. Embed the catalogue: `<EmbeddedResource Include="Resources\EntraBuiltInRoles.json" LogicalName="Elevate.Core.Resources.EntraBuiltInRoles.json" />`.
+- [x] `SmokeTests`: `Assembly.GetManifestResourceStream("Elevate.Core.Resources.EntraBuiltInRoles.json")` is non-null and parses to ≥130 entries.
+- [x] `dotnet test windows/Elevate.sln` green. Commit: "Scaffold the Windows solution with Elevate.Core and tests".
 
 ---
 
@@ -102,7 +102,7 @@ public sealed class PimException : Exception { public PimErrorKind Kind; public 
 ```
 JSON: `Elevate.Core.Json.Options` = camelCase, enums as strings (`JsonStringEnumConverter(JsonNamingPolicy.CamelCase)`), `TimeSpan` as ISO-8601 `PT..` via a converter so `state.json` matches the Swift `Duration` encoding? **Ruling:** Swift's `Duration` encodes as `[seconds, attoseconds]` — write a `DurationJsonConverter` that reads that array form and writes it back identically, so one `state.json` round-trips between platforms.
 
-- [ ] Tests (port `ModelsTests` + `SignInMethodTests`): RoleKey tenant distinction, RoleScope polymorphic round-trip, manual policy defaults, ActiveAssignment status round-trip, identity decodes without `signInMethod` as OwnApp, Duration array round-trip. Commit: "Port core models and JSON conventions".
+- [x] Tests (port `ModelsTests` + `SignInMethodTests`): RoleKey tenant distinction, RoleScope polymorphic round-trip, manual policy defaults, ActiveAssignment status round-trip, identity decodes without `signInMethod` as OwnApp, Duration array round-trip. Commit: "Port core models and JSON conventions".
 
 ---
 
