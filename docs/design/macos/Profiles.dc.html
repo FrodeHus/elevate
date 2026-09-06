@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .glass { background: rgba(246, 247, 249, 0.92); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .btn-lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
+    .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .field { height: 28px; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 9px; display: flex; align-items: center; font-size: 13px; color: #1d1d1f; }
+    .select { display: inline-flex; align-items: center; justify-content: space-between; height: 22px; padding: 0 6px 0 9px; border-radius: 6px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); font-size: 12px; gap: 6px; }
+    .check { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.25); background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .check-on { background: #0a84ff; border-color: #0a84ff; }
+    .badge { font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div class="glass" style="width: 380px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 14px;">
+      <span style="font-size: 13px; font-weight: 600;">Elevate</span>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 3.7 5.7 6 3.4"></path><path d="M8 4.5h5.5"></path><path d="M2.5 9.5 3.7 10.7 6 8.4"></path><path d="M8 9.5h5.5"></path><path d="M8 13.5h5.5"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"></path><path d="M13 2.5v3h-3"></path></svg>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; padding: 6px 12px;">
+      <div style="display: flex; width: 100%; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.06); padding: 2px; font-size: 12px;">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; border-radius: 5px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.12); font-weight: 500;">Entra</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Azure</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Groups</div>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 12px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 11px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.4px;">Profiles</span>
+        <div style="flex-grow: 1;"></div>
+        <span class="caption" style="color:#0a84ff;">Manage…</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <div style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Morning ops</span><span class="caption">3 roles</span></div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span><span class="caption">5 roles · 1 group</span></div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Release day</span><span class="caption">2 roles</span></div>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px;">
+      <div style="display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px;">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><span style="font-size: 12px; font-weight: 600;">Active now</span><span class="caption" style="color:#34c759;">2</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 28px; padding-right: 10px;">
+        <div class="dot" style="background: #34c759;"></div>
+        <div style="display: flex; flex-direction: column;"><span>Global Reader</span><span class="caption" style="font-size: 10px; line-height: 11px;">Contoso · frode@contoso.com</span></div>
+        <div style="flex-grow: 1;"></div>
+        <span class="caption" style="font-variant-numeric: tabular-nums;">00:12</span>
+        <span class="btn">Extend</span><span class="btn">Deactivate</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 28px; padding-right: 10px;">
+        <div class="dot" style="background: #34c759;"></div>
+        <div style="display: flex; flex-direction: column;"><span>Contributor</span><span class="caption" style="font-size: 10px; line-height: 11px;">Contoso · Pay-As-You-Go · subscription</span></div>
+        <div style="flex-grow: 1;"></div>
+        <span class="caption" style="font-variant-numeric: tabular-nums;">02:41</span>
+        <span class="btn">Deactivate</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.035); border-left: 3px solid #0a84ff;">
+        <div style="display: flex; align-items: center; gap: 6px; height: 20px;">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0a84ff" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg><span style="font-size: 12px; font-weight: 600;">frode@contoso.com</span>
+          <div style="flex-grow: 1;"></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; height: 22px;">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><span style="font-size: 12px;">Contoso</span><span class="caption">home</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+          <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+          <span>Exchange Administrator</span>
+          <div style="flex-grow: 1;"></div>
+          <span class="btn">Activate</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+          <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+          <span>Security Reader</span>
+          <div style="flex-grow: 1;"></div>
+          <span class="btn">Activate</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+          <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+          <span>User Administrator</span>
+          <div style="flex-grow: 1;"></div>
+          <span class="btn">Activate</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.035); border-left: 3px solid #0a84ff;">
+        <div style="display: flex; align-items: center; gap: 6px; height: 20px;">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0a84ff" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg><span style="font-size: 12px; font-weight: 600;">frode.admin@northwind.com</span>
+          <span class="caption">Northwind · home</span>
+          <div style="flex-grow: 1;"></div><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+          <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+          <span>Privileged Role Administrator</span>
+          <div style="flex-grow: 1;"></div>
+          <span class="btn">Activate</span>
+        </div>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 14px;">
+      <span style="font-size: 12px; color: #0a84ff;">Add account…</span>
+      <span style="font-size: 12px; color: #6e6e73;">Settings…</span>
+      <span style="font-size: 12px; color: #6e6e73;">Quit</span>
+    </div>
+  </div>
+  <div class="caption" style="width: 380px; margin-top: 12px;">Profiles row: one chip per saved profile, click runs it. "Manage…" opens the list to rename, reorder, edit or delete. Row hidden when no profiles exist.</div>
+</div>
+</x-dc>
+</body>
+</html>

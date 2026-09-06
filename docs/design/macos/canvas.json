@@ -1,0 +1,68 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 460,
+      "h": 620,
+      "title": "Panel"
+    },
+    {
+      "file": "SelectMode.dc.html",
+      "x": 560,
+      "y": 0,
+      "w": 460,
+      "h": 620,
+      "title": "Panel \u00b7 select mode"
+    },
+    {
+      "file": "Activation.dc.html",
+      "x": 1120,
+      "y": 0,
+      "w": 460,
+      "h": 360
+    },
+    {
+      "file": "BulkActivation.dc.html",
+      "x": 0,
+      "y": 760,
+      "w": 640,
+      "h": 460
+    },
+    {
+      "file": "ConfigureRoles.dc.html",
+      "x": 760,
+      "y": 760,
+      "w": 640,
+      "h": 620
+    },
+    {
+      "file": "Profiles.dc.html",
+      "x": 1120,
+      "y": 420,
+      "w": 460,
+      "h": 760,
+      "title": "Panel \u00b7 profiles row"
+    },
+    {
+      "file": "SaveProfile.dc.html",
+      "x": 1660,
+      "y": 0,
+      "w": 460,
+      "h": 1180,
+      "title": "Select mode \u00b7 save as profile"
+    },
+    {
+      "file": "RunProfile.dc.html",
+      "x": 2200,
+      "y": 0,
+      "w": 560,
+      "h": 760,
+      "title": "Run profile \u00b7 confirm and progress"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

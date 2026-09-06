@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .glass { background: rgba(246, 247, 249, 0.92); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .btn-lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
+    .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .field { height: 28px; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 9px; display: flex; align-items: center; font-size: 13px; color: #1d1d1f; }
+    .select { display: inline-flex; align-items: center; justify-content: space-between; height: 22px; padding: 0 6px 0 9px; border-radius: 6px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); font-size: 12px; gap: 6px; }
+    .check { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.25); background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .check-on { background: #0a84ff; border-color: #0a84ff; }
+    .badge { font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px; gap: 0px;">
+  <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.55); margin-bottom: 8px;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8 3 3.6v3.9c0 3.1 2.1 5.1 5 6.2 2.9-1.1 5-3.1 5-6.2V3.6z"></path><path d="M5.8 8.1 7.3 9.6 10.3 6.4"></path></svg>
+    <span style="font-size: 13px; font-weight: 500;">2</span>
+  </div>
+  <div class="glass" style="width: 380px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 14px;">
+      <span style="font-size: 13px; font-weight: 600;">Elevate</span>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 3.7 5.7 6 3.4"></path><path d="M8 4.5h5.5"></path><path d="M2.5 9.5 3.7 10.7 6 8.4"></path><path d="M8 9.5h5.5"></path><path d="M8 13.5h5.5"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"></path><path d="M13 2.5v3h-3"></path></svg>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.035);">
+        <div style="display: flex; align-items: center; gap: 6px; height: 20px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg>
+          <span style="font-size: 12px; font-weight: 600;">frode@contoso.com</span>
+          <div style="flex-grow: 1;"></div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 6px; height: 22px;">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg>
+            <span style="font-size: 12px;">Contoso</span>
+            <span class="caption">home</span>
+            <div style="flex-grow: 1;"></div>
+            <span style="font-size: 11px; color: #248a3d;">2 active</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="background: #34c759;"></div>
+            <span>Global Reader</span>
+            <div style="flex-grow: 1;"></div>
+            <span class="caption" style="font-variant-numeric: tabular-nums;">02:41</span>
+            <span class="btn">Deactivate</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="background: #34c759;"></div>
+            <span>User Administrator</span>
+            <div style="flex-grow: 1;"></div>
+            <span class="caption" style="font-variant-numeric: tabular-nums;">02:41</span>
+            <span class="btn">Deactivate</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+            <span>Exchange Administrator</span>
+            <div style="flex-grow: 1;"></div>
+            <span class="btn">Activate</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+            <span>Security Reader</span>
+            <div style="flex-grow: 1;"></div>
+            <span class="btn">Activate</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 6px; height: 22px;">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg>
+            <span style="font-size: 12px;">Fabrikam</span>
+            <span class="badge" style="background: rgba(255, 149, 0, 0.18); color: #b25000;">manual roles</span>
+            <div style="flex-grow: 1;"></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="border: 1px solid #a1a1a6; background: transparent; box-sizing: border-box;"></div>
+            <div style="display: flex; flex-direction: column; gap: 0px;">
+              <span>Global Administrator</span>
+              <span class="caption" style="font-size: 10px; line-height: 11px;">manual</span>
+            </div>
+            <div style="flex-grow: 1;"></div>
+            <span class="btn">Activate</span>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.035);">
+        <div style="display: flex; align-items: center; gap: 6px; height: 20px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg>
+          <span style="font-size: 12px; font-weight: 600;">frode.admin@northwind.com</span>
+          <div style="flex-grow: 1;"></div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: center; gap: 6px; height: 22px;">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg>
+            <span style="font-size: 12px;">Northwind</span>
+            <span class="caption">home</span>
+            <div style="flex-grow: 1;"></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-left: 18px;">
+            <div class="dot" style="background: #ffcc00;"></div>
+            <span>Privileged Role Administrator</span>
+            <div style="flex-grow: 1;"></div>
+            <span class="caption">awaiting approval</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0, 0, 0, 0.08);"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 14px;">
+      <span style="font-size: 12px; color: #0a84ff;">Add account…</span>
+      <span style="font-size: 12px; color: #6e6e73;">Quit</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

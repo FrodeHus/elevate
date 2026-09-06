@@ -178,3 +178,5 @@ row is re-keyed to the resolved role definition id at that point.
 
 Save the markdown of https://learn.microsoft.com/entra/identity/role-based-access-control/permissions-reference
 and run `perl shared/entra-roles/update-role-catalogue.pl page.md > macos/Sources/ElevateCore/Resources/EntraBuiltInRoles.json (from the repo root)`.
+
+UI design canvas: [docs/design/elevate-macos-canvas.html](../docs/design/elevate-macos-canvas.html) (Claude Design artboards for the panel, select mode, activation, profiles).

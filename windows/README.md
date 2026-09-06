@@ -4,4 +4,4 @@ Planned Windows 11 counterpart of the macOS app: a system-tray flyout built with
 
 Status: Core library is being ported. See the [design spec](../docs/superpowers/specs/2026-09-05-elevate-windows-design.md) and the implementation plan in `docs/superpowers/plans/`.
 
-UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the flyout, windows, tray states and tokens; open the file in a browser).
+UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html), index in [docs/design/README.md](../docs/design/README.md) (Fluent mockups of the flyout, windows, tray states and tokens; open the file in a browser).
