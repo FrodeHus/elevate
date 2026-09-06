@@ -118,9 +118,10 @@ struct ActivationView: View {
                         HStack {
                             Text(item.role.displayName)
                             Spacer()
-                            DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration).frame(width: 150)
-                            approvalLabel(for: item.role).frame(width: 150, alignment: .leading)
-                            progressLabel(for: item.role.key).frame(width: 120, alignment: .trailing)
+                            DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
+                                .labelsHidden().frame(width: 110)
+                            HStack(spacing: 0) { approvalLabel(for: item.role); Spacer(minLength: 0) }.frame(width: 150)
+                            HStack(spacing: 0) { Spacer(minLength: 0); progressLabel(for: item.role.key) }.frame(width: 120)
                         }
                     }
                 }
