@@ -151,11 +151,13 @@
                         <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                         <TextBlock Text="home" Visibility="{x:Bind HomeVisibility, Mode=OneWay}" FontSize="11"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                        <views:Pill Text="Azure roles only" Visibility="{x:Bind ViewOnlyVisibility, Mode=OneWay}" Tooltip="{x:Bind ViewOnlyReason, Mode=OneWay}" Tint="Caution" />
                         <views:Pill Text="manual roles" Visibility="{x:Bind ManualVisibility, Mode=OneWay}" Tooltip="Discovery is refused in this tenant; the roles are the ones you configured" Tint="Caution" />
-                        <views:Pill Text="Azure off" Visibility="{x:Bind AzureOffVisibility, Mode=OneWay}" Tooltip="{x:Bind AzureOff, Mode=OneWay}" Tint="Neutral" />
-                        <views:Pill Text="Groups off" Visibility="{x:Bind GroupsOffVisibility, Mode=OneWay}" Tooltip="{x:Bind GroupsOff, Mode=OneWay}" Tint="Neutral" />
-                        <views:Pill Text="error" Visibility="{x:Bind ErrorVisibility, Mode=OneWay}" Tooltip="{x:Bind Error, Mode=OneWay}" Tint="Critical" />
+                        <!-- One glyph for everything that limits the tenant: orange for limitations, red when discovery or refresh failed. Hover for the titles, click for the reasons. -->
+                        <Button Style="{StaticResource SubtleButtonStyle}" Width="22" Height="22" Visibility="{x:Bind IssuesVisibility, Mode=OneWay}"
+                                Click="OnIssuesClick" ToolTipService.ToolTip="{x:Bind IssuesTooltip, Mode=OneWay}"
+                                AutomationProperties.Name="{x:Bind IssuesLabel, Mode=OneWay}">
+                            <FontIcon Glyph="{x:Bind IssuesGlyph, Mode=OneWay}" FontSize="13" Foreground="{x:Bind IssuesBrush, Mode=OneWay}" />
+                        </Button>
                         <ProgressRing Width="14" Height="14" IsActive="True" Visibility="{x:Bind BusyVisibility, Mode=OneWay}" />
                     </StackPanel>
                     <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Visibility="{x:Bind CaptionVisibility, Mode=OneWay}" FontSize="12"

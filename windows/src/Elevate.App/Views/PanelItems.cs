@@ -309,6 +309,9 @@ public enum GroupKind
     Tenant,
 }
 
+/// <summary>One thing that limits a tenant, or the failure that stopped its discovery or refresh: a short title and the full reason.</summary>
+public sealed record TenantIssue(string Title, string Detail);
+
 /// <summary>
 /// One ListView group: the pinned "Active now" summary, an account row, or a tenant header. The
 /// group is the collection of its rows, which is the shape a grouped CollectionViewSource tracks
@@ -336,11 +339,9 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     private int _activeCount;
     private bool _expanded = true;
     private bool _isHome;
-    private string? _viewOnlyReason;
     private bool _manual;
-    private string? _azureOff;
-    private string? _groupsOff;
-    private string? _error;
+    private IReadOnlyList<TenantIssue> _issues = [];
+    private bool _hasError;
     private bool _busy;
 
     public string Title { get => _title; set => Set(ref _title, value); }
@@ -355,15 +356,28 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public bool IsHome { get => _isHome; set => Set(ref _isHome, value); }
 
-    public string? ViewOnlyReason { get => _viewOnlyReason; set => Set(ref _viewOnlyReason, value); }
-
+    /// <summary>"manual roles" is a mode rather than a problem, so it keeps its pill.</summary>
     public bool Manual { get => _manual; set => Set(ref _manual, value); }
 
-    public string? AzureOff { get => _azureOff; set => Set(ref _azureOff, value); }
+    /// <summary>
+    /// Everything that limits this tenant (Entra view-only, Azure off, Groups off) and a failed
+    /// discovery or refresh, behind one status glyph: hover for the titles, click for the reasons.
+    /// </summary>
+    public IReadOnlyList<TenantIssue> Issues
+    {
+        get => _issues;
+        set
+        {
+            if (!_issues.SequenceEqual(value))
+            {
+                _issues = value;
+                OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Issues)));
+            }
+        }
+    }
 
-    public string? GroupsOff { get => _groupsOff; set => Set(ref _groupsOff, value); }
-
-    public string? Error { get => _error; set => Set(ref _error, value); }
+    /// <summary>A failed discovery or refresh turns the glyph red; limitations alone leave it orange.</summary>
+    public bool HasError { get => _hasError; set => Set(ref _hasError, value); }
 
     public bool Busy { get => _busy; set => Set(ref _busy, value); }
 
@@ -389,15 +403,18 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public Visibility HomeVisibility => IsHome && Kind == GroupKind.Tenant ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility ViewOnlyVisibility => ViewOnlyReason is null ? Visibility.Collapsed : Visibility.Visible;
-
     public Visibility ManualVisibility => Manual ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility AzureOffVisibility => AzureOff is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility IssuesVisibility => Issues.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
-    public Visibility GroupsOffVisibility => GroupsOff is null ? Visibility.Collapsed : Visibility.Visible;
+    /// <summary>A filled warning triangle for a failure, an exclamation circle for limitations.</summary>
+    public string IssuesGlyph => HasError ? "" : "";
 
-    public Visibility ErrorVisibility => Error is null ? Visibility.Collapsed : Visibility.Visible;
+    public Brush IssuesBrush => (Brush)Application.Current.Resources[HasError ? "SystemFillColorCriticalBrush" : "SystemFillColorCautionBrush"];
+
+    public string IssuesTooltip => string.Join("\n", Issues.Select(i => i.Title));
+
+    public string IssuesLabel => Issues.Count == 1 ? "1 limitation" : $"{Issues.Count} limitations";
 
     public Visibility BusyVisibility => Busy ? Visibility.Visible : Visibility.Collapsed;
 
@@ -417,11 +434,9 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         PendingCount = other.PendingCount;
         Expanded = other.Expanded;
         IsHome = other.IsHome;
-        ViewOnlyReason = other.ViewOnlyReason;
         Manual = other.Manual;
-        AzureOff = other.AzureOff;
-        GroupsOff = other.GroupsOff;
-        Error = other.Error;
+        Issues = other.Issues;
+        HasError = other.HasError;
         Busy = other.Busy;
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
     }
@@ -575,15 +590,17 @@ public static class PanelListBuilder
 
         caption.Add(identity.SignInMethod.Kind == SignInMethodKind.OwnApp ? "Own app" : identity.SignInMethod.DisplayName);
         group.Caption = string.Join(" · ", caption);
-        // Account-level badge follows the tenants: it disappears once every tenant's token proves the write scope.
-        var tenants = model.TenantsFor(identity.Id);
-        group.ViewOnlyReason = tenants.Select(t => model.EntraViewOnlyReason(t.Key)).FirstOrDefault(r => r is not null)
-            ?? (tenants.Count == 0 ? identity.SignInMethod.EntraViewOnlyReason : null);
         if (soleTenant is not null)
         {
-            ApplyPills(model, group, soleTenant);
+            ApplyStatus(model, group, soleTenant);
             group.ActiveCount = model.ActiveCount(soleTenant.Key);
             group.IsHome = soleTenant.Source == TenantSource.Home;
+        }
+        else if (model.TenantsFor(identity.Id).Count == 0 && identity.SignInMethod.EntraViewOnlyReason is { } reason)
+        {
+            // Each tenant header carries its own status glyph; the account-level badge only covers
+            // the moment before any tenant is known.
+            group.Issues = [new TenantIssue("Entra roles are view-only", reason)];
         }
 
         return group;
@@ -598,19 +615,40 @@ public static class PanelListBuilder
             Title = tenant.DisplayName,
             Expanded = !model.CollapsedTenants.Contains(tenant.Key),
             IsHome = tenant.Source == TenantSource.Home,
-            ViewOnlyReason = model.EntraViewOnlyReason(tenant.Key),
             ActiveCount = model.ActiveCount(tenant.Key),
         };
-        ApplyPills(model, group, tenant);
+        ApplyStatus(model, group, tenant);
         return group;
     }
 
-    private static void ApplyPills(AppModel model, PanelGroup group, TenantContext tenant)
+    /// <summary>The tenant's status: the "manual roles" mode, the issues behind the one warning glyph, and the busy spinner.</summary>
+    private static void ApplyStatus(AppModel model, PanelGroup group, TenantContext tenant)
     {
         group.Manual = tenant.DiscoveryMode == DiscoveryMode.ManualRoles;
-        group.AzureOff = tenant.AzureUnavailableReason;
-        group.GroupsOff = tenant.GroupsUnavailableReason;
-        group.Error = model.TenantErrors.GetValueOrDefault(tenant.Key) ?? tenant.LastDiscoveryError;
+        var issues = new List<TenantIssue>();
+        if (model.EntraViewOnlyReason(tenant.Key) is { } viewOnly)
+        {
+            issues.Add(new TenantIssue("Entra roles are view-only", viewOnly));
+        }
+
+        if (tenant.AzureUnavailableReason is { } azure)
+        {
+            issues.Add(new TenantIssue("Azure resource roles are off", azure));
+        }
+
+        if (tenant.GroupsUnavailableReason is { } groups)
+        {
+            issues.Add(new TenantIssue("PIM for Groups is off", groups));
+        }
+
+        var error = model.TenantErrors.GetValueOrDefault(tenant.Key) ?? tenant.LastDiscoveryError;
+        if (error is not null)
+        {
+            issues.Add(new TenantIssue("Discovery or refresh failed", error));
+        }
+
+        group.Issues = issues;
+        group.HasError = error is not null;
         group.Busy = model.Busy.Contains(tenant.Key);
     }
 
