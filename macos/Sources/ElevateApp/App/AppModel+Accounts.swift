@@ -14,12 +14,13 @@ extension AppModel {
 
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
     ///
-    /// `.ownApp` also needs a signature with entitlements: MSAL keeps its token cache in the
-    /// shared data-protection keychain group, which an ad-hoc signed build cannot read
-    /// (`errSecMissingEntitlement`, -34018), so sign-in would fail after the webview.
+    /// `.ownApp` needs a client id and a transport for it: MSAL on a signed build, or — when MSAL
+    /// is unusable because the build is ad-hoc signed and cannot read its shared data-protection
+    /// keychain group (`errSecMissingEntitlement`, -34018) — the loopback flow over the same
+    /// client id. `isConfigured` already covers both.
     func isAvailable(_ method: SignInMethod) -> Bool {
         switch method {
-        case .ownApp: isConfigured && BuildInfo.signingState != .adHoc
+        case .ownApp: isConfigured
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
@@ -54,7 +55,10 @@ extension AppModel {
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
             }
-            if !method.usesMSAL, let failure = await loopback.provider(for: method)?.persistenceError() {
+            // The own-app method keeps its refresh token in the Keychain too when it runs through
+            // the loopback flow, so its save failures must be surfaced the same way.
+            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")
             }

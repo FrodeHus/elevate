@@ -9,17 +9,25 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
     static let signInScopes = ["openid", "profile", "offline_access", "https://graph.microsoft.com/.default"]
 
     let method: SignInMethod
+    /// The method recorded on the identity produced by `signIn`. Normally `method`; the own-app
+    /// registration on an unsigned build runs through this provider under a
+    /// `.custom(clientId:)` method (so tokens are keyed by that client id) while the account it
+    /// creates must still be recorded — and routed — as `.ownApp`.
+    let reportedMethod: SignInMethod
     private let clientId: String
     private let client: AuthorizationCodeClient
     private let session: OAuthSession
     private let gate: InteractiveGate
 
-    /// - Parameter method: must be a first-party method (`method.clientId != nil`).
-    init(method: SignInMethod, http: any HTTPClient, store: any RefreshTokenStore, gate: InteractiveGate = InteractiveGate()) {
+    /// - Parameter method: must carry a client id (`method.clientId != nil`).
+    /// - Parameter reportedMethod: the method stamped on the returned `Identity`; defaults to `method`.
+    init(method: SignInMethod, http: any HTTPClient, store: any RefreshTokenStore, gate: InteractiveGate = InteractiveGate(),
+         reportedMethod: SignInMethod? = nil) {
         guard let clientId = method.clientId else {
             preconditionFailure("LoopbackTokenProvider requires a first-party client id, got \(method)")
         }
         self.method = method
+        self.reportedMethod = reportedMethod ?? method
         self.clientId = clientId
         self.client = AuthorizationCodeClient(http: http)
         self.session = OAuthSession(clientId: clientId, client: self.client, store: store)
@@ -29,7 +37,9 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
     // MARK: TokenProviding
 
     func signIn(method: SignInMethod) async throws -> Identity {
-        guard method == self.method else { throw PIMError.unexpected(status: 0, body: "Unsupported sign-in method") }
+        guard method == self.method || method == reportedMethod else {
+            throw PIMError.unexpected(status: 0, body: "Unsupported sign-in method")
+        }
         return try await gate.run { [self] in
             let pkce = PKCE.generate()
             let state = Self.randomState()
@@ -48,7 +58,7 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
             let claims = try IdTokenClaims.parse(idToken)
             let upn = claims.preferredUsername ?? "unknown"
             let identity = Identity(id: "\(claims.oid).\(claims.tid)", upn: upn,
-                                    displayName: claims.name ?? upn, homeTenantId: claims.tid, signInMethod: self.method)
+                                    displayName: claims.name ?? upn, homeTenantId: claims.tid, signInMethod: self.reportedMethod)
             await session.cache(response, identityId: identity.id, tenantId: claims.tid, scopes: Self.signInScopes)
             return identity
         }

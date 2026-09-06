@@ -117,14 +117,39 @@ final class AppModel {
     /// check this before writing to state so they cannot repopulate what was just cleared.
     var configGeneration = 0                          // internal for every AppModel+* extension
 
-    /// True once the app has a usable client id and a working MSAL provider — that is, once the
-    /// own-app sign-in method is available. The first-party methods work without it.
-    var isConfigured: Bool { settings.isConfigured && msal != nil }
+    /// Set only by tests, which cannot change `BuildInfo.signingState` (it describes the running
+    /// test host). nil in the app, where the signing state decides.
+    private let ownAppViaLoopbackOverride: Bool?
+
+    /// Whether the own-app registration signs in through the loopback PKCE flow with the Settings
+    /// client id instead of MSAL. True on ad-hoc (unsigned) builds: MSAL keeps its token cache in
+    /// the shared data-protection keychain group, which such a build has no entitlement to read,
+    /// so the loopback flow is the only one that works — and it needs nothing from the signature.
+    var ownAppViaLoopback: Bool { ownAppViaLoopbackOverride ?? (BuildInfo.signingState == .adHoc) }
+
+    /// The loopback provider that stands in for MSAL on unsigned builds: the Settings client id,
+    /// stamping its identities `.ownApp`. nil when MSAL is used or no client id is configured.
+    /// Cached by the registry, so this is cheap and always follows `settings.clientId`.
+    var ownAppLoopbackProvider: LoopbackTokenProvider? {
+        Self.ownAppLoopbackProvider(loopback, settings: settings, enabled: ownAppViaLoopback)
+    }
+
+    private static func ownAppLoopbackProvider(_ registry: LoopbackProviderRegistry, settings: AppSettings,
+                                               enabled: Bool) -> LoopbackTokenProvider? {
+        guard enabled, settings.isConfigured else { return nil }
+        return registry.provider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines),
+                                 reportedMethod: .ownApp)
+    }
+
+    /// True once the app has a usable client id and a way to sign in with it — MSAL on a signed
+    /// build, the loopback flow on an unsigned one. The first-party methods work without it.
+    var isConfigured: Bool { settings.isConfigured && (msal != nil || ownAppViaLoopback) }
 
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
          msal: MSALTokenProvider? = nil, loopback: LoopbackProviderRegistry? = nil,
-         gate: InteractiveGate = InteractiveGate()) {
+         gate: InteractiveGate = InteractiveGate(), ownAppViaLoopbackOverride: Bool? = nil) {
+        self.ownAppViaLoopbackOverride = ownAppViaLoopbackOverride
         self.tokens = tokens
         self.msal = msal
         self.loopback = loopback ?? LoopbackProviderRegistry(http: http, gate: gate)
@@ -156,9 +181,13 @@ final class AppModel {
         // One shared gate across MSAL and the loopback providers, so no two interactive sign-ins
         // (webview or browser) can run at the same time.
         let gate = InteractiveGate()
+        // On an unsigned build MSAL cannot work at all (its cache lives in a keychain access group
+        // the build has no entitlement for), so it is never constructed and never reports an error;
+        // the own-app registration goes through the loopback flow instead.
+        let viaLoopback = BuildInfo.signingState == .adHoc
         var msal: MSALTokenProvider?
         var initError: Error?
-        if settings.isConfigured {
+        if settings.isConfigured, !viaLoopback {
             do {
                 msal = try MSALTokenProvider(clientId: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines), redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
             } catch {
@@ -167,7 +196,8 @@ final class AppModel {
         }
         // Loopback providers need no configuration; they exist whether or not MSAL does.
         let loopback = LoopbackProviderRegistry(http: http, gate: gate)
-        let tokens = CompositeTokenProvider(msal: msal, loopback: loopback)
+        let ownAppLoopback = ownAppLoopbackProvider(loopback, settings: settings, enabled: viaLoopback)
+        let tokens = CompositeTokenProvider(msal: msal, loopback: loopback, ownAppLoopback: ownAppLoopback)
         let model = AppModel(tokens: tokens, http: http, store: AppStateStore(), notifier: notifier, settings: settings,
                              anchor: anchor, msal: msal, loopback: loopback, gate: gate)
         if let initError {
@@ -182,19 +212,28 @@ final class AppModel {
         return model
     }
 
-    /// Saves a new client id. MSAL's token cache is per client, so every *own-app* account is
-    /// signed out and cleared; first-party accounts keep their own refresh tokens and stay.
+    /// Saves a new client id. The token cache is per client — MSAL's on a signed build, the
+    /// loopback keychain store on an unsigned one — so every *own-app* account is signed out and
+    /// cleared; first-party accounts keep their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
-        guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
         // Construct the new provider before mutating anything, so a throwing init leaves the
-        // current client id, tokens and session state untouched.
-        let replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
+        // current client id, tokens and session state untouched. On an unsigned build there is no
+        // MSAL provider to build: the replacement loopback provider is derived from the new id below.
+        var replacement: MSALTokenProvider?
+        if !ownAppViaLoopback {
+            guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
+            replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
+        }
         let ownApp = state.identities.filter { $0.signInMethod == .ownApp }
         // The old client's cache is unusable under the new client id; drop it silently.
         // A webview sign-out here would only interrupt the user with a browser window.
         try? msal?.removeCachedAccounts(ownApp)
+        if let previous = ownAppLoopbackProvider, !ownApp.isEmpty {
+            // Same for the loopback refresh tokens, which are stored per client id.
+            Task { for identity in ownApp { try? await previous.signOut(identity) } }
+        }
         configGeneration += 1
         for identity in ownApp { forgetIdentity(identity.id) }
         lastRefresh = .distantPast
@@ -204,7 +243,7 @@ final class AppModel {
         persist()
         settings.clientId = id
         msal = replacement
-        let composite = CompositeTokenProvider(msal: replacement, loopback: loopback)
+        let composite = CompositeTokenProvider(msal: replacement, loopback: loopback, ownAppLoopback: ownAppLoopbackProvider)
         tokens = composite
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: composite)
@@ -293,8 +332,14 @@ final class AppModel {
         // keep the identity, telling the user their state may be stale.
         var unreadable = false
         var droppedUPNs: [String] = []
-        for identity in state.identities where identity.signInMethod != .ownApp {
-            guard let provider = loopback.provider(for: identity.signInMethod) else { continue }
+        // On an unsigned build own-app identities are reconciled here too, against the loopback
+        // store for the Settings client id — including accounts a signed build added through MSAL,
+        // which have no loopback token and are correctly dropped.
+        for identity in state.identities where identity.signInMethod != .ownApp || ownAppViaLoopback {
+            let known = identity.signInMethod == .ownApp
+                ? ownAppLoopbackProvider
+                : loopback.provider(for: identity.signInMethod)
+            guard let provider = known else { continue }
             switch await provider.refreshTokenState(for: identity.id) {
             case .some(false):
                 state.removeIdentity(identity.id)

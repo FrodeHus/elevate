@@ -3,13 +3,19 @@ import ElevateCore
 
 /// Routes every token operation to the provider that owns the identity's sign-in method:
 /// `ownApp` to MSAL, every loopback method (first-party or custom client id) to its `LoopbackTokenProvider`.
+///
+/// On an unsigned (ad-hoc) build there is no MSAL provider — its token cache needs a keychain
+/// access group the build has no entitlement for — so `ownApp` is routed to `ownAppLoopback`,
+/// a loopback provider over the Settings client id that stamps its identities `.ownApp`.
 final class CompositeTokenProvider: TokenProviding, Sendable {
     private let msal: MSALTokenProvider?
     private let loopback: LoopbackProviderRegistry
+    private let ownAppLoopback: LoopbackTokenProvider?
 
-    init(msal: MSALTokenProvider?, loopback: LoopbackProviderRegistry) {
+    init(msal: MSALTokenProvider?, loopback: LoopbackProviderRegistry, ownAppLoopback: LoopbackTokenProvider? = nil) {
         self.msal = msal
         self.loopback = loopback
+        self.ownAppLoopback = ownAppLoopback
     }
 
     // MARK: TokenProviding
@@ -42,12 +48,18 @@ final class CompositeTokenProvider: TokenProviding, Sendable {
     // MARK: Routing
 
     /// The provider for `identityId`'s method, or nil when nothing owns that identity.
-    func loopbackProvider(for method: SignInMethod) -> LoopbackTokenProvider? { loopback.provider(for: method) }
+    func loopbackProvider(for method: SignInMethod) -> LoopbackTokenProvider? {
+        if method.usesMSAL { return msal == nil ? ownAppLoopback : nil }
+        return loopback.provider(for: method)
+    }
 
     private func provider(for method: SignInMethod) throws -> any TokenProviding {
         if method.usesMSAL {
-            guard let msal else { throw PIMError.unexpected(status: 0, body: "Configure a client id in Settings") }
-            return msal
+            if let msal { return msal }
+            guard let ownAppLoopback else {
+                throw PIMError.unexpected(status: 0, body: "Configure a client id in Settings")
+            }
+            return ownAppLoopback
         }
         guard let provider = loopback.provider(for: method) else {
             throw PIMError.unexpected(status: 0, body: "Unsupported sign-in method")

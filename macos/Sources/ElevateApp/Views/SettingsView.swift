@@ -32,7 +32,9 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 LabeledContent("Version") {
-                    Text("\(BuildInfo.version) (\(BuildInfo.build)) · \(BuildInfo.signingDescription)")
+                    // Which transport the own-app registration uses is the one thing the signing
+                    // state changes for the user, so say it right where the signing state is shown.
+                    Text("\(BuildInfo.version) (\(BuildInfo.build)) · \(BuildInfo.signingDescription)\(model.ownAppViaLoopback ? " · via loopback" : "")")
                         .textSelection(.enabled)
                 }
                 LabeledContent("Updates") {
@@ -59,13 +61,22 @@ struct SettingsView: View {
                     .textFieldStyle(.roundedBorder)
                 LabeledContent("Redirect URI") {
                     HStack {
-                        Text(AppSettings.redirectUri).textSelection(.enabled).font(.caption.monospaced())
-                        Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(AppSettings.redirectUri, forType: .string) } label: { Image(systemName: "doc.on.doc") }
+                        Text(model.ownAppViaLoopback ? "http://localhost" : AppSettings.redirectUri)
+                            .textSelection(.enabled).font(.caption.monospaced())
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(model.ownAppViaLoopback ? "http://localhost" : AppSettings.redirectUri, forType: .string)
+                        } label: { Image(systemName: "doc.on.doc") }
                             .buttonStyle(.borderless).accessibilityLabel("Copy redirect URI")
                     }
                 }
-                Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId) and add the Graph PIM permissions listed in the README.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if model.ownAppViaLoopback {
+                    Text("This unsigned build signs in through the browser (loopback), so register http://localhost under the Mobile and desktop applications platform instead of the msauth.… URI, and add the Graph PIM permissions listed in the README. A signed build uses the msauth.\(AppSettings.bundleId)://auth redirect under the iOS/macOS platform; registering both is harmless.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId) and add the Graph PIM permissions listed in the README.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
                 if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }
             }

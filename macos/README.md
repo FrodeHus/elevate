@@ -55,9 +55,15 @@ approvals only. A tenant that refuses the approver read simply shows nothing.
 
 Elevate can add an account in two ways, chosen per account in "Add account…":
 
-- **Your own Entra app registration** ("Own app registration"). Sign-in goes through MSAL and
-  the client ID from Settings. It gives Elevate exactly the permissions you grant it, but each
-  tenant needs an admin to consent (see Prerequisites below).
+- **Your own Entra app registration** ("Own app registration"). Uses the client ID from Settings.
+  It gives Elevate exactly the permissions you grant it, but each tenant needs an admin to
+  consent (see Prerequisites below). A signed build signs in with MSAL through the
+  `msauth.<bundle id>://auth` redirect; an **unsigned (ad-hoc) build** signs in through the
+  browser with the loopback flow instead — MSAL keeps its token cache in a shared keychain group
+  such a build has no entitlement for. Everything else about the method is identical; the
+  unsigned build only needs `http://localhost` registered as a redirect URI under the "Mobile and
+  desktop applications" platform (the setup script and the guide already add it). Settings shows
+  "via loopback" next to the version when that is the active transport.
 - **A custom app registration through the loopback flow** ("Custom app (loopback)"). Any
   public-client registration you have a client ID for, such as a company-wide PIM app that has
   no macOS platform configured. It needs `http://localhost` registered as a redirect URI
@@ -79,6 +85,9 @@ Caveats:
 - The same account cannot be added twice under different methods; sign it out first.
 - Changing the client ID in Settings only affects own-app accounts: they are signed out and
   removed. Azure CLI and Azure PowerShell accounts and their tenants are left alone.
+- An own-app account added by a signed build is signed out when the same state is opened by an
+  unsigned build (and the other way round): the two keep their tokens in different places. Add
+  the account again.
 
 ## Install
 
