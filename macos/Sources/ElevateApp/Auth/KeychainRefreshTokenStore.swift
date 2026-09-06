@@ -3,7 +3,8 @@ import Security
 import ElevateCore
 
 /// Refresh tokens for one client id, kept as data-protection generic-password items in the
-/// app's own keychain access group.
+/// app's own keychain access group — or, on an ad-hoc signed build with no entitlements, as
+/// plain generic-password items in the login keychain (see `baseQuery`).
 ///
 /// One item per identity, account `"<clientId>|<identityId>"` so two sign-in methods never
 /// collide, and `AfterFirstUnlockThisDeviceOnly` so a background refresh works after a reboot
@@ -19,9 +20,7 @@ final class KeychainRefreshTokenStore: RefreshTokenStore {
     /// `application-identifier` entitlement) plus the bundle suffix, so a build signed by a
     /// different team still lands in its own group instead of failing every Keychain call.
     static let accessGroup: String = {
-        guard let task = SecTaskCreateFromSelf(nil),
-              let value = SecTaskCopyValueForEntitlement(task, "application-identifier" as CFString, nil),
-              let identifier = value as? String,
+        guard let identifier = BuildInfo.applicationIdentifier,
               let prefix = identifier.split(separator: ".", maxSplits: 1).first, !prefix.isEmpty
         else { return fallbackAccessGroup }
         return "\(prefix).no.reothor.elevate"
@@ -34,13 +33,22 @@ final class KeychainRefreshTokenStore: RefreshTokenStore {
     private var accountPrefix: String { "\(clientId)|" }
     private func account(for identityId: String) -> String { accountPrefix + identityId }
 
+    /// The shared part of every query.
+    ///
+    /// An ad-hoc signed build has no `application-identifier` entitlement, so it belongs to no
+    /// keychain access group and the data-protection keychain rejects all of its calls with
+    /// `errSecMissingEntitlement` (-34018). Such a build therefore omits both keys and its items
+    /// go to the legacy login keychain instead. Service and account names stay the same, so
+    /// nothing else in the app has to care which keychain is in use.
     private func baseQuery(account: String? = nil) -> [String: Any] {
         var q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
-            kSecAttrAccessGroup as String: Self.accessGroup,
-            kSecUseDataProtectionKeychain as String: true,
         ]
+        if BuildInfo.signingState != .adHoc {
+            q[kSecAttrAccessGroup as String] = Self.accessGroup
+            q[kSecUseDataProtectionKeychain as String] = true
+        }
         if let account { q[kSecAttrAccount as String] = account }
         return q
     }

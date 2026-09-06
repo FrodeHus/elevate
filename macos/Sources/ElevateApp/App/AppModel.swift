@@ -132,9 +132,13 @@ final class AppModel {
     var rememberedCustomClientId: String { settings.customClientId }
 
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
+    ///
+    /// `.ownApp` also needs a signature with entitlements: MSAL keeps its token cache in the
+    /// shared data-protection keychain group, which an ad-hoc signed build cannot read
+    /// (`errSecMissingEntitlement`, -34018), so sign-in would fail after the webview.
     func isAvailable(_ method: SignInMethod) -> Bool {
         switch method {
-        case .ownApp: isConfigured
+        case .ownApp: isConfigured && BuildInfo.signingState != .adHoc
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
