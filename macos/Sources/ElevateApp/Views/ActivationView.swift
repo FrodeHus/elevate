@@ -92,11 +92,17 @@ struct ActivationView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 DurationPicker(duration: Binding(get: { items[0].duration }, set: { items[0].duration = $0 }), maximum: item.role.policy.maximumDuration)
-                if item.role.policy.requiresApproval { Label("This role requires approval", systemImage: "person.badge.clock").font(.caption) }
-                if item.role.policy.requiresMFA { Label("Multi-factor authentication is required; you may be asked to sign in again", systemImage: "lock.shield").font(.caption) }
+                if item.role.policy.requiresApproval {
+                    Label("Requires approval before it becomes active", systemImage: "person.badge.clock")
+                        .font(.caption).fixedSize(horizontal: false, vertical: true)
+                }
+                if item.role.policy.requiresMFA {
+                    Label("Requires MFA; you may be asked to sign in again", systemImage: "lock.shield")
+                        .font(.caption).fixedSize(horizontal: false, vertical: true)
+                }
                 if let ctx = item.role.policy.authenticationContext {
-                    Label("A Conditional Access policy applies (authentication context \(ctx)); a step-up sign-in may follow", systemImage: "checkmark.shield").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Label("Conditional Access applies (context \(ctx)); a step-up sign-in may follow", systemImage: "checkmark.shield")
+                        .font(.caption).fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
