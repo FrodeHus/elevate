@@ -53,6 +53,8 @@ public sealed partial class FlyoutWindow : Window
 
         Activated += OnActivated;
         Root.SizeChanged += (_, _) => FitToContent();
+        // After the layout pass that realises the new rows, never inside the redraw itself.
+        Panel.ContentChanged += (_, _) => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, FitToContent);
     }
 
     public AppModel Model { get; }
@@ -119,6 +121,8 @@ public sealed partial class FlyoutWindow : Window
 
     private (int Width, int Height) PixelSize()
     {
+        // Let the list realise its containers first, so the unbounded measure below sees every row.
+        Root.UpdateLayout();
         Root.Measure(new Windows.Foundation.Size(Width, double.PositiveInfinity));
         var desired = Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height));
         return ((int)Math.Round(Width * Scale), (int)Math.Round(desired * Scale));

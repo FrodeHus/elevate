@@ -74,7 +74,16 @@ public sealed partial class PanelView : UserControl
             // A drawing failure must not fault the model operation that raised Changed.
             App.Log("Panel refresh failed: " + e);
         }
+
+        ContentChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised after every redraw. The flyout refits its height on it: the window fixes the root's
+    /// actual size, so the root's own SizeChanged never fires when the list grows, a tenant finishes
+    /// discovery or the pivot changes.
+    /// </summary>
+    public event EventHandler? ContentChanged;
 
     private void Draw(AppModel model)
     {
