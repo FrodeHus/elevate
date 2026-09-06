@@ -26,8 +26,22 @@ public partial class App : Application
         {
             // A failure in a view must not take the tray icon down with it.
             Model?.LogError("Unhandled: " + e.Message);
+            Log("Unhandled exception: " + e.Message + Environment.NewLine + e.Exception);
             e.Handled = true;
         };
+    }
+
+    /// <summary>Appends one line to <c>%LOCALAPPDATA%\Elevate\elevate.log</c>; the only place failures of the shell itself go.</summary>
+    public static void Log(string message)
+    {
+        try
+        {
+            var path = Path.Combine(AppStateStore.DefaultDirectory, "elevate.log");
+            File.AppendAllText(path, $"{DateTimeOffset.Now:O} {message}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+        }
     }
 
     public static new App Current => (App)Application.Current;
@@ -55,11 +69,22 @@ public partial class App : Application
 
     private async Task StartAsync()
     {
-        await Model!.BootstrapAsync();
-        // Developer switch: `Elevate.exe --flyout` opens the flyout at once, for screenshots and smoke tests.
-        if (Environment.GetCommandLineArgs().Contains("--flyout", StringComparer.OrdinalIgnoreCase))
+        try
         {
-            _flyout?.Show(_tray?.IconRect);
+            await Model!.BootstrapAsync();
+            // Developer switch: `Elevate.exe --flyout` opens the flyout at once, for screenshots and smoke tests.
+            if (Environment.GetCommandLineArgs().Contains("--flyout", StringComparer.OrdinalIgnoreCase))
+            {
+                _flyout?.Show(_tray?.IconRect);
+            }
+        }
+        catch (Exception e)
+        {
+            Log("Startup failed: " + e);
+            if (Model is not null)
+            {
+                Model.StartupError = e.Message;
+            }
         }
     }
 
@@ -160,17 +185,19 @@ public partial class App : Application
         }
     }
 
-    public void OpenSettings()
-    {
-        // The Settings window arrives with the windows task.
-        _flyout?.Hide();
-    }
+    // The windows themselves arrive with the windows task; until then these only close the flyout.
 
-    public void OpenAddAccount()
-    {
-        // The Add account window arrives with the windows task.
-        _flyout?.Hide();
-    }
+    public void OpenSettings() => _flyout?.Hide();
+
+    public void OpenAddAccount(SignInMethod? preselected = null) => _flyout?.Hide();
+
+    public void OpenActivation(IReadOnlyList<RoleKey> keys) => _flyout?.Hide();
+
+    public void OpenConfigureRoles(TenantKey tenantKey) => _flyout?.Hide();
+
+    public void OpenAddTenant(string identityId) => _flyout?.Hide();
+
+    public void OpenDiscoverTenants(string identityId) => _flyout?.Hide();
 
     public void Quit()
     {

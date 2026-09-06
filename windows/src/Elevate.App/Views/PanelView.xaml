@@ -3,16 +3,140 @@
     x:Class="Elevate.App.Views.PanelView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Elevate.App.Views"
     Width="380">
+    <UserControl.Resources>
+        <CollectionViewSource x:Name="GroupedSource" IsSourceGrouped="True" />
+
+        <!-- One eligible role, or one active assignment in the summary. -->
+        <DataTemplate x:Key="RoleRowTemplate" x:DataType="views:RoleRow">
+            <Grid MinHeight="44" Padding="14,6,14,6" ColumnSpacing="10"
+                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" MinWidth="0" Padding="0" Margin="0,0,-4,0" VerticalAlignment="Center"
+                          Visibility="{x:Bind SelectVisibility, Mode=OneWay}" IsChecked="{x:Bind Selected, Mode=OneWay}"
+                          IsEnabled="{x:Bind SelectEnabled, Mode=OneWay}" Click="OnSelectClick"
+                          ToolTipService.ToolTip="{x:Bind ViewOnlyReason, Mode=OneWay}" AutomationProperties.Name="Select role" />
+                <views:StatusDot Grid.Column="1" Status="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontSize="14" />
+                    <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="{x:Bind DetailTooltip, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind Via, Mode=OneWay}" Visibility="{x:Bind ViaVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="This eligibility is granted through a group; activating it activates the role for you" />
+                    <TextBlock Text="manual" Visibility="{x:Bind ManualVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind FailedText, Mode=OneWay}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="{x:Bind FailedText, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Countdown, Mode=OneWay}" Visibility="{x:Bind CountdownVisibility, Mode=OneWay}"
+                               FontFamily="Cascadia Mono, Consolas" FontSize="13" VerticalAlignment="Center"
+                               Foreground="{x:Bind CountdownBrush, Mode=OneWay}"
+                               FontWeight="{x:Bind CountdownWeight, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" Visibility="{x:Bind StatusTextVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    <ProgressRing Width="16" Height="16" IsActive="True" Visibility="{x:Bind ProvisioningVisibility, Mode=OneWay}" />
+                    <TextBlock Text="cannot activate" Visibility="{x:Bind ViewOnlyVisibility, Mode=OneWay}" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"
+                               ToolTipService.ToolTip="{x:Bind ViewOnlyReason, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <ProgressRing Width="16" Height="16" IsActive="True" Visibility="{x:Bind InFlightVisibility, Mode=OneWay}"
+                                  ToolTipService.ToolTip="Request in progress" />
+                    <Button Content="Extend" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind ExtendVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind ExtendEnabled, Mode=OneWay}" Click="OnExtendClick"
+                            ToolTipService.ToolTip="Extend by activating again" />
+                    <Button Content="Deactivate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind DeactivateVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind DeactivateEnabled, Mode=OneWay}" Click="OnDeactivateClick"
+                            ToolTipService.ToolTip="{x:Bind DeactivateTooltip, Mode=OneWay}" />
+                    <Button Content="Cancel" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind CancelVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind CancelEnabled, Mode=OneWay}" Click="OnDeactivateClick"
+                            ToolTipService.ToolTip="Cancel this scheduled activation" />
+                    <Button Content="Cancel" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind CancelPendingVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind CancelEnabled, Mode=OneWay}" Click="OnCancelPendingClick"
+                            ToolTipService.ToolTip="Withdraw this request" />
+                    <Button Content="Activate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind ActivateVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind ActivateEnabled, Mode=OneWay}" Click="OnActivateClick"
+                            ToolTipService.ToolTip="Activate this role" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="NoteRowTemplate" x:DataType="views:NoteRow">
+            <TextBlock Text="{x:Bind Text, Mode=OneWay}" Margin="28,8,14,8" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </DataTemplate>
+
+        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" />
+
+        <!-- Group headers: the pinned "Active now" summary, an account row, or a tenant header. -->
+        <DataTemplate x:Key="GroupHeaderTemplate" x:DataType="views:PanelGroup">
+            <Grid Padding="10,6,6,6" ColumnSpacing="8" Background="{x:Bind HeaderBrush, Mode=OneWay}"
+                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,1" MinHeight="40">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Style="{StaticResource SubtleButtonStyle}" Width="24" Height="24" Click="OnToggleGroup"
+                        AutomationProperties.Name="Collapse or expand">
+                    <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Button>
+                <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="{x:Bind AvatarVisibility, Mode=OneWay}">
+                    <TextBlock Text="{x:Bind Initials, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                </Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="0">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <TextBlock Text="home" Visibility="{x:Bind HomeVisibility, Mode=OneWay}" FontSize="11"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        <views:Pill Text="Azure roles only" Visibility="{x:Bind ViewOnlyVisibility, Mode=OneWay}" Tooltip="{x:Bind ViewOnlyReason, Mode=OneWay}" Tint="Caution" />
+                        <views:Pill Text="manual roles" Visibility="{x:Bind ManualVisibility, Mode=OneWay}" Tooltip="Discovery is refused in this tenant; the roles are the ones you configured" Tint="Caution" />
+                        <views:Pill Text="Azure off" Visibility="{x:Bind AzureOffVisibility, Mode=OneWay}" Tooltip="{x:Bind AzureOff, Mode=OneWay}" Tint="Neutral" />
+                        <views:Pill Text="Groups off" Visibility="{x:Bind GroupsOffVisibility, Mode=OneWay}" Tooltip="{x:Bind GroupsOff, Mode=OneWay}" Tint="Neutral" />
+                        <views:Pill Text="error" Visibility="{x:Bind ErrorVisibility, Mode=OneWay}" Tooltip="{x:Bind Error, Mode=OneWay}" Tint="Critical" />
+                        <ProgressRing Width="14" Height="14" IsActive="True" Visibility="{x:Bind BusyVisibility, Mode=OneWay}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Visibility="{x:Bind CaptionVisibility, Mode=OneWay}" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock Grid.Column="3" Text="{x:Bind ActiveText, Mode=OneWay}" Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"
+                           FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="4" Style="{StaticResource SubtleButtonStyle}" Width="28" Height="28" Click="OnGroupMenu"
+                        Visibility="{x:Bind MenuVisibility, Mode=OneWay}" AutomationProperties.Name="Actions">
+                    <FontIcon Glyph="&#xE712;" FontSize="14" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Header: title, offline pill, tools -->
-        <Grid Grid.Row="0" Padding="14,10,8,6" ColumnSpacing="8">
+        <Grid Grid.Row="0" Padding="14,10,8,4" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -22,10 +146,19 @@
             <TextBlock Grid.Column="0" Text="Elevate" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Border Grid.Column="1" x:Name="OfflinePill" Visibility="Collapsed" VerticalAlignment="Center"
                     Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="9" Padding="7,1">
+                    BorderThickness="1" CornerRadius="9" Padding="7,1"
+                    ToolTipService.ToolTip="No network connection; refreshes and requests are paused">
                 <TextBlock Text="offline" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+                <ToggleButton x:Name="SearchToggle" Width="32" Height="32" Padding="0" Click="OnSearchToggle"
+                              ToolTipService.ToolTip="Filter roles and groups" AutomationProperties.Name="Search">
+                    <FontIcon Glyph="&#xE721;" FontSize="14" />
+                </ToggleButton>
+                <ToggleButton x:Name="SelectToggle" Width="32" Height="32" Padding="0" Click="OnSelectToggle"
+                              ToolTipService.ToolTip="Select several roles to activate together" AutomationProperties.Name="Select roles">
+                    <FontIcon Glyph="&#xE762;" FontSize="14" />
+                </ToggleButton>
                 <Button x:Name="RefreshButton" Style="{StaticResource SubtleButtonStyle}" Width="32" Height="32" Padding="0"
                         Click="OnRefresh" ToolTipService.ToolTip="Refresh" AutomationProperties.Name="Refresh">
                     <FontIcon Glyph="&#xE72C;" FontSize="14" />
@@ -33,16 +166,96 @@
             </StackPanel>
         </Grid>
 
-        <!-- Body: the pivots and the list arrive in the flyout-content task; the shell shows the notice and an empty state. -->
-        <StackPanel Grid.Row="1">
-            <InfoBar x:Name="NoticeBar" IsOpen="False" Severity="Warning" Margin="12,0,12,8" Closed="OnNoticeClosed" />
-            <TextBlock x:Name="EmptyText" Margin="14,18,14,24" FontSize="13" TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="Add an account to see your PIM roles." />
+        <!-- Pivots with activation counts -->
+        <SelectorBar Grid.Row="1" x:Name="Pivots" Margin="8,0,8,0" SelectionChanged="OnPivotChanged">
+            <SelectorBarItem x:Name="EntraPivot" Padding="10,6,10,6">
+                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Entra" VerticalAlignment="Center" /><views:CountPill x:Name="EntraCount" /></StackPanel>
+            </SelectorBarItem>
+            <SelectorBarItem x:Name="AzurePivot" Padding="10,6,10,6">
+                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Azure" VerticalAlignment="Center" /><views:CountPill x:Name="AzureCount" /></StackPanel>
+            </SelectorBarItem>
+            <SelectorBarItem x:Name="GroupsPivot" Padding="10,6,10,6">
+                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Groups" VerticalAlignment="Center" /><views:CountPill x:Name="GroupsCount" /></StackPanel>
+            </SelectorBarItem>
+        </SelectorBar>
+
+        <!-- Search -->
+        <Grid Grid.Row="2" x:Name="SearchRow" Visibility="Collapsed" Padding="12,4,12,6"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <TextBox x:Name="SearchBox" PlaceholderText="Filter roles" TextChanged="OnSearchChanged" KeyDown="OnSearchKeyDown" />
+        </Grid>
+
+        <!-- Notices -->
+        <StackPanel Grid.Row="3" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <InfoBar x:Name="OfflineBar" IsOpen="False" IsClosable="False" Severity="Warning" Margin="12,8,12,0"
+                     Title="You're offline." Message="Countdowns keep running; refresh and activation resume when the network is back." />
+            <InfoBar x:Name="NoticeBar" IsOpen="False" Severity="Warning" Margin="12,8,12,0" Closed="OnNoticeClosed" />
         </StackPanel>
 
+        <!-- Body -->
+        <Grid Grid.Row="4">
+            <!-- First run: no client id and no account yet -->
+            <StackPanel x:Name="SetupView" Visibility="Collapsed" Padding="22,18,22,24" Spacing="10" HorizontalAlignment="Stretch">
+                <views:ChevronGlyph Width="40" Height="40" HorizontalAlignment="Center" />
+                <TextBlock Text="Complete initial setup" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock Text="Enter your app registration's client ID in Settings, or start with the Azure CLI app for Azure resource roles only."
+                           FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <Button Content="Open Settings" Style="{StaticResource AccentButtonStyle}" Click="OnSettings" />
+                    <Button Content="Continue with the Azure CLI app" Click="OnContinueWithCli" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Configured, but nothing added yet -->
+            <StackPanel x:Name="NoAccountsView" Visibility="Collapsed" Padding="22,18,22,24" Spacing="8">
+                <FontIcon Glyph="&#xE8FA;" FontSize="28" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="No accounts" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock Text="Add an account to see your PIM roles." FontSize="13" TextAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <ListView x:Name="List" Visibility="Collapsed" MaxHeight="460" SelectionMode="None" IsItemClickEnabled="False"
+                      ItemsSource="{x:Bind GroupedSource.View, Mode=OneWay}" ItemTemplateSelector="{StaticResource ItemSelector}">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.GroupStyle>
+                    <GroupStyle HeaderTemplate="{StaticResource GroupHeaderTemplate}" HidesIfEmpty="False">
+                        <GroupStyle.HeaderContainerStyle>
+                            <Style TargetType="ListViewHeaderItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Background" Value="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}" />
+                            </Style>
+                        </GroupStyle.HeaderContainerStyle>
+                    </GroupStyle>
+                </ListView.GroupStyle>
+            </ListView>
+        </Grid>
+
+        <!-- Select mode: sticky bulk bar -->
+        <Grid Grid.Row="5" x:Name="BulkBar" Visibility="Collapsed" Padding="14,10" ColumnSpacing="10"
+              Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock x:Name="BulkCaption" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="BulkHint" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+            </StackPanel>
+            <Button Grid.Column="1" x:Name="BulkActivate" Style="{StaticResource AccentButtonStyle}" Content="Activate" Click="OnBulkActivate" />
+        </Grid>
+
         <!-- Footer -->
-        <Grid Grid.Row="2" Padding="8,6" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+        <Grid Grid.Row="6" Padding="8,4" Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -51,9 +264,9 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <HyperlinkButton Grid.Column="0" Content="Add account…" Click="OnAddAccount" FontSize="13" />
-            <HyperlinkButton Grid.Column="2" Content="Settings…" Click="OnSettings" FontSize="13" />
-            <HyperlinkButton Grid.Column="4" Content="Quit" Click="OnQuit" FontSize="13" />
+            <HyperlinkButton Grid.Column="0" Content="Add account…" Click="OnAddAccount" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton Grid.Column="2" Content="Settings…" Click="OnSettings" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton Grid.Column="4" Content="Quit" Click="OnQuit" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
     </Grid>
 </UserControl>

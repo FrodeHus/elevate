@@ -14,6 +14,13 @@
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="Padding" Value="0" />
             </Style>
+            <!-- The 26 px row buttons of the flyout (Fluent small size). -->
+            <Style x:Key="SmallButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="MinHeight" Value="26" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="FontSize" Value="12" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -24,6 +24,7 @@ public sealed partial class FlyoutWindow : Window
 
     private readonly OverlappedPresenter _presenter;
     private DateTimeOffset _hiddenAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _shownAt = DateTimeOffset.MinValue;
     private bool _shown;
 
     public FlyoutWindow(AppModel model)
@@ -84,8 +85,10 @@ public sealed partial class FlyoutWindow : Window
     internal void Show(RECT? anchor)
     {
         Model.PanelOpened();
+        Panel.ResetSearch();
         Panel.Refresh();
         _shown = true;
+        _shownAt = DateTimeOffset.UtcNow;
         Root.UpdateLayout();
         Place(anchor);
         AppWindow.Show(true);
@@ -143,7 +146,10 @@ public sealed partial class FlyoutWindow : Window
 
     private void OnActivated(object sender, WindowActivatedEventArgs args)
     {
-        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        // A deactivation in the first moments after Show is the foreground fight of the launch itself
+        // (the shell may refuse to give a new window focus), not the user clicking elsewhere.
+        if (args.WindowActivationState == WindowActivationState.Deactivated
+            && DateTimeOffset.UtcNow - _shownAt > TimeSpan.FromMilliseconds(500))
         {
             Hide();
         }

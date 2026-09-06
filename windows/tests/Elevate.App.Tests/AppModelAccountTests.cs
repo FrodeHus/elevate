@@ -68,7 +68,7 @@ public class AppModelAccountTests
     {
         var http = new StubHttpClient();
         http.On("GET", "/organization", """{"value":[{"id":"home","displayName":"Home Org"}]}""");
-        http.On("GET", "roleEligibilityScheduleInstances", """{"value":[]}""");
+        http.On("GET", "roleEligibilitySchedules/filterByCurrentUser", """{"value":[]}""");
         http.On("GET", "roleAssignmentScheduleInstances", """{"value":[]}""");
         http.On("GET", "roleAssignmentScheduleRequests", """{"value":[]}""");
         http.On("GET", "management.azure.com", """{"value":[]}""");
