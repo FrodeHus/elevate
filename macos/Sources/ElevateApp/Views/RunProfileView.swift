@@ -37,12 +37,12 @@ struct RunProfileView: View {
                 Image(systemName: "bolt.fill").foregroundStyle(Color.accentColor)
                 Text(finished ? "Ran \"\(profile?.name ?? "profile")\"" : "Run \"\(profile?.name ?? "profile")\"").font(.title3.weight(.semibold))
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(groupedTenantKeys, id: \.self) { tk in
-                    Text("\(model.identity(tk.identityId)?.upn ?? tk.identityId) · \(model.tenant(tk)?.displayName ?? tk.tenantId)")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
-                    ForEach($items) { $item in
-                        if item.roleKey.tenantKey == tk { row($item) }
+                    TenantGroup(tenantKey: tk) {
+                        ForEach($items) { $item in
+                            if item.roleKey.tenantKey == tk { row($item) }
+                        }
                     }
                 }
             }

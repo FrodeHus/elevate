@@ -113,24 +113,24 @@ struct ActivationView: View {
     }
 
     private var bulkTable: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(groupedTenantKeys, id: \.self) { tk in
-                Text("\(model.identity(tk.identityId)?.upn ?? tk.identityId) · \(model.tenant(tk)?.displayName ?? tk.tenantId)")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
-                ForEach($items) { $item in
-                    if item.role.key.tenantKey == tk {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(item.role.displayName)
-                                if let detail = item.role.detail {
-                                    Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(item.role.key) ?? detail)
+                TenantGroup(tenantKey: tk) {
+                    ForEach($items) { $item in
+                        if item.role.key.tenantKey == tk {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.role.displayName)
+                                    if let detail = item.role.detail {
+                                        Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(item.role.key) ?? detail)
+                                    }
                                 }
+                                Spacer()
+                                DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
+                                    .labelsHidden().frame(width: 110)
+                                HStack(spacing: 0) { approvalLabel(for: item.role); Spacer(minLength: 0) }.frame(width: 150)
+                                HStack(spacing: 0) { Spacer(minLength: 0); progressLabel(for: item.role.key) }.frame(width: 120)
                             }
-                            Spacer()
-                            DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
-                                .labelsHidden().frame(width: 110)
-                            HStack(spacing: 0) { approvalLabel(for: item.role); Spacer(minLength: 0) }.frame(width: 150)
-                            HStack(spacing: 0) { Spacer(minLength: 0); progressLabel(for: item.role.key) }.frame(width: 120)
                         }
                     }
                 }
