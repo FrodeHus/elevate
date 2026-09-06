@@ -50,13 +50,20 @@ struct ActivationView: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button(isBulk ? "Activate all" : "Activate") { Task { await submit() } }
+                Button(submitTitle) { Task { await submit() } }
                     .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent).disabled(!canSubmit)
             }
         }
         .padding(16)
         .frame(width: isBulk ? 560 : 380)
         .onAppear(perform: load)
+    }
+
+    /// "Request" when every role in the sheet waits for an approver; otherwise the plain verb.
+    private var submitTitle: String {
+        let allApproval = !items.isEmpty && items.allSatisfy { $0.role.policy.requiresApproval }
+        let verb = allApproval ? "Request" : "Activate"
+        return isBulk ? "\(verb) all" : verb
     }
 
     /// The picker's lower bound is "now", so it is recomputed on every render rather than captured once.
@@ -86,6 +93,11 @@ struct ActivationView: View {
                 }
                 DurationPicker(duration: Binding(get: { items[0].duration }, set: { items[0].duration = $0 }), maximum: item.role.policy.maximumDuration)
                 if item.role.policy.requiresApproval { Label("This role requires approval", systemImage: "person.badge.clock").font(.caption) }
+                if item.role.policy.requiresMFA { Label("Multi-factor authentication is required; you may be asked to sign in again", systemImage: "lock.shield").font(.caption) }
+                if let ctx = item.role.policy.authenticationContext {
+                    Label("A Conditional Access policy applies (authentication context \(ctx)); a step-up sign-in may follow", systemImage: "checkmark.shield").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -101,7 +113,7 @@ struct ActivationView: View {
                             Text(item.role.displayName)
                             Spacer()
                             DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration).frame(width: 150)
-                            approvalLabel(for: item.role).frame(width: 80)
+                            approvalLabel(for: item.role).frame(width: 150, alignment: .leading)
                             progressLabel(for: item.role.key).frame(width: 120, alignment: .trailing)
                         }
                     }
@@ -117,8 +129,9 @@ struct ActivationView: View {
     }
 
     @ViewBuilder private func approvalLabel(for role: EligibleRole) -> some View {
-        if role.policy.requiresApproval {
-            Label("approval", systemImage: "person.badge.clock").font(.caption)
+        if let caption = PolicyNotes.caption(for: role.policy) {
+            Label(caption, systemImage: role.policy.requiresApproval ? "person.badge.clock" : "lock.shield")
+                .font(.caption).lineLimit(1).help(PolicyNotes.explanation(for: role.policy) ?? "")
         } else {
             EmptyView()
         }
