@@ -1,0 +1,90 @@
+name: Bug report
+description: Something in Elevate does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do not paste tokens, client ids, tenant ids or account
+        names into this issue. For anything security-sensitive, use the private route in
+        [SECURITY.md](https://github.com/FrodeHus/elevate/blob/main/SECURITY.md) instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: A clear description of the problem, including any error text Elevate showed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the panel
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "26.1"
+    validations:
+      required: true
+
+  - type: input
+    id: elevate-version
+    attributes:
+      label: Elevate version
+      description: Shown in Settings, e.g. "1.0.1 (12)".
+      placeholder: "1.0.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: signin-method
+    attributes:
+      label: Sign-in method
+      description: How the affected account was added.
+      options:
+        - Own app registration
+        - Custom client id
+        - Azure CLI
+        - Azure PowerShell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: role-kind
+    attributes:
+      label: Which kind of role is affected
+      options:
+        - label: Entra directory
+        - label: Azure resource
+        - label: PIM for Groups
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: >
+        Settings → Copy diagnostics, pasted here. The report contains no tokens and no client
+        ids — there is no field for them — so it is safe to share.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, related issues, workarounds you found.
