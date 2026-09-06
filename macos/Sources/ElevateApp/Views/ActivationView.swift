@@ -38,6 +38,10 @@ struct ActivationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role")).font(.title3.weight(.semibold))
+            if !isBulk, let detail = items.first?.role.detail {
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    .help(scopeTooltip(items.first?.role.key) ?? detail)
+            }
             if isBulk { bulkTable } else { singleDuration }
             startAtRow
             TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
@@ -116,7 +120,12 @@ struct ActivationView: View {
                 ForEach($items) { $item in
                     if item.role.key.tenantKey == tk {
                         HStack {
-                            Text(item.role.displayName)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.role.displayName)
+                                if let detail = item.role.detail {
+                                    Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(item.role.key) ?? detail)
+                                }
+                            }
                             Spacer()
                             DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
                                 .labelsHidden().frame(width: 110)
@@ -127,6 +136,12 @@ struct ActivationView: View {
                 }
             }
         }
+    }
+
+    /// Azure captions are the scope's display name; the full ARM path is one hover away.
+    private func scopeTooltip(_ key: RoleKey?) -> String? {
+        if case .azureResource(let scope, _)? = key?.scope { return scope }
+        return nil
     }
 
     private var groupedTenantKeys: [TenantKey] {
