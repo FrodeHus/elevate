@@ -227,6 +227,7 @@ public sealed partial class AppModel
             Active.Remove(roleKey);
         }
 
+        DropApprovals(k => k == key);
         DropPolicies(k => k.TenantKey == key);
         Persist();
     }

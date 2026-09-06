@@ -43,6 +43,23 @@ public sealed class FakeOwnAppProvider : IOwnAppTokenProvider
         Inner.AcquireInteractivelyAsync(identity, tenantId, scopes, claims, ct);
 }
 
+/// <summary>Records every notification the model posts.</summary>
+public sealed class RecordingNotifier : IExpiryNotifier
+{
+    public List<(string Title, string Body)> Posted { get; } = [];
+
+    public Task RescheduleAsync(
+        IReadOnlyList<ActiveAssignment> assignments,
+        IReadOnlyDictionary<RoleKey, string> names,
+        IReadOnlyDictionary<TenantKey, string> tenantNames) => Task.CompletedTask;
+
+    public Task NotifyAsync(string title, string body)
+    {
+        Posted.Add((title, body));
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>
 /// Builds an <see cref="AppModel"/> wired entirely to fakes: no MSAL, no real network, its own
 /// state file and settings file in a temp directory. Offline by default so bootstrap performs no
@@ -57,7 +74,8 @@ public sealed class TestModel : IDisposable
         ITokenProvider? tokens = null,
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
-        string? clientId = null)
+        string? clientId = null,
+        RecordingNotifier? notifier = null)
     {
         Directory = Path.Combine(Path.GetTempPath(), "elevate-tests-" + Guid.NewGuid().ToString("N"));
         Store = new AppStateStore(Directory);
@@ -76,9 +94,15 @@ public sealed class TestModel : IDisposable
         Tokens = tokens ?? new FakeTokenProvider();
         // Every method routes to the same fake: the composite's routing has tests of its own.
         FirstParty = new FakeFirstPartyProviders(Tokens);
-        Model = new AppModel(Tokens, Http, Store, new NoopNotifier(), new FixedNetworkMonitor(online), Settings, FirstParty,
-            ownApp, ownAppFactory);
+        Notifier = notifier ?? new RecordingNotifier();
+        HotKeys = new NoopHotKeyCenter();
+        Model = new AppModel(Tokens, Http, Store, Notifier, new FixedNetworkMonitor(online), Settings, FirstParty,
+            ownApp, ownAppFactory, HotKeys);
     }
+
+    public RecordingNotifier Notifier { get; }
+
+    public NoopHotKeyCenter HotKeys { get; }
 
     public string Directory { get; }
 
@@ -101,9 +125,10 @@ public sealed class TestModel : IDisposable
         ITokenProvider? tokens = null,
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
-        string? clientId = null)
+        string? clientId = null,
+        RecordingNotifier? notifier = null)
     {
-        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId);
+        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId, notifier);
         await test.Model.BootstrapAsync();
         return test;
     }

@@ -246,6 +246,81 @@ public sealed partial class AppModel
         return outcomes;
     }
 
+    // MARK: Quick activate
+
+    /// <summary>
+    /// The Ctrl-click path. Returns false when the dialog is needed; the caller opens it. Nothing
+    /// opens a dialog while offline or while the same role is already being activated: returning
+    /// true says the click was handled.
+    /// </summary>
+    public async Task<bool> QuickActivateAsync(RoleKey key)
+    {
+        if (!IsOnline || InFlight.Contains(key))
+        {
+            return true;
+        }
+
+        if (Role(key) is not { } role)
+        {
+            return false;
+        }
+
+        if (QuickActivate.Decide(role, Remembered(key)) is not QuickActivateDecision.Ready ready)
+        {
+            return false;
+        }
+
+        var outcomes = await ActivateAsync(ready.Requests);
+        await NotifyOutcomeAsync(role.DisplayName, outcomes, ready.Requests.Count);
+        return true;
+    }
+
+    public async Task<bool> QuickRunAsync(Guid profileId)
+    {
+        if (!IsOnline)
+        {
+            return true;
+        }
+
+        if (State.Profile(profileId) is not { } profile)
+        {
+            return false;
+        }
+
+        var items = Plan(profileId);
+        if (QuickActivate.Decide(items, profile.LastJustification) is not QuickActivateDecision.Ready ready)
+        {
+            return false;
+        }
+
+        if (ready.Requests.Any(r => InFlight.Contains(r.RoleKey)))
+        {
+            return true;
+        }
+
+        var outcomes = await RunProfileAsync(profileId, items, ready.Requests[0].Justification, null);
+        await NotifyOutcomeAsync(profile.Name, outcomes, ready.Requests.Count);
+        return true;
+    }
+
+    /// <summary>
+    /// Reports on the outcomes the activation returned rather than on <see cref="Progress"/>, which
+    /// a later refresh may already have cleared or moved onto a rekeyed role. <paramref name="attempted"/>
+    /// is the number of requests the run set out to make, so an empty outcome list can be told
+    /// apart from having had nothing to do at all.
+    /// </summary>
+    private async Task NotifyOutcomeAsync(string title, IReadOnlyList<ActivationOutcome> outcomes, int attempted)
+    {
+        try
+        {
+            await Notifier.NotifyAsync(title, ActivationSummary.Body(outcomes, attempted, SummaryName));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogError($"Notifications: {e.Message}");
+        }
+    }
+
     // MARK: Activation helpers
 
     /// <summary>The assignment an outcome carries, or null for a failure.</summary>

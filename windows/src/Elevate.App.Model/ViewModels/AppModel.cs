@@ -11,13 +11,13 @@ using Elevate.Core.Models;
 using Elevate.Core.Networking;
 using Elevate.Core.Providers;
 using Elevate.Core.Storage;
+using Elevate.Core.Support;
 
 namespace Elevate.App.ViewModels;
 
 /// <summary>
 /// The application view model: accounts, tenants, roles, assignments and the session state the
-/// flyout shows. Port of the macOS <c>AppModel</c> and its <c>AppModel+*.swift</c> extensions
-/// (the phase-1/2 responsibilities; profiles, approvals and operations belong to a follow-up).
+/// flyout shows. Port of the macOS <c>AppModel</c> and its <c>AppModel+*.swift</c> extensions.
 /// </summary>
 /// <remarks>
 /// Every member must be called on the thread that constructed the model (the UI thread). The
@@ -60,6 +60,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectMode, value) && !value)
             {
                 Selection.Clear();
+                EditingProfileId = null;
             }
 
             Touch();
@@ -149,10 +150,14 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     internal int ConfigGeneration { get; private set; }
 
     /// <summary>
-    /// The last errors the user was shown, newest last, clipped to 300 characters each. Session
-    /// only; kept for a future diagnostics report.
+    /// The last errors the user was shown, for "Copy diagnostics". Session only: a support report
+    /// describes this launch, and a persisted log would be one more file holding service messages
+    /// we cannot vet.
     /// </summary>
-    public List<string> ErrorLog { get; } = [];
+    public ErrorLog ErrorLog { get; } = new();
+
+    /// <summary>One global hot key, created with the model and reconfigured by <see cref="ApplyHotKey"/>.</summary>
+    internal IHotKeyCenter HotKeys { get; }
 
     // MARK: Dependencies
 
@@ -200,7 +205,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         AppSettings settings,
         IFirstPartyProviders firstParty,
         IOwnAppTokenProvider? ownApp = null,
-        Func<string, IOwnAppTokenProvider>? ownAppFactory = null)
+        Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
+        IHotKeyCenter? hotKeys = null)
     {
         ArgumentNullException.ThrowIfNull(tokens);
         ArgumentNullException.ThrowIfNull(http);
@@ -220,7 +226,9 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         _ownApp = ownApp;
         _ownAppFactory = ownAppFactory;
         _context = SynchronizationContext.Current;
+        HotKeys = hotKeys ?? new NoopHotKeyCenter();
         Coordinator = MakeCoordinator(tokens);
+        ApprovalProviders = MakeApprovalProviders(http, tokens);
         Discovery = new TenantDiscovery(http, tokens);
         _network.Changed += OnNetworkChanged;
     }
@@ -276,6 +284,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         Selection.Clear();
         Busy.Clear();
         InFlight.Clear();
+        DecisionInFlight.Clear();
+        ApprovalErrors.Clear();
         PendingExtend = null;
         SelectMode = false;
         Persist();
@@ -284,6 +294,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         var composite = new CompositeTokenProvider(replacement, _firstParty);
         Tokens = composite;
         Coordinator = MakeCoordinator(composite);
+        ApprovalProviders = MakeApprovalProviders(Http, composite);
         Discovery = new TenantDiscovery(Http, composite);
         Notice = null;
         StartupError = null;
@@ -304,6 +315,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         RemoveWhere(Active, k => k.IdentityId == identityId);
         RemoveWhere(Progress, k => k.IdentityId == identityId);
         RemoveWhere(TenantErrors, k => k.IdentityId == identityId);
+        DropApprovals(k => k.IdentityId == identityId);
         DropPolicies(k => k.IdentityId == identityId);
     }
 
@@ -458,6 +470,9 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         }
 
         StartTimers();
+        ApplyHotKey();
+        // Fire and forget: an update check must never hold up the first flyout open.
+        _ = CheckForUpdatesAsync();
         Touch();
     }
 
@@ -569,11 +584,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             return;
         }
 
-        ErrorLog.Add(trimmed.Length > 300 ? trimmed[..300] : trimmed);
-        if (ErrorLog.Count > 200)
-        {
-            ErrorLog.RemoveAt(0);
-        }
+        ErrorLog.Append(Text.Prefix(trimmed, 300));
     }
 
     /// <summary>Tells the views something changed. Always raised on the model's thread.</summary>

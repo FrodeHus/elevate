@@ -42,6 +42,10 @@ public sealed partial class AppModel
 
             await RefreshAsync(key);
         }));
+        if (generation == ConfigGeneration)
+        {
+            PruneSeenApprovals();
+        }
     }
 
     public async Task RefreshAsync(TenantKey key, IReadOnlySet<RoleScopeKind>? requestedKinds = null)
@@ -267,6 +271,63 @@ public sealed partial class AppModel
             {
                 errors.Add($"{Label(kind)}: {Describe(e)}");
             }
+        }
+
+        if (generation != ConfigGeneration)
+        {
+            return;
+        }
+
+        // Approvals are opportunistic: a 403, a missing consent or a network failure leaves the
+        // previous list for that tenant and kind untouched and surfaces nothing to the user.
+        // `kinds` already excludes Entra and groups for a first-party sign-in, so those accounts
+        // read only the Azure approvals.
+        var readApprovals = new Dictionary<RoleScopeKind, List<ApprovalRequest>>();
+        foreach (var kind in kinds)
+        {
+            if ((kind == RoleScopeKind.AzureResource && azureOff) || (kind == RoleScopeKind.EntraDirectory && consentBlocked)
+                || !ApprovalProviders.TryGetValue(kind, out var approvalProvider))
+            {
+                continue;
+            }
+
+            var snapshot = tenant;
+            try
+            {
+                var found = await AcquireAsync(key, identity, approvalProvider.Scopes,
+                    () => approvalProvider.PendingApprovalsAsync(identity, snapshot));
+                readApprovals[kind] = [.. found];
+            }
+            catch (OperationCanceledException)
+            {
+                // The tenant was removed while it was being read.
+                return;
+            }
+            catch (Exception)
+            {
+                // Keep the previous list; nothing to show the user.
+            }
+        }
+
+        if (generation != ConfigGeneration)
+        {
+            return;
+        }
+
+        if (Tenant(key) is not null && readApprovals.Count > 0)
+        {
+            if (!Approvals.TryGetValue(key, out var byKind))
+            {
+                byKind = [];
+                Approvals[key] = byKind;
+            }
+
+            foreach (var (kind, list) in readApprovals)
+            {
+                byKind[kind] = list;
+            }
+
+            await AnnounceNewApprovalsAsync();
         }
 
         if (generation != ConfigGeneration)
