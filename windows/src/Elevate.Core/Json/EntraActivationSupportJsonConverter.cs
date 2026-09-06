@@ -27,7 +27,11 @@ public sealed class EntraActivationSupportJsonConverter : JsonConverter<EntraAct
         switch (caseName)
         {
             case "supported":
-                reader.Read();
+                if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+                {
+                    throw new JsonException("Expected a payload object for \"supported\".");
+                }
+
                 reader.Skip();
                 result = EntraActivationSupport.Supported;
                 break;

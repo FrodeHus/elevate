@@ -30,8 +30,10 @@ public sealed class AssignmentStatusJsonConverter : JsonConverter<AssignmentStat
         }
 
         string? reason = null;
+        var sawPayload = false;
         while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
         {
+            sawPayload = true;
             var name = reader.GetString();
             reader.Read();
             if (name == "_0" && reader.TokenType == JsonTokenType.String)
@@ -42,6 +44,11 @@ public sealed class AssignmentStatusJsonConverter : JsonConverter<AssignmentStat
             {
                 reader.Skip();
             }
+        }
+
+        if (sawPayload && caseName != "failed")
+        {
+            throw new JsonException($"Expected an empty payload object for \"{caseName}\".");
         }
 
         if (!reader.Read() || reader.TokenType != JsonTokenType.EndObject)

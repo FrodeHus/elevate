@@ -14,6 +14,11 @@ public sealed class Iso8601DateTimeOffsetConverter : JsonConverter<DateTimeOffse
 
     public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException("Expected an ISO-8601 string for a date.");
+        }
+
         var text = reader.GetString();
         if (text is null || !DateTimeOffset.TryParse(
                 text, CultureInfo.InvariantCulture,

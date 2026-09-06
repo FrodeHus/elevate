@@ -18,6 +18,11 @@ public sealed class SignInMethodJsonConverter : JsonConverter<SignInMethod>
             return SignInMethod.OwnApp;
         }
 
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException("Expected a string for a sign-in method.");
+        }
+
         var key = reader.GetString();
         if (!SignInMethod.TryFromStorageKey(key, out var method))
         {

@@ -77,15 +77,53 @@ public class ModelsTests
     }
 
     [Fact]
-    public void Duration_EncodesAsSecondsAndAttosecondsArray()
+    public void Duration_EncodesAsSwifts128BitAttosecondPair()
     {
         var json = Json.Serialize(RolePolicy.ManualDefault);
 
-        json.Should().Contain("\"defaultDuration\":[3600,0]")
-            .And.Contain("\"maximumDuration\":[28800,0]")
+        // Swift's stdlib Duration encodes the raw 128-bit attosecond value as [_high, _low].
+        json.Should().Contain("\"defaultDuration\":[195,2884905626637434880]")
+            .And.Contain("\"maximumDuration\":[1561,4632500939389927424]")
             .And.Contain("\"requiresMFA\":false");
 
         Json.Deserialize<RolePolicy>(json).Should().Be(RolePolicy.ManualDefault);
+    }
+
+    [Theory]
+    [InlineData(3600, 195, 2884905626637434880UL)]
+    [InlineData(28800, 1561, 4632500939389927424UL)]
+    [InlineData(1800, 97, 10665824850173493248UL)]
+    [InlineData(1, 0, 1000000000000000000UL)]
+    public void Duration_SplitsTheAttosecondValueIntoHighAndLowWords(int seconds, long high, ulong low)
+    {
+        var holder = new DurationHolder(TimeSpan.FromSeconds(seconds));
+
+        var json = Json.Serialize(holder);
+
+        json.Should().Be($$"""{"lastDuration":[{{high}},{{low}}]}""");
+        Json.Deserialize<DurationHolder>(json).Should().Be(holder);
+    }
+
+    [Fact]
+    public void Duration_ReadsAVerbatimMacOsStateSnippet()
+    {
+        // Copied from a real macOS state.json; the low word of 30 minutes exceeds Int64.MaxValue.
+        Json.Deserialize<DurationHolder>("""{"lastDuration":[1561,4632500939389927424]}""")!
+            .LastDuration.Should().Be(TimeSpan.FromHours(8));
+
+        Json.Deserialize<DurationHolder>("""{"lastDuration":[97,10665824850173493248]}""")!
+            .LastDuration.Should().Be(TimeSpan.FromMinutes(30));
+    }
+
+    [Fact]
+    public void Duration_RoundTripsNegativeValues()
+    {
+        var holder = new DurationHolder(TimeSpan.FromHours(-8));
+
+        var json = Json.Serialize(holder);
+
+        json.Should().Be("""{"lastDuration":[-1562,13814243134319624192]}""");
+        Json.Deserialize<DurationHolder>(json).Should().Be(holder);
     }
 
     [Fact]
@@ -95,7 +133,7 @@ public class ModelsTests
 
         var json = Json.Serialize(request);
 
-        json.Should().Contain("\"duration\":[1,500000000000000000]");
+        json.Should().Contain("\"duration\":[0,1500000000000000000]");
         Json.Deserialize<ActivationRequest>(json).Should().Be(request);
     }
 
@@ -104,7 +142,7 @@ public class ModelsTests
     {
         var policy = Json.Deserialize<RolePolicy>(
             """
-            {"defaultDuration":[1800,0],"maximumDuration":[3600,500000000000000000],
+            {"defaultDuration":[97,10665824850173493248],"maximumDuration":[195,3384905626637434880],
              "requiresJustification":true,"requiresTicket":false,"requiresMFA":true,"requiresApproval":false}
             """);
 
@@ -246,4 +284,44 @@ public class ModelsTests
 
         act.Should().Throw<JsonException>();
     }
+
+    [Fact]
+    public void ActiveAssignment_MatchesTheMacOsLiteralIncludingItsNestedScope()
+    {
+        const string Literal =
+            """{"roleKey":{"identityId":"i","tenantId":"t","scope":{"azureResource":{"scope":"/subscriptions/s1/resourceGroups/rg","roleDefinitionId":"rd1"}}},"assignmentId":"a1","startDateTime":"1970-01-01T00:00:00Z","endDateTime":"1970-01-01T01:00:00Z","status":{"active":{}}}""";
+
+        var assignment = new ActiveAssignment(
+            new RoleKey("i", "t", new AzureResourceScope("/subscriptions/s1/resourceGroups/rg", "rd1")),
+            "a1",
+            DateTimeOffset.FromUnixTimeSeconds(0),
+            DateTimeOffset.FromUnixTimeSeconds(3600),
+            AssignmentStatus.Active);
+
+        Json.Serialize(assignment).Should().Be(Literal);
+
+        var back = Json.Deserialize<ActiveAssignment>(Literal);
+        back.Should().Be(assignment);
+        back!.RoleKey.Scope.Should().BeOfType<AzureResourceScope>()
+            .Which.Scope.Should().Be("/subscriptions/s1/resourceGroups/rg");
+    }
+
+    [Fact]
+    public void Json_RejectsNonStringAndNonObjectPayloads()
+    {
+        var date = () => Json.Deserialize<ActiveAssignment>(
+            """{"roleKey":{"identityId":"i","tenantId":"t","scope":{"group":{"groupId":"g","accessId":"member"}}},"startDateTime":123,"status":{"active":{}}}""");
+        date.Should().Throw<JsonException>();
+
+        var signIn = () => Json.Deserialize<Identity>("""{"id":"i","upn":"u","displayName":"d","homeTenantId":"t","signInMethod":7}""");
+        signIn.Should().Throw<JsonException>();
+
+        var support = () => Json.Deserialize<EntraActivationSupport>("""{"supported":"yes"}""");
+        support.Should().Throw<JsonException>();
+
+        var status = () => Json.Deserialize<AssignmentStatus>("""{"active":{"_0":"x"}}""");
+        status.Should().Throw<JsonException>();
+    }
+
+    private sealed record DurationHolder(TimeSpan LastDuration);
 }
