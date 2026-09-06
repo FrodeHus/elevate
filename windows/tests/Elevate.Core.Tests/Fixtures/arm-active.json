@@ -1,0 +1,32 @@
+{
+  "value": [
+    {
+      "name": "inst-1",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleAssignmentScheduleInstances/inst-1",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "principalId": "user-obj-1",
+        "status": "Provisioned",
+        "assignmentType": "Activated",
+        "linkedRoleEligibilityScheduleId": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleEligibilitySchedules/b1477448-2cc6-4ceb-93b4-54a202a89413",
+        "startDateTime": "2026-09-04T08:00:00Z",
+        "endDateTime": "2026-09-04T12:00:00Z",
+        "expandedProperties": { "scope": { "id": "/subscriptions/sub-1", "displayName": "Pay-As-You-Go", "type": "subscription" }, "roleDefinition": { "id": "x", "displayName": "Contributor", "type": "BuiltInRole" } }
+      }
+    },
+    {
+      "name": "inst-2",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleAssignmentScheduleInstances/inst-2",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "principalId": "user-obj-1",
+        "status": "Provisioned",
+        "assignmentType": "Assigned",
+        "startDateTime": "2026-01-01T00:00:00Z",
+        "endDateTime": null
+      }
+    }
+  ]
+}

@@ -19,5 +19,6 @@
 - [Approvals](superpowers/specs/2026-09-05-elevate-approvals-design.md)
 - [Operations: launch at login, diagnostics, updates, releases](superpowers/specs/2026-09-06-elevate-operations-design.md)
 - [Windows app](superpowers/specs/2026-09-05-elevate-windows-design.md)
+- [Design canvases (macOS and Windows)](design/README.md) — HTML mockups saved from Claude Design
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).

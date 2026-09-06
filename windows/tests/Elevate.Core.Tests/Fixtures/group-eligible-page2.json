@@ -1,0 +1,8 @@
+{
+  "value": [
+    {
+      "id": "gelig-3", "principalId": "user-obj-1", "groupId": "grp-dev", "accessId": "member",
+      "memberType": "direct", "group": { "id": "grp-dev", "displayName": "Dev Contributors" }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "value": [
+    {
+      "name": "elig-1",
+      "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleEligibilityScheduleInstances/elig-1",
+      "properties": {
+        "scope": "/subscriptions/sub-1",
+        "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "principalId": "user-obj-1",
+        "status": "Provisioned",
+        "roleEligibilityScheduleId": "/subscriptions/sub-1/providers/Microsoft.Authorization/RoleEligibilitySchedules/b1477448-2cc6-4ceb-93b4-54a202a89413",
+        "startDateTime": "2026-01-01T00:00:00Z",
+        "endDateTime": null,
+        "memberType": "Direct",
+        "expandedProperties": {
+          "scope": { "id": "/subscriptions/sub-1", "displayName": "Pay-As-You-Go", "type": "subscription" },
+          "roleDefinition": { "id": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c", "displayName": "Contributor", "type": "BuiltInRole" },
+          "principal": { "id": "user-obj-1", "displayName": "U", "type": "User" }
+        }
+      }
+    }
+  ],
+  "nextLink": "https://management.azure.com/providers/Microsoft.Authorization/roleEligibilityScheduleInstances?api-version=2020-10-01&$filter=asTarget()&$skiptoken=page2"
+}

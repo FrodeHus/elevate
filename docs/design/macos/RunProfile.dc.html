@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .glass { background: rgba(246, 247, 249, 0.92); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .btn-lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
+    .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .field { height: 28px; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 9px; display: flex; align-items: center; font-size: 13px; color: #1d1d1f; }
+    .select { display: inline-flex; align-items: center; justify-content: space-between; height: 22px; padding: 0 6px 0 9px; border-radius: 6px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); font-size: 12px; gap: 6px; }
+    .check { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.25); background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .check-on { background: #0a84ff; border-color: #0a84ff; }
+    .badge { font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 28px 0 40px;">
+  <div class="glass" style="width: 480px; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 8px;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span style="font-size: 15px; font-weight: 600;">Run "Incident response"</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span class="caption" style="font-weight: 600;">alex.rivera@contoso.com · Contoso</span>
+      <div style="display: flex; align-items: center; gap: 8px;"><span style="flex: 1;">Exchange Administrator</span><span class="select" style="width: 110px;">2 hours <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><span class="caption" style="width: 90px; text-align: right;">MFA</span></div>
+      <div style="display: flex; align-items: center; gap: 8px;"><span style="flex: 1;">Security Reader</span><span class="select" style="width: 110px;">4 hours <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><span class="caption" style="width: 90px; text-align: right;"></span></div>
+      <span class="caption" style="font-weight: 600; margin-top: 4px;">alex.admin@northwind.com · Northwind</span>
+      <div style="display: flex; align-items: center; gap: 8px;"><span style="flex: 1;">Privileged Role Administrator</span><span class="select" style="width: 110px;">8 hours <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><span class="caption" style="width: 90px; text-align: right; color:#b25000;">needs approval</span></div>
+      <div style="display: flex; align-items: center; gap: 8px; opacity: 0.6;"><span style="flex: 1;">Global Reader</span><span class="caption" style="width: 110px;">already active</span><span class="caption" style="width: 90px; text-align: right;">skipped</span></div>
+    </div>
+    <div class="field" style="height: 44px; align-items: flex-start; padding-top: 6px; color: #1d1d1f;">INC-4821 on-call response</div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="caption">Roles already active are skipped. Approval-required roles are requested and shown as pending.</span>
+      <div style="flex-grow: 1;"></div>
+      <span class="btn btn-lg">Cancel</span><span class="btn btn-lg btn-primary">Activate 3</span>
+    </div>
+  </div>
+  <div class="glass" style="width: 480px; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span style="font-size: 15px; font-weight: 600;">Running "Incident response"</span></div>
+    <div style="display: flex; align-items: center; gap: 8px;"><div class="dot" style="background:#34c759;"></div><span style="flex:1;">Exchange Administrator</span><span class="caption">active · 2 h</span></div>
+    <div style="display: flex; align-items: center; gap: 8px;"><div class="dot" style="background:#34c759;"></div><span style="flex:1;">Security Reader</span><span class="caption">active · 4 h</span></div>
+    <div style="display: flex; align-items: center; gap: 8px;"><div class="dot" style="background:#ffcc00;"></div><span style="flex:1;">Privileged Role Administrator</span><span class="caption">awaiting approval</span></div>
+    <div style="display: flex; align-items: center; gap: 8px;"><div class="dot" style="background:#ff3b30;"></div><span style="flex:1;">Reader @ rg-prod</span><span class="caption" style="color:#ff3b30;">Not permitted at this scope</span></div>
+    <div style="display: flex; justify-content: flex-end;"><span class="btn btn-lg">Done</span></div>
+  </div>
+  <div class="caption" style="width: 480px;">Confirmation lists every entry grouped by account and tenant, per-role duration remembered from the last run, one shared reason prefilled from the profile. Progress uses the same per-row outcomes as bulk activation; failures stay visible with the server message.</div>
+</div>
+</x-dc>
+</body>
+</html>

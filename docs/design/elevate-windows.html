@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elevate for Windows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@500&display=swap">
+<style>
+:root{
+  --ground:#eef0f4; --mica:#f3f3f3; --layer:#fbfbfb; --layer-alt:#f6f6f6; --stroke:rgba(0,0,0,.0578); --stroke-strong:rgba(0,0,0,.16);
+  --text:#1b1b1b; --text-2:rgba(0,0,0,.6063); --text-3:rgba(0,0,0,.4458); --accent:#005fb8; --accent-text:#ffffff; --accent-soft:rgba(0,95,184,.12);
+  --good:#0f7b0f; --warn:#9d5d00; --bad:#c42b1c; --good-bg:rgba(15,123,15,.12); --warn-bg:rgba(157,93,0,.14); --bad-bg:rgba(196,43,28,.12);
+  --control:rgba(255,255,255,.7); --control-hover:rgba(249,249,249,.5); --taskbar:rgba(243,243,243,.85); --wall:linear-gradient(135deg,#7fb0e8 0%,#2f63c9 55%,#173a8a 100%);
+  --shadow:0 8px 32px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.08); --code:#eaeef5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#151618; --mica:#202020; --layer:#2b2b2b; --layer-alt:#323232; --stroke:rgba(255,255,255,.0837); --stroke-strong:rgba(255,255,255,.18);
+    --text:#ffffff; --text-2:rgba(255,255,255,.786); --text-3:rgba(255,255,255,.5442); --accent:#60cdff; --accent-text:#000000; --accent-soft:rgba(96,205,255,.16);
+    --good:#6ccb5f; --warn:#fce100; --bad:#ff99a4; --good-bg:rgba(108,203,95,.14); --warn-bg:rgba(252,225,0,.14); --bad-bg:rgba(255,153,164,.14);
+    --control:rgba(255,255,255,.0605); --control-hover:rgba(255,255,255,.0837); --taskbar:rgba(32,32,32,.85); --wall:linear-gradient(135deg,#1d3f7a 0%,#10285a 55%,#0a1633 100%);
+    --shadow:0 8px 32px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3); --code:#1a1c22;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#151618; --mica:#202020; --layer:#2b2b2b; --layer-alt:#323232; --stroke:rgba(255,255,255,.0837); --stroke-strong:rgba(255,255,255,.18);
+  --text:#ffffff; --text-2:rgba(255,255,255,.786); --text-3:rgba(255,255,255,.5442); --accent:#60cdff; --accent-text:#000000; --accent-soft:rgba(96,205,255,.16);
+  --good:#6ccb5f; --warn:#fce100; --bad:#ff99a4; --good-bg:rgba(108,203,95,.14); --warn-bg:rgba(252,225,0,.14); --bad-bg:rgba(255,153,164,.14);
+  --control:rgba(255,255,255,.0605); --control-hover:rgba(255,255,255,.0837); --taskbar:rgba(32,32,32,.85); --wall:linear-gradient(135deg,#1d3f7a 0%,#10285a 55%,#0a1633 100%);
+  --shadow:0 8px 32px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3); --code:#1a1c22;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--text);font-family:"Segoe UI Variable Text","Segoe UI","Noto Sans",system-ui,sans-serif;font-size:14px;line-height:1.45}
+.mono{font-family:"Cascadia Mono","Noto Sans Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+main{max-width:1180px;margin:0 auto;padding:40px 28px 80px}
+header.doc{display:flex;gap:20px;align-items:center;margin-bottom:8px}
+header.doc .icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(160deg,#4f8ff0,#1a4dd1);display:grid;place-items:center;box-shadow:0 4px 12px rgba(26,77,209,.35)}
+h1{font-size:28px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.lede{color:var(--text-2);max-width:68ch;margin:0 0 36px}
+h2{font-size:20px;font-weight:600;margin:48px 0 6px;letter-spacing:-.01em}
+h2 + p{margin:0 0 18px;color:var(--text-2);max-width:70ch}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+.row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.notes{flex:1 1 300px;min-width:260px}
+.notes ol,.notes ul{padding-left:18px;margin:8px 0;color:var(--text-2)}
+.notes li{margin:6px 0}
+.notes li b{color:var(--text);font-weight:600}
+/* desktop with taskbar */
+.desktop{position:relative;flex:0 0 auto;width:640px;height:560px;border-radius:12px;overflow:hidden;background:var(--wall);box-shadow:var(--shadow)}
+.taskbar{position:absolute;left:0;right:0;bottom:0;height:48px;background:var(--taskbar);backdrop-filter:blur(30px);display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-top:1px solid var(--stroke)}
+.taskbar .center{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+.taskbar .app{width:36px;height:36px;border-radius:6px;background:var(--control);border:1px solid var(--stroke)}
+.taskbar .app.win{display:grid;place-items:center}
+.tray{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text)}
+.tray .glyph{width:16px;height:16px;display:inline-grid;place-items:center}
+.tray .elevate{display:flex;align-items:center;gap:3px;padding:2px 4px;border-radius:4px;background:var(--control-hover);outline:1px solid var(--stroke-strong)}
+.tray .clock{text-align:right;line-height:1.2}
+/* flyout */
+.flyout{position:absolute;right:12px;bottom:60px;width:380px;border-radius:8px;background:var(--mica);border:1px solid var(--stroke-strong);box-shadow:var(--shadow);overflow:hidden;font-size:14px}
+.flyout .head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px}
+.flyout .head b{font-size:16px;font-weight:600}
+.flyout .head .tools{display:flex;gap:4px}
+.ib{width:32px;height:32px;border-radius:4px;display:grid;place-items:center;color:var(--text);background:transparent}
+.ib:hover{background:var(--control-hover)}
+.pivot{display:flex;gap:2px;padding:0 10px 8px;border-bottom:1px solid var(--stroke)}
+.pivot span{padding:6px 10px;border-radius:4px;color:var(--text-2);position:relative}
+.pivot span.on{color:var(--text);font-weight:600}
+.pivot span.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-9px;height:3px;border-radius:2px;background:var(--accent)}
+.pivot .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--accent);color:var(--accent-text);font-size:11px;font-weight:600;text-align:center;line-height:18px}
+.pivot .n.zero{background:var(--control);color:var(--text-3);outline:1px solid var(--stroke)}
+.ghead{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--layer-alt);border-top:1px solid var(--stroke);border-bottom:1px solid var(--stroke);font-weight:600}
+.ghead .cnt{color:var(--good);font-weight:600}
+.ghead .sp{flex:1}
+.ghead .cap{font-weight:400;color:var(--text-2);font-size:12px}
+.ghead .chev{color:var(--text-2);width:14px;text-align:center}
+.acct{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--stroke);background:var(--layer)}
+.acct .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-size:11px;font-weight:600}
+.acct .who{flex:1;min-width:0}
+.acct .who b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct .who span{color:var(--text-2);font-size:12px}
+.acct .act{color:var(--good);font-weight:600;font-size:13px}
+.r{display:flex;align-items:center;gap:10px;padding:7px 14px;min-height:44px}
+.r + .r{border-top:1px solid var(--stroke)}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;border:1.5px solid var(--text-3)}
+.dot.on{background:var(--good);border-color:var(--good)}
+.dot.pend{background:var(--warn);border-color:var(--warn)}
+.r .name{flex:1;min-width:0}
+.r .name b{font-weight:400;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r .name span{display:block;color:var(--text-2);font-size:12px}
+.r .cd{color:var(--text-2);font-size:13px}
+.r .cd.soon{color:var(--warn);font-weight:600}
+.btn{height:30px;padding:0 12px;border-radius:4px;border:1px solid var(--stroke-strong);background:var(--control);color:var(--text);font:inherit;font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--accent-text);border-color:transparent;font-weight:600}
+.btn.dis{opacity:.45}
+.btn.sm{height:26px;padding:0 10px;font-size:12px}
+.cb{width:18px;height:18px;border-radius:4px;border:1px solid var(--stroke-strong);background:var(--control);flex:0 0 18px;display:grid;place-items:center}
+.cb.on{background:var(--accent);border-color:var(--accent)}
+.ring{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);flex:0 0 16px}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--stroke);background:var(--layer-alt);font-size:13px}
+.foot span{color:var(--text-2)}
+.stick{padding:10px 14px;border-top:1px solid var(--stroke);background:var(--layer);display:flex;justify-content:space-between;align-items:center}
+.infobar{display:flex;gap:10px;align-items:flex-start;margin:8px 12px;padding:10px 12px;border-radius:4px;border:1px solid var(--stroke-strong);background:var(--layer);font-size:13px}
+.infobar.warn{background:var(--warn-bg)}
+.infobar.info{background:var(--accent-soft)}
+.infobar .ic{width:16px;height:16px;border-radius:50%;flex:0 0 16px;background:var(--warn);margin-top:2px}
+.infobar.info .ic{background:var(--accent)}
+.infobar .x{margin-left:auto;color:var(--text-3)}
+/* generic window mockups */
+.win{border-radius:8px;background:var(--mica);border:1px solid var(--stroke-strong);box-shadow:var(--shadow);overflow:hidden;flex:0 0 auto}
+.win .tb{display:flex;align-items:center;justify-content:space-between;height:32px;padding:0 0 0 12px;font-size:12px}
+.win .tb .wc{display:flex}
+.win .tb .wc span{width:46px;height:32px;display:grid;place-items:center;color:var(--text-2);font-size:12px}
+.win .body{padding:6px 22px 22px;display:grid;gap:14px}
+.win h3{font-size:18px;font-weight:600;margin:0 0 2px}
+.win .sub{color:var(--text-2);margin:-8px 0 4px;font-size:13px}
+.field label{display:block;font-size:13px;margin-bottom:6px}
+.field .in{height:32px;border-radius:4px;border:1px solid var(--stroke-strong);border-bottom:1px solid var(--text-3);background:var(--control);padding:0 10px;display:flex;align-items:center;justify-content:space-between;color:var(--text)}
+.field .in.focus{border-bottom:2px solid var(--accent)}
+.field .in .ph{color:var(--text-3)}
+.field .ta{min-height:64px;align-items:flex-start;padding-top:6px}
+.actions{display:flex;justify-content:flex-end;gap:8px;padding-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.table{border:1px solid var(--stroke);border-radius:4px;overflow:hidden}
+.table .tr{display:grid;grid-template-columns:18px 1fr 120px 110px;gap:10px;align-items:center;padding:8px 10px;border-top:1px solid var(--stroke);background:var(--layer)}
+.table .tr:first-child{border-top:0;background:var(--layer-alt);font-size:12px;color:var(--text-2);font-weight:600}
+.table .tr .n b{font-weight:400;display:block}
+.table .tr .n span{font-size:12px;color:var(--text-2)}
+.sel{height:28px;border-radius:4px;border:1px solid var(--stroke-strong);background:var(--control);padding:0 8px;display:flex;align-items:center;justify-content:space-between;font-size:13px}
+.tag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:600}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.good{background:var(--good-bg);color:var(--good)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.neutral{background:var(--control);color:var(--text-2);outline:1px solid var(--stroke)}
+.radio{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:4px;border:1px solid var(--stroke);background:var(--layer)}
+.radio.on{border-color:var(--accent)}
+.radio .rb{width:18px;height:18px;border-radius:50%;border:1px solid var(--stroke-strong);background:var(--control);flex:0 0 18px;margin-top:1px;display:grid;place-items:center}
+.radio.on .rb{border:5px solid var(--accent);background:var(--layer)}
+.radio b{display:block;font-weight:600}
+.radio span{display:block;color:var(--text-2);font-size:12px}
+.toggle{width:40px;height:20px;border-radius:10px;background:var(--accent);position:relative;flex:0 0 40px}
+.toggle::after{content:"";position:absolute;top:4px;right:4px;width:12px;height:12px;border-radius:50%;background:var(--accent-text)}
+.toggle.off{background:var(--control);border:1px solid var(--stroke-strong)}
+.toggle.off::after{right:auto;left:4px;background:var(--text-2);top:3px}
+.srow{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:4px;background:var(--layer);border:1px solid var(--stroke)}
+.srow .t{flex:1}
+.srow .t b{display:block;font-weight:600}
+.srow .t span{display:block;color:var(--text-2);font-size:12px}
+/* tray states */
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.state{padding:14px;border-radius:8px;background:var(--layer);border:1px solid var(--stroke);display:grid;gap:10px}
+.state .chip{height:36px;border-radius:6px;background:var(--taskbar);border:1px solid var(--stroke);display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px}
+.state b{font-weight:600;font-size:13px}
+.state span{font-size:12px;color:var(--text-2)}
+.menu{width:160px;border-radius:8px;background:var(--layer);border:1px solid var(--stroke-strong);box-shadow:var(--shadow);padding:4px;font-size:13px}
+.menu div{padding:7px 10px;border-radius:4px}
+.menu div.hov{background:var(--control-hover)}
+.menu hr{border:0;border-top:1px solid var(--stroke);margin:4px 0}
+.toast{width:364px;border-radius:8px;background:var(--layer);border:1px solid var(--stroke-strong);box-shadow:var(--shadow);padding:14px 16px;display:grid;grid-template-columns:40px 1fr;gap:12px}
+.toast .ti{width:40px;height:40px;border-radius:10px;background:linear-gradient(160deg,#4f8ff0,#1a4dd1);display:grid;place-items:center}
+.toast b{display:block;font-weight:600}
+.toast p{margin:2px 0 10px;color:var(--text-2);font-size:13px}
+.toast .app{grid-column:1/3;font-size:11px;color:var(--text-3);margin-top:-6px}
+/* tokens */
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tok{padding:12px;border-radius:6px;border:1px solid var(--stroke);background:var(--layer)}
+.tok .sw{display:flex;gap:6px;margin-bottom:8px}
+.tok .sw i{width:26px;height:26px;border-radius:4px;border:1px solid var(--stroke)}
+.tok b{display:block;font-size:13px;font-weight:600}
+.tok span{font-size:12px;color:var(--text-2)}
+code{background:var(--code);padding:1px 5px;border-radius:3px;font-family:"Cascadia Mono","Noto Sans Mono",monospace;font-size:12px}
+table.map{border-collapse:collapse;width:100%;font-size:13px}
+table.map th,table.map td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--stroke);vertical-align:top}
+table.map th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.scroll{overflow-x:auto}
+@media (max-width:700px){.desktop{width:100%;height:auto;min-height:620px}.flyout{width:calc(100% - 24px)}}
+</style>
+</head>
+<body>
+<main>
+<header class="doc">
+  <div class="icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".55"/></svg></div>
+  <div><div class="eyebrow">Design canvas</div><h1>Elevate for Windows</h1></div>
+</header>
+<p class="lede">The Windows 11 counterpart of the macOS menu bar app: a tray flyout that behaves like the Wi-Fi and Quick Settings flyouts, plus five small windows. Everything follows Fluent 2 (Mica, 4 px controls, Segoe UI Variable) so it feels like part of the system rather than a port. The mockups below are set in the viewer's theme; switch your theme to see the other one.</p>
+
+<h2>1. The flyout</h2>
+<p>Left-click on the tray icon opens a 380 px flyout anchored above the taskbar, near the icon. It hides on deactivation. The structure matches the macOS panel one to one: pivots per role kind with activation counts, a pinned Active now group, and one group per tenant with the account row carrying the sign-in method caption.</p>
+<div class="row">
+  <div class="desktop">
+    <div class="flyout">
+      <div class="head"><b>Elevate</b><div class="tools"><div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg></div><div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="4" height="4" rx="1"/><path d="M8 5h6M8 11h6"/><rect x="2" y="9" width="4" height="4" rx="1"/></svg></div><div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 3v3h-3"/></svg></div></div></div>
+      <div class="pivot"><span class="on">Entra<i class="n">1</i></span><span>Azure<i class="n">1</i></span><span>Groups<i class="n zero">0</i></span></div>
+      <div class="ghead"><span class="chev">⌄</span>Active now <span class="cnt">1</span><span class="sp"></span></div>
+      <div class="r"><i class="dot on"></i><div class="name"><b>Application Administrator</b><span>Contoso · alex.rivera@contoso.com</span></div><span class="cd mono">07:51</span><button class="btn sm dis">Deactivate</button></div>
+      <div class="acct"><div class="av">AR</div><div class="who"><b>alex.rivera@contoso.com</b><span>Contoso · home · Own app</span></div><span class="act">1 active</span><div class="ib" style="width:26px;height:26px">···</div></div>
+      <div class="r"><i class="dot on"></i><div class="name"><b>Application Administrator</b></div><span class="cd mono">07:51</span><button class="btn sm dis">Deactivate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Billing Administrator</b></div><button class="btn sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Global Administrator</b><span>Approval required</span></div><button class="btn sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Global Reader</b></div><button class="btn sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Intune Administrator</b></div><button class="btn sm">Activate</button></div>
+      <div class="r"><i class="dot"></i><div class="name"><b>Security Administrator</b></div><button class="btn sm">Activate</button></div>
+      <div class="foot"><span>Add account…</span><span>Settings…</span><span>Quit</span></div>
+    </div>
+    <div class="taskbar">
+      <div class="center"><div class="app win"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="1" y="1" width="7.5" height="7.5" fill="#0078d4"/><rect x="9.5" y="1" width="7.5" height="7.5" fill="#0078d4"/><rect x="1" y="9.5" width="7.5" height="7.5" fill="#0078d4"/><rect x="9.5" y="9.5" width="7.5" height="7.5" fill="#0078d4"/></svg></div><div class="app"></div><div class="app"></div><div class="app"></div></div>
+      <div></div>
+      <div class="tray">
+        <span class="glyph">⌃</span>
+        <span class="elevate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg><b class="mono" style="font-weight:600">1</b></span>
+        <span class="glyph"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6a9 9 0 0 1 12 0M4.5 8.5a5.5 5.5 0 0 1 7 0M7 11a2 2 0 0 1 2 0"/></svg></span>
+        <span class="glyph"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4.5" width="11" height="7" rx="1.5"/><path d="M14 7v2"/></svg></span>
+        <span class="clock">11:24<br>06.09.2026</span>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="eyebrow">What to notice</div>
+    <ol>
+      <li><b>Pivots carry counts.</b> The Windows tab strip is a <code>SelectorBar</code> with an accent underline; the count pill is filled when non-zero, outlined when zero. Same numbers as the macOS tabs.</li>
+      <li><b>Group headers pin.</b> Active now and each tenant are <code>ListView</code> groups, so the header stays put while the list scrolls. The account row is the group header and carries the sign-in caption, exactly like the folded single-tenant layout on macOS.</li>
+      <li><b>Controls are Fluent sizes.</b> Rows are 44 px, buttons 30 px with 4 px corners, subtle on dark, standard on light. Deactivate is disabled for the first five minutes with a tooltip.</li>
+      <li><b>Countdown is tabular.</b> Segoe UI Variable has tabular figures; the countdown never jitters. Under ten minutes it turns to the warning colour and bold.</li>
+      <li><b>The tray icon</b> is the app icon's double chevron as a monochrome 16 px glyph with the active count beside it, matching the macOS menu bar item.</li>
+    </ol>
+  </div>
+</div>
+
+<h2>2. Flyout states</h2>
+<p>Select mode, first-run setup, and the offline and notice bars. All three use stock Fluent parts so they read as system behaviour.</p>
+<div class="row">
+  <div class="win" style="width:380px">
+    <div class="head" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px 8px"><b style="font-size:16px;font-weight:600">Elevate</b><span class="tag neutral">Select mode</span></div>
+    <div class="pivot"><span class="on">Entra<i class="n">1</i></span><span>Azure<i class="n">1</i></span><span>Groups<i class="n zero">0</i></span></div>
+    <div class="acct"><div class="av">AR</div><div class="who"><b>alex.rivera@contoso.com</b><span>Contoso · home · Own app</span></div><span class="act">1 active</span></div>
+    <div class="r"><i class="cb on"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></i><div class="name"><b>Billing Administrator</b></div></div>
+    <div class="r"><i class="cb on"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></i><div class="name"><b>Global Reader</b></div></div>
+    <div class="r"><i class="cb"></i><div class="name"><b>Intune Administrator</b></div></div>
+    <div class="r"><i class="cb"></i><div class="name"><b>Security Administrator</b></div><i class="ring"></i></div>
+    <div class="stick"><span style="color:var(--text-2)">2 roles selected · 1 tenant</span><button class="btn primary">Activate 2 roles</button></div>
+    <div class="foot"><span>Add account…</span><span>Settings…</span><span>Quit</span></div>
+  </div>
+  <div style="display:grid;gap:20px">
+    <div class="win" style="width:380px">
+      <div class="head" style="padding:12px 14px 8px"><b style="font-size:16px;font-weight:600">Elevate</b></div>
+      <div style="padding:22px 22px 26px;display:grid;gap:12px;text-align:center">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg>
+        <b style="font-size:16px">Complete initial setup</b>
+        <span style="color:var(--text-2);font-size:13px">Enter your app registration's client ID in Settings, or start with the Azure CLI app for Azure resource roles only.</span>
+        <div style="display:flex;gap:8px;justify-content:center;padding-top:4px"><button class="btn primary">Open Settings</button><button class="btn">Continue with the Azure CLI app</button></div>
+      </div>
+    </div>
+    <div class="win" style="width:380px">
+      <div class="infobar warn"><i class="ic"></i><div><b style="font-weight:600">You're offline.</b> Countdowns keep running; refresh and activation resume when the network is back.</div></div>
+      <div class="infobar info"><i class="ic"></i><div><b style="font-weight:600">Elevate 1.1.0 is available.</b> <span style="color:var(--accent);font-weight:600">Open release notes</span></div><span class="x">✕</span></div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+</div>
+
+<h2>3. Tray icon, context menu and toast</h2>
+<p>The icon is drawn at runtime so the count badge stays crisp at every DPI. Right-click gives the standard three items. Expiry uses a Windows App SDK toast with an Extend action that activates the app straight into the activation window.</p>
+<div class="row">
+  <div class="states" style="flex:1 1 420px">
+    <div class="state"><div class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg></div><b>Idle</b><span>Nothing active. Monochrome glyph, follows taskbar theme.</span></div>
+    <div class="state"><div class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg><b class="mono">3</b></div><b>Active</b><span>Count of active roles beside the glyph.</span></div>
+    <div class="state"><div class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg><b class="mono">3</b><i style="width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block"></i></div><b>Expiring soon</b><span>Warning dot when a role has under five minutes left.</span></div>
+    <div class="state"><div class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".5"/></svg><b class="mono">1</b><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg></div><b>Pending</b><span>Clock glyph while an activation awaits approval.</span></div>
+  </div>
+  <div style="display:grid;gap:20px">
+    <div class="menu"><div>Open</div><div class="hov">Settings…</div><hr><div>Quit Elevate</div></div>
+    <div class="toast"><div class="ti"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l7-7 7 7"/><path d="M5 19l7-7 7 7" opacity=".55"/></svg></div><div><b>Global Administrator expires in 5 minutes</b><p>Contoso · alex.rivera@contoso.com</p><div style="display:flex;gap:8px"><button class="btn primary sm">Extend</button><button class="btn sm">Dismiss</button></div></div><span class="app">Elevate · now</span></div>
+  </div>
+</div>
+
+<h2>4. Activation window</h2>
+<p>Single and bulk activation share one window. Duration is a <code>ComboBox</code> in 30-minute steps capped at the policy maximum, the reason is remembered per user, and ticket fields appear only when the policy demands them.</p>
+<div class="row">
+  <div class="win" style="width:520px">
+    <div class="tb"><span>Activate 2 roles</span><div class="wc"><span>—</span><span>☐</span><span>✕</span></div></div>
+    <div class="body">
+      <h3>Activate 2 roles</h3>
+      <div class="sub">Contoso · alex.rivera@contoso.com</div>
+      <div class="table">
+        <div class="tr"><span></span><span>Role</span><span>Duration</span><span>Status</span></div>
+        <div class="tr"><i class="dot"></i><div class="n"><b>Billing Administrator</b><span>Entra directory role</span></div><div class="sel">1 hour <span>⌄</span></div><span class="tag neutral">Ready</span></div>
+        <div class="tr"><i class="dot"></i><div class="n"><b>Global Administrator</b><span>Requires approval · max 4 hours</span></div><div class="sel">4 hours <span>⌄</span></div><span class="tag warn">Approval</span></div>
+      </div>
+      <div class="field"><label>Reason</label><div class="in ta focus">Incident 4821: rotate billing contact and review sign-in logs</div></div>
+      <div class="two">
+        <div class="field"><label>Ticket number</label><div class="in"><span class="ph">Required by policy for Global Administrator</span></div></div>
+        <div class="field"><label>Ticket system</label><div class="in"><span>ServiceNow</span><span>⌄</span></div></div>
+      </div>
+      <div class="actions"><button class="btn">Cancel</button><button class="btn primary">Activate 2 roles</button></div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="eyebrow">Behaviour</div>
+    <ul>
+      <li><b>Progress in place.</b> When Activate is pressed the Status column shows a ring per row, then Active, Pending approval, or the server error text. The window stays open until every row has settled.</li>
+      <li><b>Reason field</b> is prefilled with the last reason and validated to the policy's minimum length before the button enables.</li>
+      <li><b>Bulk grouping</b> is by tenant; roles in the same tenant run sequentially, tenants in parallel, exactly like the macOS coordinator.</li>
+      <li><b>Approval rows</b> show the warning pill so the user knows before pressing the button that the role will not be active immediately.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>5. Configure known roles</h2>
+<p>When a tenant refuses discovery, the user tells Elevate which roles exist. Three pivots: Entra roles from the built-in catalogue, Azure resource roles by scope and role name, and groups.</p>
+<div class="row">
+  <div class="win" style="width:560px">
+    <div class="tb"><span>Configure known roles · Contoso</span><div class="wc"><span>—</span><span>☐</span><span>✕</span></div></div>
+    <div class="body">
+      <h3>Contoso</h3>
+      <div class="sub">Discovery is refused in this tenant. Choose the roles you are eligible for; Elevate will try to activate them directly.</div>
+      <div class="pivot" style="padding:0 0 8px"><span class="on">Entra roles</span><span>Azure resources</span><span>Groups</span></div>
+      <div class="field"><div class="in"><span class="ph">Search 136 built-in roles</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg></div></div>
+      <div class="table">
+        <div class="tr" style="grid-template-columns:18px 1fr 90px"><i class="cb on"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></i><div class="n"><b>Global Administrator</b><span>Can manage all aspects of Microsoft Entra ID and Microsoft services that use Microsoft Entra identities.</span></div><span class="tag bad">Privileged</span></div>
+        <div class="tr" style="grid-template-columns:18px 1fr 90px"><i class="cb on"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#000" stroke-width="2"><path d="M2 6l3 3 5-6"/></svg></i><div class="n"><b>Security Reader</b><span>Can read security information and reports in Microsoft Entra ID and Microsoft 365.</span></div><span></span></div>
+        <div class="tr" style="grid-template-columns:18px 1fr 90px"><i class="cb"></i><div class="n"><b>Helpdesk Administrator</b><span>Can reset passwords for non-administrators and Helpdesk Administrators.</span></div><span class="tag bad">Privileged</span></div>
+        <div class="tr" style="grid-template-columns:18px 1fr 90px"><i class="cb"></i><div class="n"><b>Intune Administrator</b><span>Can manage all aspects of the Intune product.</span></div><span class="tag bad">Privileged</span></div>
+      </div>
+      <div class="actions"><span style="margin-right:auto;color:var(--text-2);align-self:center;font-size:13px">2 roles selected</span><button class="btn">Cancel</button><button class="btn primary">Save</button></div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="eyebrow">Azure resources pivot</div>
+    <ul>
+      <li>Each row is a scope path and a role name, with suggestions from the tenant's role definitions once a scope resolves.</li>
+      <li>The scope shows the resource display name as a caption after validation, so <code>/subscriptions/…/resourceGroups/rg-prod</code> becomes "rg-prod · Contoso Production".</li>
+      <li>Manual roles get the default policy of one hour, eight hours max, reason required, and are marked "Manual" in the flyout row caption.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>6. Add account and Settings</h2>
+<p>Add account explains the trade-off of each sign-in method in one line, using the same wording as macOS. Settings holds the client ID with the two redirect URIs the registration needs, plus launch-at-login, updates and diagnostics.</p>
+<div class="row">
+  <div class="win" style="width:440px">
+    <div class="tb"><span>Add account</span><div class="wc"><span>—</span><span>☐</span><span>✕</span></div></div>
+    <div class="body">
+      <h3>Add account</h3>
+      <div class="radio on"><i class="rb"></i><div><b>Your app registration</b><span>Signs in with Windows (WAM) and supports Entra roles, Azure roles and PIM for Groups.</span></div></div>
+      <div class="radio"><i class="rb"></i><div><b>Custom client ID</b><span>A company multi-tenant registration without the WAM redirect; uses the system browser on localhost.</span></div></div>
+      <div class="radio"><i class="rb"></i><div><b>Azure CLI app</b><span>Supports activation of Azure resource roles only.</span></div></div>
+      <div class="radio"><i class="rb"></i><div><b>Azure PowerShell app</b><span>Supports activation of Azure resource roles only.</span></div></div>
+      <div class="actions"><button class="btn">Cancel</button><button class="btn primary">Continue</button></div>
+    </div>
+  </div>
+  <div class="win" style="width:480px">
+    <div class="tb"><span>Settings</span><div class="wc"><span>—</span><span>☐</span><span>✕</span></div></div>
+    <div class="body">
+      <h3>Settings</h3>
+      <div class="eyebrow">App registration</div>
+      <div class="field"><label>Application (client) ID</label><div class="in"><span class="mono">7a1c3d0e-2b4f-4c8a-9e21-0f6d5b3a9c11</span></div></div>
+      <div class="srow"><div class="t"><b>Redirect URIs</b><span class="mono">ms-appx-web://microsoft.aad.brokerplugin/{clientId}</span><span class="mono">http://localhost</span></div><button class="btn sm">Copy</button></div>
+      <div class="eyebrow">General</div>
+      <div class="srow"><div class="t"><b>Start Elevate when I sign in</b><span>Adds a Run entry for the current user.</span></div><i class="toggle"></i></div>
+      <div class="srow"><div class="t"><b>Check for updates</b><span>Elevate 1.0.2 · checked 12 minutes ago</span></div><button class="btn sm">Check now</button></div>
+      <div class="srow"><div class="t"><b>Diagnostics</b><span>Copies a report without tokens or client IDs.</span></div><button class="btn sm">Copy</button></div>
+      <div class="actions"><button class="btn primary">Save</button></div>
+    </div>
+  </div>
+</div>
+
+<h2>7. Design tokens</h2>
+<p>Values are the Windows 11 defaults so the app matches Quick Settings and the Store. Semantic colours stay separate from the accent.</p>
+<div class="tokens">
+  <div class="tok"><div class="sw"><i style="background:#f3f3f3"></i><i style="background:#fbfbfb"></i><i style="background:#202020"></i><i style="background:#2b2b2b"></i></div><b>Grounds</b><span>Mica Alt base <code>#F3F3F3</code> / <code>#202020</code>; layer fill <code>#FBFBFB</code> / <code>#2B2B2B</code>.</span></div>
+  <div class="tok"><div class="sw"><i style="background:#005fb8"></i><i style="background:#60cdff"></i></div><b>Accent</b><span>System accent, default blue <code>#005FB8</code> light and <code>#60CDFF</code> dark. Filled buttons, selection, pivot underline, count pill.</span></div>
+  <div class="tok"><div class="sw"><i style="background:#0f7b0f"></i><i style="background:#9d5d00"></i><i style="background:#c42b1c"></i></div><b>Semantic</b><span>Success, caution, critical. Used for status dots, countdown warning, privileged tag. Never as decoration.</span></div>
+  <div class="tok"><div class="sw"><i style="background:var(--layer);display:grid;place-items:center;font-weight:600">Aa</i><i class="mono" style="background:var(--layer);display:grid;place-items:center;font-size:11px">07:51</i></div><b>Type</b><span>Segoe UI Variable Text 14 / Display 16 to 28; Cascadia Mono for countdowns and IDs. Tabular figures on.</span></div>
+  <div class="tok"><div class="sw"><i style="border-radius:4px"></i><i style="border-radius:8px"></i></div><b>Shape</b><span>4 px on controls, 8 px on windows and the flyout. 32 px control height, 44 px list rows, 14 px gutters.</span></div>
+  <div class="tok"><div class="sw"><i style="background:var(--control)"></i><i style="background:var(--control-hover)"></i></div><b>Interaction</b><span>Subtle fill on hover, rest-state controls are 70 % white in light and 6 % white in dark, per Fluent control fills.</span></div>
+</div>
+
+<h2>8. Mapping to the macOS app</h2>
+<p>For anyone building from the macOS code: each Windows surface and the SwiftUI view it mirrors.</p>
+<div class="scroll"><table class="map">
+  <tr><th>Windows surface</th><th>macOS view</th><th>Fluent part</th><th>Difference accepted</th></tr>
+  <tr><td>Flyout</td><td><code>PanelView</code></td><td><code>Window</code> + <code>OverlappedPresenter</code>, Mica Alt</td><td>Closes on deactivation; no pinned menu bar window</td></tr>
+  <tr><td>Pivots with counts</td><td>Tab strip in <code>PanelView</code></td><td><code>SelectorBar</code></td><td>Underline instead of segmented control</td></tr>
+  <tr><td>Active now, tenant groups</td><td><code>ActiveSection</code>, <code>TenantSection</code>, <code>PinnedSectionHeader</code></td><td><code>ListView</code> grouped, sticky headers</td><td>One pinned level; account row is the group header</td></tr>
+  <tr><td>Role row</td><td><code>RoleRow</code>, <code>AssignmentControls</code></td><td><code>ListViewItem</code> template</td><td>None</td></tr>
+  <tr><td>Activation, bulk</td><td><code>ActivationView</code>, <code>BulkActivationView</code></td><td><code>Window</code>, <code>ComboBox</code>, <code>TextBox</code></td><td>Merged into one window</td></tr>
+  <tr><td>Configure known roles</td><td><code>ConfigureRolesView</code></td><td><code>Pivot</code> + <code>ListView</code> with checkboxes</td><td>None</td></tr>
+  <tr><td>Add account</td><td><code>AddAccountView</code></td><td><code>RadioButtons</code></td><td>WAM instead of MSAL for macOS; custom ID uses localhost</td></tr>
+  <tr><td>Settings</td><td><code>SettingsView</code></td><td><code>SettingsCard</code> style rows</td><td>Run key instead of <code>SMAppService</code></td></tr>
+  <tr><td>Tray icon</td><td><code>MenuBarLabel</code></td><td><code>Shell_NotifyIcon</code></td><td>Badge drawn into the icon bitmap</td></tr>
+  <tr><td>Expiry toast</td><td><code>UserNotifications</code></td><td><code>AppNotificationManager</code></td><td>Extend is a toast button</td></tr>
+  <tr><td>Global shortcut</td><td><code>HotKeyCenter</code></td><td><code>RegisterHotKey</code></td><td>Recorded in Settings the same way</td></tr>
+</table></div>
+</main>
+</body>
+</html>

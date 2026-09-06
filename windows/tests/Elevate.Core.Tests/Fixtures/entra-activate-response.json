@@ -1,0 +1,7 @@
+{
+  "id": "req-1", "status": "Provisioned", "action": "selfActivate",
+  "principalId": "user-obj-1",
+  "roleDefinitionId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451", "directoryScopeId": "/",
+  "createdDateTime": "2026-09-04T09:00:00Z",
+  "scheduleInfo": { "startDateTime": "2026-09-04T09:00:00Z", "expiration": { "type": "afterDuration", "duration": "PT2H", "endDateTime": null } }
+}
