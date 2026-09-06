@@ -24,6 +24,7 @@ struct AppModelPanelTests {
         #expect(model.roles(for: Sample.tenantKey, tab: .roles).map(\.displayName) == ["Global Reader"])
         #expect(model.roles(for: Sample.tenantKey, tab: .azure).map(\.displayName) == ["Owner"])
         #expect(model.roles(for: Sample.tenantKey, tab: .groups).map(\.displayName) == ["Platform Admins"])
+        cleanup(model)
     }
 
     @Test func visibleIdentitiesDropsAccountsWithoutAMatchWhileFiltering() async {
@@ -40,6 +41,7 @@ struct AppModelPanelTests {
         model.searchQuery = "billing"
         #expect(model.visibleIdentities.map(\.id) == ["id-2"])
         #expect(model.visibleTenants(for: "id-1").isEmpty)
+        cleanup(model)
     }
 
     @Test func activeAssignmentsOrderedShowsOnlyTheCurrentTabsKinds() async {
@@ -54,6 +56,7 @@ struct AppModelPanelTests {
         model.panelTab = .azure
         #expect(model.activeAssignmentsOrdered.map(\.roleKey) == [Sample.azureKey])
         #expect(model.activeCount(for: .groups) == 1)
+        cleanup(model)
     }
 
     @Test func canActivateIsFalseForAnEntraRoleOnAFirstPartyIdentity() async {
@@ -67,5 +70,6 @@ struct AppModelPanelTests {
         #expect(model.entraViewOnlyReason(for: Sample.tenantKey) != nil)
         // Azure resource roles go through ARM and stay activatable with the same account.
         #expect(model.canActivate(Sample.azureKey))
+        cleanup(model)
     }
 }

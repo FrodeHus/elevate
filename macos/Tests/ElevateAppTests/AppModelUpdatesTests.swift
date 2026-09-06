@@ -18,6 +18,7 @@ struct AppModelUpdatesTests {
 
         #expect(await http.requests(matching: "api.github.com").isEmpty)
         #expect(model.updateCheckMessage == nil)
+        cleanup(model)
     }
 
     @Test func forcedCheckAsksGitHubEvenWhenThrottledAndReportsNoReleases() async {
@@ -36,6 +37,7 @@ struct AppModelUpdatesTests {
         // 404 is "no release published yet", not a failure.
         #expect(model.updateCheckMessage == "No releases yet")
         #expect(model.updateAvailable == nil)
+        cleanup(model)
     }
 
     @Test func aNewerReleaseRaisesTheBannerUntilItIsDismissed() async {
@@ -52,5 +54,6 @@ struct AppModelUpdatesTests {
         model.dismissUpdate()
         #expect(model.updateAvailable == nil)
         #expect(model.settings.dismissedUpdateVersion == "999.0.0")
+        cleanup(model)
     }
 }

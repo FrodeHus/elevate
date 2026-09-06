@@ -31,6 +31,7 @@ struct AppModelSelectionTests {
 
         model.searchQuery = "owner"
         #expect(model.selection.isEmpty)
+        cleanup(model)
     }
 
     @Test func selectionBreakdownCountsEachKind() async {
@@ -45,11 +46,13 @@ struct AppModelSelectionTests {
         model.toggleSelection(Sample.azureKey)
         #expect(model.selectionBreakdown == (0, 0, 1))
         #expect(model.selectionNoun == "group")
+        cleanup(model)
     }
 
     @Test func leavingSelectModeClearsTheSelection() async {
         let model = await selectedModel()
         model.selectMode = false
         #expect(model.selection.isEmpty)
+        cleanup(model)
     }
 }

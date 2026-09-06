@@ -2,6 +2,7 @@
 macos/.build/
 macos/build/
 macos/build-adhoc/
+macos/build-unsigned/
 macos/dist/
 macos/*.xcodeproj/
 macos/.swiftpm/

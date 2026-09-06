@@ -2,16 +2,31 @@ import Foundation
 import ElevateCore
 @testable import Elevate
 
+/// Tracks the throwaway UserDefaults suite backing each `AppSettings` created by `makeSettings()`,
+/// so `cleanup(_:)` can remove it after the test is done with it.
+@MainActor
+private var settingsSuites: [ObjectIdentifier: String] = [:]
+
+/// Tracks the throwaway state directory backing each `AppModel` created by `makeModel(...)`,
+/// so `cleanup(_:)` can remove it after the test is done with it.
+@MainActor
+private var modelDirectories: [ObjectIdentifier: URL] = [:]
+
 /// Fresh `AppSettings` over a throwaway UserDefaults suite, so nothing leaks between tests
-/// or into the host app's own defaults.
+/// or into the host app's own defaults. Its suite is removed by `cleanup(_:)` once the
+/// `AppModel` it ends up attached to is done with it.
 @MainActor
 func makeSettings() -> AppSettings {
-    AppSettings(defaults: UserDefaults(suiteName: "elevate-tests-\(UUID().uuidString)")!)
+    let suiteName = "elevate-tests-\(UUID().uuidString)"
+    let settings = AppSettings(defaults: UserDefaults(suiteName: suiteName)!)
+    settingsSuites[ObjectIdentifier(settings)] = suiteName
+    return settings
 }
 
 /// Builds an `AppModel` wired entirely to fakes: no MSAL, no real network, its own state file and
 /// its own UserDefaults suite. The monitor is pinned (offline by default) so `bootstrap()` performs
-/// no refresh and no update check of its own.
+/// no refresh and no update check of its own. Call `cleanup(_:)` once the test is done with the
+/// model to remove its temp state directory and UserDefaults suite.
 @MainActor
 func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClient(),
                online: Bool = false, settings: AppSettings? = nil) async -> AppModel {
@@ -23,7 +38,21 @@ func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClie
                          network: NetworkMonitor(forcedOnline: online),
                          settings: settings ?? makeSettings())
     await model.bootstrap()
+    modelDirectories[ObjectIdentifier(model)] = directory
     return model
+}
+
+/// Removes the temp state directory and UserDefaults suite created for `model` by `makeModel(...)`
+/// (and, transitively, by `makeSettings()`), so nothing leaks on disk or into `UserDefaults`
+/// between test runs. Safe to call even if either was never registered.
+@MainActor
+func cleanup(_ model: AppModel) {
+    if let directory = modelDirectories.removeValue(forKey: ObjectIdentifier(model)) {
+        try? FileManager.default.removeItem(at: directory)
+    }
+    if let suiteName = settingsSuites.removeValue(forKey: ObjectIdentifier(model.settings)) {
+        UserDefaults.standard.removePersistentDomain(forName: suiteName)
+    }
 }
 
 // MARK: Sample data

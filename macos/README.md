@@ -118,6 +118,19 @@ open build/Build/Products/Debug/Elevate.app
 
 Core tests: `swift test`.
 
+App tests:
+
+```bash
+xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug -derivedDataPath build -allowProvisioningUpdates test
+```
+
+> **Note:** running `xcodebuild test` with signing disabled (as CI does, to avoid needing a
+> signing identity) into the same `-derivedDataPath build` used above replaces the signed Debug
+> app with an unsigned one — its own-app sign-in then shows "Unavailable on unsigned builds".
+> If you need an unsigned test run locally, point it at a separate derived data path instead,
+> e.g. `-derivedDataPath build-unsigned`, so the signed `build/` output for `open
+> build/Build/Products/Debug/Elevate.app` is left alone.
+
 ## Tenants that refuse consent
 
 If a tenant admin has not consented, discovery fails and the tenant switches to
