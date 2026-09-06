@@ -22,7 +22,7 @@ the WinUI 3 tray app, MSAL/WAM sign-in, toasts, the MSI, winget and the Windows 
 | 12 Notifications, run at login, polish | pending | |
 | 13 Installer, winget, CI | pending | |
 
-Test count at handover: 173 in `Elevate.Core.Tests`, all green with warnings as errors.
+Test count at handover: 179 in `Elevate.Core.Tests`, all green with warnings as errors.
 
 ## Set up the Windows machine
 
@@ -40,7 +40,7 @@ cd windows
 dotnet test Elevate.sln
 ```
 
-Expect 173 passed. If the count differs from what the branch's last commit reports, stop and look at
+Expect 179 passed. If the count differs from what the branch's last commit reports, stop and look at
 the git log first.
 
 ## Resume the plan
@@ -103,6 +103,31 @@ Later tasks must build on these, not on the plan's original wording.
 
 Deferred minor findings from the reviews are listed in the pull request description for this branch;
 none block the app work.
+
+## Gotchas the final review added
+
+- **Deduplicate identities before `ActivationCoordinator.ActivateAsync`.** The same user signed in via
+  the own app and via the Azure CLI app has the same `Identity.Id` (`oid.tid`). The coordinator is
+  first-wins on duplicates, but the app should refuse adding an account already present under another
+  method, as the macOS `AppModel+Accounts.swift` does, and `CompositeTokenProvider.IdentitiesAsync`
+  should be distinct by `Id`.
+- **`AppState` is a mutable class.** `AppStateStore.Load()` and `AppState.Clone()` are the only ways to
+  get an independent graph; `ActivationProfile.DeepCopy()` copies a profile with its own entries.
+  Clone before an edit-then-cancel flow and before a generation-guarded save.
+- **`AppStateStore.Load()` throws `JsonException`** for a corrupt file or one missing required fields;
+  nothing quarantines automatically. Catch it, call `QuarantineCorruptFile()`, start from an empty
+  state. `Json.Options` is strict for `state.json`; Graph and ARM responses decode through
+  `Json.LenientOptions` (`GraphJson.Options`).
+- **Warnings-as-errors is inherited by `Elevate.App`** from `Directory.Build.props`. Expect XAML and
+  CsWin32 generated-code warnings and CA1416 platform checks; scope any `NoWarn` to the App project.
+- **`RoleCatalogue.EntraBuiltInRoles()` is cached** after the first call; still, keep the search
+  filtering in the view model rather than re-querying per keystroke.
+- **`EntraDirectoryProvider` does not follow `@odata.nextLink`** (parity with macOS). A tenant with
+  more than one page of eligibilities truncates on both platforms; fix both together if it shows up.
+- **`ITokenProvider` requires an explicit `CancellationToken`; `IPimProvider` defaults it.**
+  `InteractionRetry.RunAsync` takes `ct` after the optional `fallbackClaims`, so pass it by name.
+- **`Elevate.sln` already lists `arm64`**; create `Elevate.App` with `Platforms x64;arm64` so Task 13's
+  arm64 MSI has a matching configuration.
 
 ## Task-by-task notes for 8–13
 
