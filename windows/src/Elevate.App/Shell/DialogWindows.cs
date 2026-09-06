@@ -43,10 +43,16 @@ internal static class DialogWindows
             {
                 root.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
                 var wanted = (int)Math.Round((root.DesiredSize.Height + TitleBarHeight) * scale);
+                // Never taller than the work area: a tall window (Settings) scrolls instead of losing its buttons.
+                PInvoke.GetCursorPos(out var cursor);
+                var work = WindowPlacement.WorkAreaAt(cursor);
+                wanted = Math.Min(wanted, work.bottom - work.top - (int)Math.Round(24 * scale));
                 var size = window.AppWindow.Size;
                 if (Math.Abs(size.Height - wanted) > 2)
                 {
-                    window.AppWindow.Resize(new Windows.Graphics.SizeInt32(size.Width, wanted));
+                    var position = window.AppWindow.Position;
+                    var y = Math.Max(work.top, Math.Min(position.Y, work.bottom - wanted));
+                    window.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(position.X, y, size.Width, wanted));
                 }
             };
         }

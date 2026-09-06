@@ -47,7 +47,19 @@ Sign in from the flyout's **Add account…** with one of:
 - **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed; Azure
   resource roles only.
 
-Settings also holds *Start Elevate when I sign in* (a per-user Run entry).
+Everything the macOS app does is here: select several roles across pivots and activate them
+together, save a selection as a **profile** (a chip row under the pivots; *Manage…* renames,
+reorders and deletes; a chip opens the run window with per-entry durations, the remembered reason,
+ticket and start time), **Ctrl-click** Activate, Extend or a chip to go straight through with the
+last reason and duration when the policy allows it, and a **global shortcut** (Settings) that runs
+one profile the same way. Requests waiting for *your* approval appear in a pinned **Approvals**
+group above *Active now* with Approve and Deny; a toast announces each new request once, and the
+tray icon carries an orange dot while any are pending.
+
+Settings also holds *Start Elevate when I sign in* (a per-user Run entry), *Check for updates*
+(the flyout offers a newer `windows-v*` release once a day, with Open and Dismiss) and *Copy
+diagnostics* (a plain-text report of accounts, tenants, profiles, the shortcut and recent errors,
+never a token or client ID).
 
 Files live in `%LOCALAPPDATA%\Elevate`: `state.json` (accounts, tenants, manual roles, remembered
 reasons; the same schema as the macOS app), `settings.json`, the DPAPI-protected MSAL token cache
@@ -73,7 +85,12 @@ src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --
 src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --show settings
 ```
 
-`--show` takes `settings`, `add-account`, `configure`, `activation`, `bulk`, `add-tenant` or `discover`.
+`--show` takes `settings`, `add-account`, `configure`, `activation`, `bulk`, `add-tenant`, `discover`,
+`save-profile`, `manage-profiles`, `run-profile` or `decision`. To exercise the flyout without
+signing in, seed `%LOCALAPPDATA%\Elevate\state.json` with an own-app identity, tenants in
+`manualRoles` mode, manual roles and profiles (the golden fixture
+`tests/Elevate.Core.Tests/Fixtures/state-macos.json` shows the shape; durations are the
+128-bit attosecond pair Swift writes) and clear `clientId` in `settings.json`; back both files up first.
 
 ### Installer and winget manifest
 

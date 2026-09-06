@@ -38,8 +38,11 @@ public sealed partial class SettingsWindow : Window
         Closed += (_, _) => _model.Changed -= OnModelChanged;
     }
 
-    private static string VersionText() =>
-        $"Elevate {BuildInfo.Version} ({BuildInfo.Build}) · {BuildInfo.SigningDescription} · Windows App SDK 1.8";
+    private static string VersionText()
+    {
+        var build = BuildInfo.Build.Length > 7 ? BuildInfo.Build[..7] : BuildInfo.Build;
+        return $"Elevate {BuildInfo.Version} ({build}) · {BuildInfo.SigningDescription}";
+    }
 
     private void OnModelChanged(object? sender, EventArgs e)
     {

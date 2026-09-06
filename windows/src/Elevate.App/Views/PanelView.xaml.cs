@@ -346,12 +346,19 @@ public sealed partial class PanelView : UserControl
 
     private async void OnProfileChipClick(object sender, RoutedEventArgs e)
     {
-        if (_model is null || (sender as FrameworkElement)?.DataContext is not ProfileChip chip)
+        // ItemsRepeater does not set a DataContext on x:Bind templates; the element's index names the chip.
+        if (_model is null || sender is not UIElement element)
         {
             return;
         }
 
-        var id = chip.Id;
+        var index = ProfileChips.GetElementIndex(element);
+        if (index < 0 || index >= _chips.Count)
+        {
+            return;
+        }
+
+        var id = _chips[index].Id;
         if (IsControlDown() && await _model.QuickRunAsync(id))
         {
             return;

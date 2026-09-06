@@ -17,19 +17,19 @@
   `GraphTransport.CallerObjectIdAsync` and `GraphSchedule.RequestStatus`/`Settle`; `ParseDate` to
   the tests; `ct = default` on `ITokenProvider`; `ArmUrl` path encoding; relaxed JSON escaping;
   `Text.Prefix`. Commit: "Core: resolve the deferred findings from the port reviews".
-- [ ] **3. App model.** `AppSettings` fields; `AppModel.{Profiles,Approvals,Operations}.cs`; quick
+- [x] **3. App model.** `AppSettings` fields; `AppModel.{Profiles,Approvals,Operations}.cs`; quick
   activate / quick run in `AppModel.Activation.cs`; approval reads and prune in `AppModel.Refresh.cs`;
   `ErrorLog` on Core; `IHotKeyCenter`, `HotKeyBinding`, `UpdateChecker`, `BuildInfo` in `Services`;
   approval providers rebuilt with the coordinator. Tests in `Elevate.App.Tests`:
   `AppModelProfileTests`, `AppModelApprovalTests`, `AppModelOperationsTests`.
-- [ ] **4. Profiles UI (#12).** `ProfilesRow` in `PanelView`, bulk bar buttons, `SaveProfileWindow`,
+- [x] **4. Profiles UI (#12).** `ProfilesRow` in `PanelView`, bulk bar buttons, `SaveProfileWindow`,
   `ManageProfilesWindow`, `RunProfileWindow`; `App.OpenSaveProfile/OpenManageProfiles/OpenRunProfile`;
   the flyout's flexible body row (fixes the clipped bulk bar).
-- [ ] **5. Quick activate and the global shortcut (#13).** Ctrl-click on Activate / Extend and on
+- [x] **5. Quick activate and the global shortcut (#13).** Ctrl-click on Activate / Extend and on
   chips; `HotKeyCenter` over `RegisterHotKey` on the tray window; `HotKeyRecorder` control and the
   Settings card; `PendingProfileRun` opens the Run window.
-- [ ] **6. Approvals UI (#14).** `ApprovalRow` and the pinned group in `PanelView`, `DecisionWindow`,
+- [x] **6. Approvals UI (#14).** `ApprovalRow` and the pinned group in `PanelView`, `DecisionWindow`,
   the tray badge, approval toasts.
-- [ ] **7. Diagnostics and update check (#15).** Settings rows; the update `InfoBar` in the flyout;
+- [x] **7. Diagnostics and update check (#15).** Settings rows; the update `InfoBar` in the flyout;
   the daily check at startup.
-- [ ] **8. Docs and handover.** README, CONTINUING, the signing / winget steps for #17.
+- [x] **8. Docs and handover.** README, CONTINUING, the signing / winget steps for #17.

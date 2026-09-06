@@ -308,21 +308,16 @@
         </Grid>
 
         <!-- Select mode: sticky bulk bar -->
-        <Grid Grid.Row="6" x:Name="BulkBar" Visibility="Collapsed" Padding="14,10" ColumnSpacing="8"
-              Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
-              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                <TextBlock x:Name="BulkCaption" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                <TextBlock x:Name="BulkHint" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+        <StackPanel Grid.Row="6" x:Name="BulkBar" Visibility="Collapsed" Padding="14,8,14,10" Spacing="8"
+                    Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <TextBlock x:Name="BulkCaption" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="BulkHint" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" Visibility="Collapsed" Margin="0,-6,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button x:Name="BulkProfile" Content="Save as profile…" Click="OnBulkProfile" />
+                <Button x:Name="BulkActivate" Style="{StaticResource AccentButtonStyle}" Content="Activate" Click="OnBulkActivate" />
             </StackPanel>
-            <Button Grid.Column="1" x:Name="BulkProfile" Content="Save as profile…" Click="OnBulkProfile" />
-            <Button Grid.Column="2" x:Name="BulkActivate" Style="{StaticResource AccentButtonStyle}" Content="Activate" Click="OnBulkActivate" />
-        </Grid>
+        </StackPanel>
 
         <!-- Footer -->
         <Grid Grid.Row="7" Padding="8,4" Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
