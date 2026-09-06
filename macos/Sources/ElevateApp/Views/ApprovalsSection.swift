@@ -23,26 +23,8 @@ struct ApprovalsHeader: View {
     @Environment(AppModel.self) private var model
     let count: Int
     var body: some View {
-        let expanded = !model.collapsedApprovals
-        HStack(spacing: 6) {
-            Button { withAnimation(.snappy) { model.toggleApprovals() } } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
-                    Text("Approvals").font(.subheadline.weight(.semibold))
-                    Text("\(count)").font(.caption).foregroundStyle(.orange)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(expanded ? "Collapse approvals" : "Expand approvals")
-            Spacer()
-        }
-        .padding(.horizontal, PanelMetrics.headerInset)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .overlay(alignment: .bottom) { Divider() }
+        PinnedSectionHeader(title: "Approvals", accessibilityName: "approvals", count: count, tint: .orange,
+                            expanded: !model.collapsedApprovals, onToggle: { withAnimation(.snappy) { model.toggleApprovals() } })
     }
 }
 

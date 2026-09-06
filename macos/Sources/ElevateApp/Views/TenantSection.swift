@@ -51,12 +51,7 @@ struct TenantHeader: View {
                 }
             }
         }
-        .padding(.leading, PanelMetrics.headerInset)
-        .padding(.trailing, PanelMetrics.trailingInset)
-        .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .overlay(alignment: .bottom) { Divider() }
+        .pinnedHeaderChrome()
     }
 
     private func open(_ route: PanelRoute) {
