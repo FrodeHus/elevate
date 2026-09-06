@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-06
+
+### Changed
+
+- macOS: the DMG and the app are signed with a Developer ID and notarized. The disk image opens
+  without a Gatekeeper prompt, and the `xattr -d com.apple.quarantine` step is no longer needed.
+  Own-app accounts added on an earlier unsigned build sign in once more, since signed builds use
+  the Microsoft authentication broker instead of the loopback flow.
+
 ## [1.2.1] - 2026-09-06
 
 ### Fixed
@@ -106,7 +115,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/FrodeHus/elevate/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/FrodeHus/elevate/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/FrodeHus/elevate/compare/v1.0.2...v1.2.0
 [1.0.2]: https://github.com/FrodeHus/elevate/compare/v1.0.1...v1.0.2
