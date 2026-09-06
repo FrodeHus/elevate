@@ -113,11 +113,19 @@ certificate has actually been imported.
 
 **Ad-hoc builds carry no entitlements.** Because they aren't signed with a
 Developer ID, an ad-hoc signed build has none of the app's entitlements
-(keychain access groups, associated domains, etc.), so sign-in with Elevate's
-own app registration (MSAL, using the system webview) does not work on these
-builds. The Azure CLI and custom/company-app-registration sign-in methods
-still work, but store their tokens in the user's login keychain rather than
-relying on the app's entitlements.
+(keychain access groups, associated domains, etc.), so MSAL — whose token cache
+lives in a shared data-protection keychain group — cannot be used on them. The
+app detects this at launch and signs in with the **own app registration**
+through the loopback browser flow instead, using the same client ID from
+Settings, so an unsigned build has full functionality. It only needs
+`http://localhost` registered as a redirect URI under the "Mobile and desktop
+applications" platform, which the setup script and the setup guide already add.
+All methods store their tokens in the user's login keychain rather than relying
+on the app's entitlements.
+
+What a Developer ID signature adds on top is therefore not functionality but
+polish: a silent first launch (no Gatekeeper prompt), MSAL's embedded webview
+instead of the default browser, and SSO with other MSAL apps on the Mac.
 
 ## The Homebrew cask
 

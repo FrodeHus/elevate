@@ -14,15 +14,25 @@ extension AppModel {
 
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
     ///
-    /// `.ownApp` also needs a signature with entitlements: MSAL keeps its token cache in the
-    /// shared data-protection keychain group, which an ad-hoc signed build cannot read
-    /// (`errSecMissingEntitlement`, -34018), so sign-in would fail after the webview.
+    /// `.ownApp` needs a client id and a transport for it: MSAL on a signed build, or — when MSAL
+    /// is unusable because the build is ad-hoc signed and cannot read its shared data-protection
+    /// keychain group (`errSecMissingEntitlement`, -34018) — the loopback flow over the same
+    /// client id. `isConfigured` already covers both.
     func isAvailable(_ method: SignInMethod) -> Bool {
         switch method {
-        case .ownApp: isConfigured && BuildInfo.signingState != .adHoc
+        case .ownApp: isConfigured
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
+    }
+
+    /// The client id whose keychain refresh-token store `method` uses, or nil when it has none of
+    /// its own: `.ownApp` on a signed build keeps its tokens in MSAL's cache, not the keychain
+    /// store, so it shares nothing with any loopback method.
+    private func loopbackClientId(for method: SignInMethod) -> String? {
+        guard method.usesMSAL else { return method.clientId }
+        guard ownAppViaLoopback, settings.isConfigured else { return nil }
+        return settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: Accounts
@@ -48,13 +58,24 @@ extension AppModel {
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.displayName)"
                 logError("Add account: already added with \(existing.signInMethod.displayName)")
-                try? await tokens.signOut(identity)
+                // Discard the sign-in we just made, but only when it does not share a keychain
+                // item with the account that is already there: refresh tokens are keyed
+                // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
+                // `.custom` account over the same Settings client id are the *same* item, and
+                // signing out would delete the existing account's token.
+                let added = loopbackClientId(for: method)
+                if added == nil || added != loopbackClientId(for: existing.signInMethod) {
+                    try? await tokens.signOut(identity)
+                }
                 return false
             }
             if !state.identities.contains(where: { $0.id == identity.id }) {
                 state.identities.append(identity)
             }
-            if !method.usesMSAL, let failure = await loopback.provider(for: method)?.persistenceError() {
+            // The own-app method keeps its refresh token in the Keychain too when it runs through
+            // the loopback flow, so its save failures must be surfaced the same way.
+            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")
             }

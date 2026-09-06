@@ -32,7 +32,7 @@ struct AddAccountView: View {
                 ForEach(methods, id: \.self) { m in
                     VStack(alignment: .leading, spacing: 1) {
                         Text(m.displayName)
-                        Text(Self.caption(for: m, available: model.isAvailable(m)))
+                        Text(Self.caption(for: m, available: model.isAvailable(m), viaLoopback: model.ownAppViaLoopback))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     .tag(Choice.fixed(m))
@@ -99,13 +99,13 @@ struct AddAccountView: View {
     }
 
     /// An unavailable row explains why, since its `.disabled` state alone is easy to miss.
-    private static func caption(for method: SignInMethod, available: Bool) -> String {
+    private static func caption(for method: SignInMethod, available: Bool, viaLoopback: Bool) -> String {
         switch method {
         case .ownApp:
-            if available {
+            if available && viaLoopback {
+                "Uses the client ID from Settings through the browser (loopback) on this unsigned build; the registration needs http://localhost under Mobile and desktop applications"
+            } else if available {
                 "Uses the client ID from Settings; needs admin consent in each tenant"
-            } else if BuildInfo.signingState == .adHoc {
-                "Unavailable on unsigned builds; use a custom app registration"
             } else {
                 "Unavailable — configure a client ID in Settings"
             }
