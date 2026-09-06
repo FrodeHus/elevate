@@ -102,9 +102,13 @@ struct AddAccountView: View {
     private static func caption(for method: SignInMethod, available: Bool) -> String {
         switch method {
         case .ownApp:
-            available
-                ? "Uses the client ID from Settings; needs admin consent in each tenant"
-                : "Unavailable — configure a client ID in Settings"
+            if available {
+                "Uses the client ID from Settings; needs admin consent in each tenant"
+            } else if BuildInfo.signingState == .adHoc {
+                "Unavailable on unsigned builds; use a custom app registration"
+            } else {
+                "Unavailable — configure a client ID in Settings"
+            }
         case .azureCLI:
             "Microsoft's Azure CLI app; no consent needed; Azure resource roles only"
         case .azurePowerShell:

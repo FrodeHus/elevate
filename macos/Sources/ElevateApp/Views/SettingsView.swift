@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ServiceManagement
 import ElevateCore
 
 struct SettingsView: View {
@@ -12,9 +13,47 @@ struct SettingsView: View {
     @State private var hotKeyProfileId: UUID?
     /// Set once `onAppear` has mirrored settings, so the initial fill does not re-register the hot key.
     @State private var hotKeyLoaded = false
+    /// Mirror of the real login-item state, so the toggle can flip back when registering fails.
+    @State private var launchAtLogin = false
+    @State private var launchAtLoginStatus: SMAppService.Status = .notRegistered
+    @State private var checkingUpdates = false
+    @State private var copiedDiagnostics = false
 
     var body: some View {
         Form {
+            Section("General") {
+                // An explicit setter, not `$launchAtLogin`: mirroring the system state in
+                // `onAppear` must not look like the user flipping the switch.
+                Toggle("Launch at login", isOn: Binding(get: { launchAtLogin }, set: { setLaunchAtLogin($0) }))
+                if let launchError = model.launchAtLoginError {
+                    Text(launchError).font(.caption).foregroundStyle(.red)
+                } else if launchAtLoginStatus == .requiresApproval {
+                    Text("Approve in System Settings → General → Login Items")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                LabeledContent("Version") {
+                    Text("\(BuildInfo.version) (\(BuildInfo.build)) · \(BuildInfo.signingDescription)")
+                        .textSelection(.enabled)
+                }
+                LabeledContent("Updates") {
+                    HStack {
+                        Button("Check for updates") { checkForUpdates() }
+                            .disabled(checkingUpdates)
+                        if checkingUpdates { ProgressView().controlSize(.small) }
+                    }
+                }
+                if let message = model.updateCheckMessage {
+                    Text(message).font(.caption).foregroundStyle(.secondary)
+                }
+                LabeledContent("Diagnostics") {
+                    HStack {
+                        Button("Copy diagnostics") { copyDiagnostics() }
+                        if copiedDiagnostics { Text("Copied").font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+                Text("The report has your accounts, tenants, profiles and recent errors — never tokens or client secrets. Paste it into a bug report.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Entra app registration") {
                 TextField("Application (client) ID", text: $draft, prompt: Text("00000000-0000-0000-0000-000000000000"))
                     .textFieldStyle(.roundedBorder)
@@ -65,6 +104,8 @@ struct SettingsView: View {
             hotKey = model.settings.hotKey
             hotKeyProfileId = model.settings.hotKeyProfileId
             hotKeyLoaded = true
+            launchAtLoginStatus = model.launchAtLoginStatus
+            launchAtLogin = launchAtLoginStatus == .enabled
             // A menu bar app (LSUIElement) is not activated when a window opens, so Settings can land behind other apps.
             NSApp.activate(ignoringOtherApps: true)
             DispatchQueue.main.async {
@@ -79,6 +120,37 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it; you will add them again. Azure CLI and Azure PowerShell accounts are unaffected.")
+        }
+    }
+
+    /// Registers or unregisters the login item, putting the toggle back if the system refuses.
+    private func setLaunchAtLogin(_ on: Bool) {
+        do {
+            try model.setLaunchAtLogin(on)
+        } catch {
+            launchAtLogin = !on
+        }
+        launchAtLoginStatus = model.launchAtLoginStatus
+        // `.requiresApproval` means the registration is recorded but switched off by the user;
+        // show the toggle as on so the caption explains what is still needed.
+        launchAtLogin = launchAtLoginStatus == .enabled || launchAtLoginStatus == .requiresApproval
+    }
+
+    private func checkForUpdates() {
+        checkingUpdates = true
+        Task {
+            await model.checkForUpdates(force: true)
+            checkingUpdates = false
+        }
+    }
+
+    private func copyDiagnostics() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(model.diagnosticsText(), forType: .string)
+        copiedDiagnostics = true
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            copiedDiagnostics = false
         }
     }
 

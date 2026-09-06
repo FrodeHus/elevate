@@ -9,6 +9,42 @@ Elevate lists every account you have signed in with, each tenant that account ca
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, profiles, sign-in methods | [macos/README.md](macos/README.md) |
 | [Windows 11](windows/) — WinUI 3 tray app, .NET 10, MSI + winget | Designed, not yet implemented | [windows/README.md](windows/README.md) |
 
+## Install (macOS)
+
+Homebrew (the cask lives in this repository, which doubles as a tap):
+
+```bash
+brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
+brew install --cask --no-quarantine elevate
+```
+
+Or download the DMG from the [latest release](https://github.com/FrodeHus/elevate/releases/latest) —
+the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it
+and drag **Elevate** to Applications.
+
+Elevate requires macOS 26 (Tahoe).
+
+### Opening an unsigned build
+
+Releases today are ad-hoc signed, not signed with an Apple Developer ID and not notarized, so macOS
+refuses to open them on a double-click. Either install with `--no-quarantine` as above, or after
+copying the app to Applications:
+
+1. Open **Elevate.app** once.
+2. When macOS blocks it, open **System Settings → Privacy & Security**, scroll to the message
+   about Elevate and click **Open Anyway**.
+3. Confirm **Open Anyway** again when prompted. macOS remembers the choice; later launches are normal.
+
+If macOS still refuses, remove the quarantine flag directly:
+
+```bash
+xattr -d com.apple.quarantine /Applications/Elevate.app
+```
+
+Signed and notarized builds — no prompts, no `--no-quarantine` — will ship as soon as an Apple
+Developer ID is available; the release workflow already switches over automatically once the
+signing secrets exist. See [docs/releasing.md](docs/releasing.md).
+
 ## Repository layout
 
 ```
@@ -41,6 +77,7 @@ flow; see [Sign-in methods](macos/README.md#sign-in-methods).
 |---|---|
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
+| Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
 | Windows app plan | [windows/README.md](windows/README.md) |
 | Design specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
 | Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |

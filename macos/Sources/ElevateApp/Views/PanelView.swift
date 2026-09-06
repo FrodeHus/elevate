@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ElevateCore
 
 enum PanelMetrics {
@@ -59,6 +60,20 @@ struct PanelView: View {
                 }
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .background(.orange.opacity(0.12))
+                Divider()
+            }
+            if let update = model.updateAvailable {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "arrow.down.circle").foregroundStyle(.blue)
+                    Text("Elevate \(update.version) is available").font(.caption)
+                    Spacer()
+                    Button("Open") { NSWorkspace.shared.open(update.url) }
+                        .buttonStyle(.borderless)
+                    Button("Dismiss") { model.dismissUpdate() }
+                        .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(.blue.opacity(0.12))
                 Divider()
             }
             if !model.isConfigured && model.identities.isEmpty {

@@ -18,6 +18,8 @@ final class AppSettings {
     static let seenApprovalIdsKey = "seenApprovalIds"
     static let hotKeyKey = "hotKey"
     static let hotKeyProfileKey = "hotKeyProfileId"
+    static let lastUpdateCheckKey = "lastUpdateCheck"
+    static let dismissedUpdateVersionKey = "dismissedUpdateVersion"
 
     private let defaults: UserDefaults
 
@@ -85,6 +87,29 @@ final class AppSettings {
         }
     }
 
+    /// When the automatic update check last ran, so it can be throttled to once a day.
+    /// Nil until the first check completes.
+    var lastUpdateCheck: Date? {
+        didSet {
+            if let lastUpdateCheck {
+                defaults.set(lastUpdateCheck, forKey: Self.lastUpdateCheckKey)
+            } else {
+                defaults.removeObject(forKey: Self.lastUpdateCheckKey)
+            }
+        }
+    }
+
+    /// The release tag the user dismissed in the panel; that version is never offered again.
+    var dismissedUpdateVersion: String? {
+        didSet {
+            if let dismissedUpdateVersion {
+                defaults.set(dismissedUpdateVersion, forKey: Self.dismissedUpdateVersionKey)
+            } else {
+                defaults.removeObject(forKey: Self.dismissedUpdateVersionKey)
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
@@ -106,6 +131,8 @@ final class AppSettings {
         seenApprovalIds = (defaults.data(forKey: Self.seenApprovalIdsKey)).flatMap { try? JSONDecoder().decode(Set<String>.self, from: $0) } ?? []
         hotKey = (defaults.data(forKey: Self.hotKeyKey)).flatMap { try? JSONDecoder().decode(HotKeyBinding.self, from: $0) }
         hotKeyProfileId = (defaults.string(forKey: Self.hotKeyProfileKey)).flatMap(UUID.init(uuidString:))
+        lastUpdateCheck = defaults.object(forKey: Self.lastUpdateCheckKey) as? Date
+        dismissedUpdateVersion = defaults.string(forKey: Self.dismissedUpdateVersionKey)
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }

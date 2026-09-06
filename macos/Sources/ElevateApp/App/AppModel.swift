@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import ServiceManagement
 import ElevateCore
 
 @MainActor
@@ -132,9 +133,13 @@ final class AppModel {
     var rememberedCustomClientId: String { settings.customClientId }
 
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
+    ///
+    /// `.ownApp` also needs a signature with entitlements: MSAL keeps its token cache in the
+    /// shared data-protection keychain group, which an ad-hoc signed build cannot read
+    /// (`errSecMissingEntitlement`, -34018), so sign-in would fail after the webview.
     func isAvailable(_ method: SignInMethod) -> Bool {
         switch method {
-        case .ownApp: isConfigured
+        case .ownApp: isConfigured && BuildInfo.signingState != .adHoc
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
@@ -191,10 +196,12 @@ final class AppModel {
                              anchor: anchor, msal: msal, loopback: loopback, gate: gate)
         if let initError {
             model.notice = "Could not initialise sign-in with the saved client ID: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription). Check it in Settings."
+            model.logError("Sign-in setup: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription)")
         }
         notifier.onExtend = { [weak model] key in model?.pendingExtend = key }
         notifier.onAuthorizationDenied = { [weak model] in
             model?.notice = "Notifications are off for Elevate; enable them in System Settings to get expiry alerts."
+            model?.logError("Notifications are not authorised for Elevate")
         }
         return model
     }
@@ -373,6 +380,7 @@ final class AppModel {
             _ = try? await store.quarantineCorruptFile()
             state = AppState()
             notice = "Saved state could not be read; it was moved to state.json.bak"
+            logError("Saved state could not be read: \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
         }
         // Reconcile with MSAL's cache: drop own-app identities MSAL no longer knows.
         if msal != nil, let known = try? await tokens.identities() {
@@ -401,13 +409,17 @@ final class AppModel {
         }
         if !droppedUPNs.isEmpty {
             notice = "\(droppedUPNs.joined(separator: ", ")) was signed out because its saved sign-in is gone; add the account again."
+            logError("Signed out (no saved sign-in): \(droppedUPNs.joined(separator: ", "))")
         } else if unreadable {
             notice = "Could not read saved sign-ins from the Keychain; your accounts were kept."
+            logError("Could not read saved sign-ins from the Keychain")
         }
         persist()
         if isOnline { await refreshAll() }
         startTimer()
         applyHotKey()
+        // Fire and forget: an update check must never hold up the first panel open.
+        Task { await self.checkForUpdates() }
     }
 
     // MARK: Global shortcut
@@ -503,6 +515,7 @@ final class AppModel {
             case .custom: notice = "Enter the custom app's application (client) ID as a GUID"
             default: notice = "That sign-in method is unavailable"
             }
+            logError("Add account (\(method.displayName)): \(notice ?? "unavailable")")
             return false
         }
         if case .custom(let id) = method { settings.customClientId = id }
@@ -511,6 +524,7 @@ final class AppModel {
             // The same account under a different method would fight over the same rows and tenants.
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.displayName)"
+                logError("Add account: already added with \(existing.signInMethod.displayName)")
                 try? await tokens.signOut(identity)
                 return false
             }
@@ -519,6 +533,7 @@ final class AppModel {
             }
             if !method.usesMSAL, let failure = await loopback.provider(for: method)?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
+                logError("Refresh token not saved to the Keychain: \(failure)")
             }
             let homeKey = TenantKey(identityId: identity.id, tenantId: identity.homeTenantId)
             if tenant(homeKey) == nil {
@@ -529,7 +544,9 @@ final class AppModel {
             await refresh(homeKey)
             return true
         } catch {
-            notice = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            notice = message
+            logError("Add account (\(method.displayName)): \(message)")
             return false
         }
     }
@@ -799,7 +816,11 @@ final class AppModel {
         // Replace only the kinds we successfully re-read; keep the rest.
         active = active.filter { !($0.key.tenantKey == key && kindsWithActive.contains($0.key.scope.kind)) }
         for a in current { active[a.roleKey] = a }
-        if !errors.isEmpty { tenantErrors[key] = errors.joined(separator: " · ") }
+        if !errors.isEmpty {
+            let message = errors.joined(separator: " · ")
+            tenantErrors[key] = message
+            logError("\(tenant.displayName): \(message)")
+        }
         await rescheduleNotifications()
     }
 
@@ -831,14 +852,17 @@ final class AppModel {
     func decide(_ request: ApprovalRequest, approve: Bool, justification: String) async -> Bool {
         guard !decisionInFlight.contains(request.id) else {
             approvalErrors[request.id] = "A decision for this request is already being sent."
+            logError("Approval \(request.targetName): a decision is already being sent")
             return false
         }
         guard let identity = self.identity(request.tenantKey.identityId) else {
             approvalErrors[request.id] = "That account is no longer signed in."
+            logError("Approval \(request.targetName): that account is no longer signed in")
             return false
         }
         guard let provider = approvalProviders[request.kind] else {
             approvalErrors[request.id] = "This request cannot be decided from Elevate."
+            logError("Approval \(request.targetName): cannot be decided from Elevate")
             return false
         }
         let generation = configGeneration
@@ -852,6 +876,7 @@ final class AppModel {
             }
             guard generation == configGeneration else {
                 approvalErrors[request.id] = "Decision not completed; refresh and try again"
+                logError("Approval \(request.targetName): decision not completed")
                 return false
             }
             // Drop the row now; the follow-up refresh re-lists it if a further approval stage remains.
@@ -863,9 +888,12 @@ final class AppModel {
         } catch {
             guard generation == configGeneration else {
                 approvalErrors[request.id] = "Decision not completed; refresh and try again"
+                logError("Approval \(request.targetName): decision not completed")
                 return false
             }
-            approvalErrors[request.id] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            approvalErrors[request.id] = message
+            logError("Approval \(request.targetName): \(message)")
             return false
         }
     }
@@ -1004,6 +1032,7 @@ final class AppModel {
                 let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
                 tenantErrors[r.roleKey.tenantKey] = message
                 progress[r.roleKey] = .failed(.unexpected(status: 0, body: "Could not deactivate before re-activating: \(message)"))
+                logError("\(summaryName(for: r.roleKey)): could not deactivate before re-activating: \(message)")
                 skipped.insert(r.roleKey)
             }
         }
@@ -1029,6 +1058,7 @@ final class AppModel {
                 state.remember(roleKey: a.roleKey, justification: request.justification, duration: request.duration)
             case .failed(let error):
                 active[request.roleKey] = nil
+                logError("\(summaryName(for: request.roleKey)): \(error.userMessage)")
                 if deactivated.contains(request.roleKey) {
                     progress[request.roleKey] = .failed(.unexpected(status: 0, body: "Deactivated, but re-activation failed: \(error.userMessage)"))
                 }
@@ -1159,7 +1189,9 @@ final class AppModel {
             await rescheduleNotifications()
         } catch {
             guard generation == configGeneration else { return }
-            tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            tenantErrors[key.tenantKey] = message
+            logError("\(summaryName(for: key)): \(message)")
         }
     }
 
@@ -1186,7 +1218,9 @@ final class AppModel {
             await rescheduleNotifications()
         } catch {
             guard generation == configGeneration else { return }
-            tenantErrors[key.tenantKey] = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            tenantErrors[key.tenantKey] = message
+            logError("\(summaryName(for: key)): \(message)")
         }
     }
 
@@ -1334,4 +1368,131 @@ final class AppModel {
     }
 
     func manualRoles(for key: TenantKey) -> [ManualRole] { state.manualRoles.filter { $0.tenantKey == key } }
+
+    // MARK: Diagnostics, launch at login and updates
+
+    /// The last errors the user was shown, for "Copy diagnostics". Session only: a support
+    /// report describes this launch, and a persisted log would be one more file holding
+    /// service messages we cannot vet.
+    private(set) var errorLog = ErrorLog()
+
+    /// Records one user-visible failure. Called wherever a tenant error, an approval error or a
+    /// failure `notice` is set — purely informational notices are not errors and are not logged.
+    /// Messages are clipped so one enormous service body cannot crowd the log out.
+    private func logError(_ message: String) {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        errorLog.append(String(trimmed.prefix(300)))
+    }
+
+    /// Whether the app is registered to start at login, read from the system every time: the user
+    /// can change it in System Settings, so a stored copy would go stale behind our back.
+    var launchAtLoginStatus: SMAppService.Status { SMAppService.mainApp.status }
+
+    /// Why the last launch-at-login change failed, shown under the toggle.
+    var launchAtLoginError: String?
+
+    /// Registers or unregisters this app as a login item. Throws so the view can show the reason
+    /// and put the toggle back where it was.
+    func setLaunchAtLogin(_ on: Bool) throws {
+        launchAtLoginError = nil
+        do {
+            if on {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            let message = error.localizedDescription
+            launchAtLoginError = message
+            logError("Launch at login: \(message)")
+            throw error
+        }
+    }
+
+    /// A newer release than the running build, once a check has found one and the user has not
+    /// dismissed it. The panel shows a banner while it is set.
+    private(set) var updateAvailable: (version: String, url: URL)?
+
+    /// The one-line result of the last check, for the Settings button.
+    private(set) var updateCheckMessage: String?
+
+    /// Asks GitHub for the latest release and compares it with the running version.
+    ///
+    /// The automatic call at startup is throttled to once a day; the Settings button forces a
+    /// check. A release the user dismissed is never offered again, but a forced check still
+    /// reports it, so "Check for updates" is never silent.
+    func checkForUpdates(force: Bool = false) async {
+        if !force {
+            if let last = settings.lastUpdateCheck, abs(Date().timeIntervalSince(last)) < 24 * 60 * 60 { return }
+            guard isOnline else { return }
+        }
+        do {
+            let latest = try await UpdateChecker(http: http).latest()
+            settings.lastUpdateCheck = .now
+            guard let latest else {
+                updateCheckMessage = "No releases yet"
+                return
+            }
+            let version = latest.tag.hasPrefix("v") ? String(latest.tag.dropFirst()) : latest.tag
+            guard AppVersion.isNewer(latestTag: latest.tag, current: BuildInfo.version) else {
+                updateCheckMessage = "You have the latest version"
+                return
+            }
+            updateCheckMessage = "Elevate \(version) is available"
+            // updateCheckMessage is set above, before the dismissal guard below, so Settings
+            // always reports what the check actually found even when the banner itself stays
+            // suppressed because the user already dismissed this version.
+            // Compare the normalised version, not the raw tag: whether the release is tagged
+            // "1.1.0" or "v1.1.0" must not decide whether a dismissal still holds.
+            guard force || settings.dismissedUpdateVersion != version else { return }
+            updateAvailable = (version, latest.url)
+        } catch {
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            updateCheckMessage = "Could not check for updates: \(message)"
+            logError("Update check: \(message)")
+        }
+    }
+
+    /// Hides the update banner and remembers not to raise it again for this release.
+    func dismissUpdate() {
+        if let update = updateAvailable {
+            settings.dismissedUpdateVersion = update.version
+        }
+        updateAvailable = nil
+    }
+
+    /// The plain-text report behind "Copy diagnostics". Everything it carries is already visible
+    /// in the app; no client id, token or secret is passed to the renderer at all.
+    func diagnosticsText() -> String {
+        let accounts = state.identities.map { identity in
+            DiagnosticsAccount(upn: identity.upn,
+                               method: identity.signInMethod.displayName,
+                               tenantCount: state.tenants(for: identity.id).count)
+        }
+        let tenants = state.tenants.map { tenant -> DiagnosticsTenant in
+            var flags: [String] = []
+            if tenant.discoveryMode == .manualRoles { flags.append("manual roles") }
+            if tenant.azureUnavailableReason != nil { flags.append("Azure off") }
+            if tenant.groupsUnavailableReason != nil { flags.append("Groups off") }
+            if tenant.entraActivation?.reason != nil { flags.append("Entra view only") }
+            if tenant.lastDiscoveryError != nil { flags.append("discovery error") }
+            return DiagnosticsTenant(name: tenant.displayName, id: tenant.tenantId,
+                                     mode: tenant.discoveryMode.rawValue, flags: flags)
+        }
+        let hotKey: String? = settings.hotKey.map { binding in
+            let profile = settings.hotKeyProfileId.flatMap { state.profile(id: $0) }
+            return "\(binding.display) → \(profile?.name ?? "no profile")"
+        }
+        let input = DiagnosticsInput(appVersion: BuildInfo.version,
+                                     build: BuildInfo.build,
+                                     signing: BuildInfo.signingDescription,
+                                     os: ProcessInfo.processInfo.operatingSystemVersionString,
+                                     accounts: accounts,
+                                     tenants: tenants,
+                                     profiles: state.profiles.map(\.name),
+                                     hotKey: hotKey,
+                                     errors: errorLog.entries)
+        return DiagnosticsReport.render(input)
+    }
 }
