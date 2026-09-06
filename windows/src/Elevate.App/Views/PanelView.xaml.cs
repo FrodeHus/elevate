@@ -85,6 +85,12 @@ public sealed partial class PanelView : UserControl
     /// </summary>
     public event EventHandler? ContentChanged;
 
+    /// <summary>
+    /// Whether the grouped list is showing. An unbounded measure of it comes out a few pixels short
+    /// of what it draws, so the flyout adds a little height while it is visible.
+    /// </summary>
+    public bool ListVisible => List.Visibility == Visibility.Visible;
+
     private void Draw(AppModel model)
     {
         OfflinePill.Visibility = model.IsOnline ? Visibility.Collapsed : Visibility.Visible;
@@ -113,9 +119,9 @@ public sealed partial class PanelView : UserControl
             UpdateBar.IsOpen = false;
         }
 
-        EntraCount.Count = model.ActiveCount(PanelTab.Roles);
-        AzureCount.Count = model.ActiveCount(PanelTab.Azure);
-        GroupsCount.Count = model.ActiveCount(PanelTab.Groups);
+        Pivots.SetCount(PanelTab.Roles, model.ActiveCount(PanelTab.Roles));
+        Pivots.SetCount(PanelTab.Azure, model.ActiveCount(PanelTab.Azure));
+        Pivots.SetCount(PanelTab.Groups, model.ActiveCount(PanelTab.Groups));
         SyncPivot(model.PanelTab);
 
         var setup = !model.IsConfigured && model.Identities.Count == 0;
@@ -239,12 +245,7 @@ public sealed partial class PanelView : UserControl
         _syncingPivot = true;
         try
         {
-            Pivots.SelectedItem = tab switch
-            {
-                PanelTab.Azure => AzurePivot,
-                PanelTab.Groups => GroupsPivot,
-                _ => EntraPivot,
-            };
+            Pivots.Selected = tab;
         }
         finally
         {
@@ -315,16 +316,14 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    private void OnPivotChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    private void OnPivotChanged(object? sender, PanelTab tab)
     {
         if (_syncingPivot || _model is null)
         {
             return;
         }
 
-        _model.PanelTab = sender.SelectedItem == AzurePivot ? PanelTab.Azure
-            : sender.SelectedItem == GroupsPivot ? PanelTab.Groups
-            : PanelTab.Roles;
+        _model.PanelTab = tab;
     }
 
     private void OnNoticeClosed(InfoBar sender, InfoBarClosedEventArgs args)

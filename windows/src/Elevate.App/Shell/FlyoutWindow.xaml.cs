@@ -21,6 +21,7 @@ public sealed partial class FlyoutWindow : Window
 {
     private const int Width = 380;
     private const int MaxHeight = 640;
+    private const int ListSlack = 12;
 
     private readonly OverlappedPresenter _presenter;
     private DateTimeOffset _hiddenAt = DateTimeOffset.MinValue;
@@ -124,7 +125,8 @@ public sealed partial class FlyoutWindow : Window
         // Let the list realise its containers first, so the unbounded measure below sees every row.
         Root.UpdateLayout();
         Root.Measure(new Windows.Foundation.Size(Width, double.PositiveInfinity));
-        var desired = Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height));
+        // The list's unbounded measure runs a few pixels short of its drawn height; give it room.
+        var desired = Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height + (Panel.ListVisible ? ListSlack : 0)));
         return ((int)Math.Round(Width * Scale), (int)Math.Round(desired * Scale));
     }
 

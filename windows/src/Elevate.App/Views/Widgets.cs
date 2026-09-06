@@ -1,6 +1,9 @@
+using Elevate.App.Services;
+using Elevate.App.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 
@@ -122,48 +125,106 @@ public sealed partial class Pill : ContentControl
     private static Windows.UI.Color WithAlpha(Windows.UI.Color color, byte alpha) => Windows.UI.Color.FromArgb(alpha, color.R, color.G, color.B);
 }
 
-/// <summary>The count pill in a pivot: filled with the accent when non-zero, outlined when zero.</summary>
-public sealed partial class CountPill : ContentControl
+/// <summary>
+/// The Entra / Azure / Groups picker, styled like the macOS segmented control: one capsule, the
+/// selected segment filled with the accent, the active count inside the label ("Entra 1").
+/// </summary>
+public sealed partial class SegmentedPivots : ContentControl
 {
-    private readonly Border _border = new() { CornerRadius = new CornerRadius(9), MinWidth = 18, Height = 18, Padding = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock _label = new() { FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-    private int _count;
+    private static readonly PanelTab[] Tabs = [PanelTab.Roles, PanelTab.Azure, PanelTab.Groups];
 
-    public CountPill()
+    private readonly ToggleButton[] _buttons = new ToggleButton[3];
+    private readonly int[] _counts = new int[3];
+    private PanelTab _selected = PanelTab.Roles;
+    private bool _applying;
+
+    public SegmentedPivots()
     {
-        _border.Child = _label;
-        Content = _border;
+        var resources = Application.Current.Resources;
+        var grid = new Grid { ColumnSpacing = 2 };
+        for (var i = 0; i < Tabs.Length; i++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var button = new ToggleButton
+            {
+                Height = 30,
+                MinHeight = 30,
+                Padding = new Thickness(6, 0, 6, 0),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(6),
+                FontSize = 13,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Content = AppModel.Title(Tabs[i]),
+            };
+            var tab = Tabs[i];
+            button.Click += (_, _) =>
+            {
+                if (_applying)
+                {
+                    return;
+                }
+
+                // A segment stays selected when clicked again; the picker always has one.
+                Selected = tab;
+                SelectionChanged?.Invoke(this, tab);
+            };
+            Grid.SetColumn(button, i);
+            grid.Children.Add(button);
+            _buttons[i] = button;
+        }
+
+        Content = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(3),
+            Background = (Brush)resources["ControlFillColorDefaultBrush"],
+            BorderBrush = (Brush)resources["ControlStrokeColorDefaultBrush"],
+            BorderThickness = new Thickness(1),
+            Child = grid,
+        };
         Padding = new Thickness(0);
         IsTabStop = false;
+        HorizontalContentAlignment = HorizontalAlignment.Stretch;
         Apply();
     }
 
-    public int Count
+    /// <summary>Raised when the user picks a segment; not when <see cref="Selected"/> is set from code.</summary>
+    public event EventHandler<PanelTab>? SelectionChanged;
+
+    public PanelTab Selected
     {
-        get => _count;
+        get => _selected;
         set
         {
-            _count = value;
+            _selected = value;
             Apply();
         }
     }
 
+    /// <summary>The active count shown inside the segment's label; hidden when zero, like the macOS picker.</summary>
+    public void SetCount(PanelTab tab, int count)
+    {
+        _counts[Array.IndexOf(Tabs, tab)] = count;
+        Apply();
+    }
+
     private void Apply()
     {
-        var resources = Application.Current.Resources;
-        _label.Text = _count.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (_count > 0)
+        _applying = true;
+        try
         {
-            _border.Background = (Brush)resources["AccentFillColorDefaultBrush"];
-            _border.BorderThickness = new Thickness(0);
-            _label.Foreground = (Brush)resources["TextOnAccentFillColorPrimaryBrush"];
+            for (var i = 0; i < Tabs.Length; i++)
+            {
+                var name = AppModel.Title(Tabs[i]);
+                _buttons[i].Content = _counts[i] > 0 ? $"{name} {_counts[i].ToString(System.Globalization.CultureInfo.InvariantCulture)}" : name;
+                _buttons[i].IsChecked = Tabs[i] == _selected;
+            }
         }
-        else
+        finally
         {
-            _border.Background = (Brush)resources["ControlFillColorDefaultBrush"];
-            _border.BorderBrush = (Brush)resources["ControlStrokeColorDefaultBrush"];
-            _border.BorderThickness = new Thickness(1);
-            _label.Foreground = (Brush)resources["TextFillColorTertiaryBrush"];
+            _applying = false;
         }
     }
 }

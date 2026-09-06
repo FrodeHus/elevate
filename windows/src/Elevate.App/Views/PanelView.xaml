@@ -214,18 +214,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- Pivots with activation counts -->
-        <SelectorBar Grid.Row="1" x:Name="Pivots" Margin="8,0,8,0" SelectionChanged="OnPivotChanged">
-            <SelectorBarItem x:Name="EntraPivot" Padding="10,6,10,6">
-                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Entra" VerticalAlignment="Center" /><views:CountPill x:Name="EntraCount" /></StackPanel>
-            </SelectorBarItem>
-            <SelectorBarItem x:Name="AzurePivot" Padding="10,6,10,6">
-                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Azure" VerticalAlignment="Center" /><views:CountPill x:Name="AzureCount" /></StackPanel>
-            </SelectorBarItem>
-            <SelectorBarItem x:Name="GroupsPivot" Padding="10,6,10,6">
-                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="Groups" VerticalAlignment="Center" /><views:CountPill x:Name="GroupsCount" /></StackPanel>
-            </SelectorBarItem>
-        </SelectorBar>
+        <!-- Pivots with activation counts: a segmented picker like the macOS panel -->
+        <views:SegmentedPivots Grid.Row="1" x:Name="Pivots" Margin="14,2,14,8" SelectionChanged="OnPivotChanged" />
 
         <!-- Profiles: one chip per saved profile; hidden when there are none -->
         <StackPanel Grid.Row="2" x:Name="ProfilesRow" Visibility="Collapsed" Padding="12,6,12,8" Spacing="6"
