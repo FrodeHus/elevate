@@ -67,7 +67,7 @@ work added these:
 - **Toasts are timed in-process.** `AppNotificationManager` cannot schedule, so `ExpiryNotifier` keeps its own timer. Approval and quick-activate toasts go through the same `NotifyAsync`.
 - **Option-click is Ctrl-click.** `PanelView` reads the Control key state at click time (`InputKeyboardSource.GetKeyStateForCurrentThread`) for Activate, Extend and the profile chips.
 - **The global shortcut is `RegisterHotKey` on the tray's hidden window**, which receives `WM_HOTKEY`; `HotKeyCenter` implements the model's `IHotKeyCenter` seam. A binding is a virtual key plus `MOD_*` flags, recorded by `HotKeyRecorder` (a button that captures the next key press; Ctrl, Alt or Win required) and stored in `settings.json`.
-- **The update check reads the releases list**, not `releases/latest`, and keeps the first published `windows-v*` tag: the repository also tags macOS releases (`v*`).
+- **The update check reads the releases list**, not `releases/latest`, and keeps the first published `v*` release that carries an MSI: both platforms share one tag, but a macOS-only hotfix without an MSI must not offer itself to Windows users.
 - **`BuildInfo`** takes the version from the assembly's informational version (`installer/build.ps1` sets it from the tag) and the signing state from the executable's Authenticode signature; "Unsigned" for the current releases.
 - **Windows App SDK 1.8** (1.8.260804001), self-contained in the MSI; .NET itself is framework-dependent (`Microsoft.DotNet.Runtime.10`).
 - **The winget manifest is generated, not committed, and not submitted.** Releases are unsigned; winget moderation needs signed installers, so submission waits for Azure Artifact Signing (issue #17).
@@ -91,5 +91,5 @@ work added these:
 
 ## What is left
 
-- **Issue #17, code signing and winget submission**: needs an Azure Artifact Signing account (paid subscription, organization identity validation, certificate profile, a signer app registration), the `AZURE_*` repository secrets, then `wingetcreate submit` of the `winget-manifest` artifact and `WINGET_TOKEN` in the workflow. `docs/releasing.md` and `README.md` (Release) describe the steps; none of it is code.
+- **Issue #17, code signing and winget submission**: needs an Azure Artifact Signing account (paid subscription, organization identity validation, certificate profile, a signer app registration), the `AZURE_*` repository secrets, then `wingetcreate submit` of the `winget-manifest` artifact. `docs/releasing.md` describes the steps; none of it is code. Releases are shared with macOS since 1.2.0: one `v*` tag, one release, `.github/workflows/release.yml`.
 - The Windows design canvas in `docs/design` predates the profiles row, the Approvals group and the new windows; refresh it when the next visual change lands.

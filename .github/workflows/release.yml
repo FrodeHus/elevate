@@ -1,5 +1,10 @@
 name: Release
 
+# One tag, one release, both platforms. Pushing `v<version>` builds the macOS DMG and the Windows
+# MSIs from the same commit, then publishes a single GitHub Release "Elevate <version>" with every
+# asset, the changelog section for that version and the install instructions for both platforms,
+# and updates the Homebrew cask on main.
+
 on:
   push:
     tags: ["v*"]
@@ -8,18 +13,18 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build, package and publish
+  macos:
+    name: macOS app
     runs-on: macos-26
     defaults:
       run:
         working-directory: macos
     env:
       TAG: ${{ github.ref_name }}
+    outputs:
+      signed: ${{ steps.signing.outputs.signed }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.app || sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
@@ -33,13 +38,16 @@ jobs:
           echo "BUILD=${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Detect signing secrets
+        id: signing
         env:
           P12: ${{ secrets.MACOS_CERT_P12 }}
         run: |
           if [ -n "$P12" ]; then
             echo "HAVE_CERT=1" >> "$GITHUB_ENV"
+            echo "signed=1" >> "$GITHUB_OUTPUT"
           else
             echo "Developer ID secrets not configured; building an ad-hoc signed release."
+            echo "signed=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Generate project
@@ -101,7 +109,6 @@ jobs:
           ln -s /Applications dist/dmg/Applications
           hdiutil create -volname "Elevate" -srcfolder dist/dmg -ov -format UDZO "dist/Elevate-$VERSION.dmg"
           shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
-          echo "SHA256=$(cut -d' ' -f1 "dist/Elevate-$VERSION.dmg.sha256")" >> "$GITHUB_ENV"
 
       - name: Notarize DMG
         if: env.SIGNED == '1'
@@ -113,13 +120,182 @@ jobs:
           xcrun notarytool submit "dist/Elevate-$VERSION.dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
           xcrun stapler staple "dist/Elevate-$VERSION.dmg"
 
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            macos/dist/Elevate-*.dmg
+            macos/dist/Elevate-*.dmg.sha256
+          if-no-files-found: error
+
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    outputs:
+      signed: ${{ steps.signing.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: windows/global.json
+
+      - name: Version
+        shell: pwsh
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Test
+        run: dotnet test windows/Elevate.sln -c Release
+
+      - name: Install WiX
+        # v5: later majors require accepting the Open Source Maintenance Fee EULA.
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Detect signing secrets
+        id: signing
+        shell: pwsh
+        env:
+          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+        run: |
+          if ($env:ENDPOINT) {
+            "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "signed=1" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned MSIs."
+            "signed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+      - name: Azure login for signing
+        if: env.SIGN == '1'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Trusted Signing client
+        if: env.SIGN == '1'
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
+          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          "AZURE_TRUSTED_SIGNING_DLIB=$($dlib.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $signtool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Build MSIs
+        shell: pwsh
+        env:
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: |
+          $sign = $env:SIGN -eq '1'
+          ./windows/installer/build.ps1 -Version $env:VERSION -Sign:$sign
+
+      - name: winget manifest
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-x64.msi.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "windows/installer/out/Elevate-$env:VERSION-arm64.msi.sha256").Split(' ')[0]
+          ./windows/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
+          winget validate --manifest "windows/winget/manifests/r/Reothor/Elevate/$env:VERSION"
+
+      - name: Upload MSIs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            windows/installer/out/Elevate-*.msi
+            windows/installer/out/Elevate-*.msi.sha256
+          if-no-files-found: error
+
+      # The manifest is kept as an artifact for a later submission to microsoft/winget-pkgs; winget
+      # moderation requires signed installers, so nothing is submitted automatically.
+      - name: Manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifest
+          path: windows/winget/manifests
+
+  publish:
+    name: Publish release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+      MAC_SIGNED: ${{ needs.macos.outputs.signed }}
+      WIN_SIGNED: ${{ needs.windows.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
+          path: dist
+
+      - name: Versions and hashes
+        run: |
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "DMG_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}.dmg.sha256")" >> "$GITHUB_ENV"
+          echo "X64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-x64.msi.sha256")" >> "$GITHUB_ENV"
+          echo "ARM64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-arm64.msi.sha256")" >> "$GITHUB_ENV"
+
       - name: Release notes
         run: |
-          if [ "${SIGNED:-}" = "1" ]; then
-            printf 'Signed with Developer ID and notarized.\n\nInstall with Homebrew:\n\n    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate\n    brew trust frodehus/elevate\n    brew install --cask frodehus/elevate/elevate\n\nOr download the DMG below and drag Elevate to Applications.\n\nSHA-256: %s\n' "$SHA256" > notes.md
-          else
-            printf 'Unsigned build (ad-hoc signature). Open the app once; when macOS blocks it, open System Settings -> Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm. Or run:\n\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nInstall with Homebrew (the fully qualified cask name is required - this tap is not a homebrew- named repository, so plain "brew install --cask elevate" does not resolve):\n\n    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate\n    brew trust frodehus/elevate\n    brew install --cask frodehus/elevate/elevate\n    xattr -d com.apple.quarantine /Applications/Elevate.app\n\nSHA-256: %s\n' "$SHA256" > notes.md
-          fi
+          {
+            # The changelog section for this version, when there is one.
+            awk -v v="$VERSION" '
+              /^## \[/ { on = (index($0, "## [" v "]") == 1); if (on) { next } }
+              on { print }
+            ' CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+            echo
+            echo "## macOS"
+            echo
+            if [ "$MAC_SIGNED" = "1" ]; then
+              echo "Signed with Developer ID and notarized."
+            else
+              echo 'Unsigned build (ad-hoc signature). Open the app once; when macOS blocks it, open System Settings -> Privacy & Security, scroll to the message about Elevate and click Open Anyway, then confirm. Or run `xattr -d com.apple.quarantine /Applications/Elevate.app`.'
+            fi
+            echo
+            echo 'Install with Homebrew (the fully qualified cask name is required: this tap is not a homebrew- named repository):'
+            echo
+            echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
+            echo '    brew trust frodehus/elevate'
+            echo '    brew install --cask frodehus/elevate/elevate'
+            if [ "$MAC_SIGNED" != "1" ]; then
+              echo '    xattr -d com.apple.quarantine /Applications/Elevate.app'
+            fi
+            echo
+            echo "Or download \`Elevate-$VERSION.dmg\` below and drag Elevate to Applications. SHA-256: \`$DMG_SHA256\`"
+            echo
+            echo "## Windows"
+            echo
+            echo "Download the MSI for your architecture below and run it. It installs for the current user (no admin rights) into %LOCALAPPDATA%\\Programs\\Elevate and needs the .NET 10 runtime: \`winget install Microsoft.DotNet.Runtime.10\`."
+            echo
+            if [ "$WIN_SIGNED" = "1" ]; then
+              echo "Signed with Azure Artifact Signing."
+            else
+              echo 'This build is not code-signed. Windows SmartScreen shows "Windows protected your PC" the first time you run the installer: choose **More info**, then **Run anyway**. Verify the download against the SHA-256 first with `(Get-FileHash .\Elevate-'"$VERSION"'-x64.msi).Hash`.'
+            fi
+            echo
+            echo "SHA-256:"
+            echo "- x64: \`$X64_SHA256\`"
+            echo "- arm64: \`$ARM64_SHA256\`"
+          } > notes.md
+          cat notes.md
 
       - name: Create GitHub Release
         env:
@@ -128,10 +304,13 @@ jobs:
           gh release create "$TAG"
           "dist/Elevate-$VERSION.dmg"
           "dist/Elevate-$VERSION.dmg.sha256"
-          --title "Elevate for Mac $VERSION" --notes-file notes.md
+          "dist/Elevate-$VERSION-x64.msi"
+          "dist/Elevate-$VERSION-x64.msi.sha256"
+          "dist/Elevate-$VERSION-arm64.msi"
+          "dist/Elevate-$VERSION-arm64.msi.sha256"
+          --title "Elevate $VERSION" --notes-file notes.md
 
       - name: Update cask on main
-        working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -139,7 +318,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout -B main origin/main
-          ./scripts/update-cask.sh "$VERSION" "$SHA256" "${{ github.repository }}" "${SIGNED:-}"
+          ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
           if git diff --quiet -- Casks/elevate.rb; then
             echo "Cask already up to date."
           else

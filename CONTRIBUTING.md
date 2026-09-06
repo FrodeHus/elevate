@@ -111,7 +111,7 @@ Commit the regenerated JSON together with a note of when it was refreshed.
 
 ## Releases
 
-Releases are tag-driven: pushing a `v*` tag builds, packages and publishes the macOS app and
-updates the Homebrew cask; pushing a `windows-v*` tag builds the Windows MSIs and publishes them.
-Maintainers only — the full procedure, including the optional signing secrets, is in
-[docs/releasing.md](docs/releasing.md).
+Releases are tag-driven: pushing a `v*` tag builds both apps from that commit, publishes one
+GitHub Release with the DMG and the MSIs, and updates the Homebrew cask. Both apps share the
+version number. Maintainers only — the full procedure, including the optional signing secrets,
+is in [docs/releasing.md](docs/releasing.md).
