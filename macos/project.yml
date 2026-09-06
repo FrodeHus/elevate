@@ -57,6 +57,31 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "26.0"
         ENABLE_APP_SANDBOX: false
         GENERATE_INFOPLIST_FILE: false
+  ElevateAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/ElevateAppTests
+      # The Core suite's fakes are shared verbatim. Fixtures.swift is excluded: it reads
+      # `Bundle.module`, which only exists in the SwiftPM test bundle.
+      - path: Tests/ElevateCoreTests/Support
+        excludes:
+          - Fixtures.swift
+    dependencies:
+      - target: ElevateApp
+      - package: ElevateCore
+        product: ElevateCore
+    settings:
+      base:
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Elevate.app/Contents/MacOS/Elevate
+        BUNDLE_LOADER: $(TEST_HOST)
+        PRODUCT_BUNDLE_IDENTIFIER: no.reothor.elevate.tests
+        DEVELOPMENT_TEAM: VLJKN96D7N
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        GENERATE_INFOPLIST_FILE: true
 schemes:
   ElevateApp:
     build:
@@ -66,4 +91,5 @@ schemes:
       config: Debug
     test:
       config: Debug
-      targets: []
+      targets:
+        - ElevateAppTests

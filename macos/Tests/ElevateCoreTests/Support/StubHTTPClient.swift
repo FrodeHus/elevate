@@ -1,5 +1,5 @@
 import Foundation
-@testable import ElevateCore
+import ElevateCore
 
 /// Routes requests by HTTP method plus a substring of the URL. Records every request.
 actor StubHTTPClient: HTTPClient {

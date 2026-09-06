@@ -24,7 +24,7 @@ jobs:
         run: swift test
 
   app-build:
-    name: ElevateApp build (unsigned)
+    name: ElevateApp build and tests (unsigned)
     runs-on: macos-26
     defaults:
       run:
@@ -42,3 +42,8 @@ jobs:
           xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug
           -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
           build | tail -5
+      - name: App tests
+        run: >
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Debug
+          -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          test | tail -30
