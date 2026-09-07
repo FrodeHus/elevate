@@ -343,8 +343,15 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     private IReadOnlyList<TenantIssue> _issues = [];
     private bool _hasError;
     private bool _busy;
+    private string? _signInHelp;
 
     public string Title { get => _title; set => Set(ref _title, value); }
+
+    /// <summary>
+    /// "ops@contoso.com, signed in with Azure CLI": the account row's sign-in method, as the
+    /// person glyph's tooltip and the heading of its menu rather than a caption that crowds the row.
+    /// </summary>
+    public string? SignInHelp { get => _signInHelp; set => Set(ref _signInHelp, value); }
 
     public string? Caption { get => _caption; set => Set(ref _caption, value); }
 
@@ -428,6 +435,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         IdentityId = other.IdentityId;
         TenantKey = other.TenantKey;
         Title = other.Title;
+        SignInHelp = other.SignInHelp;
         Caption = other.Caption;
         Initials = other.Initials;
         ActiveCount = other.ActiveCount;
@@ -570,15 +578,19 @@ public static class PanelListBuilder
 
     private static PanelGroup IdentityGroup(AppModel model, Identity identity, TenantContext? soleTenant)
     {
+        // The person's name leads; the UPN is the caption. A name survives the row's width where a
+        // UPN middle-truncates to "ops.....com" as soon as a pill or button joins the line.
+        var name = identity.DisplayName.Trim();
         var group = new PanelGroup("identity:" + identity.Id, GroupKind.Identity)
         {
             IdentityId = identity.Id,
             TenantKey = soleTenant?.Key,
-            Title = identity.Upn,
+            Title = name.Length == 0 ? identity.Upn : name,
+            SignInHelp = $"{identity.Upn}, signed in with {identity.SignInMethod.DisplayName}",
             Initials = Initials(identity),
             Expanded = !model.CollapsedIdentities.Contains(identity.Id),
         };
-        var caption = new List<string>();
+        var caption = new List<string> { identity.Upn };
         if (soleTenant is not null)
         {
             caption.Add(soleTenant.DisplayName);
@@ -588,7 +600,6 @@ public static class PanelListBuilder
             }
         }
 
-        caption.Add(identity.SignInMethod.Kind == SignInMethodKind.OwnApp ? "Own app" : identity.SignInMethod.DisplayName);
         group.Caption = string.Join(" · ", caption);
         if (soleTenant is not null)
         {

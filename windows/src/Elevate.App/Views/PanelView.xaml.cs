@@ -534,6 +534,13 @@ public sealed partial class PanelView : UserControl
         var menu = new MenuFlyout();
         if (group.Kind == GroupKind.Identity && group.IdentityId is { } identityId)
         {
+            if (group.SignInHelp is { } help)
+            {
+                // The sign-in method heads the menu instead of crowding the row.
+                menu.Items.Add(new MenuFlyoutItem { Text = help, IsEnabled = false });
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+
             menu.Items.Add(Item("Discover tenants…", () => App.Current.OpenDiscoverTenants(identityId)));
             menu.Items.Add(Item("Add tenant…", () => App.Current.OpenAddTenant(identityId)));
             if (group.TenantKey is { } soleKey && _model.Tenant(soleKey) is { } sole)
