@@ -22,7 +22,10 @@
             <TextBlock Text="APP REGISTRATION" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
             <StackPanel Spacing="6">
                 <TextBlock Text="Application (client) ID" FontSize="13" />
-                <TextBox x:Name="ClientId" PlaceholderText="00000000-0000-0000-0000-000000000000" FontFamily="Cascadia Mono, Consolas" TextChanged="OnClientIdChanged" />
+                <!-- Applies on Enter or focus loss like the other settings; no Save button. -->
+                <TextBox x:Name="ClientId" PlaceholderText="00000000-0000-0000-0000-000000000000" FontFamily="Cascadia Mono, Consolas"
+                         TextChanged="OnClientIdChanged" KeyDown="OnClientIdKeyDown" LostFocus="OnClientIdLostFocus" />
+                <TextBlock x:Name="ApplyHint" Text="Press Enter to apply." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
             </StackPanel>
             <Grid Padding="14,12" CornerRadius="4" ColumnSpacing="14" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
@@ -122,8 +125,7 @@
         </StackPanel>
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button Content="Close" Click="OnClose" MinWidth="90" />
-            <Button x:Name="SaveButton" Content="Save" Style="{StaticResource AccentButtonStyle}" Click="OnSave" MinWidth="110" />
+            <Button x:Name="CloseButton" Content="Close" Click="OnClose" MinWidth="90" />
         </StackPanel>
     </Grid>
     </ScrollViewer>
