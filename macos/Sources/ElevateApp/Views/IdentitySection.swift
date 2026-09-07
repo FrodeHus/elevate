@@ -15,8 +15,11 @@ struct IdentityHeader: View {
         return model.roles(for: t.id, tab: model.panelTab).filter { model.assignment(for: $0.key)?.status == .active }.count
     }
 
+    @State private var signingIn = false
+
     var body: some View {
         let expanded = !model.collapsedIdentities.contains(identity.id)
+        let needsSignIn = model.needsSignIn(identity.id)
         HStack(spacing: 8) {
             Button { withAnimation(.snappy) { model.toggleIdentity(identity.id) } } label: {
                 HStack(spacing: 8) {
@@ -44,11 +47,32 @@ struct IdentityHeader: View {
                 if model.tenants(for: identity.id).isEmpty, let reason = identity.signInMethod.entraViewOnlyReason {
                     ViewOnlyBadge(reason: reason)
                 }
-                if let t = soleTenant { TenantPills(tenant: t) }
+                if needsSignIn {
+                    StatusPill(text: "Sign-in needed", tint: .red,
+                               help: "The saved sign-in for this account is gone. Sign in again to keep its tenants and roles, or sign out to remove it.")
+                } else if let t = soleTenant {
+                    TenantPills(tenant: t)
+                }
             }
             Spacer(minLength: 8)
-            if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
+            if needsSignIn {
+                // The retry lives on the row itself: the flagged account is exactly the one the
+                // user must act on, and a menu item alone is easy to miss.
+                if signingIn {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Button("Sign in") { retry() }
+                        .controlSize(.small)
+                        .help("Sign in again as \(identity.upn)")
+                }
+            } else if activeCount > 0 {
+                Text("\(activeCount) active").font(.caption).foregroundStyle(.green)
+            }
             HeaderMenu(label: "Account actions") {
+                if needsSignIn {
+                    Button("Sign in again") { retry() }.disabled(signingIn)
+                    Divider()
+                }
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
                 if let t = soleTenant {
@@ -79,6 +103,15 @@ struct IdentityHeader: View {
     private func open(_ route: PanelRoute) {
         openWindow(value: route)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func retry() {
+        guard !signingIn else { return }
+        signingIn = true
+        Task {
+            await model.retrySignIn(identity)
+            signingIn = false
+        }
     }
 }
 
