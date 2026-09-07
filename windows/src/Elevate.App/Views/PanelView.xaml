@@ -142,8 +142,10 @@
                         AutomationProperties.Name="Collapse or expand">
                     <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Button>
+                <!-- The avatar carries the sign-in method as its tooltip; the row's caption is the UPN and tenant. -->
                 <Border Grid.Column="1" Width="26" Height="26" CornerRadius="13" Background="{ThemeResource AccentFillColorDefaultBrush}"
-                        Visibility="{x:Bind AvatarVisibility, Mode=OneWay}">
+                        Visibility="{x:Bind AvatarVisibility, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind SignInHelp, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind SignInHelp, Mode=OneWay}">
                     <TextBlock Text="{x:Bind Initials, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"
                                VerticalAlignment="Center" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                 </Border>
@@ -162,11 +164,13 @@
                         <ProgressRing Width="14" Height="14" IsActive="True" Visibility="{x:Bind BusyVisibility, Mode=OneWay}" />
                     </StackPanel>
                     <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Visibility="{x:Bind CaptionVisibility, Mode=OneWay}" FontSize="12"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                               ToolTipService.ToolTip="{x:Bind Caption, Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <!-- Secondary text, not green: 13 px green on the light ground falls under 3:1, and the row's status dots already carry the colour. -->
                     <TextBlock Text="{x:Bind ActiveText, Mode=OneWay}" Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"
-                               FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                     <TextBlock Text="{x:Bind PendingText, Mode=OneWay}" Visibility="{x:Bind PendingVisibility, Mode=OneWay}"
                                FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
                 </StackPanel>

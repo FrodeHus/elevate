@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Windows: durations read as units ("2 h 41 min", "46 min", "< 1 min") instead of HH:MM, in the
   Active now rows, approvals, the decision window, Save profile and the activation toast.
+- Windows: account rows lead with the person's name; the address, tenant and "home" marker are
+  the caption. The sign-in method moved to a tooltip on the avatar and a heading in the account
+  menu. "N active" on account and tenant rows is secondary text.
 
 ## [1.2.7] - 2026-09-07
 
