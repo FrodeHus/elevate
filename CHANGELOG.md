@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: the installer dialogs show the Elevate icon on a navy side panel and in the banner
+  instead of the stock WiX artwork.
+
 ## [1.2.9] - 2026-09-07
 
 ### Fixed
