@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows: Sign out, Remove tenant and Delete profile ask first and say what Elevate forgets;
   active assignments in Entra are never changed by them.
 
+### Fixed
+
+- Windows: Narrator reads the state of each role's status dot ("Active", "Awaiting approval", …)
+  and names the role on select-mode checkboxes. Pending states are orange rather than the caution
+  yellow that vanished on a light background; the "Privileged" tag in Configure roles uses primary
+  text; the flyout list skips its row animations while animations are off in Accessibility settings.
+
 ## [1.2.7] - 2026-09-07
 
 ### Changed

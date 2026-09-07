@@ -11,11 +11,17 @@ using Microsoft.UI.Xaml.Shapes;
 
 namespace Elevate.App.Views;
 
-/// <summary>The 8 px status dot at the start of a row: filled by status, outlined when nothing is active.</summary>
+/// <summary>
+/// The 8 px status dot at the start of a row: filled by status, outlined when nothing is active.
+/// Named for Narrator per state, so the state is read out rather than skipped.
+/// </summary>
 public sealed partial class StatusDot : ContentControl
 {
     public static readonly DependencyProperty StatusProperty = DependencyProperty.Register(
         nameof(Status), typeof(RowStatus), typeof(StatusDot), new PropertyMetadata(RowStatus.None, (d, _) => ((StatusDot)d).Apply()));
+
+    /// <summary>Orange for the pending states: the system caution yellow is close to invisible on the light theme.</summary>
+    private static readonly SolidColorBrush Pending = new(Windows.UI.Color.FromArgb(0xFF, 0xF7, 0x63, 0x0C));
 
     private readonly Ellipse _dot = new() { Width = 8, Height = 8, StrokeThickness = 1.5 };
 
@@ -33,18 +39,31 @@ public sealed partial class StatusDot : ContentControl
         set => SetValue(StatusProperty, value);
     }
 
+    /// <summary>What Narrator reads for a status.</summary>
+    public static string Label(RowStatus status) => status switch
+    {
+        RowStatus.Active => "Active",
+        RowStatus.Scheduled => "Scheduled",
+        RowStatus.Pending => "Awaiting approval",
+        RowStatus.Provisioning => "Provisioning",
+        RowStatus.Failed => "Failed",
+        _ => "Eligible",
+    };
+
     private void Apply()
     {
+        var resources = Application.Current.Resources;
         var (fill, stroke) = Status switch
         {
-            RowStatus.Active => ("SystemFillColorSuccessBrush", "SystemFillColorSuccessBrush"),
-            RowStatus.Scheduled => ("AccentFillColorDefaultBrush", "AccentFillColorDefaultBrush"),
-            RowStatus.Pending or RowStatus.Provisioning => ("SystemFillColorCautionBrush", "SystemFillColorCautionBrush"),
-            RowStatus.Failed => ("SystemFillColorCriticalBrush", "SystemFillColorCriticalBrush"),
-            _ => (null, "TextFillColorTertiaryBrush"),
+            RowStatus.Active => ((Brush)resources["SystemFillColorSuccessBrush"], (Brush)resources["SystemFillColorSuccessBrush"]),
+            RowStatus.Scheduled => ((Brush)resources["AccentFillColorDefaultBrush"], (Brush)resources["AccentFillColorDefaultBrush"]),
+            RowStatus.Pending or RowStatus.Provisioning => (Pending, Pending),
+            RowStatus.Failed => ((Brush)resources["SystemFillColorCriticalBrush"], (Brush)resources["SystemFillColorCriticalBrush"]),
+            _ => (null, (Brush)resources["TextFillColorTertiaryBrush"]),
         };
-        _dot.Fill = fill is null ? null : (Brush)Application.Current.Resources[fill];
-        _dot.Stroke = (Brush)Application.Current.Resources[stroke];
+        _dot.Fill = fill;
+        _dot.Stroke = stroke;
+        AutomationProperties.SetName(this, Label(Status));
     }
 }
 
