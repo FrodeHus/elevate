@@ -186,16 +186,20 @@ struct PanelView: View {
                     .help("No network connection; refreshes and requests are paused")
             }
             Spacer()
+            // Shortcuts fire while the panel is key; the app has no visible menu bar to list them,
+            // so the tooltips carry them.
             Toggle(isOn: $showSearch) { Image(systemName: "magnifyingglass") }
                 .toggleStyle(.button)
-                .help("Filter roles and groups")
+                .keyboardShortcut("f")
+                .help("Filter roles and groups (⌘F)")
                 .accessibilityLabel("Search")
             Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
                 .toggleStyle(.button)
                 .help("Select several roles to activate together")
                 .accessibilityLabel("Select roles")
             Button { Task { await model.refreshAll(userInitiated: true) } } label: { Image(systemName: "arrow.clockwise") }
-                .help("Refresh")
+                .keyboardShortcut("r")
+                .help("Refresh (⌘R)")
                 .accessibilityLabel("Refresh")
                 .disabled(!model.isOnline)
         }
@@ -211,9 +215,9 @@ struct PanelView: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
             Spacer()
-            SettingsLink { Text("Settings…") }.buttonStyle(.borderless)
+            SettingsLink { Text("Settings…") }.buttonStyle(.borderless).keyboardShortcut(",")
             Spacer()
-            Button("Quit") { NSApp.terminate(nil) }
+            Button("Quit") { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
