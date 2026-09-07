@@ -33,6 +33,8 @@ extension AppModel {
     func refresh(_ key: TenantKey, kinds requestedKinds: Set<RoleScopeKind>? = nil) async {
         let generation = configGeneration
         guard let identity = self.identity(key.identityId), var tenant = self.tenant(key) else { return }
+        // An account without a saved sign-in would only prompt on every refresh; it waits for "Sign in again".
+        guard !signInNeeded.contains(identity.id) else { return }
         guard !busy.contains(key) else { return }
         busy.insert(key)
         defer { busy.remove(key) }

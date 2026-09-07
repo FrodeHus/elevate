@@ -51,7 +51,7 @@ approvals only. A tenant that refuses the approver read simply shows nothing.
 
 ## Sign-in methods
 
-> **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps can list PIM schedules but are not pre-authorised for `RoleAssignmentSchedule.ReadWrite.Directory` (admin-consent only). An account added that way **supports Azure resource roles only**: Elevate does not call the Graph PIM APIs for it at all, so no Entra roles are discovered or activated and no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries that scope; your own app registration always works once consented.
+> **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps are not pre-authorised for any of the Graph PIM permissions Elevate needs — `RoleAssignmentSchedule.ReadWrite.Directory` for Entra roles and the `*.AzureADGroup` scopes for PIM for Groups are admin-consent only and are granted to *your* registration, never to Microsoft's. An account added that way **supports Azure resource roles only**: no Entra directory roles and no PIM for Groups memberships are discovered or activated, the account sees Azure resource approvals only, and Elevate does not call the Graph PIM APIs for it at all, so no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries those scopes; there is no client-side workaround, and your own app registration always works once consented.
 
 Elevate can add an account in two ways, chosen per account in "Add account…":
 
@@ -93,7 +93,7 @@ Caveats:
 
 **Requirements:** macOS 26 (Tahoe), and an Entra app registration — either your own or a company one
 — to sign in with; the Microsoft Azure CLI or Azure PowerShell app needs no registration but covers
-Azure resource roles only. Building from source is [below](#build-and-run).
+Azure resource roles only (no Entra roles, no PIM for Groups). Building from source is [below](#build-and-run).
 
 Homebrew (the cask lives in this repository, which doubles as a tap):
 
@@ -130,7 +130,8 @@ loopback flow. How the release is signed: [docs/releasing.md](../docs/releasing.
 
 ## Prerequisites
 
-Only the own-app method needs an app registration; the first-party methods need none of this.
+Only the own-app method needs an app registration; the first-party methods need none of this, but
+they cover Azure resource roles only, so a registration is required for Entra roles and groups.
 
 1. Xcode 26.6 or newer, `brew install xcodegen`.
 2. An Entra app registration (multi-tenant, public client) with redirect URI

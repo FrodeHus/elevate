@@ -23,7 +23,9 @@ Windows app (`windows/`):
 
 Either app: to sign in from a local build, an Entra app registration; see
 [docs/entra-app-registration.md](docs/entra-app-registration.md). Only the own-app method needs
-one — the Azure CLI and Azure PowerShell methods need no registration.
+one. The Azure CLI and Azure PowerShell methods need no registration, but they cover Azure
+resource roles only — no Entra roles and no PIM for Groups — so a registration is needed to work
+on or test those parts.
 
 ## Build and run (Windows)
 

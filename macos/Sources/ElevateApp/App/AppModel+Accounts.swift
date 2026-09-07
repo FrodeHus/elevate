@@ -95,6 +95,58 @@ extension AppModel {
         }
     }
 
+    /// Whether `identityId` is kept in the list without a usable saved sign-in.
+    func needsSignIn(_ identityId: String) -> Bool { signInNeeded.contains(identityId) }
+
+    /// Signs an account marked `signInNeeded` in again with the method it was added with, keeping
+    /// its tenants and configured roles. Sets `notice` and keeps the flag when the sign-in fails or
+    /// the browser comes back with a different account. Returns whether the account is usable again.
+    @discardableResult
+    func retrySignIn(_ identity: Identity) async -> Bool {
+        let method = identity.signInMethod
+        guard isAvailable(method) else {
+            notice = method == .ownApp ? "Complete initial setup first" : "That sign-in method is unavailable"
+            logError("Sign in again (\(method.displayName)): \(notice ?? "unavailable")")
+            return false
+        }
+        do {
+            let signedIn = try await tokens.signIn(method: method)
+            guard signedIn.id == identity.id else {
+                // A different account came back. Its token is keyed by its own id, so discarding it
+                // cannot touch the one we were waiting for.
+                try? await tokens.signOut(signedIn)
+                notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Sign out \(identity.upn) if you no longer need it."
+                logError("Sign in again: got \(signedIn.upn), expected \(identity.upn)")
+                return false
+            }
+            signInNeeded.remove(identity.id)
+            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            if let failure = await store?.persistenceError() {
+                notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
+                logError("Refresh token not saved to the Keychain: \(failure)")
+            } else {
+                notice = nil
+            }
+            let keys = tenants(for: identity.id).map(\.id)
+            for key in keys { tenantErrors[key] = nil }
+            let generation = configGeneration
+            await withTaskGroup(of: Void.self) { group in
+                for key in keys {
+                    group.addTask {
+                        guard await self.configGeneration == generation else { return }
+                        await self.refresh(key)
+                    }
+                }
+            }
+            return true
+        } catch {
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            notice = message
+            logError("Sign in again (\(method.displayName)): \(message)")
+            return false
+        }
+    }
+
     func signOut(_ identity: Identity) {
         Task {
             try? await tokens.signOut(identity)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS: an account whose saved sign-in is gone at launch is no longer removed together with its
+  tenants and configured roles. It stays in the list marked "Sign-in needed" with a Sign in
+  button (also under the account menu) that signs in again with the same method; refreshes skip
+  it until then. Sign out remains the way to remove the account.
+
 ## [1.2.5] - 2026-09-06
 
 ### Changed

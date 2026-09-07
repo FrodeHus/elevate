@@ -50,6 +50,11 @@ final class AppModel {
 
     /// Tenants whose interactive sign-in the user dismissed this session; refreshes stay silent for them until Refresh or Retry discovery.
     var declinedTenants: Set<TenantKey> = []          // internal for AppModel+Accounts, AppModel+Refresh
+    /// Accounts whose saved sign-in is gone (a refresh token deleted behind the app's back, or
+    /// rejected for good by the service). They keep their tenants and configured roles; refreshes
+    /// skip them until "Sign in again" succeeds or the user signs them out. Session only:
+    /// `bootstrap()` recomputes it from the token stores on every launch.
+    var signInNeeded: Set<String> = []                // internal for AppModel+Accounts, AppModel+Refresh
     var bootstrapped = false                          // internal for AppModel+Refresh
     var lastRefresh: Date = .distantPast              // internal for AppModel+Refresh
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
@@ -257,6 +262,7 @@ final class AppModel {
     // internal for AppModel+Accounts
     func forgetIdentity(_ identityId: String) {
         state.removeIdentity(identityId)
+        signInNeeded.remove(identityId)
         for key in roles.keys where key.identityId == identityId { roles[key] = nil }
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
@@ -319,19 +325,21 @@ final class AppModel {
             notice = "Saved state could not be read; it was moved to state.json.bak"
             logError("Saved state could not be read: \((error as? PIMError)?.userMessage ?? error.localizedDescription)")
         }
-        // Reconcile with MSAL's cache: drop own-app identities MSAL no longer knows.
+        // Reconcile with MSAL's cache: an own-app identity MSAL no longer knows must sign in again.
+        // The account, its tenants and its configured roles stay; a lost token may be transient
+        // (a cleared cache, a revoked session) and is not the user asking to remove the account.
+        var needsSignIn: [Identity] = []
         if msal != nil, let known = try? await tokens.identities() {
             let ids = Set(known.map(\.id))
             for identity in state.identities where identity.signInMethod == .ownApp && !ids.contains(identity.id) {
-                state.removeIdentity(identity.id)
+                needsSignIn.append(identity)
             }
         }
-        // First-party identities live only in `AppState`; they are real only while their refresh
+        // First-party identities live only in `AppState`; they are usable only while their refresh
         // token is still in the keychain. A Keychain read failure must not be mistaken for "no
-        // token" — that would sign real accounts out on a transient error, so we fail open and
-        // keep the identity, telling the user their state may be stale.
+        // token" — that would flag real accounts on a transient error, so we fail open and
+        // keep the identity as is, telling the user their state may be stale.
         var unreadable = false
-        var droppedUPNs: [String] = []
         // On an unsigned build own-app identities are reconciled here too, against the loopback
         // store for the Settings client id — including accounts a signed build added through MSAL,
         // which have no loopback token and are correctly dropped.
@@ -342,17 +350,18 @@ final class AppModel {
             guard let provider = known else { continue }
             switch await provider.refreshTokenState(for: identity.id) {
             case .some(false):
-                state.removeIdentity(identity.id)
-                droppedUPNs.append(identity.upn)
+                needsSignIn.append(identity)
             case .some(true):
                 break
             case .none:
                 unreadable = true
             }
         }
-        if !droppedUPNs.isEmpty {
-            notice = "\(droppedUPNs.joined(separator: ", ")) was signed out because its saved sign-in is gone; add the account again."
-            logError("Signed out (no saved sign-in): \(droppedUPNs.joined(separator: ", "))")
+        signInNeeded = Set(needsSignIn.map(\.id))
+        if !needsSignIn.isEmpty {
+            let upns = needsSignIn.map(\.upn).joined(separator: ", ")
+            notice = "\(upns) needs to sign in again: its saved sign-in is gone. Use Sign in on the account, or sign it out to remove it."
+            logError("Sign-in needed (no saved sign-in): \(upns)")
         } else if unreadable {
             notice = "Could not read saved sign-ins from the Keychain; your accounts were kept."
             logError("Could not read saved sign-ins from the Keychain")
