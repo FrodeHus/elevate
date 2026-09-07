@@ -1,0 +1,45 @@
+name: Changelog
+
+# A pull request that changes the apps or the shared role data must also add to the Unreleased
+# section of CHANGELOG.md, or the release run fails at "Cut the changelog" with nothing to say
+# (as 1.2.7 did after three panel PRs merged without notes). Housekeeping — CI, docs, the cask
+# bump, the changelog cut itself — is exempt by path; anything else can opt out with the
+# "no changelog" label.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  unreleased:
+    name: Unreleased notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require an Unreleased entry for app changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          EXEMPT: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog') }}
+        run: |
+          if [ "$EXEMPT" = "true" ]; then
+            echo "Labelled \"no changelog\"; skipping." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          if ! grep -Eq '^(macos/|windows/|shared/)' <<<"$changed"; then
+            echo "No app or shared changes; nothing to note." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          # The Unreleased body is everything between its heading and the next "## " heading.
+          unreleased() { git show "$1:CHANGELOG.md" | awk '/^## \[Unreleased\]/{f=1; next} /^## /{f=0} f' | grep -v '^[[:space:]]*$' || true; }
+          if [ "$(unreleased "$BASE")" = "$(unreleased "$HEAD")" ]; then
+            echo "::error file=CHANGELOG.md::This pull request changes the app but adds nothing under \"## [Unreleased]\" in CHANGELOG.md. Add a line there (Added / Changed / Fixed), or label the pull request \"no changelog\" if there is genuinely nothing to tell users."
+            exit 1
+          fi
+          echo "Unreleased section changed; thank you." | tee -a "$GITHUB_STEP_SUMMARY"
