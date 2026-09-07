@@ -19,20 +19,21 @@ public sealed partial class SettingsWindow : Window
     private readonly AppModel _model;
     private bool _syncingToggle;
     private bool _syncingHotKey;
+    private bool _applyingClientId;
 
     public SettingsWindow(AppModel model)
     {
         InitializeComponent();
         _model = model;
         DialogWindows.Configure(this, "Settings", 520, 760, Root, autoHeight: true);
-        DialogWindows.DefaultButton(Root, SaveButton);
+        DialogWindows.DefaultButton(Root, CloseButton);
         ClientId.Text = model.Settings.ClientId;
         LoopbackUri.Text = AppSettings.LoopbackRedirectUri;
         Version.Text = VersionText();
         SyncStartup();
         SyncHotKey();
         UpdateUris();
-        UpdateSave();
+        UpdateHint();
         UpdateOperations();
         _model.Changed += OnModelChanged;
         Closed += (_, _) => _model.Changed -= OnModelChanged;
@@ -165,29 +166,31 @@ public sealed partial class SettingsWindow : Window
         BrokerUri.Text = AppSettings.BrokerRedirectUri(AppSettings.IsValidClientId(id) ? id : "{client id}");
     }
 
-    private bool IsSaveable
-    {
-        get
-        {
-            if (!AppSettings.IsValidClientId(ClientId.Text))
-            {
-                return false;
-            }
+    /// <summary>The field differs from the stored id, or nothing usable is stored yet.</summary>
+    private bool IsDirty =>
+        !string.Equals(ClientId.Text.Trim(), _model.Settings.ClientId, StringComparison.OrdinalIgnoreCase) || !_model.IsConfigured;
 
-            var trimmed = ClientId.Text.Trim();
-            return !string.Equals(trimmed, _model.Settings.ClientId, StringComparison.OrdinalIgnoreCase) || !_model.IsConfigured;
-        }
-    }
-
-    private void UpdateSave() => SaveButton.IsEnabled = IsSaveable;
+    /// <summary>"Press Enter to apply." while the field differs from the stored value.</summary>
+    private void UpdateHint() => ApplyHint.Visibility = IsDirty && ClientId.Text.Trim().Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     private void OnClientIdChanged(object sender, TextChangedEventArgs e)
     {
         Saved.Visibility = Visibility.Collapsed;
         SaveError.IsOpen = false;
         UpdateUris();
-        UpdateSave();
+        UpdateHint();
     }
+
+    private void OnClientIdKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            _ = ApplyClientIdAsync();
+        }
+    }
+
+    private void OnClientIdLostFocus(object sender, RoutedEventArgs e) => _ = ApplyClientIdAsync();
 
     private void OnCopyUris(object sender, RoutedEventArgs e)
     {
@@ -225,15 +228,55 @@ public sealed partial class SettingsWindow : Window
         }
     }
 
-    private void OnClose(object sender, RoutedEventArgs e) => Close();
-
-    private async void OnSave(object sender, RoutedEventArgs e)
+    /// <summary>Close waits while the client id confirmation is up: the click's focus loss is what raised it.</summary>
+    private void OnClose(object sender, RoutedEventArgs e)
     {
-        if (!IsSaveable)
+        if (!_applyingClientId)
+        {
+            Close();
+        }
+    }
+
+    /// <summary>
+    /// Applies the field on commit, like the other settings on this page. An empty field puts the
+    /// stored value back; an invalid one shows the error and keeps the text for correction; a
+    /// change that signs accounts out asks first, and Cancel restores the stored value.
+    /// </summary>
+    private async Task ApplyClientIdAsync()
+    {
+        // The confirmation dialog moves focus, which raises LostFocus again while it is open.
+        if (_applyingClientId || !IsDirty)
         {
             return;
         }
 
+        var trimmed = ClientId.Text.Trim();
+        if (trimmed.Length == 0)
+        {
+            ClientId.Text = _model.Settings.ClientId;
+            return;
+        }
+
+        if (!AppSettings.IsValidClientId(trimmed))
+        {
+            SaveError.Message = "Enter the application (client) ID as a GUID";
+            SaveError.IsOpen = true;
+            return;
+        }
+
+        _applyingClientId = true;
+        try
+        {
+            await ApplyClientIdCoreAsync();
+        }
+        finally
+        {
+            _applyingClientId = false;
+        }
+    }
+
+    private async Task ApplyClientIdCoreAsync()
+    {
         var count = _model.OwnAppIdentityCount;
         if (count > 0)
         {
@@ -248,6 +291,7 @@ public sealed partial class SettingsWindow : Window
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
+                ClientId.Text = _model.Settings.ClientId;
                 return;
             }
         }
@@ -257,7 +301,7 @@ public sealed partial class SettingsWindow : Window
             _model.ApplyClientId(ClientId.Text);
             SaveError.IsOpen = false;
             Saved.Visibility = Visibility.Visible;
-            UpdateSave();
+            UpdateHint();
         }
         catch (PimException ex)
         {
