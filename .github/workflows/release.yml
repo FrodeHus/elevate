@@ -44,10 +44,11 @@ jobs:
       # Every tag is v<x.y.z>, so a version typed with the v is the natural mistake; accept both.
       - name: Check the version and the tag
         run: |
-          VERSION="${VERSION#v}"
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Version must be x.y.z or vx.y.z, got '${{ inputs.version }}'"; exit 1
+          # The typed input stays in $VERSION (an env var, never expanded into the script).
+          if ! [[ "${VERSION#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be x.y.z or vx.y.z, got '$VERSION'"; exit 1
           fi
+          VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
             echo "::error::Tag v$VERSION already exists"; exit 1
