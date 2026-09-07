@@ -31,7 +31,7 @@ public class ActivationSummaryTests
     public void SingleActivatedWithEndShowsDuration()
     {
         var o = Outcome("a", new ActivationResult.Activated(Assignment("a", AssignmentStatus.Active, end: 7200)));
-        Body([o], 1).Should().Be("Active for 02:00");
+        Body([o], 1).Should().Be("Active for 2 h");
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class ActivationSummaryTests
     public void SingleScheduledCountsDownToStart()
     {
         var o = Outcome("a", new ActivationResult.Scheduled(Assignment("a", AssignmentStatus.Scheduled, start: 3 * 3600 + 30 * 60)));
-        Body([o], 1).Should().Be("Scheduled to start in 3 h 30 m");
+        Body([o], 1).Should().Be("Scheduled to start in 3 h 30 min");
     }
 
     [Fact]

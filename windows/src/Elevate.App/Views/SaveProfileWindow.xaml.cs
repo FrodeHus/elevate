@@ -59,7 +59,7 @@ public sealed partial class SaveProfileWindow : Window
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 row.Children.Add(new TextBlock { Text = _model.SummaryName(key), TextTrimming = TextTrimming.CharacterEllipsis });
-                var duration = new TextBlock { Text = Countdown.Label(ResolvedDuration(key)), FontSize = 12, Foreground = secondary, FontFamily = new FontFamily("Cascadia Mono, Consolas") };
+                var duration = new TextBlock { Text = Countdown.Label(ResolvedDuration(key)), FontSize = 12, Foreground = secondary };
                 Grid.SetColumn(duration, 1);
                 row.Children.Add(duration);
                 Entries.Children.Add(row);

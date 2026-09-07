@@ -250,7 +250,7 @@ public sealed class ApprovalRow(string requestId) : PanelItem
     /// <summary>"Reader · rg-ops · resource group": the target with its scope caption.</summary>
     public string Target { get => _target; set => SetProperty(ref _target, value); }
 
-    /// <summary>"Contoso · 04:00 · 2 hours ago".</summary>
+    /// <summary>"Contoso · 4 h · 2 hours ago".</summary>
     public string Caption { get => _caption; set => SetProperty(ref _caption, value); }
 
     public string? Justification { get => _justification; set => SetProperty(ref _justification, value); }

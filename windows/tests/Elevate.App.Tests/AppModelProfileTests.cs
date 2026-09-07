@@ -173,7 +173,7 @@ public class AppModelProfileTests
         (await model.QuickRunAsync(profile.Id)).Should().BeTrue();
 
         model.Active.Should().ContainKey(Sample.EntraKey);
-        test.Notifier.Posted.Should().ContainSingle().Which.Should().Be(("Ops", "Active for 02:00"));
+        test.Notifier.Posted.Should().ContainSingle().Which.Should().Be(("Ops", "Active for 2 h"));
     }
 
     [Fact]
