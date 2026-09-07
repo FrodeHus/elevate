@@ -112,24 +112,29 @@ struct ActivationView: View {
         }
     }
 
+    /// A grid per tenant: the name column takes whatever the other three do not need, so a long
+    /// role name is not truncated beside empty fixed-width columns. Every row emits all four cells
+    /// (an empty cell is zero-sized) so the columns stay put when a label is absent.
     private var bulkTable: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(groupedTenantKeys, id: \.self) { tk in
                 TenantGroup(tenantKey: tk) {
-                    ForEach($items) { $item in
-                        if item.role.key.tenantKey == tk {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.role.displayName)
-                                    if let detail = item.role.detail {
-                                        Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(item.role.key) ?? detail)
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                        ForEach($items) { $item in
+                            if item.role.key.tenantKey == tk {
+                                GridRow {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(item.role.displayName).lineLimit(1)
+                                        if let detail = item.role.detail {
+                                            Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(item.role.key) ?? detail)
+                                        }
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
+                                        .labelsHidden().fixedSize()
+                                    approvalLabel(for: item.role)
+                                    progressLabel(for: item.role.key).gridColumnAlignment(.trailing)
                                 }
-                                Spacer()
-                                DurationPicker(duration: $item.duration, maximum: item.role.policy.maximumDuration)
-                                    .labelsHidden().frame(width: 110)
-                                HStack(spacing: 0) { approvalLabel(for: item.role); Spacer(minLength: 0) }.frame(width: 150)
-                                HStack(spacing: 0) { Spacer(minLength: 0); progressLabel(for: item.role.key) }.frame(width: 120)
                             }
                         }
                     }
@@ -153,9 +158,9 @@ struct ActivationView: View {
     @ViewBuilder private func approvalLabel(for role: EligibleRole) -> some View {
         if let caption = PolicyNotes.caption(for: role.policy) {
             Label(caption, systemImage: role.policy.requiresApproval ? "person.badge.clock" : "lock.shield")
-                .font(.caption).lineLimit(1).help(PolicyNotes.explanation(for: role.policy) ?? "")
+                .font(.caption).lineLimit(1).fixedSize().help(PolicyNotes.explanation(for: role.policy) ?? "")
         } else {
-            EmptyView()
+            emptyCell
         }
     }
 
@@ -165,9 +170,12 @@ struct ActivationView: View {
         case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
         case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
-        case nil: running ? AnyView(ProgressView().controlSize(.small)) : AnyView(EmptyView())
+        case nil: if running { ProgressView().controlSize(.small) } else { emptyCell }
         }
     }
+
+    /// Keeps a grid cell occupied without taking space, so later cells stay in their columns.
+    private var emptyCell: some View { Color.clear.frame(width: 0, height: 0) }
 
     private func load() {
         items = keys.compactMap { key in
