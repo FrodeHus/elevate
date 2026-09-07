@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-09-07
+
 ### Changed
 
 - macOS: durations read as units ("2 h 41 min", "46 min", "< 1 min") instead of HH:MM, in the
@@ -220,7 +222,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.6...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.7...HEAD
+[1.2.7]: https://github.com/FrodeHus/elevate/compare/v1.2.6...v1.2.7
 [1.2.6]: https://github.com/FrodeHus/elevate/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/FrodeHus/elevate/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/FrodeHus/elevate/compare/v1.2.3...v1.2.4
