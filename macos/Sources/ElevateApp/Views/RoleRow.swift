@@ -15,13 +15,13 @@ struct RoleRow: View {
             if model.selectMode {
                 Toggle("", isOn: Binding(get: { model.selection.contains(role.key) }, set: { _ in model.toggleSelection(role.key) }))
                     .labelsHidden()
-                    .accessibilityLabel("Select role")
+                    .accessibilityLabel("Select \(role.displayName)")
                     .disabled(assignment?.status == .active || viewOnlyReason != nil)
                     .help(viewOnlyReason ?? "")
             }
             statusDot
             VStack(alignment: .leading, spacing: 1) {
-                Text(role.displayName).font(.body)
+                Text(role.displayName).font(.body).lineLimit(1)
                 if let detail = role.detail {
                     Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip ?? detail)
                 }
@@ -45,14 +45,8 @@ struct RoleRow: View {
         .padding(.trailing, PanelMetrics.trailingInset)
     }
 
-    @ViewBuilder private var statusDot: some View {
-        switch assignment?.status {
-        case .active: Circle().fill(.green).frame(width: 8, height: 8)
-        case .scheduled: Circle().fill(.blue).frame(width: 8, height: 8)
-        case .pendingApproval, .pendingProvisioning: Circle().fill(.yellow).frame(width: 8, height: 8)
-        case .failed: Circle().fill(.red).frame(width: 8, height: 8)
-        case nil: Circle().stroke(.secondary).frame(width: 8, height: 8)
-        }
+    private var statusDot: some View {
+        StatusDot(status: assignment?.status)
     }
 
     /// Azure captions are shortened to the scope's display name; the full ARM path is one hover away.

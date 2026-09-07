@@ -27,7 +27,6 @@ struct AddAccountView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add account").font(.title3.weight(.semibold))
             Picker("", selection: Binding(get: { selectedChoice }, set: { choice = $0 })) {
                 ForEach(methods, id: \.self) { m in
                     VStack(alignment: .leading, spacing: 1) {
@@ -68,6 +67,7 @@ struct AddAccountView: View {
             }
         }
         .padding(16).frame(width: 440)
+        .navigationTitle("Add account")
         .onAppear { customClientId = model.rememberedCustomClientId }
     }
 

@@ -23,7 +23,6 @@ struct DecisionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let request {
-                Text(approve ? "Approve request" : "Deny request").font(.title3.weight(.semibold))
                 details(request)
                 TextField("Justification", text: $justification, axis: .vertical).lineLimit(2...4)
                 if let error = model.approvalErrors[requestId] {
@@ -47,6 +46,7 @@ struct DecisionView: View {
         }
         .padding(16)
         .frame(width: 420)
+        .navigationTitle(approve ? "Approve request" : "Deny request")
         // The window is keyed by route value (one window per requestId/approve pair), so this
         // runs once per window rather than on every appearance — retyping is not thrown away
         // when the panel redraws.

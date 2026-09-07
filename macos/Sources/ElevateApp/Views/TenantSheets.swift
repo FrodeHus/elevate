@@ -11,7 +11,6 @@ struct AddTenantView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add tenant for \(model.identity(identityId)?.upn ?? identityId)").font(.title3.weight(.semibold))
             TextField("Tenant id or verified domain (e.g. fabrikam.com)", text: $input)
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
             HStack {
@@ -22,6 +21,7 @@ struct AddTenantView: View {
             }
         }
         .padding(16).frame(width: 420)
+        .navigationTitle("Add tenant for \(model.identity(identityId)?.upn ?? identityId)")
     }
 
     private func add() async {
@@ -47,7 +47,6 @@ struct DiscoverTenantsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tenants for \(model.identity(identityId)?.upn ?? identityId)").font(.title3.weight(.semibold))
             if loading { ProgressView("Asking Azure Resource Manager…") }
             else if let error { Text(error).font(.caption).foregroundStyle(.red) }
             else {
@@ -71,6 +70,7 @@ struct DiscoverTenantsView: View {
             }
         }
         .padding(16).frame(width: 460, height: 380)
+        .navigationTitle("Tenants for \(model.identity(identityId)?.upn ?? identityId)")
         .task {
             do { found = try await model.discoverTenants(identityId: identityId) }
             catch { self.error = (error as? PIMError)?.userMessage ?? error.localizedDescription }
