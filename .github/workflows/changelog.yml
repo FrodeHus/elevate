@@ -33,7 +33,7 @@ jobs:
             echo "Labelled \"no changelog\"; skipping." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
           fi
           changed="$(git diff --name-only "$BASE" "$HEAD")"
-          if ! grep -Eq '^(macos/|windows/|shared/)' <<<"$changed"; then
+          if ! grep -Eq '^(macos/|windows/|cli/|shared/)' <<<"$changed"; then
             echo "No app or shared changes; nothing to note." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
           fi
           # The Unreleased body is everything between its heading and the next "## " heading.

@@ -4,8 +4,8 @@
 
 - [Setting up the Entra app registration](entra-app-registration.md) — permissions, consent,
   the Azure CLI script and the portal walkthrough, and troubleshooting sign-in errors.
-- [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS and
-  Windows), the optional signing secrets, and the Homebrew cask.
+- [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS, Windows
+  and the CLI), the optional signing secrets, the Homebrew cask and formula.
 
 ## Design documents
 
@@ -20,6 +20,7 @@
 - [Operations: launch at login, diagnostics, updates, releases](superpowers/specs/2026-09-06-elevate-operations-design.md)
 - [Windows app](superpowers/specs/2026-09-05-elevate-windows-design.md)
 - [Windows app, phase 3: parity and release hardening](superpowers/specs/2026-09-06-elevate-windows-phase3-design.md)
+- [CLI](superpowers/specs/2026-09-07-elevate-cli-design.md)
 - [Design canvases (macOS and Windows)](design/README.md) — HTML mockups saved from Claude Design
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).

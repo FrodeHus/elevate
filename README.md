@@ -2,7 +2,7 @@
 
 [![macOS CI](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/macos.yml) [![Windows CI](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml/badge.svg)](https://github.com/FrodeHus/elevate/actions/workflows/windows.yml) [![Latest release](https://img.shields.io/github/v/release/FrodeHus/elevate)](https://github.com/FrodeHus/elevate/releases/latest) [![License](https://img.shields.io/github/license/FrodeHus/elevate)](LICENSE) [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](macos/README.md#install) [![Windows 11](https://img.shields.io/badge/Windows-11-blue)](windows/README.md#install)
 
-Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar or system tray, across accounts and tenants.
+Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar, system tray or terminal, across accounts and tenants.
 
 ![Elevate panel](docs/images/social-preview.png)
 
@@ -12,24 +12,29 @@ Elevate lists every account you have signed in with, each tenant that account ca
 |---|---|---|
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, profiles, sign-in methods | [macos/README.md](macos/README.md) |
 | [Windows](windows/) — WinUI 3 tray app, Windows 11 | Usable: the same features, unsigned MSI for now | [windows/README.md](windows/README.md) |
+| [CLI](cli/) — `elevate` for Linux, macOS and Windows | Usable: activation, profiles, approvals, tenants and settings from the terminal, JSON output and exit codes for scripts | [cli/README.md](cli/README.md) |
 
 ## Install
 
 - **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install).
 - **Windows 11**: per-user MSI, see [windows/README.md](windows/README.md#install).
+- **CLI** (Linux, macOS, Windows): Homebrew formula, winget, or a single binary from the release,
+  see [cli/README.md](cli/README.md#install).
 
-Both apps sign in with an Entra app registration, either your own or a company one; the Microsoft
+All three sign in with an Entra app registration, either your own or a company one; the Microsoft
 Azure CLI or Azure PowerShell app needs no registration but covers Azure resource roles only — it
 cannot read or activate Entra directory roles or PIM for Groups memberships, because Microsoft
 grants those apps no Graph PIM permissions. Each app checks the GitHub releases API for a newer
-version once a day and offers it in the panel.
+version once a day and offers it in the panel; the CLI mentions one after `elevate status`.
 
 ## Repository layout
 
 ```
 macos/     Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
 windows/   .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
+cli/       .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
 shared/    Assets used by both apps: the Entra built-in roles catalogue script
+Casks/, Formula/   The Homebrew tap: the macOS app's cask and the CLI's formula
 docs/      Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
@@ -40,9 +45,9 @@ docs/      Design specs and implementation plans (docs/superpowers/specs, docs/s
    [docs/entra-app-registration.md](docs/entra-app-registration.md).
    - Script: [docs/entra-app/create-app-registration.sh](docs/entra-app/create-app-registration.sh)
    - Permissions manifest for `az ad app create`: [docs/entra-app/required-resource-access.json](docs/entra-app/required-resource-access.json)
-2. **Install or build the app** for your platform: [macos/README.md](macos/README.md) or
-   [windows/README.md](windows/README.md) — prerequisites, build steps, sign-in methods, and
-   what each account type can and cannot activate.
+2. **Install or build the app** for your platform: [macos/README.md](macos/README.md),
+   [windows/README.md](windows/README.md) or [cli/README.md](cli/README.md) — prerequisites,
+   build steps, sign-in methods, and what each account type can and cannot activate.
 3. **Consent per tenant**: an admin grants the delegated permissions once per tenant, either with
    `az ad app permission admin-consent` or through the consent link Elevate offers from each
    tenant's menu. Details in the guide's "Consent" section.
@@ -57,7 +62,9 @@ methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README
 - **Tokens stay in the platform's protected store.** On macOS the loopback browser flow keeps its
   refresh token in your login keychain (this device only) and signed builds sign in with MSAL,
   which keeps its own cache in the keychain; on Windows MSAL keeps a DPAPI-protected cache under
-  your profile. Nothing is written to disk in plain text.
+  your profile. The CLI uses DPAPI, the keychain or the Linux keyring the same way. Nothing is
+  written to disk in plain text, unless you opt the CLI into a plain-file cache on a Linux host
+  without a keyring.
 - **Where Elevate connects.** Microsoft identity platform (login), Microsoft Graph and the Azure
   Resource Manager endpoints, plus the GitHub releases API for the once-a-day update check. Nothing
   else.
@@ -75,6 +82,7 @@ methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
 | Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
 | Windows app: build, install, installer and winget manifest, release | [windows/README.md](windows/README.md) |
+| CLI: install, sign-in, commands, JSON and exit codes, data directory, build, release | [cli/README.md](cli/README.md) |
 | Design specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
 | Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |
 

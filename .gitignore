@@ -21,3 +21,9 @@ windows/winget/manifests/
 build/
 *.xcodeproj/
 .playwright-mcp/
+# CLI
+cli/**/bin/
+cli/**/obj/
+cli/dist/
+cli/winget/manifests/
+cli/.vs/

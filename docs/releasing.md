@@ -2,10 +2,11 @@
 
 Releases are cut by one workflow run. `.github/workflows/release.yml` moves the
 Unreleased changelog entries under the new version, tags `main`, builds the
-macOS app and the Windows app from that commit, publishes a single GitHub
-Release "Elevate x.y.z" with the DMG, the x64 and arm64 MSIs and their SHA-256
-files, and commits the Homebrew cask to `main`. Both apps carry the same version
-number; a platform without code changes since the last release is simply rebuilt.
+macOS app, the Windows app and the CLI from that commit, publishes a single
+GitHub Release "Elevate x.y.z" with the DMG, the x64 and arm64 MSIs, the six CLI
+archives, their SHA-256 files and a CLI checksums file, and commits the Homebrew
+cask and formula to `main`. All three carry the same version number; a platform
+without code changes since the last release is simply rebuilt.
 
 ## Cutting a release
 
@@ -14,19 +15,21 @@ number; a platform without code changes since the last release is simply rebuilt
    The workflow refuses to cut a release with an empty Unreleased section.
 2. Actions → Release → *Run workflow*, enter the version without the leading
    `v` (for example `1.2.7`), and run it on `main`. That run:
-   - checks that the latest macOS and Windows CI runs on `main` passed, and
+   - checks that the latest macOS, Windows and CLI CI runs on `main` passed, and
      stops if one failed or is still running;
    - runs `scripts/cut-changelog.sh` to move the Unreleased entries to
      `## [x.y.z] - YYYY-MM-DD` and rewrite the comparison links;
    - commits that to `main` as "Changelog: x.y.z" and pushes the tag `vx.y.z`.
 3. The tag push starts a second Release run, which builds, publishes and
-   commits the cask. Watch it under Actions → Release. When it finishes, the
-   release is at `https://github.com/FrodeHus/elevate/releases/tag/vx.y.z`, the
-   cask bump is on `main`, and the generated winget manifest is a workflow
-   artifact named `winget-manifest`.
+   commits the cask and the formula. Watch it under Actions → Release. When it
+   finishes, the release is at `https://github.com/FrodeHus/elevate/releases/tag/vx.y.z`,
+   the cask and formula bump is on `main`, and the generated winget manifests
+   are workflow artifacts named `winget-manifest` (the app) and
+   `winget-cli-manifest` (the CLI).
 4. Manual checklist after the run finishes: toggle Launch at login on the DMG
    build and confirm it registers; run one MSI on a Windows machine and
-   confirm SmartScreen's "Run anyway" opens the app.
+   confirm SmartScreen's "Run anyway" opens the app; `brew upgrade
+   frodehus/elevate/elevate-cli && elevate --version` on a Mac or Linux box.
 
 Pushing a `v*` tag by hand still works and skips step 2, as long as the tag
 points at a commit on `main` whose `CHANGELOG.md` already has the `## [x.y.z]`
@@ -57,9 +60,10 @@ the signing certificates, the release and the deploy key.
 
 ## What the workflow does
 
-Five jobs. `prepare` runs only for a manual run and ends with the tag push;
-`check`, `macos`, `windows` and `publish` run only for a tag push: `check` first,
-then `macos` and `windows` in parallel, and `publish` waits for both.
+Six jobs. `prepare` runs only for a manual run and ends with the tag push;
+`check`, `macos`, `windows`, `cli` and `publish` run only for a tag push: `check`
+first, then `macos`, `windows` and the three `cli` matrix legs in parallel, and
+`publish` waits for all of them.
 
 **check** (`ubuntu-latest`):
 
@@ -96,23 +100,49 @@ then `macos` and `windows` in parallel, and `publish` waits for both.
    `winget-manifest` artifact, and uploads the MSIs and their hashes as the
    `windows` artifact.
 
+**cli** (a matrix: `ubuntu-latest` for `linux-x64` and `linux-arm64`, `macos-26`
+for `osx-arm64` and `osx-x64`, `windows-latest` for `win-x64` and `win-arm64`):
+
+1. Restores the .NET 10 SDK from `cli/global.json` and runs the CLI tests.
+2. Runs `cli/package.sh publish <version> <rid>` for each of the leg's two RIDs:
+   a self-contained, single-file, ReadyToRun `elevate` binary. The publish
+   itself could cross-compile every RID on one machine; the matrix exists so
+   each platform's binary can be signed on its own runner.
+3. macOS: with the Developer ID secrets below, signs each binary with hardened
+   runtime and a timestamp and submits it to the notary service (a bare binary
+   cannot be stapled; Gatekeeper checks the ticket online). Windows: with the
+   Azure Artifact Signing secrets, signs each `elevate.exe` with `signtool`.
+   Without secrets the binaries ship unsigned; Homebrew and winget downloads
+   carry no quarantine flag, so only a browser download meets Gatekeeper or
+   SmartScreen.
+4. Runs `cli/package.sh archive <version> <rid>`: `elevate-cli-<version>-<rid>.tar.gz`
+   (`.zip` on Windows) holding just the executable, plus its `.sha256`.
+5. Windows only: generates and validates the `Reothor.Elevate.CLI` portable
+   winget manifest with `cli/winget/New-Manifest.ps1` and uploads it as the
+   `winget-cli-manifest` artifact.
+6. Uploads the archives and hashes as `cli-linux`, `cli-macos` and `cli-windows`.
+
 **publish** (`ubuntu-latest`):
 
-1. Downloads both artifacts and reads the three hashes.
+1. Downloads every artifact, reads the app hashes and writes one
+   `elevate-cli-<version>-checksums.txt` from the six CLI `.sha256` files.
 2. Writes the notes: the changelog section for the version, then a macOS
    section (notarized or the Open Anyway steps, the Homebrew sequence, the DMG
-   hash) and a Windows section (signed or the SmartScreen step, the MSI hashes).
+   hash), a Windows section (signed or the SmartScreen step, the MSI hashes)
+   and a CLI section (the Homebrew formula, winget, the archives and the
+   checksums file).
 3. Creates the GitHub Release with every asset attached.
-4. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
-   `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
-   commits it to `main` as `github-actions[bot]` over the deploy key, retrying
-   once or twice if main moved meanwhile. The `caveats` block is included only
-   for unsigned builds.
+4. Runs `scripts/update-cask.sh` and `scripts/update-formula.sh` on a checkout
+   of `main`, which rewrite `Casks/elevate.rb` and `Formula/elevate-cli.rb`
+   with the new version, SHA-256 values and download URLs, and commits both to
+   `main` as `github-actions[bot]` over the deploy key in one commit, retrying
+   once or twice if main moved meanwhile. The cask's `caveats` block is
+   included only for unsigned builds.
 
-The winget manifest is not submitted automatically: winget moderation requires
+Neither winget manifest is submitted automatically: winget moderation requires
 signed installers, so submission waits for Azure Artifact Signing. Once releases
-are signed, download the `winget-manifest` artifact and run `wingetcreate
-submit` on it.
+are signed, download the `winget-manifest` and `winget-cli-manifest` artifacts
+and run `wingetcreate submit` on them.
 
 ## Optional signing secrets
 
@@ -205,9 +235,10 @@ What a Developer ID signature adds on top is therefore not functionality but
 polish: a silent first launch (no Gatekeeper prompt), MSAL's embedded webview
 instead of the default browser, and SSO with other MSAL apps on the Mac.
 
-## The Homebrew cask
+## The Homebrew cask and formula
 
-`Casks/elevate.rb` lives in this repository, which doubles as a tap:
+`Casks/elevate.rb` (the macOS app) and `Formula/elevate-cli.rb` (the CLI, macOS
+and Linux) live in this repository, which doubles as a tap:
 
 ```bash
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
@@ -232,6 +263,20 @@ ruby -c Casks/elevate.rb
 `~/Library/Preferences/no.reothor.elevate.plist`. The repository ships a
 placeholder cask at version `0.0.0` so the tap resolves before the first
 release; the first release overwrites it.
+
+The CLI's formula installs from the same tap on macOS and Linux:
+
+```bash
+brew install frodehus/elevate/elevate-cli
+```
+
+It is regenerated by `scripts/update-formula.sh <version> <owner/repo> <dist dir>`,
+where the dist directory holds the `.sha256` files of the four Homebrew archives
+(`osx-arm64`, `osx-x64`, `linux-x64`, `linux-arm64`); the formula picks the
+archive with `on_macos` / `on_linux` and `on_arm` / `on_intel`, installs the one
+`elevate` binary and generates bash, zsh and fish completions from
+`elevate completion`. Like the cask it ships as a `0.0.0` placeholder until the
+first release that includes the CLI.
 
 ## Windows signing secrets
 

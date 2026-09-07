@@ -5,6 +5,7 @@
 ## Checklist
 
 - [ ] `swift test` passes in `macos/` (ElevateCore)
+- [ ] `dotnet test Elevate.Cli.sln` passes in `cli/` when the CLI or `Elevate.Core` changed
 - [ ] `xcodebuild ... test` passes for ElevateAppTests
 - [ ] No `Elevate.xcodeproj` committed (project changes go in `macos/project.yml`)
 - [ ] No real client ids, tenant ids, tokens or account names in the diff
