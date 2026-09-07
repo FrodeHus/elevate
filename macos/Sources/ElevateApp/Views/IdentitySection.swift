@@ -16,40 +16,62 @@ struct IdentityHeader: View {
     }
 
     @State private var signingIn = false
+    @State private var confirmSignOut = false
+    @State private var confirmRemoveTenant = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The person's name leads; the UPN is the caption. A name survives the row's width where a
+    /// UPN middle-truncates to "ops.....com" as soon as a pill or button joins the line.
+    private var primaryName: String {
+        let name = identity.displayName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? identity.upn : name
+    }
+
+    private var caption: String {
+        guard let t = soleTenant else { return identity.upn }
+        return t.source == .home ? "\(identity.upn) · \(t.displayName) · home" : "\(identity.upn) · \(t.displayName)"
+    }
+
+    private var signInHelp: String {
+        "\(identity.upn), signed in with \(identity.signInMethod.displayName)"
+    }
+
+    private static let signInNeededHelp =
+        "The saved sign-in for this account is gone. Sign in again to keep its tenants and roles, or sign out to remove it."
 
     var body: some View {
         let expanded = !model.collapsedIdentities.contains(identity.id)
         let needsSignIn = model.needsSignIn(identity.id)
         HStack(spacing: 8) {
-            Button { withAnimation(.snappy) { model.toggleIdentity(identity.id) } } label: {
+            Button { withAnimation(reduceMotion ? nil : .snappy) { model.toggleIdentity(identity.id) } } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
                     Image(systemName: "person.crop.circle.fill").foregroundStyle(Color.accentColor)
+                        .help(signInHelp)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(identity.upn).font(.subheadline.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                        if let t = soleTenant {
-                            Text(t.source == .home ? "\(t.displayName) · home" : t.displayName)
-                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                        }
+                        Text(primaryName).font(.subheadline.weight(.semibold)).lineLimit(1)
+                        Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                     }
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(expanded ? "Collapse account" : "Expand account")
+            .accessibilityLabel(expanded ? "Collapse account \(primaryName)" : "Expand account \(primaryName)")
+            .accessibilityHint(signInHelp)
             HStack(spacing: 6) {
-                if identity.signInMethod != .ownApp {
-                    Text(identity.signInMethod.displayName).font(.caption2).foregroundStyle(.secondary)
-                }
                 // Each tenant header carries its own status glyph; the account-level badge only covers the
                 // moment before any tenant is known.
                 if model.tenants(for: identity.id).isEmpty, let reason = identity.signInMethod.entraViewOnlyReason {
                     ViewOnlyBadge(reason: reason)
                 }
                 if needsSignIn {
-                    StatusPill(text: "Sign-in needed", tint: .red,
-                               help: "The saved sign-in for this account is gone. Sign in again to keep its tenants and roles, or sign out to remove it.")
+                    // A glyph, not a pill: the Sign in button beside it already says what to do, and
+                    // a pill here squeezed the name out of the row.
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.red)
+                        .help(Self.signInNeededHelp)
+                        .accessibilityLabel("Sign-in needed: \(Self.signInNeededHelp)")
                 } else if let t = soleTenant {
                     TenantPills(tenant: t)
                 }
@@ -66,9 +88,11 @@ struct IdentityHeader: View {
                         .help("Sign in again as \(identity.upn)")
                 }
             } else if activeCount > 0 {
-                Text("\(activeCount) active").font(.caption).foregroundStyle(.green)
+                Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary)
             }
             HeaderMenu(label: "Account actions") {
+                Text(signInHelp)
+                Divider()
                 if needsSignIn {
                     Button("Sign in again") { retry() }.disabled(signingIn)
                     Divider()
@@ -77,12 +101,19 @@ struct IdentityHeader: View {
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
                 if let t = soleTenant {
                     Divider()
-                    TenantMenuItems(tenant: t)
+                    TenantMenuItems(tenant: t, confirmRemove: $confirmRemoveTenant)
                 }
                 Divider()
-                Button("Sign out", role: .destructive) { model.signOut(identity) }
+                Button("Sign out…", role: .destructive) { confirmSignOut = true }
             }
         }
+        .confirmationDialog("Sign out \(identity.upn)?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) { model.signOut(identity) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(signOutMessage)
+        }
+        .modifier(SoleTenantRemoval(tenant: soleTenant, isPresented: $confirmRemoveTenant))
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,6 +131,12 @@ struct IdentityHeader: View {
         .overlay(alignment: .bottom) { Divider() }
     }
 
+    private var signOutMessage: String {
+        let n = model.tenants(for: identity.id).count
+        let tenants = n == 1 ? "its tenant" : "its \(n) tenants"
+        return "Elevate forgets \(tenants), configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later."
+    }
+
     private func open(_ route: PanelRoute) {
         openWindow(value: route)
         NSApp.activate(ignoringOtherApps: true)
@@ -111,6 +148,19 @@ struct IdentityHeader: View {
         Task {
             await model.retrySignIn(identity)
             signingIn = false
+        }
+    }
+}
+
+/// Attaches the remove-tenant confirmation only when the account row stands in for its sole tenant.
+private struct SoleTenantRemoval: ViewModifier {
+    let tenant: TenantContext?
+    @Binding var isPresented: Bool
+    func body(content: Content) -> some View {
+        if let tenant {
+            content.removeTenantConfirmation(tenant, isPresented: $isPresented)
+        } else {
+            content
         }
     }
 }

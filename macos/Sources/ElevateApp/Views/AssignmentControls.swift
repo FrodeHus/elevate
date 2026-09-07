@@ -31,7 +31,9 @@ struct AssignmentControls: View {
                 HStack(spacing: 8) {
                     Text(assignment?.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        .frame(width: PanelMetrics.countdownWidth, alignment: .trailing)
+                        // Hugs its text: "46 min" and "7 h 58 min" differ too much for one fixed
+                        // column, and a wide one pushed Deactivate into truncation in select mode.
+                        .fixedSize().frame(minWidth: PanelMetrics.countdownWidth, alignment: .trailing)
                     if let a = assignment, lockedFor <= 0, ExtendWindow.canExtend(a, policy: policy, now: ctx.date) {
                         Button("Extend") {
                             if NSEvent.modifierFlags.contains(.option) {

@@ -8,6 +8,8 @@ struct TenantHeader: View {
     @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
     let identity: Identity
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var confirmRemove = false
     private var expanded: Bool { !model.collapsedTenants.contains(tenant.id) }
 
     // Counts the current tab's kinds only, so the number matches the rows under the header
@@ -21,7 +23,7 @@ struct TenantHeader: View {
             HStack(spacing: 6) {
                 // One plain button for chevron + name: a bare tap gesture next to a borderless Menu
                 // loses to the menu's hit area, which stretches across the row.
-                Button { withAnimation(.snappy) { model.toggleTenant(tenant.id) } } label: {
+                Button { withAnimation(reduceMotion ? nil : .snappy) { model.toggleTenant(tenant.id) } } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "chevron.right").rotationEffect(.degrees(expanded ? 90 : 0))
                             .font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 12)
@@ -34,13 +36,16 @@ struct TenantHeader: View {
                 if tenant.source == .home { Text("home").font(.caption2).foregroundStyle(.secondary) }
                 TenantPills(tenant: tenant)
                 Spacer()
-                if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.green) }
+                // Secondary, not green: 10 pt green text fails contrast on the light ground, and the
+                // green dots on the rows below already carry the colour.
+                if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary) }
                 HeaderMenu(label: "Tenant actions") {
-                    TenantMenuItems(tenant: tenant)
+                    TenantMenuItems(tenant: tenant, confirmRemove: $confirmRemove)
                 }
             }
         }
         .pinnedHeaderChrome()
+        .removeTenantConfirmation(tenant, isPresented: $confirmRemove)
     }
 
     private func open(_ route: PanelRoute) {
@@ -136,10 +141,13 @@ struct TenantPills: View {
 }
 
 /// Menu entries that act on one tenant; shared by the tenant header and the single-tenant account row.
+/// "Remove tenant" only raises `confirmRemove`: a dialog cannot be presented from inside a menu,
+/// so the header that owns the menu attaches `removeTenantConfirmation`.
 struct TenantMenuItems: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
+    @Binding var confirmRemove: Bool
     var body: some View {
         Button("Configure known PIM roles…") {
             openWindow(value: PanelRoute.configureRoles(tenant.id))
@@ -151,7 +159,29 @@ struct TenantMenuItems: View {
             Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
         }
         Divider()
-        Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
+        Button("Remove tenant…", role: .destructive) { confirmRemove = true }
             .disabled(tenant.source == .home)
+    }
+}
+
+extension View {
+    /// Confirms removing `tenant`, naming what goes with it. Removal cannot be undone.
+    func removeTenantConfirmation(_ tenant: TenantContext, isPresented: Binding<Bool>) -> some View {
+        modifier(RemoveTenantConfirmation(tenant: tenant, isPresented: isPresented))
+    }
+}
+
+private struct RemoveTenantConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let tenant: TenantContext
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Remove \(tenant.displayName)?", isPresented: $isPresented, titleVisibility: .visible) {
+            Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.")
+        }
     }
 }

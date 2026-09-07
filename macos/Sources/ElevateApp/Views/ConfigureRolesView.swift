@@ -20,7 +20,6 @@ struct ConfigureRolesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Known PIM roles in \(model.tenant(tenantKey)?.displayName ?? tenantKey.tenantId)").font(.title3.weight(.semibold))
             Text("Roles you believe you are eligible for. Activation is still validated by Entra.").font(.caption).foregroundStyle(.secondary)
             TabView {
                 entraTab.tabItem { Text("Entra roles") }
@@ -35,6 +34,7 @@ struct ConfigureRolesView: View {
         }
         .padding(16)
         .frame(width: 560, height: 520)
+        .navigationTitle("Known PIM roles in \(model.tenant(tenantKey)?.displayName ?? tenantKey.tenantId)")
         .onAppear(perform: load)
     }
 
@@ -48,7 +48,7 @@ struct ConfigureRolesView: View {
                 Toggle(isOn: Binding(get: { selectedEntra.contains(role.templateId) },
                                      set: { on in if on { selectedEntra.insert(role.templateId) } else { selectedEntra.remove(role.templateId) } })) {
                     VStack(alignment: .leading) {
-                        HStack { Text(role.displayName); if role.isPrivileged { Text("privileged").font(.caption2).foregroundStyle(.orange) } }
+                        HStack { Text(role.displayName); if role.isPrivileged { StatusPill(text: "privileged", help: "Microsoft classes this role as privileged") } }
                         Text(role.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }

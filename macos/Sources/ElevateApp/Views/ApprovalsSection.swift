@@ -22,9 +22,10 @@ struct ApprovalsSection: View {
 struct ApprovalsHeader: View {
     @Environment(AppModel.self) private var model
     let count: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         PinnedSectionHeader(title: "Approvals", accessibilityName: "approvals", count: count, tint: .orange,
-                            expanded: !model.collapsedApprovals, onToggle: { withAnimation(.snappy) { model.toggleApprovals() } })
+                            expanded: !model.collapsedApprovals, onToggle: { withAnimation(reduceMotion ? nil : .snappy) { model.toggleApprovals() } })
     }
 }
 

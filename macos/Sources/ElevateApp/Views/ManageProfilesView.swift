@@ -9,10 +9,11 @@ struct ManageProfilesView: View {
     /// Name of the profile the last "Edit" loaded. The work happens in the menu bar panel, which is
     /// closed while this window is up, so say so instead of leaving the button looking inert.
     @State private var editingHint: String?
+    /// Profile the trash button was pressed for; the dialog below confirms before it goes.
+    @State private var pendingDelete: ActivationProfile?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Profiles").font(.title3.weight(.semibold))
             if model.profiles.isEmpty {
                 VStack {
                     Text("No profiles yet. Select roles in the panel and choose \"Save as profile…\".")
@@ -38,7 +39,7 @@ struct ManageProfilesView: View {
                             }
                             .controlSize(.small)
                             .help("Reopens the selection in the panel; use \"Update profile\" when done")
-                            Button(role: .destructive) { model.deleteProfile(id: p.id) } label: { Image(systemName: "trash") }
+                            Button(role: .destructive) { pendingDelete = p } label: { Image(systemName: "trash") }
                                 .controlSize(.small).accessibilityLabel("Delete \(p.name)")
                         }
                     }
@@ -54,6 +55,15 @@ struct ManageProfilesView: View {
             HStack { Spacer(); Button("Done") { commitAll(); dismiss() }.keyboardShortcut(.defaultAction) }
         }
         .padding(16).frame(width: 520)
+        .navigationTitle("Profiles")
+        .confirmationDialog("Delete \"\(pendingDelete?.name ?? "")\"?",
+                            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                            titleVisibility: .visible, presenting: pendingDelete) { p in
+            Button("Delete", role: .destructive) { model.deleteProfile(id: p.id) }
+            Button("Cancel", role: .cancel) {}
+        } message: { p in
+            Text("The profile and its \(ProfileSummary.caption(entries: p.entries)) are removed. Active assignments are not changed.")
+        }
     }
 
     private func commit(_ id: UUID) { if let n = names[id] { model.renameProfile(id: id, name: n) } }

@@ -22,7 +22,6 @@ struct SaveProfileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Save as profile").font(.title3.weight(.semibold))
             TextField("Profile name", text: $name).textFieldStyle(.roundedBorder)
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(grouped, id: \.0) { tk, tkeys in
@@ -47,5 +46,6 @@ struct SaveProfileView: View {
             }
         }
         .padding(16).frame(width: 420)
+        .navigationTitle("Save as profile")
     }
 }

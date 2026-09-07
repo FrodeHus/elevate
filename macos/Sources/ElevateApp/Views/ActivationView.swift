@@ -37,7 +37,6 @@ struct ActivationView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role")).font(.title3.weight(.semibold))
             if !isBulk, let detail = items.first?.role.detail {
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     .help(scopeTooltip(items.first?.role.key) ?? detail)
@@ -60,6 +59,7 @@ struct ActivationView: View {
         }
         .padding(16)
         .frame(width: isBulk ? 560 : 380)
+        .navigationTitle(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role"))
         .onAppear(perform: load)
     }
 
@@ -163,7 +163,7 @@ struct ActivationView: View {
         switch model.progress[key] {
         case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
         case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
-        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.yellow).font(.caption)
+        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil: running ? AnyView(ProgressView().controlSize(.small)) : AnyView(EmptyView())
         }

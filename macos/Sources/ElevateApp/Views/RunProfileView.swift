@@ -33,10 +33,6 @@ struct RunProfileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "bolt.fill").foregroundStyle(Color.accentColor)
-                Text(finished ? "Ran \"\(profile?.name ?? "profile")\"" : "Run \"\(profile?.name ?? "profile")\"").font(.title3.weight(.semibold))
-            }
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(groupedTenantKeys, id: \.self) { tk in
                     TenantGroup(tenantKey: tk) {
@@ -67,6 +63,7 @@ struct RunProfileView: View {
             }
         }
         .padding(16).frame(width: 560)
+        .navigationTitle(finished ? "Ran \"\(profile?.name ?? "profile")\"" : "Run \"\(profile?.name ?? "profile")\"")
         .onAppear(perform: load)
         // WindowGroup(for:) refocuses an existing window for the same value, so .onAppear does not
         // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
@@ -131,7 +128,7 @@ struct RunProfileView: View {
         switch model.progress[it.roleKey] {
         case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
         case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
-        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.yellow).font(.caption)
+        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange).font(.caption)
         case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
         case nil:
             if running { ProgressView().controlSize(.small) }

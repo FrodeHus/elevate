@@ -27,7 +27,7 @@ import Foundation
 
     @Test func singleActivatedWithEndShowsDuration() {
         let o = outcome("a", .activated(assignment("a", .active, end: 7200)))
-        #expect(body([o], attempted: 1) == "Active for 02:00")
+        #expect(body([o], attempted: 1) == "Active for 2 h")
     }
 
     @Test func singleActivatedWithoutEndIsJustActive() {
@@ -37,7 +37,7 @@ import Foundation
 
     @Test func singleScheduledCountsDownToStart() {
         let o = outcome("a", .scheduled(assignment("a", .scheduled, start: 3 * 3600 + 30 * 60)))
-        #expect(body([o], attempted: 1) == "Scheduled to start in 3 h 30 m")
+        #expect(body([o], attempted: 1) == "Scheduled to start in 3 h 30 min")
     }
 
     @Test func singlePendingApprovalReadsAwaitingApproval() {
