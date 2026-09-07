@@ -148,14 +148,14 @@ public sealed partial class Pill : ContentControl
 
 /// <summary>
 /// The Entra / Azure / Groups picker, styled like the macOS segmented control: one capsule, the
-/// selected segment filled with the accent, the active count inside the label ("Entra 1").
+/// selected segment filled with the accent. No counts in the labels: the Active now header and the
+/// tenant rows already carry them, and a segment that changes width with its count moves the others.
 /// </summary>
 public sealed partial class SegmentedPivots : ContentControl
 {
     private static readonly PanelTab[] Tabs = [PanelTab.Roles, PanelTab.Azure, PanelTab.Groups];
 
     private readonly ToggleButton[] _buttons = new ToggleButton[3];
-    private readonly int[] _counts = new int[3];
     private PanelTab _selected = PanelTab.Roles;
     private bool _applying;
 
@@ -224,13 +224,6 @@ public sealed partial class SegmentedPivots : ContentControl
         }
     }
 
-    /// <summary>The active count shown inside the segment's label; hidden when zero, like the macOS picker.</summary>
-    public void SetCount(PanelTab tab, int count)
-    {
-        _counts[Array.IndexOf(Tabs, tab)] = count;
-        Apply();
-    }
-
     private void Apply()
     {
         _applying = true;
@@ -238,8 +231,6 @@ public sealed partial class SegmentedPivots : ContentControl
         {
             for (var i = 0; i < Tabs.Length; i++)
             {
-                var name = AppModel.Title(Tabs[i]);
-                _buttons[i].Content = _counts[i] > 0 ? $"{name} {_counts[i].ToString(System.Globalization.CultureInfo.InvariantCulture)}" : name;
                 _buttons[i].IsChecked = Tabs[i] == _selected;
             }
         }

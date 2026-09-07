@@ -33,6 +33,7 @@ public abstract class PanelItem : ObservableObject
 public sealed class NoteRow(string key, string text) : PanelItem
 {
     private string _text = text;
+    private TenantKey? _configureTenant;
 
     public override string Key { get; } = key;
 
@@ -41,6 +42,24 @@ public sealed class NoteRow(string key, string text) : PanelItem
         get => _text;
         set => SetProperty(ref _text, value);
     }
+
+    /// <summary>
+    /// Set on "No roles configured." for a manual-roles tenant: the row offers Configure… inline,
+    /// so the fix is not two clicks away in the tenant menu.
+    /// </summary>
+    public TenantKey? ConfigureTenant
+    {
+        get => _configureTenant;
+        set
+        {
+            if (SetProperty(ref _configureTenant, value))
+            {
+                OnPropertyChanged(nameof(ConfigureVisibility));
+            }
+        }
+    }
+
+    public Visibility ConfigureVisibility => ConfigureTenant is null ? Visibility.Collapsed : Visibility.Visible;
 }
 
 /// <summary>One eligible role (or one active assignment in the summary), with everything its row shows.</summary>
@@ -676,7 +695,8 @@ public static class PanelListBuilder
         }
         else if (roles.Count == 0)
         {
-            group.Add(new NoteRow(prefix + "note", EmptyText(model, tenant)));
+            var manual = tenant.DiscoveryMode == DiscoveryMode.ManualRoles && model.PanelTab != PanelTab.Groups;
+            group.Add(new NoteRow(prefix + "note", EmptyText(model, tenant)) { ConfigureTenant = manual ? tenant.Key : null });
         }
 
         foreach (var role in roles)
@@ -879,6 +899,7 @@ public static class PanelListBuilder
                         break;
                     case NoteRow note when f is NoteRow freshNote:
                         note.Text = freshNote.Text;
+                        note.ConfigureTenant = freshNote.ConfigureTenant;
                         break;
                     case ApprovalRow approval when f is ApprovalRow freshApproval:
                         approval.CopyFrom(freshApproval);
