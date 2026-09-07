@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows: 1.2.8 crashed at startup while registering the Ctrl+, shortcut; the shortcut is read
   from the key event instead.
 
+## [1.2.8] - 2026-09-07
+
 ### Changed
 
 - Windows: durations read as units ("2 h 41 min", "46 min", "< 1 min") instead of HH:MM, in the
