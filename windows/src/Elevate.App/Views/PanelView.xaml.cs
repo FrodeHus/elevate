@@ -32,14 +32,16 @@ public sealed partial class PanelView : UserControl
         InitializeComponent();
         GroupedSource.Source = _groups;
         ProfileChips.ItemsSource = _chips;
-        // The comma key has no VirtualKey member: 0xBC is VK_OEM_COMMA.
         Accelerate(SearchToggle, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", () =>
         {
             SearchToggle.IsChecked = SearchToggle.IsChecked != true;
             OnSearchToggle(SearchToggle, new RoutedEventArgs());
         });
         Accelerate(RefreshButton, Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, "Refresh (F5)", () => OnRefresh(RefreshButton, new RoutedEventArgs()));
-        Accelerate(SettingsButton, (Windows.System.VirtualKey)0xBC, Windows.System.VirtualKeyModifiers.Control, "Settings (Ctrl+,)", () => App.Current.OpenSettings());
+        // The comma has no VirtualKey member, and a KeyboardAccelerator refuses a raw key code (the
+        // 1.2.8 startup crash), so Ctrl+, is read off the key event instead.
+        ToolTipService.SetToolTip(SettingsButton, "Settings (Ctrl+,)");
+        PreviewKeyDown += OnPreviewKeyDown;
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
@@ -108,6 +110,18 @@ public sealed partial class PanelView : UserControl
         };
         element.KeyboardAccelerators.Add(accelerator);
         ToolTipService.SetToolTip(element, tooltip);
+    }
+
+    /// <summary>VK_OEM_COMMA: the comma key, which <see cref="Windows.System.VirtualKey"/> does not name.</summary>
+    private const int CommaKey = 0xBC;
+
+    private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if ((int)e.Key == CommaKey && IsControlDown())
+        {
+            App.Current.OpenSettings();
+            e.Handled = true;
+        }
     }
 
     // MARK: Drawing
