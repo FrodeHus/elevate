@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   menu. "N active" on account and tenant rows is secondary text.
 - Windows: Sign out, Remove tenant and Delete profile ask first and say what Elevate forgets;
   active assignments in Entra are never changed by them.
+- Windows: Settings applies the client ID on Enter or when the field loses focus, still behind the
+  "Sign out and change" confirmation; the Save button is gone.
 
 ### Fixed
 
