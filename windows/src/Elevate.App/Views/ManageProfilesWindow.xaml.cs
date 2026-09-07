@@ -98,10 +98,30 @@ public sealed partial class ManageProfilesWindow : Window
             Grid.SetColumn(actions, 2);
             row.Children.Add(actions);
 
-            var delete = IconButton("", $"Delete {profile.Name}", true, () => _model.DeleteProfile(id));
+            var delete = IconButton("", $"Delete {profile.Name}…", true, () => _ = ConfirmDeleteAsync(id));
             Grid.SetColumn(delete, 3);
             row.Children.Add(delete);
             Rows.Children.Add(row);
+        }
+    }
+
+    /// <summary>Deleting has no undo: the dialog names the profile and what it holds, and says the assignments stay.</summary>
+    private async Task ConfirmDeleteAsync(Guid id)
+    {
+        if (_model.Profile(id) is not { } profile)
+        {
+            return;
+        }
+
+        CommitAll();
+        var ok = await DialogWindows.ConfirmAsync(
+            Root.XamlRoot,
+            $"Delete \"{profile.Name}\"?",
+            $"The profile and its {ProfileSummary.Caption(profile.Entries)} are removed. Active assignments are not changed.",
+            "Delete");
+        if (ok && _model.Profile(id) is not null)
+        {
+            _model.DeleteProfile(id);
         }
     }
 

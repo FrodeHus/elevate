@@ -102,6 +102,24 @@ internal static class DialogWindows
         window.Activate();
     }
 
+    /// <summary>
+    /// A confirmation for a destructive action: the action is the primary button, Cancel the close
+    /// button, and Enter cancels so a stray keypress destroys nothing. Returns whether to go ahead.
+    /// </summary>
+    public static async Task<bool> ConfirmAsync(XamlRoot root, string title, string message, string action)
+    {
+        var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+        {
+            XamlRoot = root,
+            Title = title,
+            Content = message,
+            PrimaryButtonText = action,
+            CloseButtonText = "Cancel",
+            DefaultButton = Microsoft.UI.Xaml.Controls.ContentDialogButton.Close,
+        };
+        return await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary;
+    }
+
     /// <summary>Enter anywhere in the window presses the default button, unless a multi-line box has focus.</summary>
     public static void DefaultButton(FrameworkElement root, Microsoft.UI.Xaml.Controls.Button button)
     {

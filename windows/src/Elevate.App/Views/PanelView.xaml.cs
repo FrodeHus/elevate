@@ -550,13 +550,7 @@ public sealed partial class PanelView : UserControl
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(Item("Sign out", () =>
-            {
-                if (_model.Identity(identityId) is { } identity)
-                {
-                    _model.SignOut(identity);
-                }
-            }));
+            menu.Items.Add(Item("Sign out…", () => _ = ConfirmSignOutAsync(identityId)));
         }
         else if (group.Kind == GroupKind.Tenant && group.TenantKey is { } key && _model.Tenant(key) is { } tenant)
         {
@@ -583,9 +577,50 @@ public sealed partial class PanelView : UserControl
         }
 
         menu.Items.Add(new MenuFlyoutSeparator());
-        var remove = Item("Remove tenant", () => model.RemoveTenant(tenant.Key));
+        var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
         remove.IsEnabled = tenant.Source != TenantSource.Home;
         menu.Items.Add(remove);
+    }
+
+    // Signing out and removing a tenant run at once and have no undo: each says what is forgotten
+    // and that the assignments themselves are untouched before it goes ahead.
+
+    private async Task ConfirmSignOutAsync(string identityId)
+    {
+        if (_model is null || _model.Identity(identityId) is not { } identity)
+        {
+            return;
+        }
+
+        var n = _model.TenantsFor(identityId).Count;
+        var tenants = n == 1 ? "its tenant" : $"its {n} tenants";
+        var ok = await DialogWindows.ConfirmAsync(
+            XamlRoot,
+            $"Sign out {identity.Upn}?",
+            $"Elevate forgets {tenants}, configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later.",
+            "Sign out");
+        if (ok && _model.Identity(identityId) is { } still)
+        {
+            _model.SignOut(still);
+        }
+    }
+
+    private async Task ConfirmRemoveTenantAsync(TenantContext tenant)
+    {
+        if (_model is null)
+        {
+            return;
+        }
+
+        var ok = await DialogWindows.ConfirmAsync(
+            XamlRoot,
+            $"Remove {tenant.DisplayName}?",
+            "Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.",
+            "Remove tenant");
+        if (ok && _model.Tenant(tenant.Key) is not null)
+        {
+            _model.RemoveTenant(tenant.Key);
+        }
     }
 
     private static MenuFlyoutItem Item(string text, Action action)
