@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: durations read as units ("2 h 41 min", "46 min", "< 1 min") instead of HH:MM, in the
+  Active now rows, approvals, the decision window, Save profile and the activation toast.
+
 ## [1.2.7] - 2026-09-07
 
 ### Changed
