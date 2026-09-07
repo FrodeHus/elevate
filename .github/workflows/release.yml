@@ -3,19 +3,94 @@ name: Release
 # One tag, one release, both platforms. Pushing `v<version>` builds the macOS DMG and the Windows
 # MSIs from the same commit, then publishes a single GitHub Release "Elevate <version>" with every
 # asset, the changelog section for that version and the install instructions for both platforms,
-# and updates the Homebrew cask on main.
+# and commits the Homebrew cask to main.
+#
+# Running the workflow by hand with a version does the steps before the tag as well: it checks
+# that main is green, moves the Unreleased changelog entries under the new version, commits that
+# to main and pushes the tag. That tag push starts a second run of this workflow, which builds
+# and publishes; the manual run ends after the tag. Both pushes use the RELEASE_DEPLOY_KEY deploy
+# key, which the main ruleset lets bypass the pull-request requirement (the workflow token cannot,
+# and a tag pushed with it would not trigger a run).
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the leading v (e.g. 1.2.7)"
+        required: true
+        type: string
 
 permissions:
   contents: write
-  pull-requests: write
+  actions: read
 
 jobs:
+  prepare:
+    name: Cut changelog and tag
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check the version and the tag
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be x.y.z, got '$VERSION'"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists"; exit 1
+          fi
+
+      # "main is green": the latest run of each CI workflow on main must have finished and passed.
+      # A workflow that has never run on main (path filters) is not held against it.
+      - name: Check that main is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in macos.yml windows.yml; do
+            run="$(gh run list --workflow "$wf" --branch main --event push --limit 1 --json status,conclusion,headSha,url --jq '.[0]')"
+            if [ -z "$run" ] || [ "$run" = "null" ]; then echo "$wf: no run on main yet"; continue; fi
+            status="$(jq -r .status <<<"$run")"; conclusion="$(jq -r .conclusion <<<"$run")"; url="$(jq -r .url <<<"$run")"
+            if [ "$status" != "completed" ]; then echo "::error::$wf is still $status on main: $url"; exit 1; fi
+            if [ "$conclusion" != "success" ]; then echo "::error::$wf last ended with $conclusion on main: $url"; exit 1; fi
+            echo "$wf: success ($(jq -r .headSha <<<"$run" | cut -c1-7))"
+          done
+
+      - name: Cut the changelog
+        run: ./scripts/cut-changelog.sh "$VERSION" "$(date -u +%Y-%m-%d)" "${{ github.repository }}"
+
+      - name: Configure the deploy key
+        env:
+          KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::RELEASE_DEPLOY_KEY is not set"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/release_key && chmod 600 ~/.ssh/release_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/release_key -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+          git remote set-url origin "git@github.com:${{ github.repository }}.git"
+
+      - name: Commit the changelog and push the tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "Changelog: $VERSION"
+          git tag -a "v$VERSION" -m "Elevate $VERSION"
+          git push origin HEAD:main
+          git push origin "v$VERSION"
+          echo "Pushed v$VERSION; the tag run builds and publishes the release." >> "$GITHUB_STEP_SUMMARY"
+
   macos:
     name: macOS app
+    if: github.event_name == 'push'
     runs-on: macos-26
     defaults:
       run:
@@ -171,6 +246,7 @@ jobs:
 
   windows:
     name: Windows app
+    if: github.event_name == 'push'
     runs-on: windows-latest
     env:
       TAG: ${{ github.ref_name }}
@@ -350,23 +426,34 @@ jobs:
           "dist/Elevate-$VERSION-arm64.msi.sha256"
           --title "Elevate $VERSION" --notes-file notes.md
 
-      # main only takes changes through pull requests, so the cask bump is proposed as one. The
-      # macOS workflow runs on Casks/** and provides the required check; merge it (or enable
-      # auto-merge on the repository) to publish the cask.
-      - name: Propose the cask update
+      - name: Configure the deploy key
         env:
-          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::RELEASE_DEPLOY_KEY is not set"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/release_key && chmod 600 ~/.ssh/release_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/release_key -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+          git remote set-url origin "git@github.com:${{ github.repository }}.git"
+
+      # The deploy key bypasses the pull-request requirement on main, so the cask lands directly.
+      # A retry covers a commit that reached main while this run was building.
+      - name: Update the cask on main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout -B "cask/elevate-$VERSION" origin/main
-          ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
-          if git diff --quiet -- Casks/elevate.rb; then
-            echo "Cask already up to date."
-            exit 0
-          fi
-          git add Casks/elevate.rb
-          git commit -m "Cask: Elevate $VERSION"
-          git push --force origin "cask/elevate-$VERSION"
-          gh pr create --base main --head "cask/elevate-$VERSION"             --title "Cask: Elevate $VERSION"             --body "Homebrew cask for the [$VERSION release](https://github.com/${{ github.repository }}/releases/tag/$TAG), opened by the release workflow. Merge to publish it."             || echo "A pull request for this cask already exists."
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B release-cask origin/main
+            ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
+            if git diff --quiet -- Casks/elevate.rb; then
+              echo "Cask already up to date."
+              exit 0
+            fi
+            git add Casks/elevate.rb
+            git commit -m "Cask: Elevate $VERSION"
+            if git push origin HEAD:main; then exit 0; fi
+            echo "Push rejected (attempt $attempt); refetching main."
+          done
+          echo "::error::Could not push the cask update to main"; exit 1
