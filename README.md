@@ -19,8 +19,10 @@ Elevate lists every account you have signed in with, each tenant that account ca
 - **Windows 11**: per-user MSI, see [windows/README.md](windows/README.md#install).
 
 Both apps sign in with an Entra app registration, either your own or a company one; the Microsoft
-Azure CLI or Azure PowerShell app needs no registration but covers Azure resource roles only. Each
-app checks the GitHub releases API for a newer version once a day and offers it in the panel.
+Azure CLI or Azure PowerShell app needs no registration but covers Azure resource roles only — it
+cannot read or activate Entra directory roles or PIM for Groups memberships, because Microsoft
+grants those apps no Graph PIM permissions. Each app checks the GitHub releases API for a newer
+version once a day and offers it in the panel.
 
 ## Repository layout
 
@@ -46,7 +48,8 @@ docs/      Design specs and implementation plans (docs/superpowers/specs, docs/s
    tenant's menu. Details in the guide's "Consent" section.
 
 Accounts that cannot use your registration can be added with the Azure CLI or Azure PowerShell
-app (Azure resource roles only) or with another company app registration; see the sign-in
+app (Azure resource roles only, no Entra roles or groups) or with another company app
+registration; see the sign-in
 methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README.md](windows/README.md#use).
 
 ## Security

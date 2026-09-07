@@ -1,10 +1,17 @@
 # Setting up the Entra app registration
 
 This guide is for anyone setting up Elevate's own app registration, even if you have never
-opened the Microsoft Entra admin center before. You do not need to do this to use Elevate — the
-app also signs in with the Azure CLI or Azure PowerShell app, which need no registration and no
-consent — but your own registration is required if those first-party apps are blocked in your
-tenant, or if you want a registration you control.
+opened the Microsoft Entra admin center before.
+
+**Do you need it?** Only if you want Entra directory roles or PIM for Groups. Elevate can also
+sign in with Microsoft's Azure CLI or Azure PowerShell app, which needs no registration and no
+consent, but an account added that way covers **Azure resource roles only**: Microsoft grants those
+apps no Graph PIM permissions, so Elevate never reads or activates Entra roles or group
+memberships for it, and it sees Azure resource approvals only. There is no way around that from
+the client side; the permissions Entra PIM and PIM for Groups need are admin-consent only and are
+granted to your own registration, not to Microsoft's. Your own registration is also the way in
+when Conditional Access blocks the first-party apps in your tenant, or when you want a
+registration you control.
 
 ## 1. What the registration is for
 

@@ -44,8 +44,10 @@ Sign in from the flyout's **Add account…** with one of:
   `ms-appx-web://microsoft.aad.brokerplugin/{client id}` for the broker and `http://localhost` for
   the browser fallback. See [docs/entra-app-registration.md](../docs/entra-app-registration.md).
 - **A custom client ID**: any public-client registration, through the system browser on `http://localhost`.
-- **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed; Azure
-  resource roles only.
+- **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed, but
+  Azure resource roles only — Entra directory roles and PIM for Groups are neither read nor
+  activated, because Microsoft grants those apps no Graph PIM permissions. Use your own or a
+  custom registration for those.
 
 Everything the macOS app does is here: select several roles across pivots and activate them
 together, save a selection as a **profile** (a chip row under the pivots; *Manage…* renames,
