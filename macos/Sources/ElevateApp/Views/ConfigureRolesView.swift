@@ -22,9 +22,9 @@ struct ConfigureRolesView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Roles you believe you are eligible for. Activation is still validated by Entra.").font(.caption).foregroundStyle(.secondary)
             TabView {
-                entraTab.tabItem { Text("Entra roles") }
-                azureTab.tabItem { Text("Azure resources") }
-                groupsTab.tabItem { Text("Groups") }
+                entraTab.padding(8).tabItem { Text("Entra roles") }
+                azureTab.padding(8).tabItem { Text("Azure resources") }
+                groupsTab.padding(8).tabItem { Text("Groups") }
             }
             HStack {
                 Spacer()

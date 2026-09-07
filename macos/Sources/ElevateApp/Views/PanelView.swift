@@ -24,9 +24,10 @@ struct PanelView: View {
             header
             Divider()
             Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
+                // No counts in the segments: the Active now header and the tenant rows already
+                // count, and a number here made the segments change width with every activation.
                 ForEach(PanelTab.allCases, id: \.self) { tab in
-                    let n = model.activeCount(for: tab)
-                    Text(n > 0 ? "\(tab.title) \(n)" : tab.title).tag(tab)
+                    Text(tab.title).tag(tab)
                 }
             }
             .pickerStyle(.segmented)

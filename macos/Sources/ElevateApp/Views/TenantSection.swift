@@ -57,6 +57,7 @@ struct TenantHeader: View {
 /// The rows for one tenant: its roles or an empty-state caption. Errors live in the header pill.
 struct TenantRoles: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
     private var roles: [EligibleRole] { model.roles(for: tenant.id, tab: model.panelTab) }
 
@@ -67,8 +68,18 @@ struct TenantRoles: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, PanelMetrics.roleInset).padding(.trailing, PanelMetrics.trailingInset).padding(.vertical, 6)
             } else if roles.isEmpty {
-                Text(emptyText).font(.caption).foregroundStyle(.secondary)
-                    .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
+                HStack(spacing: 8) {
+                    Text(emptyText).font(.caption).foregroundStyle(.secondary)
+                    if tenant.discoveryMode == .manualRoles {
+                        // The fix for "No roles configured." should not hide two clicks away in the menu.
+                        Button("Configure…") {
+                            openWindow(value: PanelRoute.configureRoles(tenant.id))
+                            NSApp.activate(ignoringOtherApps: true)
+                        }
+                        .buttonStyle(.borderless).controlSize(.small)
+                    }
+                }
+                .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
             ForEach(roles) { role in RoleRow(role: role) }
         }
@@ -110,8 +121,10 @@ struct TenantPills: View {
 
     var body: some View {
         if tenant.discoveryMode == .manualRoles {
-            Text("manual roles").font(.caption2).padding(.horizontal, 5).padding(.vertical, 1)
-                .background(.orange.opacity(0.2), in: Capsule())
+            // Neutral: this is a mode the user chose, and orange beside the warning glyph read as a problem.
+            Text("manual roles").font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 5).padding(.vertical, 1)
+                .background(.quaternary, in: Capsule())
+                .help("Roles for this tenant are listed by hand; use the tenant menu to change them")
         }
         let issues = issues
         if !issues.isEmpty {
