@@ -1,42 +1,55 @@
 # Releasing Elevate
 
-Releases are cut by pushing one tag. `.github/workflows/release.yml` builds the
+Releases are cut by one workflow run. `.github/workflows/release.yml` moves the
+Unreleased changelog entries under the new version, tags `main`, builds the
 macOS app and the Windows app from that commit, publishes a single GitHub
 Release "Elevate x.y.z" with the DMG, the x64 and arm64 MSIs and their SHA-256
-files, and updates the Homebrew cask on `main`. Both apps carry the same version
+files, and commits the Homebrew cask to `main`. Both apps carry the same version
 number; a platform without code changes since the last release is simply rebuilt.
 
 ## Cutting a release
 
-1. Make sure `main` is green (the macOS and Windows workflows) and holds
-   everything the release should contain.
-2. Move the entries under `## [Unreleased]` in [../CHANGELOG.md](../CHANGELOG.md)
-   to a new `## [x.y.z] - YYYY-MM-DD` heading, update the comparison links at the
-   bottom, and commit that before tagging. The release notes quote that section.
-3. Tag and push:
+1. Make sure everything the release should contain is merged, and that
+   [../CHANGELOG.md](../CHANGELOG.md) has its notes under `## [Unreleased]`.
+   The workflow refuses to cut a release with an empty Unreleased section.
+2. Actions → Release → *Run workflow*, enter the version without the leading
+   `v` (for example `1.2.7`), and run it on `main`. That run:
+   - checks that the latest macOS and Windows CI runs on `main` passed, and
+     stops if one failed or is still running;
+   - runs `scripts/cut-changelog.sh` to move the Unreleased entries to
+     `## [x.y.z] - YYYY-MM-DD` and rewrite the comparison links;
+   - commits that to `main` as "Changelog: x.y.z" and pushes the tag `vx.y.z`.
+3. The tag push starts a second Release run, which builds, publishes and
+   commits the cask. Watch it under Actions → Release. When it finishes, the
+   release is at `https://github.com/FrodeHus/elevate/releases/tag/vx.y.z`, the
+   cask bump is on `main`, and the generated winget manifest is a workflow
+   artifact named `winget-manifest`.
+4. Manual checklist after the run finishes: toggle Launch at login on the DMG
+   build and confirm it registers; run one MSI on a Windows machine and
+   confirm SmartScreen's "Run anyway" opens the app.
 
-   ```bash
-   git tag v1.2.0
-   git push origin v1.2.0
-   ```
-
-   The tag must start with `v`; the version in the release, the DMG and MSI
-   names, the cask and the winget manifest is the tag without it
-   (`v1.2.0` → `1.2.0`).
-4. Watch the run under Actions → Release. When it finishes, the release is at
-   `https://github.com/FrodeHus/elevate/releases/tag/v1.2.0` and the generated
-   winget manifest is a workflow artifact named `winget-manifest`.
-5. Manual checklist after the run finishes: toggle Launch at login on the
-   ad-hoc DMG build and confirm it registers; run one MSI on a Windows machine
-   and confirm SmartScreen's "Run anyway" opens the app.
+Pushing a `v*` tag by hand still works and skips step 2; cut the changelog
+yourself first, with `scripts/cut-changelog.sh <version>` on a pull request.
 
 To redo a release, delete the tag and the GitHub Release, then push the tag
 again — the workflow always overwrites its own assets but `gh release create`
 fails if the release already exists.
 
+### The deploy key
+
+Both pushes to `main` (the changelog commit and the cask bump) and the tag push
+use the `RELEASE_DEPLOY_KEY` repository secret: the private half of a deploy key
+with write access. The `main` ruleset lists *Deploy keys* as a bypass actor, which
+is what lets the workflow commit without a pull request; the workflow token has
+no such bypass, and a tag it pushed would not start a workflow run anyway. To
+rotate it, generate a new key pair, add the public half under Settings → Deploy
+keys with write access, and replace the secret.
+
 ## What the workflow does
 
-Three jobs. `macos` and `windows` run in parallel; `publish` waits for both.
+Four jobs. `prepare` runs only for a manual run and ends with the tag push;
+`macos` and `windows` run only for a tag push, in parallel, and `publish` waits
+for both.
 
 **macos** (`macos-26`, working directory `macos`):
 
@@ -76,8 +89,9 @@ Three jobs. `macos` and `windows` run in parallel; `publish` waits for both.
 3. Creates the GitHub Release with every asset attached.
 4. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
    `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
-   commits it to `main` as `github-actions[bot]` using the workflow token.
-   The `caveats` block is included only for unsigned builds.
+   commits it to `main` as `github-actions[bot]` over the deploy key, retrying
+   once or twice if main moved meanwhile. The `caveats` block is included only
+   for unsigned builds.
 
 The winget manifest is not submitted automatically: winget moderation requires
 signed installers, so submission waits for Azure Artifact Signing. Once releases
