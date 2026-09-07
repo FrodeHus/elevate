@@ -28,14 +28,17 @@ number; a platform without code changes since the last release is simply rebuilt
    build and confirm it registers; run one MSI on a Windows machine and
    confirm SmartScreen's "Run anyway" opens the app.
 
-Pushing a `v*` tag by hand still works and skips step 2; cut the changelog
-yourself first, with `scripts/cut-changelog.sh <version>` on a pull request.
+Pushing a `v*` tag by hand still works and skips step 2, as long as the tag
+points at a commit on `main` whose `CHANGELOG.md` already has the `## [x.y.z]`
+section: cut the changelog yourself with `scripts/cut-changelog.sh <version>` on
+a pull request, merge it, then tag the merge commit. A tag on any other commit
+is refused before the builds start.
 
 To redo a release, delete the tag and the GitHub Release, then push the tag
-again — the workflow always overwrites its own assets but `gh release create`
-fails if the release already exists.
+again, at a commit on `main` — the workflow always overwrites its own assets but
+`gh release create` fails if the release already exists.
 
-### The deploy key
+### The deploy key and the rulesets
 
 Both pushes to `main` (the changelog commit and the cask bump) and the tag push
 use the `RELEASE_DEPLOY_KEY` repository secret: the private half of a deploy key
@@ -45,11 +48,24 @@ no such bypass, and a tag it pushed would not start a workflow run anyway. To
 rotate it, generate a new key pair, add the public half under Settings → Deploy
 keys with write access, and replace the secret.
 
+A second ruleset, `release`, covers `refs/tags/v*` and forbids deleting or moving
+a release tag; it has the same two bypass actors (deploy keys and administrators),
+which is what lets a maintainer delete a tag to redo a release. Neither ruleset
+restricts who may create a `v*` tag, so the workflow's `check` job is what keeps
+a tag on another branch, or on a commit without its changelog section, away from
+the signing certificates, the release and the deploy key.
+
 ## What the workflow does
 
-Four jobs. `prepare` runs only for a manual run and ends with the tag push;
-`macos` and `windows` run only for a tag push, in parallel, and `publish` waits
-for both.
+Five jobs. `prepare` runs only for a manual run and ends with the tag push;
+`check`, `macos`, `windows` and `publish` run only for a tag push: `check` first,
+then `macos` and `windows` in parallel, and `publish` waits for both.
+
+**check** (`ubuntu-latest`):
+
+1. Checks that the tagged commit is on `main` and that `CHANGELOG.md` at that
+   commit has the `## [x.y.z]` section, and stops otherwise. Nothing is built,
+   signed or published for a tag that fails here.
 
 **macos** (`macos-26`, working directory `macos`):
 
@@ -82,14 +98,12 @@ for both.
 
 **publish** (`ubuntu-latest`):
 
-1. Checks that the tagged commit is on `main` and stops otherwise, so a tag on
-   another branch never reaches the release or the deploy key.
-2. Downloads both artifacts and reads the three hashes.
-3. Writes the notes: the changelog section for the version, then a macOS
+1. Downloads both artifacts and reads the three hashes.
+2. Writes the notes: the changelog section for the version, then a macOS
    section (notarized or the Open Anyway steps, the Homebrew sequence, the DMG
    hash) and a Windows section (signed or the SmartScreen step, the MSI hashes).
-4. Creates the GitHub Release with every asset attached.
-5. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
+3. Creates the GitHub Release with every asset attached.
+4. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
    `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
    commits it to `main` as `github-actions[bot]` over the deploy key, retrying
    once or twice if main moved meanwhile. The `caveats` block is included only
