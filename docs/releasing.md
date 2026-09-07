@@ -82,12 +82,14 @@ for both.
 
 **publish** (`ubuntu-latest`):
 
-1. Downloads both artifacts and reads the three hashes.
-2. Writes the notes: the changelog section for the version, then a macOS
+1. Checks that the tagged commit is on `main` and stops otherwise, so a tag on
+   another branch never reaches the release or the deploy key.
+2. Downloads both artifacts and reads the three hashes.
+3. Writes the notes: the changelog section for the version, then a macOS
    section (notarized or the Open Anyway steps, the Homebrew sequence, the DMG
    hash) and a Windows section (signed or the SmartScreen step, the MSI hashes).
-3. Creates the GitHub Release with every asset attached.
-4. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
+4. Creates the GitHub Release with every asset attached.
+5. Runs `scripts/update-cask.sh` on a checkout of `main`, which rewrites
    `Casks/elevate.rb` with the new version, SHA-256 and download URL, and
    commits it to `main` as `github-actions[bot]` over the deploy key, retrying
    once or twice if main moved meanwhile. The `caveats` block is included only
