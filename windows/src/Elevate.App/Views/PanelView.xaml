@@ -79,8 +79,17 @@
         </DataTemplate>
 
         <DataTemplate x:Key="NoteRowTemplate" x:DataType="views:NoteRow">
-            <TextBlock Text="{x:Bind Text, Mode=OneWay}" Margin="28,8,14,8" FontSize="12" TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Grid Margin="28,6,14,6" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{x:Bind Text, Mode=OneWay}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <!-- "No roles configured." for a manual-roles tenant offers the fix in place rather than two clicks away in the tenant menu. -->
+                <HyperlinkButton Grid.Column="1" Content="Configure…" Visibility="{x:Bind ConfigureVisibility, Mode=OneWay}" Click="OnNoteConfigure"
+                                 FontSize="12" Padding="4,0" VerticalAlignment="Center" ToolTipService.ToolTip="Choose the PIM roles you are eligible for in this tenant" />
+            </Grid>
         </DataTemplate>
 
         <!-- One request awaiting this user's decision, in the pinned "Approvals" group. -->
@@ -155,7 +164,8 @@
                         <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                         <TextBlock Text="home" Visibility="{x:Bind HomeVisibility, Mode=OneWay}" FontSize="11"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                        <views:Pill Text="manual roles" Visibility="{x:Bind ManualVisibility, Mode=OneWay}" Tooltip="Discovery is refused in this tenant; the roles are the ones you configured" Tint="Caution" />
+                        <!-- A mode the user chose, not a problem: the neutral tint. -->
+                        <views:Pill Text="manual roles" Visibility="{x:Bind ManualVisibility, Mode=OneWay}" Tooltip="Discovery is refused in this tenant; the roles are the ones you configured" />
                         <!-- One glyph for everything that limits the tenant: orange for limitations, red when discovery or refresh failed. Hover for the titles, click for the reasons. -->
                         <Button Style="{StaticResource SubtleButtonStyle}" Width="22" Height="22" Visibility="{x:Bind IssuesVisibility, Mode=OneWay}"
                                 Click="OnIssuesClick" ToolTipService.ToolTip="{x:Bind IssuesTooltip, Mode=OneWay}"
@@ -212,7 +222,7 @@
             </Border>
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
                 <ToggleButton x:Name="SearchToggle" Width="32" Height="32" Padding="0" Click="OnSearchToggle"
-                              ToolTipService.ToolTip="Filter roles and groups" AutomationProperties.Name="Search">
+                              AutomationProperties.Name="Search">
                     <FontIcon Glyph="&#xE721;" FontSize="14" />
                 </ToggleButton>
                 <ToggleButton x:Name="SelectToggle" Width="32" Height="32" Padding="0" Click="OnSelectToggle"
@@ -220,22 +230,23 @@
                     <FontIcon Glyph="&#xE762;" FontSize="14" />
                 </ToggleButton>
                 <Button x:Name="RefreshButton" Style="{StaticResource SubtleButtonStyle}" Width="32" Height="32" Padding="0"
-                        Click="OnRefresh" ToolTipService.ToolTip="Refresh" AutomationProperties.Name="Refresh">
+                        Click="OnRefresh" AutomationProperties.Name="Refresh">
                     <FontIcon Glyph="&#xE72C;" FontSize="14" />
                 </Button>
             </StackPanel>
         </Grid>
 
-        <!-- Pivots with activation counts: a segmented picker like the macOS panel -->
+        <!-- Pivots: a segmented picker like the macOS panel -->
         <views:SegmentedPivots Grid.Row="1" x:Name="Pivots" Margin="14,2,14,8" SelectionChanged="OnPivotChanged" />
 
         <!-- Profiles: one chip per saved profile; hidden when there are none -->
         <StackPanel Grid.Row="2" x:Name="ProfilesRow" Visibility="Collapsed" Padding="12,6,12,8" Spacing="6"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <!-- Sentence case and a plain button, matching the group headers. -->
             <Grid>
-                <TextBlock Text="PROFILES" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                <HyperlinkButton Content="Manage…" Click="OnManageProfiles" FontSize="12" Padding="4,0" HorizontalAlignment="Right" />
+                <TextBlock Text="Profiles" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Margin="2,0,0,0" />
+                <Button Content="Manage…" Click="OnManageProfiles" Style="{StaticResource SubtleButtonStyle}" FontSize="12" Padding="6,0" Height="24" MinHeight="24"
+                        HorizontalAlignment="Right" ToolTipService.ToolTip="Rename, reorder, edit and delete profiles" />
             </Grid>
             <ItemsRepeater x:Name="ProfileChips" ItemTemplate="{StaticResource ProfileChipTemplate}">
                 <ItemsRepeater.Layout>
@@ -270,9 +281,10 @@
                 <TextBlock Text="Complete initial setup" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
                 <TextBlock Text="Enter your app registration's client ID in Settings, or start with the Azure CLI app for Azure resource roles only."
                            FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <Button Content="Open Settings" Style="{StaticResource AccentButtonStyle}" Click="OnSettings" />
-                    <Button Content="Continue with the Azure CLI app" Click="OnContinueWithCli" />
+                <!-- One width for the stacked pair; the accent on the primary path only. -->
+                <StackPanel Spacing="8" HorizontalAlignment="Center" Width="264" Margin="0,4,0,0">
+                    <Button Content="Open Settings…" Style="{StaticResource AccentButtonStyle}" Click="OnSettings" HorizontalAlignment="Stretch" />
+                    <Button Content="Continue with the Azure CLI app" Click="OnContinueWithCli" HorizontalAlignment="Stretch" />
                 </StackPanel>
             </StackPanel>
 
@@ -332,7 +344,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <HyperlinkButton Grid.Column="0" Content="Add account…" Click="OnAddAccount" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <HyperlinkButton Grid.Column="2" Content="Settings…" Click="OnSettings" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton Grid.Column="2" x:Name="SettingsButton" Content="Settings…" Click="OnSettings" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <HyperlinkButton Grid.Column="4" Content="Quit" Click="OnQuit" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
     </Grid>

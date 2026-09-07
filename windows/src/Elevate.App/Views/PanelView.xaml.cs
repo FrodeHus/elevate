@@ -32,6 +32,14 @@ public sealed partial class PanelView : UserControl
         InitializeComponent();
         GroupedSource.Source = _groups;
         ProfileChips.ItemsSource = _chips;
+        // The comma key has no VirtualKey member: 0xBC is VK_OEM_COMMA.
+        Accelerate(SearchToggle, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", () =>
+        {
+            SearchToggle.IsChecked = SearchToggle.IsChecked != true;
+            OnSearchToggle(SearchToggle, new RoutedEventArgs());
+        });
+        Accelerate(RefreshButton, Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, "Refresh (F5)", () => OnRefresh(RefreshButton, new RoutedEventArgs()));
+        Accelerate(SettingsButton, (Windows.System.VirtualKey)0xBC, Windows.System.VirtualKeyModifiers.Control, "Settings (Ctrl+,)", () => App.Current.OpenSettings());
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
@@ -82,6 +90,24 @@ public sealed partial class PanelView : UserControl
             }
         };
         Refresh();
+    }
+
+    /// <summary>A window-wide shortcut for a flyout control, named in the control's tooltip (plain buttons show no accelerator text of their own).</summary>
+    private static void Accelerate(Control element, Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers, string tooltip, Action action)
+    {
+        var accelerator = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
+        accelerator.Invoked += (_, e) =>
+        {
+            if (!element.IsEnabled)
+            {
+                return;
+            }
+
+            action();
+            e.Handled = true;
+        };
+        element.KeyboardAccelerators.Add(accelerator);
+        ToolTipService.SetToolTip(element, tooltip);
     }
 
     // MARK: Drawing
@@ -145,9 +171,6 @@ public sealed partial class PanelView : UserControl
             UpdateBar.IsOpen = false;
         }
 
-        Pivots.SetCount(PanelTab.Roles, model.ActiveCount(PanelTab.Roles));
-        Pivots.SetCount(PanelTab.Azure, model.ActiveCount(PanelTab.Azure));
-        Pivots.SetCount(PanelTab.Groups, model.ActiveCount(PanelTab.Groups));
         SyncPivot(model.PanelTab);
 
         var setup = !model.IsConfigured && model.Identities.Count == 0;
@@ -436,6 +459,14 @@ public sealed partial class PanelView : UserControl
         if (ApprovalOf(sender) is { } row)
         {
             App.Current.OpenDecision(row.RequestId, approve: false);
+        }
+    }
+
+    private void OnNoteConfigure(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is NoteRow { ConfigureTenant: { } key })
+        {
+            App.Current.OpenConfigureRoles(key);
         }
     }
 

@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   active assignments in Entra are never changed by them.
 - Windows: Settings applies the client ID on Enter or when the field loses focus, still behind the
   "Sign out and change" confirmation; the Save button is gone.
+- Windows: the flyout answers Ctrl+F (filter), F5 (refresh) and Ctrl+, (Settings), named in the
+  tooltips; the Entra / Azure / Groups segments no longer carry active counts (the Active now
+  header and the tenant rows keep theirs); the Profiles row has a plain section label and a
+  Manage… button; the "manual roles" pill is neutral; "No roles configured." offers Configure…
+  inline; the setup buttons share one width, with the accent on Open Settings… only.
 
 ### Fixed
 
