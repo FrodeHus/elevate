@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS: durations read as units ("2 h 41 min", "46 min", "< 1 min") instead of HH:MM, in the
+  Active now rows, approvals, the decision sheet, Save profile, Run profile and the activation
+  notification.
+- macOS: account rows lead with the person's name; the address, tenant and "home" marker are the
+  caption. The sign-in method moved to a tooltip on the account glyph and a heading in the account
+  menu. "Sign-in needed" is a warning glyph beside the Sign in button instead of a pill.
+- macOS: every task window names its task in the title bar (Add account, Activate 3 roles, Deny
+  request, …) and no longer repeats a heading inside.
+- macOS: Settings applies the client ID on Return or when the field loses focus, still behind the
+  "Sign out and change" confirmation; the Save button is gone.
+- macOS: Sign out, Remove tenant and Delete profile ask first and say what Elevate forgets; active
+  assignments in Entra are never changed by them.
+- macOS: the panel answers ⌘F (filter), ⌘R (refresh), ⌘, (Settings) and ⌘Q (Quit).
+- macOS: the bulk activation sheet lays each tenant out as a grid, so role names take the width
+  the picker and labels leave instead of truncating.
+- macOS: the Entra / Azure / Groups segments no longer carry active counts; the Active now header
+  and the tenant rows keep theirs.
+- macOS: the Profiles row has a plain section label and a Manage… button; Manage profiles drops
+  the drag-handle glyph; the "manual roles" pill is neutral with a tooltip; "No roles configured."
+  offers Configure… inline; the decision sheet aligns its labels; Configure roles insets its tabs;
+  the setup buttons share one width.
+
+### Fixed
+
+- macOS: VoiceOver reads the state of each role's status dot ("Active", "Awaiting approval", …)
+  and names the role on select-mode checkboxes. Pending states are orange rather than a yellow
+  that vanished on a light background; small green and orange text became secondary text or a
+  pill; the tenant · account captions are one size larger; collapse animations respect Reduce
+  Motion; role names no longer wrap in select mode.
+
 ## [1.2.6] - 2026-09-07
 
 ### Changed
