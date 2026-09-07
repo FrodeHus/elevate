@@ -1,0 +1,95 @@
+name: CLI
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["cli/**", "windows/src/Elevate.Core/**", ".github/workflows/cli.yml"]
+  pull_request:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Pull requests always run this workflow so its jobs exist as required status checks. This job
+  # reads the diff and the real jobs skip when nothing relevant changed; a skipped job counts as
+  # passing for a ruleset, whereas a workflow filtered out by `paths` never reports and leaves the
+  # pull request stuck on a pending check. Pushes to main keep the path filter above.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "$BASE" "$HEAD" | grep -Eq '^(cli/|windows/src/Elevate\.Core/|\.github/workflows/cli\.yml)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The CLI must run on Linux, macOS and Windows: the tests run on all three, and each runner
+  # publishes the self-contained binary for its own platform and starts it once.
+  test:
+    name: Build and test (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux, rid: linux-x64 }
+          - { os: macos-latest, name: macos, rid: osx-arm64 }
+          - { os: windows-latest, name: windows, rid: win-x64 }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: cli/global.json
+
+      - name: Restore
+        run: dotnet restore cli/Elevate.Cli.sln
+
+      - name: Build
+        run: dotnet build cli/Elevate.Cli.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test cli/Elevate.Cli.sln --no-build -c Release --logger "trx;LogFileName=results.trx"
+
+      - name: Publish and start the single-file binary
+        shell: bash
+        run: |
+          ./cli/package.sh publish 0.0.0 "${{ matrix.rid }}"
+          ./cli/package.sh archive 0.0.0 "${{ matrix.rid }}"
+          exe="cli/dist/${{ matrix.rid }}/elevate"; [ -f "$exe" ] || exe="$exe.exe"
+          # The published file is trimmed; these exercise JSON both ways, tables and the state
+          # file, so a dependency that mis-declares itself trimmable fails here, not on a user.
+          "$exe" --version
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" config path
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" catalogue reader --json | grep -q '"templateId"'
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" catalogue reader --no-color | grep -q "Global Reader"
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" profiles import --from windows/tests/Elevate.Core.Tests/Fixtures/state-macos.json
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" profiles --json | grep -q '"name"'
+          "$exe" --data-dir "$RUNNER_TEMP/elevate-cli" diagnostics | grep -q "Elevate Diagnostics"
+          "$exe" completion bash > /dev/null
+          ls -la cli/dist/*.sha256
+
+      - name: Test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.name }}
+          path: "**/TestResults/*.trx"

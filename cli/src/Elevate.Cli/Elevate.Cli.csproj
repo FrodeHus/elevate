@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>elevate</AssemblyName>
+    <RootNamespace>Elevate.Cli</RootNamespace>
+    <!-- Overridden by the release workflow (Version=x.y.z); printed by the version option. -->
+    <Version>0.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <!-- `dotnet publish -r <rid>`: one self-contained file per platform, pre-compiled for a fast
+       start. Native AOT is not used because Elevate.Core serialises with reflection-based
+       System.Text.Json; single-file with ReadyToRun starts in well under a second. A plain
+       `dotnet build` or `dotnet test` stays framework-dependent and RID-neutral. -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
+    <!-- Partial trimming removes unused framework code (93 MB to about a third) and touches
+         only assemblies that declare themselves trimmable; Elevate.Core and Elevate.Cli are
+         kept whole, so the reflection-based System.Text.Json over their types keeps working.
+         Trimming flips the JSON reflection default off, hence the switch below. IL2026 is
+         the analyzer noting those reflection calls; they are safe for the reason above. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <NoWarn>$(NoWarn);IL2026;IL2104;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Elevate.Cli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.88.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.88.0" />
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+    <PackageReference Include="System.CommandLine" Version="2.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\windows\src\Elevate.Core\Elevate.Core.csproj" />
+  </ItemGroup>
+
+</Project>

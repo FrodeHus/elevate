@@ -1,11 +1,11 @@
 name: Release
 
-# One tag, one release, both platforms. Pushing `v<version>` builds the macOS DMG and the Windows
-# MSIs from the same commit, then publishes a single GitHub Release "Elevate <version>" with every
-# asset, the changelog section for that version and the install instructions for both platforms,
-# and commits the Homebrew cask to main. The tagged commit must be on main and its CHANGELOG.md
-# must already have the section for that version; the check job refuses anything else before a
-# build starts.
+# One tag, one release, every platform. Pushing `v<version>` builds the macOS DMG, the Windows
+# MSIs and the CLI archives (Linux, macOS and Windows, x64 and arm64) from the same commit, then
+# publishes a single GitHub Release "Elevate <version>" with every asset, the changelog section
+# for that version and the install instructions, and commits the Homebrew cask and formula to
+# main. The tagged commit must be on main and its CHANGELOG.md must already have the section for
+# that version; the check job refuses anything else before a build starts.
 #
 # Running the workflow by hand with a version does the steps before the tag as well: it checks
 # that main is green, moves the Unreleased changelog entries under the new version, commits that
@@ -60,7 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for wf in macos.yml windows.yml; do
+          for wf in macos.yml windows.yml cli.yml; do
             run="$(gh run list --workflow "$wf" --branch main --event push --limit 1 --json status,conclusion,headSha,url --jq '.[0]')"
             if [ -z "$run" ] || [ "$run" = "null" ]; then echo "$wf: no run on main yet"; continue; fi
             status="$(jq -r .status <<<"$run")"; conclusion="$(jq -r .conclusion <<<"$run")"; url="$(jq -r .url <<<"$run")"
@@ -377,9 +377,154 @@ jobs:
           name: winget-manifest
           path: windows/winget/manifests
 
+  # The CLI: one self-contained single-file binary per platform, built on that platform's runner
+  # so the macOS and Windows binaries can be signed with the same secrets as the apps (a plain
+  # `dotnet publish` could cross-compile all six from one machine, but not sign them). Each
+  # archive holds just the executable; the .sha256 next to it feeds the formula and the manifest.
+  cli:
+    name: CLI (${{ matrix.name }})
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux, rids: "linux-x64 linux-arm64" }
+          - { os: macos-26, name: macos, rids: "osx-arm64 osx-x64" }
+          - { os: windows-latest, name: windows, rids: "win-x64 win-arm64" }
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: cli/global.json
+
+      - name: Version
+        shell: bash
+        run: echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: dotnet test cli/Elevate.Cli.sln -c Release
+
+      - name: Publish
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./cli/package.sh publish "$VERSION" "$rid"
+          done
+
+      # macOS: Developer ID signature with hardened runtime and a notarization ticket, the same
+      # secrets as the app. A bare binary cannot be stapled; Gatekeeper checks the ticket online.
+      - name: Detect macOS signing secrets
+        if: matrix.name == 'macos'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$P12" ]; then echo "HAVE_CERT=1" >> "$GITHUB_ENV"; else echo "Developer ID secrets not configured; publishing unsigned macOS binaries."; fi
+
+      - name: Sign and notarize (macOS)
+        if: matrix.name == 'macos' && env.HAVE_CERT == '1'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "$P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm -f cert.p12
+          for rid in ${{ matrix.rids }}; do
+            bin="cli/dist/$rid/elevate"
+            codesign --force --options runtime --timestamp -s "Developer ID Application" "$bin"
+            codesign --verify --strict --verbose=2 "$bin"
+            ditto -c -k --keepParent "$bin" "notarize-$rid.zip"
+            xcrun notarytool submit "notarize-$rid.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            rm -f "notarize-$rid.zip"
+          done
+
+      # Windows: Azure Artifact Signing, the same secrets and client as the MSIs.
+      - name: Detect Windows signing secrets
+        if: matrix.name == 'windows'
+        shell: pwsh
+        env:
+          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+        run: |
+          if ($env:ENDPOINT) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned Windows binaries." }
+
+      - name: Azure login for signing
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign (Windows)
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        shell: pwsh
+        env:
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: |
+          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
+          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $metadata = Join-Path $env:RUNNER_TEMP "signing.json"
+          @{ Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT; CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT; CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_PROFILE } | ConvertTo-Json | Set-Content $metadata
+          foreach ($rid in "${{ matrix.rids }}".Split(' ')) {
+            & $signtool.FullName sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib.FullName /dmdf $metadata "cli/dist/$rid/elevate.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $rid" }
+          }
+
+      - name: Archive
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./cli/package.sh archive "$VERSION" "$rid"
+          done
+          ls -la cli/dist
+
+      - name: winget manifest (CLI)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "cli/dist/elevate-cli-$env:VERSION-win-x64.zip.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "cli/dist/elevate-cli-$env:VERSION-win-arm64.zip.sha256").Split(' ')[0]
+          ./cli/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
+          winget validate --manifest "cli/winget/manifests/r/Reothor/Elevate.CLI/$env:VERSION"
+
+      - name: Upload archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.name }}
+          path: |
+            cli/dist/elevate-cli-*.tar.gz
+            cli/dist/elevate-cli-*.zip
+            cli/dist/elevate-cli-*.sha256
+          if-no-files-found: error
+
+      # Like the app's manifest: kept as an artifact until releases are signed, then submitted by hand.
+      - name: Manifest artifact (CLI)
+        if: matrix.name == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: winget-cli-manifest
+          path: cli/winget/manifests
+
   publish:
     name: Publish release
-    needs: [macos, windows]
+    needs: [macos, windows, cli]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.ref_name }}
@@ -400,12 +545,21 @@ jobs:
           name: windows
           path: dist
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: cli-*
+          path: dist
+          merge-multiple: true
+
       - name: Versions and hashes
         run: |
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
           echo "DMG_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}.dmg.sha256")" >> "$GITHUB_ENV"
           echo "X64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-x64.msi.sha256")" >> "$GITHUB_ENV"
           echo "ARM64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-arm64.msi.sha256")" >> "$GITHUB_ENV"
+          # One checksums file for the six CLI archives, the usual shape for `sha256sum -c`.
+          (cd dist && for f in elevate-cli-*.sha256; do printf '%s  %s\n' "$(cut -d' ' -f1 "$f")" "${f%.sha256}"; done) > "dist/elevate-cli-${TAG#v}-checksums.txt"
+          cat "dist/elevate-cli-${TAG#v}-checksums.txt"
 
       - name: Release notes
         run: |
@@ -448,6 +602,22 @@ jobs:
             echo "SHA-256:"
             echo "- x64: \`$X64_SHA256\`"
             echo "- arm64: \`$ARM64_SHA256\`"
+            echo
+            echo "## CLI (Linux, macOS, Windows)"
+            echo
+            echo 'One self-contained `elevate` binary per platform, no runtime to install. Homebrew (macOS and Linux):'
+            echo
+            echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
+            echo '    brew trust frodehus/elevate'
+            echo '    brew install frodehus/elevate/elevate-cli'
+            echo
+            echo 'Windows: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo
+            echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
+            if [ "$MAC_SIGNED" != "1" ]; then
+              echo
+              echo 'The macOS binary is not signed; if Gatekeeper blocks a browser download, run `xattr -d com.apple.quarantine elevate`. Homebrew downloads carry no quarantine flag.'
+            fi
           } > notes.md
           cat notes.md
 
@@ -462,6 +632,10 @@ jobs:
           "dist/Elevate-$VERSION-x64.msi.sha256"
           "dist/Elevate-$VERSION-arm64.msi"
           "dist/Elevate-$VERSION-arm64.msi.sha256"
+          dist/elevate-cli-$VERSION-*.tar.gz
+          dist/elevate-cli-$VERSION-*.zip
+          dist/elevate-cli-$VERSION-*.sha256
+          "dist/elevate-cli-$VERSION-checksums.txt"
           --title "Elevate $VERSION" --notes-file notes.md
 
       - name: Configure the deploy key
@@ -475,9 +649,10 @@ jobs:
           echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/release_key -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
           git remote set-url origin "git@github.com:${{ github.repository }}.git"
 
-      # The deploy key bypasses the pull-request requirement on main, so the cask lands directly.
-      # A retry covers a commit that reached main while this run was building.
-      - name: Update the cask on main
+      # The deploy key bypasses the pull-request requirement on main, so the cask and the CLI
+      # formula land directly, in one commit. A retry covers a commit that reached main while
+      # this run was building.
+      - name: Update the cask and the formula on main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -485,13 +660,14 @@ jobs:
             git fetch origin main
             git checkout -B release-cask origin/main
             ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
-            if git diff --quiet -- Casks/elevate.rb; then
-              echo "Cask already up to date."
+            ./scripts/update-formula.sh "$VERSION" "${{ github.repository }}" dist
+            if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb; then
+              echo "Cask and formula already up to date."
               exit 0
             fi
-            git add Casks/elevate.rb
-            git commit -m "Cask: Elevate $VERSION"
+            git add Casks/elevate.rb Formula/elevate-cli.rb
+            git commit -m "Cask and formula: Elevate $VERSION"
             if git push origin HEAD:main; then exit 0; fi
             echo "Push rejected (attempt $attempt); refetching main."
           done
-          echo "::error::Could not push the cask update to main"; exit 1
+          echo "::error::Could not push the cask and formula update to main"; exit 1

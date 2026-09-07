@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CLI: `elevate`, a command-line counterpart for Linux, macOS and Windows built on the same
+  Core as the Windows app. Sign in with any of the four methods through the browser or a device
+  code; list roles, activate, extend, deactivate and cancel; save, run and import profiles;
+  approve and deny requests; manage tenants and manual roles; `--json` output and exit codes for
+  scripts; shell completion. Installed with Homebrew (`frodehus/elevate/elevate-cli`), winget
+  (`Reothor.Elevate.CLI`, manifest prepared) or as a single binary from the release.
+
 ### Changed
 
 - Windows: the installer dialogs show the Elevate icon on a navy side panel and in the banner

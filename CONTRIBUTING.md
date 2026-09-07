@@ -21,6 +21,11 @@ Windows app (`windows/`):
 - **WiX 5.0.2** (`dotnet tool install --global wix --version 5.0.2`) only to build the MSI; WiX 6
   and 7 require accepting a maintenance-fee EULA and are not used.
 
+CLI (`cli/`):
+
+- The **.NET 10 SDK** on Linux, macOS or Windows; nothing else. The solution references
+  `windows/src/Elevate.Core` directly.
+
 Either app: to sign in from a local build, an Entra app registration; see
 [docs/entra-app-registration.md](docs/entra-app-registration.md). Only the own-app method needs
 one. The Azure CLI and Azure PowerShell methods need no registration, but they cover Azure
@@ -38,6 +43,19 @@ src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --
 `dotnet test Elevate.sln` runs the Core and App suites; both must pass with warnings as errors.
 [windows/README.md](windows/README.md) has the developer switches and the installer steps,
 [windows/CONTINUING.md](windows/CONTINUING.md) the rulings and gotchas.
+
+## Build and run (CLI)
+
+```bash
+cd cli
+dotnet test Elevate.Cli.sln
+dotnet run --project src/Elevate.Cli -- --help
+./package.sh publish 0.0.0 linux-x64    # a self-contained single file in dist/linux-x64 (any RID works on any OS)
+```
+
+[cli/README.md](cli/README.md) has the command reference, the data directory and the packaging
+steps. Point a development build at a scratch directory with `--data-dir` so it never touches your
+real accounts.
 
 ## Build and run (macOS)
 
@@ -71,7 +89,16 @@ same `-derivedDataPath build` replaces your signed Debug app with an unsigned on
 sign-in then reports "Unavailable on unsigned builds". Use a separate path, e.g.
 `-derivedDataPath build-unsigned`, when you want an unsigned test run locally.
 
-Both suites must pass before a pull request is merged.
+Elevate.Cli.Tests (the CLI):
+
+```bash
+cd cli
+dotnet test Elevate.Cli.sln
+```
+
+CI runs it on Ubuntu, macOS and Windows ([.github/workflows/cli.yml](.github/workflows/cli.yml)).
+
+All suites must pass before a pull request is merged.
 
 ## Constraints this repository keeps
 
@@ -80,6 +107,10 @@ Both suites must pass before a pull request is merged.
 - **`Elevate.Core` is a straight port of ElevateCore** with no Windows, WinUI or MSAL reference;
   the app model lives in `Elevate.App.Model` so it stays testable without a window. Port a Core
   change to both platforms in the same pull request, with the same fixtures.
+- **The CLI adds nothing to Core.** `Elevate.Cli` consumes `Elevate.Core` as is; anything the CLI
+  needs from Core is a Core change, ported to Swift too. The CLI's own logic (auth over MSAL
+  without a broker, the headless session, parsing, rendering) stays under `cli/`. It must build and
+  its tests must pass on Linux, macOS and Windows.
 - **Swift 6 strict concurrency.** The package builds in Swift language mode 6; do not silence
   concurrency diagnostics to get a change through.
 - **Swift Testing** (`import Testing`, `@Test`, `#expect`) for new tests, not XCTest.
@@ -88,8 +119,8 @@ Both suites must pass before a pull request is merged.
 - **Never commit a real client id, tenant id, token or account name** — not in code, tests,
   fixtures, screenshots or issue text. Client ids are configured at runtime in Settings.
 - Keep documentation next to the change: user-visible behaviour in `README.md`,
-  `macos/README.md` or `windows/README.md`, notable changes in [CHANGELOG.md](CHANGELOG.md)
-  under `## [Unreleased]`.
+  `macos/README.md`, `windows/README.md` or `cli/README.md`, notable changes in
+  [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`.
 
 ## Pull requests
 
@@ -113,7 +144,7 @@ Commit the regenerated JSON together with a note of when it was refreshed.
 
 ## Releases
 
-Releases are tag-driven: pushing a `v*` tag builds both apps from that commit, publishes one
-GitHub Release with the DMG and the MSIs, and updates the Homebrew cask. Both apps share the
-version number. Maintainers only — the full procedure, including the optional signing secrets,
-is in [docs/releasing.md](docs/releasing.md).
+Releases are tag-driven: pushing a `v*` tag builds both apps and the CLI from that commit,
+publishes one GitHub Release with the DMG, the MSIs and the CLI archives, and updates the
+Homebrew cask and formula. All three share the version number. Maintainers only — the full
+procedure, including the optional signing secrets, is in [docs/releasing.md](docs/releasing.md).
