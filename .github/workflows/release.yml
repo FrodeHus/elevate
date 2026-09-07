@@ -273,7 +273,7 @@ jobs:
         run: shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
 
       - name: Upload DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos
           path: |
@@ -293,7 +293,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: windows/global.json
 
@@ -326,7 +326,7 @@ jobs:
 
       - name: Azure login for signing
         if: env.SIGN == '1'
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -361,7 +361,7 @@ jobs:
           winget validate --manifest "windows/winget/manifests/r/Reothor/Elevate/$env:VERSION"
 
       - name: Upload MSIs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows
           path: |
@@ -372,7 +372,7 @@ jobs:
       # The manifest is kept as an artifact for a later submission to microsoft/winget-pkgs; winget
       # moderation requires signed installers, so nothing is submitted automatically.
       - name: Manifest artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: winget-manifest
           path: windows/winget/manifests
@@ -390,12 +390,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macos
           path: dist
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: windows
           path: dist
