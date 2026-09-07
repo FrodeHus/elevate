@@ -22,10 +22,11 @@
                 <CheckBox Grid.Column="0" MinWidth="0" Padding="0" Margin="0,0,-4,0" VerticalAlignment="Center"
                           Visibility="{x:Bind SelectVisibility, Mode=OneWay}" IsChecked="{x:Bind Selected, Mode=OneWay}"
                           IsEnabled="{x:Bind SelectEnabled, Mode=OneWay}" Click="OnSelectClick"
-                          ToolTipService.ToolTip="{x:Bind ViewOnlyReason, Mode=OneWay}" AutomationProperties.Name="Select role" />
+                          ToolTipService.ToolTip="{x:Bind ViewOnlyReason, Mode=OneWay}" AutomationProperties.Name="{x:Bind SelectLabel, Mode=OneWay}" />
                 <views:StatusDot Grid.Column="1" Status="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
-                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontSize="14" />
+                    <!-- One line with trimming, in select mode too; the tenant · account caption below keeps the 12 px caption size. -->
+                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontSize="14" />
                     <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                                ToolTipService.ToolTip="{x:Bind DetailTooltip, Mode=OneWay}" />

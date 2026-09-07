@@ -8,6 +8,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 
 namespace Elevate.App.Views;
 
@@ -34,6 +35,34 @@ public sealed partial class PanelView : UserControl
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
+        ApplyMotionSetting();
+        var queue = DispatcherQueue;
+        _uiSettings.AnimationsEnabledChanged += (_, _) => queue.TryEnqueue(ApplyMotionSetting);
+    }
+
+    private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
+    private readonly TransitionCollection _listTransitions = [];
+
+    /// <summary>
+    /// Reduce Motion: with animations off in Settings > Accessibility, rows appear and disappear
+    /// without the slide when a group collapses or a refresh reorders the list.
+    /// </summary>
+    private void ApplyMotionSetting()
+    {
+        if (_uiSettings.AnimationsEnabled)
+        {
+            if (_listTransitions.Count == 0)
+            {
+                _listTransitions.Add(new AddDeleteThemeTransition());
+                _listTransitions.Add(new ReorderThemeTransition());
+            }
+
+            List.ItemContainerTransitions = _listTransitions;
+        }
+        else
+        {
+            List.ItemContainerTransitions = [];
+        }
     }
 
     public void Bind(AppModel model, FlyoutWindow window)

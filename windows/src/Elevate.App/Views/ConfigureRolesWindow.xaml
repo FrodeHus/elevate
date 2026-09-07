@@ -19,9 +19,12 @@
                         <TextBlock Text="{x:Bind DisplayName}" />
                         <TextBlock Text="{x:Bind Description}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
+                    <!-- A tinted pill with primary text: small red-on-pink text fell under 3:1 on the light ground. -->
                     <Border Grid.Column="2" Visibility="{x:Bind PrivilegedVisibility}" CornerRadius="9" Padding="7,1" VerticalAlignment="Top" Margin="0,2,0,0"
-                            Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
-                        <TextBlock Text="Privileged" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                            Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}"
+                            ToolTipService.ToolTip="A privileged role: activating it is more likely to need approval or a ticket"
+                            AutomationProperties.Name="Privileged">
+                        <TextBlock Text="Privileged" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     </Border>
                 </Grid>
             </DataTemplate>

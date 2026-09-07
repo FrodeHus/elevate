@@ -181,6 +181,9 @@ public sealed class RoleRow : PanelItem
 
     public Visibility SelectVisibility => SelectMode ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>"Select Global Reader": the checkbox names its role, not a generic "Select role".</summary>
+    public string SelectLabel => $"Select {Name}";
+
     public Visibility ViewOnlyVisibility => Status == RowStatus.None && ViewOnlyReason is not null && !SelectMode ? Visibility.Visible : Visibility.Collapsed;
 
     public Brush CountdownBrush => (Brush)Application.Current.Resources[CountdownSoon ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
