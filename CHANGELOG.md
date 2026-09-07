@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-07
+
 ### Added
 
 - CLI: `elevate`, a command-line counterpart for Linux, macOS and Windows built on the same
@@ -269,7 +271,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.2.9...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/FrodeHus/elevate/compare/v1.2.9...v1.3.0
 [1.2.9]: https://github.com/FrodeHus/elevate/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/FrodeHus/elevate/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/FrodeHus/elevate/compare/v1.2.6...v1.2.7
