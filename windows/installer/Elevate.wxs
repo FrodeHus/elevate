@@ -62,6 +62,9 @@
 
     <ui:WixUI Id="WixUI_Minimal" />
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <!-- App-branded artwork: the side panel on the welcome/exit pages and the strip on the others. -->
+    <WixVariable Id="WixUIDialogBmp" Value="Assets\Dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="Assets\Banner.bmp" />
     <UI>
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchElevate"
                Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
