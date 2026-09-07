@@ -11,9 +11,9 @@ struct ProfilesRow: View {
         if !model.profiles.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("PROFILES").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text("Profiles").font(.subheadline.weight(.semibold))
                     Spacer()
-                    Button("Manage…") { open(.manageProfiles) }.buttonStyle(.plain).font(.caption).foregroundStyle(Color.accentColor)
+                    Button("Manage…") { open(.manageProfiles) }.buttonStyle(.borderless).controlSize(.small)
                 }
                 FlowLayout(spacing: 6) {
                     ForEach(model.profiles) { p in

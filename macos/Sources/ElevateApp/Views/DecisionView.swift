@@ -57,15 +57,23 @@ struct DecisionView: View {
     }
 
     @ViewBuilder private func details(_ r: ApprovalRequest) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            LabeledContent("Requester") { Text(r.requesterName) }
-            LabeledContent("Role") { Text(r.scopeCaption.map { "\(r.targetName) · \($0)" } ?? r.targetName) }
-            LabeledContent("Tenant") { Text(model.tenant(r.tenantKey)?.displayName ?? r.tenantKey.tenantId) }
-            if let d = r.requestedDuration { LabeledContent("Duration") { Text(Countdown.label(d)) } }
-            LabeledContent("Reason") { Text(r.justification ?? "No reason given") }
+        // A grid, not stacked LabeledContent: the labels line up in one column and the values on one edge.
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 4) {
+            detailRow("Requester", r.requesterName)
+            detailRow("Role", r.scopeCaption.map { "\(r.targetName) · \($0)" } ?? r.targetName)
+            detailRow("Tenant", model.tenant(r.tenantKey)?.displayName ?? r.tenantKey.tenantId)
+            if let d = r.requestedDuration { detailRow("Duration", Countdown.label(d)) }
+            detailRow("Reason", r.justification ?? "No reason given")
         }
         .font(.callout)
         .textSelection(.enabled)
+    }
+
+    private func detailRow(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+            Text(value).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func submit(_ request: ApprovalRequest) async {

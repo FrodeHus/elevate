@@ -14,11 +14,16 @@ struct SetupView: View {
                 Text("This build is unsigned, so your own registration signs in through the browser: register http://localhost under Mobile and desktop applications rather than the msauth.… redirect.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
-            SettingsLink { Text("Open Settings…") }.buttonStyle(.borderedProminent)
-            Button("Continue with the Azure CLI app") {
-                openWindow(value: PanelRoute.addAccount)
-                NSApp.activate(ignoringOtherApps: true)
+            // Stacked buttons share one width; the primary path is prominent, the other plain.
+            VStack(spacing: 8) {
+                SettingsLink { Text("Open Settings…").frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent)
+                Button {
+                    openWindow(value: PanelRoute.addAccount)
+                    NSApp.activate(ignoringOtherApps: true)
+                } label: { Text("Continue with the Azure CLI app").frame(maxWidth: .infinity) }
             }
+            .frame(width: 260)
+            .padding(.top, 4)
         }
         .padding(20)
         .frame(maxWidth: .infinity)

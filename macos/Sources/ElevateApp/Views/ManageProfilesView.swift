@@ -24,8 +24,8 @@ struct ManageProfilesView: View {
             } else {
                 List {
                     ForEach(model.profiles) { p in
+                        // No drag-handle glyph: on macOS the row itself is the drag target.
                         HStack(spacing: 8) {
-                            Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
                             TextField("Name", text: Binding(get: { names[p.id] ?? p.name }, set: { names[p.id] = $0 }))
                                 .textFieldStyle(.plain)
                                 .onSubmit { commit(p.id) }
