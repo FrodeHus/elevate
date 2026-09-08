@@ -1,0 +1,6 @@
+{
+  "value": [
+    { "policyId": "pol-ext", "policyDisplayName": "External contractors", "policyDescription": null, "isApprovalRequired": true,
+      "questions": [ { "@odata.type": "#microsoft.graph.accessPackageTextInputQuestion", "id": "q1", "isRequired": true, "text": { "defaultText": "Cost center" } } ] }
+  ]
+}

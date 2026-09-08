@@ -1,0 +1,29 @@
+{
+  "value": [
+    {
+      "id": "req-1", "requestType": "userAdd", "state": "pendingApproval", "status": "PendingApproval",
+      "justification": "Need a sandbox for the cost-alerting spike (INC-4412).",
+      "createdDateTime": "2026-09-08T07:12:00Z", "completedDateTime": null,
+      "accessPackage": { "id": "pkg-sandbox", "displayName": "Azure Sandbox Contributor" },
+      "assignment": { "id": "asg-req-1", "assignmentPolicyId": "pol-eng" }
+    },
+    {
+      "id": "req-2", "requestType": "userAdd", "state": "delivered", "status": "Delivered",
+      "justification": "On-call rotation from September.",
+      "createdDateTime": "2026-09-07T14:00:00Z", "completedDateTime": "2026-09-07T14:40:00Z",
+      "accessPackage": { "id": "pkg-exchange", "displayName": "Exchange Operations" },
+      "assignment": null
+    },
+    {
+      "id": "req-3", "requestType": "userAdd", "state": "denied", "status": "Denied",
+      "justification": "Debugging the rotation job.",
+      "createdDateTime": "2026-09-02T09:00:00Z", "completedDateTime": "2026-09-02T09:03:00Z",
+      "accessPackage": { "id": "pkg-kv", "displayName": "Production Key Vault Reader" }
+    },
+    {
+      "id": "req-4", "requestType": "userAdd", "state": "somethingNew", "status": "Weird",
+      "justification": null, "createdDateTime": "2026-09-01T09:00:00Z",
+      "accessPackage": null
+    }
+  ]
+}
