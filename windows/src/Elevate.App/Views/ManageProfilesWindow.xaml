@@ -2,28 +2,116 @@
 <Window
     x:Class="Elevate.App.Views.ManageProfilesWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Profiles" FontSize="18" FontWeight="SemiBold" />
-        <Grid Grid.Row="1">
-            <TextBlock x:Name="Empty" Visibility="Collapsed" MinHeight="120" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"
-                       FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="No profiles yet. Select roles in the flyout and choose &quot;Save as profile…&quot;." />
-            <Border x:Name="ListBorder" CornerRadius="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
-                <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
-                    <StackPanel x:Name="Rows" />
-                </ScrollViewer>
-            </Border>
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Elevate.App.Views">
+    <Grid x:Name="Root">
+        <Grid.Resources>
+            <!-- One profile in the list: its pin star, name and "3 roles · 1 group". -->
+            <DataTemplate x:Key="ProfileItemTemplate" x:DataType="views:ProfileListItem">
+                <StackPanel Orientation="Horizontal" Spacing="8" MinHeight="40">
+                    <FontIcon Glyph="{x:Bind Glyph, Mode=OneWay}" FontSize="12" Foreground="{x:Bind StarBrush, Mode=OneWay}" VerticalAlignment="Center"
+                              AutomationProperties.Name="{x:Bind StarLabel, Mode=OneWay}" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+        </Grid.Resources>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Every profile, pinned ones starred; drag to reorder the chips. -->
+        <Grid Grid.Column="0" Padding="8" RowSpacing="6" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBox Grid.Row="0" x:Name="Search" PlaceholderText="Search profiles" TextChanged="OnSearchChanged" />
+            <ListView Grid.Row="1" x:Name="ProfileList" SelectionMode="Single" ItemTemplate="{StaticResource ProfileItemTemplate}"
+                      SelectionChanged="OnSelectionChanged" CanReorderItems="True" CanDragItems="True" AllowDrop="True" DragItemsCompleted="OnReordered" />
+            <Button Grid.Row="2" x:Name="NewProfileButton" Click="OnNewProfile" HorizontalAlignment="Stretch" ToolTipService.ToolTip="An empty profile to fill in here">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE710;" FontSize="12" />
+                    <TextBlock Text="New profile" />
+                </StackPanel>
+            </Button>
         </Grid>
-        <TextBlock Grid.Row="2" x:Name="EditingHint" Visibility="Collapsed" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button x:Name="DoneButton" Content="Done" Style="{StaticResource AccentButtonStyle}" Click="OnDone" MinWidth="90" />
+
+        <StackPanel Grid.Column="1" x:Name="EmptyEditor" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" MaxWidth="320">
+            <TextBlock x:Name="EmptyTitle" FontSize="16" FontWeight="SemiBold" TextAlignment="Center" />
+            <TextBlock Text="Select roles in the flyout and choose &quot;Save as profile…&quot;, or press New profile to start an empty one here."
+                       FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" />
         </StackPanel>
+
+        <!-- The selected profile, edited in place: changes apply as they are made. -->
+        <Grid Grid.Column="1" x:Name="Editor" Padding="16,14,16,12" RowSpacing="12" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="NameBox" PlaceholderText="Profile name" LostFocus="OnNameLostFocus" KeyDown="OnNameKeyDown" AutomationProperties.Name="Profile name" />
+                <Button Grid.Column="1" x:Name="RunButton" Content="Run…" Click="OnRun" />
+            </Grid>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="24">
+                <StackPanel Spacing="2">
+                    <ToggleSwitch x:Name="PinSwitch" OnContent="Pinned in flyout" OffContent="Pinned in flyout" Toggled="OnPinToggled" MinWidth="0" />
+                    <TextBlock x:Name="PinHint" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed" />
+                </StackPanel>
+                <StackPanel Spacing="2">
+                    <ToggleSwitch x:Name="HotKeySwitch" OnContent="Runs with the global shortcut" OffContent="Runs with the global shortcut" Toggled="OnHotKeyToggled" MinWidth="0" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock x:Name="HotKeyCaption" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        <HyperlinkButton Content="Settings…" FontSize="11" Padding="2,0" Click="OnSettings" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+            <Border Grid.Row="2" CornerRadius="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="RoleGroups" Spacing="8" Padding="8" />
+                    </ScrollViewer>
+                    <Grid Grid.Row="1" Padding="8" ColumnSpacing="10" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" x:Name="AddRolesButton" Click="OnAddRoles">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE710;" FontSize="12" />
+                                <TextBlock Text="Add roles…" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Grid.Column="1" Text="Durations are what the next run proposes; you can still change them then."
+                                   FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </Grid>
+                </Grid>
+            </Border>
+            <Grid Grid.Row="3" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" x:Name="DeleteButton" Content="Delete…" Click="OnDelete" />
+                <TextBlock Grid.Column="2" Text="Changes save as you go" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="3" x:Name="DoneButton" Content="Done" Style="{StaticResource AccentButtonStyle}" Click="OnDone" MinWidth="90" />
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

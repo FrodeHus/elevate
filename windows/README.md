@@ -50,9 +50,10 @@ Sign in from the flyout's **Add account…** with one of:
   custom registration for those.
 
 Everything the macOS app does is here: select several roles across pivots and activate them
-together, save a selection as a **profile** (a chip row under the pivots; *Manage…* renames,
-reorders and deletes; a chip opens the run window with per-entry durations, the remembered reason,
-ticket and start time), **Ctrl-click** Activate, Extend or a chip to go straight through with the
+together, save a selection as a **profile** (pinned profiles are chips in one row under the pivots,
+*All N* lists the rest with search; the Profiles window renames, pins, reorders, edits the roles
+and their durations in place, and deletes; a chip opens the run window with per-entry durations,
+the remembered reason, ticket and start time), **Ctrl-click** Activate, Extend or a chip to go straight through with the
 last reason and duration when the policy allows it, and a **global shortcut** (Settings) that runs
 one profile the same way. Requests waiting for *your* approval appear in a pinned **Approvals**
 group above *Active now* with Approve and Deny; a toast announces each new request once, and the

@@ -14,8 +14,10 @@
     .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
     .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
     .sep { height: 1px; background: rgba(0, 0, 0, 0.08); }
-    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
-    .chip-more { background: rgba(0,0,0,0.05); border-color: transparent; box-shadow: none; color: #3a3a3c; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500; white-space: nowrap; flex-shrink: 1; min-width: 0; }
+    .chip > span:first-of-type { overflow: hidden; text-overflow: ellipsis; }
+    .chip .caption { flex-shrink: 0; }
+    .chip-more { background: rgba(0,0,0,0.05); border-color: transparent; box-shadow: none; color: #3a3a3c;  flex-shrink: 0; }
     .field { height: 26px; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8e8e93; }
     .row { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 10px; border-radius: 6px; }
     .row-hover { background: rgba(0,0,0,0.05); }
@@ -42,9 +44,8 @@
     </div>
     <div class="sep"></div>
     <div style="display: flex; align-items: center; gap: 6px; padding: 7px 12px; overflow: hidden;">
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span><span class="caption">5 · 1</span></div>
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Morning ops</span><span class="caption">3</span></div>
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Break glass</span><span class="caption">1</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Morning ops</span></div>
       <div style="flex-grow: 1;"></div>
       <div class="chip chip-more" style="background: rgba(0,0,0,0.12);"><span>All 12</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5 5 4l2.5 2.5"></path></svg></div>
     </div>
@@ -70,8 +71,8 @@
       <div class="sec">Pinned</div>
       <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="#f5a623" stroke="#f5a623" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Incident</span><span class="caption">5 roles · 1 group</span><div style="flex-grow: 1;"></div><span class="caption" style="color: #34c759;">2 active</span></div>
       <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="#f5a623" stroke="#f5a623" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Morning ops</span><span class="caption">3 roles</span><div style="flex-grow: 1;"></div></div>
-      <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="#f5a623" stroke="#f5a623" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Break glass</span><span class="caption">1 role</span><div style="flex-grow: 1;"></div></div>
-      <div class="sec" style="padding-top: 8px;">All profiles</div>
+            <div class="sec" style="padding-top: 8px;">All profiles</div>
+      <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Break glass</span><span class="caption">1 role</span><div style="flex-grow: 1;"></div></div>
       <div class="row row-hover"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Release day</span><span class="caption">2 roles</span><div style="flex-grow: 1;"></div><span class="btn">Run</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6e6e73" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="5" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="8" cy="8" r="0.6" fill="#6e6e73"></circle><circle cx="11" cy="8" r="0.6" fill="#6e6e73"></circle></svg></div>
       <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Billing review</span><span class="caption">1 role · Northwind</span><div style="flex-grow: 1;"></div></div>
       <div class="row"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><span style="font-weight: 500;">Exchange migration</span><span class="caption">2 roles</span><div style="flex-grow: 1;"></div></div>

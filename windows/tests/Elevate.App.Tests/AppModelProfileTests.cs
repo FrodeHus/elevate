@@ -105,21 +105,52 @@ public class AppModelProfileTests
     }
 
     [Fact]
-    public async Task BeginEditingReopensTheSelection()
+    public async Task EntriesAreAddedRemovedAndGivenDurationsInPlace()
     {
         using var test = await ModelAsync();
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.GroupKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey]);
 
-        model.BeginEditing(profile.Id);
+        model.AddProfileEntries(profile.Id, [Sample.GroupKey, Sample.EntraKey]);
 
-        model.SelectMode.Should().BeTrue();
-        model.Selection.Should().BeEquivalentTo([Sample.EntraKey, Sample.GroupKey]);
-        model.EditingProfileId.Should().Be(profile.Id);
+        // Same account and tenant: ordered by kind, and the existing key is not duplicated.
+        model.Profile(profile.Id)!.Entries.Select(e => e.RoleKey).Should().Equal(Sample.EntraKey, Sample.GroupKey);
 
-        model.SelectMode = false;
-        model.EditingProfileId.Should().BeNull();
-        model.Selection.Should().BeEmpty();
+        model.SetProfileEntryDuration(profile.Id, Sample.GroupKey, TimeSpan.FromHours(2));
+        model.Profile(profile.Id)!.Entries.Single(e => e.RoleKey == Sample.GroupKey).LastDuration.Should().Be(TimeSpan.FromHours(2));
+
+        // Adding more keeps the duration already chosen.
+        model.AddProfileEntries(profile.Id, [Sample.AzureKey]);
+        var entries = model.Profile(profile.Id)!.Entries;
+        entries.Select(e => e.RoleKey).Should().Equal(Sample.EntraKey, Sample.AzureKey, Sample.GroupKey);
+        entries[2].LastDuration.Should().Be(TimeSpan.FromHours(2));
+
+        model.RemoveProfileEntry(profile.Id, Sample.EntraKey);
+        model.Profile(profile.Id)!.Entries.Select(e => e.RoleKey).Should().Equal(Sample.AzureKey, Sample.GroupKey);
+    }
+
+    [Fact]
+    public async Task NewProfileIsEmptyAndTheShortcutBindsToOneProfile()
+    {
+        using var test = await ModelAsync();
+        var model = test.Model;
+        var fresh = model.NewProfile();
+
+        fresh.Name.Should().Be("New profile");
+        model.Profile(fresh.Id)!.Entries.Should().BeEmpty();
+
+        model.SetHotKeyProfile(fresh.Id);
+        test.Settings.HotKeyProfileId.Should().Be(fresh.Id);
+        model.SetHotKeyProfile(null);
+        test.Settings.HotKeyProfileId.Should().BeNull();
+
+        model.SetHotKeyProfile(fresh.Id);
+        model.DeleteProfile(fresh.Id);
+        test.Settings.HotKeyProfileId.Should().BeNull();
+        model.Profiles.Should().BeEmpty();
+
+        model.ProfileToEdit = fresh.Id;
+        model.ProfileToEdit.Should().Be(fresh.Id);
     }
 
     [Fact]

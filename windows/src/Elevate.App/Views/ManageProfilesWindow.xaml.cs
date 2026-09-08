@@ -1,179 +1,447 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Models;
+using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
 namespace Elevate.App.Views;
 
-/// <summary>Rename, reorder, run, edit and delete profiles. Port of the macOS <c>ManageProfilesView</c>.</summary>
+/// <summary>One profile in the Profiles window's list.</summary>
+public sealed class ProfileListItem(Guid id) : ObservableObject
+{
+    private string _name = string.Empty;
+    private string _caption = string.Empty;
+    private string _glyph = "";
+    private string _starLabel = "Not pinned";
+    private Brush? _starBrush;
+
+    public Guid Id { get; } = id;
+
+    public string Name { get => _name; set => SetProperty(ref _name, value); }
+
+    public string Caption { get => _caption; set => SetProperty(ref _caption, value); }
+
+    public string Glyph { get => _glyph; set => SetProperty(ref _glyph, value); }
+
+    public string StarLabel { get => _starLabel; set => SetProperty(ref _starLabel, value); }
+
+    public Brush? StarBrush { get => _starBrush; set => SetProperty(ref _starBrush, value); }
+
+    public void Update(ActivationProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        Name = profile.Name;
+        Caption = ProfileSummary.Caption(profile.Entries);
+        Glyph = profile.Pinned ? "" : "";
+        StarLabel = profile.Pinned ? "Pinned" : "Not pinned";
+        StarBrush = (Brush)Application.Current.Resources[profile.Pinned ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
+    }
+}
+
+/// <summary>
+/// The Profiles window: every profile on the left, the selected one edited in place on the right.
+/// Changes apply as they are made; Done only closes. Port of the macOS <c>ManageProfilesView</c>.
+/// </summary>
 public sealed partial class ManageProfilesWindow : Window
 {
+    private const double DurationColumn = 130;
+    private const double RemoveColumn = 36;
+
     private readonly AppModel _model;
-    private readonly Dictionary<Guid, TextBox> _names = [];
+    private readonly ObservableCollection<ProfileListItem> _items = [];
+    private Guid? _selected;
+    private bool _filling;
+    private string _rolesSignature = string.Empty;
 
     public ManageProfilesWindow(AppModel model)
     {
         InitializeComponent();
         _model = model;
-        DialogWindows.Configure(this, "Profiles", 560, 420, Root, autoHeight: true);
-        DialogWindows.DefaultButton(Root, DoneButton);
-        Build();
+        DialogWindows.Configure(this, "Profiles", 760, 480, Root);
+        ProfileList.ItemsSource = _items;
+        _selected = model.ProfileToEdit ?? model.Profiles.FirstOrDefault()?.Id;
+        model.ProfileToEdit = null;
+        FillList();
+        ShowEditor();
         _model.Changed += OnModelChanged;
         Closed += (_, _) => _model.Changed -= OnModelChanged;
     }
 
+    private ActivationProfile? Selected => _selected is { } id ? _model.Profile(id) : null;
+
+    private IEnumerable<ActivationProfile> Filtered => _model.Profiles.Where(p => PanelFilter.Matches(Search.Text, p.Name));
+
     private void OnModelChanged(object? sender, EventArgs e)
     {
-        // Rebuild only when the set or order changed; a rename in progress must not be thrown away.
-        var current = _model.Profiles.Select(p => p.Id).ToList();
-        if (!current.SequenceEqual(_names.Keys))
+        if (_model.ProfileToEdit is { } wanted)
         {
-            CommitAll();
-            Build();
+            _selected = wanted;
+            _model.ProfileToEdit = null;
+            Search.Text = string.Empty;
         }
+
+        if (_selected is { } current && _model.Profile(current) is null)
+        {
+            _selected = _model.Profiles.FirstOrDefault()?.Id;
+        }
+
+        FillList();
+        ShowEditor();
     }
 
-    private void Build()
+    // MARK: The list
+
+    /// <summary>Reconciles by id so the ListView keeps its elements, its selection and its scroll position.</summary>
+    private void FillList()
     {
-        Rows.Children.Clear();
-        _names.Clear();
-        var profiles = _model.Profiles;
-        Empty.Visibility = profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ListBorder.Visibility = profiles.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        var divider = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
-        for (var i = 0; i < profiles.Count; i++)
+        _filling = true;
+        try
         {
-            var profile = profiles[i];
-            var id = profile.Id;
-            var row = new Grid { Padding = new Thickness(10, 6, 10, 6), ColumnSpacing = 8, MinHeight = 44, BorderBrush = divider, BorderThickness = new Thickness(0, i == 0 ? 0 : 1, 0, 0) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var order = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-            order.Children.Add(IconButton("", "Move up", i > 0, () => _model.MoveProfiles([Index(id)], Index(id) - 1)));
-            order.Children.Add(IconButton("", "Move down", i < profiles.Count - 1, () => _model.MoveProfiles([Index(id)], Index(id) + 2)));
-            row.Children.Add(order);
-
-            var name = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
-            var box = new TextBox { Text = profile.Name, PlaceholderText = "Name", BorderThickness = new Thickness(0), Background = null };
-            box.LostFocus += (_, _) => Commit(id);
-            box.KeyDown += (_, e) =>
+            var wanted = Filtered.ToList();
+            for (var i = _items.Count - 1; i >= 0; i--)
             {
-                if (e.Key == Windows.System.VirtualKey.Enter)
+                if (!wanted.Any(p => p.Id == _items[i].Id))
                 {
-                    Commit(id);
-                    e.Handled = true;
+                    _items.RemoveAt(i);
                 }
-            };
-            _names[id] = box;
-            name.Children.Add(box);
-            name.Children.Add(new TextBlock { Text = ProfileSummary.Caption(profile.Entries), FontSize = 12, Foreground = secondary, Margin = new Thickness(11, 0, 0, 0) });
-            Grid.SetColumn(name, 1);
-            row.Children.Add(name);
+            }
 
-            var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-            var run = new Button { Content = "Run", Style = (Style)Application.Current.Resources["SmallButtonStyle"] };
-            run.Click += (_, _) =>
+            for (var i = 0; i < wanted.Count; i++)
             {
-                CommitAll();
-                _model.RequestRun(id);
-                App.Current.OpenRunProfile(id);
-            };
-            var edit = new Button { Content = "Edit", Style = (Style)Application.Current.Resources["SmallButtonStyle"] };
-            ToolTipService.SetToolTip(edit, "Reopens the selection in the flyout; use \"Update profile\" when done");
-            edit.Click += (_, _) =>
-            {
-                CommitAll();
-                _model.BeginEditing(id);
-                EditingHint.Text = $"\"{_model.Profile(id)?.Name ?? profile.Name}\" is loaded into the flyout's selection. Open the Elevate flyout, adjust the ticks across the Entra, Azure and Groups pivots, then press Update profile.";
-                EditingHint.Visibility = Visibility.Visible;
-            };
-            actions.Children.Add(run);
-            actions.Children.Add(edit);
-            Grid.SetColumn(actions, 2);
-            row.Children.Add(actions);
+                var profile = wanted[i];
+                var at = -1;
+                for (var j = i; j < _items.Count; j++)
+                {
+                    if (_items[j].Id == profile.Id)
+                    {
+                        at = j;
+                        break;
+                    }
+                }
 
-            var delete = IconButton("", $"Delete {profile.Name}…", true, () => _ = ConfirmDeleteAsync(id));
-            Grid.SetColumn(delete, 3);
-            row.Children.Add(delete);
-            Rows.Children.Add(row);
+                if (at < 0)
+                {
+                    _items.Insert(i, new ProfileListItem(profile.Id));
+                }
+                else if (at != i)
+                {
+                    _items.Move(at, i);
+                }
+
+                _items[i].Update(profile);
+            }
+
+            // Reordering only makes sense over the whole list; while filtering the handles are off.
+            var unfiltered = Search.Text.Trim().Length == 0;
+            ProfileList.CanReorderItems = unfiltered;
+            ProfileList.CanDragItems = unfiltered;
+            ProfileList.SelectedItem = _items.FirstOrDefault(i => i.Id == _selected);
+        }
+        finally
+        {
+            _filling = false;
         }
     }
 
-    /// <summary>Deleting has no undo: the dialog names the profile and what it holds, and says the assignments stay.</summary>
-    private async Task ConfirmDeleteAsync(Guid id)
+    private void OnSearchChanged(object sender, TextChangedEventArgs e) => FillList();
+
+    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_model.Profile(id) is not { } profile)
+        if (_filling)
         {
             return;
         }
 
-        CommitAll();
-        var ok = await DialogWindows.ConfirmAsync(
-            Root.XamlRoot,
-            $"Delete \"{profile.Name}\"?",
-            $"The profile and its {ProfileSummary.Caption(profile.Entries)} are removed. Active assignments are not changed.",
-            "Delete");
-        if (ok && _model.Profile(id) is not null)
-        {
-            _model.DeleteProfile(id);
-        }
+        CommitName();
+        _selected = (ProfileList.SelectedItem as ProfileListItem)?.Id;
+        ShowEditor();
     }
 
-    private int Index(Guid id)
+    private void OnReordered(ListViewBase sender, DragItemsCompletedEventArgs args)
     {
-        var profiles = _model.Profiles;
-        for (var i = 0; i < profiles.Count; i++)
+        if (args.Items.FirstOrDefault() is not ProfileListItem moved)
         {
-            if (profiles[i].Id == id)
+            return;
+        }
+
+        var from = _model.Profiles.ToList().FindIndex(p => p.Id == moved.Id);
+        var to = _items.IndexOf(moved);
+        if (from < 0 || to < 0 || from == to)
+        {
+            return;
+        }
+
+        // SwiftUI move semantics: the destination is the slot before the move, so a move down skips itself.
+        _model.MoveProfiles([from], to > from ? to + 1 : to);
+    }
+
+    private void OnNewProfile(object sender, RoutedEventArgs e)
+    {
+        CommitName();
+        var profile = _model.NewProfile();
+        Search.Text = string.Empty;
+        _selected = profile.Id;
+        FillList();
+        ShowEditor();
+        NameBox.Focus(FocusState.Programmatic);
+        NameBox.SelectAll();
+    }
+
+    // MARK: The editor
+
+    private void ShowEditor()
+    {
+        var profile = Selected;
+        Editor.Visibility = profile is null ? Visibility.Collapsed : Visibility.Visible;
+        EmptyEditor.Visibility = profile is null ? Visibility.Visible : Visibility.Collapsed;
+        if (profile is null)
+        {
+            EmptyTitle.Text = _model.Profiles.Count == 0 ? "No profiles yet" : "Select a profile";
+            _rolesSignature = string.Empty;
+            return;
+        }
+
+        _filling = true;
+        try
+        {
+            // A rename in progress must not be thrown away by a model change.
+            if (NameBox.FocusState == FocusState.Unfocused && !string.Equals(NameBox.Text, profile.Name, StringComparison.Ordinal))
             {
-                return i;
+                NameBox.Text = profile.Name;
+            }
+
+            PinSwitch.IsOn = profile.Pinned;
+            HotKeySwitch.IsOn = _model.Settings.HotKeyProfileId == profile.Id;
+            HotKeyCaption.Text = _model.Settings.HotKey is { } key ? key.Display : "No shortcut recorded.";
+            RunButton.IsEnabled = profile.Entries.Count > 0;
+            var signature = profile.Id + "|" + string.Join(",", profile.Entries.Select(e => $"{e.RoleKey}:{e.LastDuration}"))
+                + "|" + _model.Roles.Values.Sum(l => l.Count) + "|" + _model.Busy.Count;
+            if (signature != _rolesSignature)
+            {
+                _rolesSignature = signature;
+                BuildRoles(profile);
             }
         }
-
-        return -1;
-    }
-
-    private static Button IconButton(string glyph, string name, bool enabled, Action action)
-    {
-        var button = new Button
+        finally
         {
-            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
-            Width = 28,
-            Height = 28,
-            IsEnabled = enabled,
-            Content = new FontIcon { Glyph = glyph, FontSize = 12 },
-        };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
-        ToolTipService.SetToolTip(button, name);
-        button.Click += (_, _) => action();
-        return button;
-    }
-
-    private void Commit(Guid id)
-    {
-        if (_names.TryGetValue(id, out var box))
-        {
-            _model.RenameProfile(id, box.Text);
+            _filling = false;
         }
     }
 
-    private void CommitAll()
+    private void BuildRoles(ActivationProfile profile)
     {
-        foreach (var id in _names.Keys.ToList())
+        RoleGroups.Children.Clear();
+        var resources = Application.Current.Resources;
+        var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
+        if (profile.Entries.Count == 0)
         {
-            Commit(id);
+            RoleGroups.Children.Add(new TextBlock
+            {
+                Text = "No roles yet. \"Add roles…\" picks from every account and tenant.",
+                FontSize = 12,
+                Foreground = secondary,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(4),
+            });
+            return;
+        }
+
+        var divider = (Brush)resources["DividerStrokeColorDefaultBrush"];
+        var id = profile.Id;
+        foreach (var tenantKey in profile.Entries.Select(e => e.RoleKey.TenantKey).Distinct())
+        {
+            var box = TenantGroupBox.Create(_model, tenantKey, out var rows);
+            var first = true;
+            foreach (var entry in profile.Entries.Where(e => e.RoleKey.TenantKey == tenantKey))
+            {
+                var key = entry.RoleKey;
+                var role = _model.Role(key);
+                var policy = role?.Policy ?? RolePolicy.ManualDefault;
+                var grid = TenantGroupBox.RowGrid(DurationColumn, RemoveColumn);
+                if (!first)
+                {
+                    grid.BorderBrush = divider;
+                    grid.BorderThickness = new Thickness(0, 1, 0, 0);
+                }
+
+                first = false;
+                grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key));
+
+                var picker = new DurationPicker { Maximum = policy.MaximumDuration, Duration = Proposed(entry, policy) };
+                picker.VerticalAlignment = VerticalAlignment.Center;
+                picker.HorizontalAlignment = HorizontalAlignment.Stretch;
+                AutomationProperties.SetName(picker, $"Duration for {_model.SummaryName(key)}");
+                picker.SelectionChanged += (_, _) =>
+                {
+                    if (!_filling)
+                    {
+                        _model.SetProfileEntryDuration(id, key, picker.Duration);
+                    }
+                };
+                Grid.SetColumn(picker, 1);
+                grid.Children.Add(picker);
+
+                var remove = new Button
+                {
+                    Style = (Style)resources["SubtleButtonStyle"],
+                    Width = 28,
+                    Height = 28,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Content = new FontIcon { Glyph = "", FontSize = 12 },
+                };
+                AutomationProperties.SetName(remove, $"Remove {_model.SummaryName(key)}");
+                ToolTipService.SetToolTip(remove, "Remove from profile");
+                remove.Click += (_, _) => _model.RemoveProfileEntry(id, key);
+                Grid.SetColumn(remove, 2);
+                grid.Children.Add(remove);
+                rows.Children.Add(grid);
+            }
+
+            RoleGroups.Children.Add(box);
+        }
+    }
+
+    /// <summary>"Entra · MFA", "Azure · rg-prod · resource group", "Group · not loaded".</summary>
+    private static string Caption(RoleKey key, EligibleRole? role, RolePolicy policy)
+    {
+        var parts = new List<string>
+        {
+            key.Scope.Kind switch
+            {
+                RoleScopeKind.EntraDirectory => "Entra",
+                RoleScopeKind.AzureResource => "Azure",
+                _ => "Group",
+            },
+        };
+        if (role?.Detail is { } detail)
+        {
+            parts.Add(detail);
+        }
+
+        if (PolicyNotes.Caption(policy) is { } notes)
+        {
+            parts.Add(notes);
+        }
+
+        if (role is null)
+        {
+            parts.Add("not loaded");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>What the next run would propose today: the entry's own duration, else memory, else the policy.</summary>
+    private TimeSpan Proposed(ActivationProfile.Entry entry, RolePolicy policy)
+    {
+        var wanted = entry.LastDuration ?? _model.Remembered(entry.RoleKey)?.LastDuration ?? policy.DefaultDuration;
+        return wanted < policy.MaximumDuration ? wanted : policy.MaximumDuration;
+    }
+
+    private void CommitName()
+    {
+        if (Selected is not { } profile)
+        {
+            return;
+        }
+
+        var trimmed = NameBox.Text.Trim();
+        if (trimmed.Length == 0)
+        {
+            NameBox.Text = profile.Name;
+        }
+        else if (!string.Equals(trimmed, profile.Name, StringComparison.Ordinal))
+        {
+            _model.RenameProfile(profile.Id, trimmed);
+        }
+    }
+
+    private void OnNameLostFocus(object sender, RoutedEventArgs e) => CommitName();
+
+    private void OnNameKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            CommitName();
+            e.Handled = true;
+        }
+    }
+
+    private void OnPinToggled(object sender, RoutedEventArgs e)
+    {
+        if (_filling || Selected is not { } profile)
+        {
+            return;
+        }
+
+        if (_model.SetPinned(profile.Id, PinSwitch.IsOn))
+        {
+            PinHint.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        PinHint.Text = ProfileActions.PinRefusedHint;
+        PinHint.Visibility = Visibility.Visible;
+        _filling = true;
+        PinSwitch.IsOn = false;
+        _filling = false;
+    }
+
+    private void OnHotKeyToggled(object sender, RoutedEventArgs e)
+    {
+        if (_filling || Selected is not { } profile)
+        {
+            return;
+        }
+
+        _model.SetHotKeyProfile(HotKeySwitch.IsOn ? profile.Id : null);
+    }
+
+    private void OnSettings(object sender, RoutedEventArgs e) => App.Current.OpenSettings();
+
+    private void OnRun(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { } profile)
+        {
+            return;
+        }
+
+        CommitName();
+        _ = ProfileActions.RunAsync(_model, profile.Id, silentlyIfPossible: false);
+    }
+
+    private async void OnAddRoles(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { } profile)
+        {
+            return;
+        }
+
+        CommitName();
+        var dialog = new AddRolesDialog(_model, profile) { XamlRoot = Root.XamlRoot };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary && _model.Profile(profile.Id) is not null)
+        {
+            _model.AddProfileEntries(profile.Id, dialog.Picked);
+        }
+    }
+
+    private void OnDelete(object sender, RoutedEventArgs e)
+    {
+        if (Selected is { } profile)
+        {
+            _ = ProfileActions.ConfirmDeleteAsync(_model, profile.Id, Root.XamlRoot);
         }
     }
 
     private void OnDone(object sender, RoutedEventArgs e)
     {
-        CommitAll();
+        CommitName();
         Close();
     }
 }

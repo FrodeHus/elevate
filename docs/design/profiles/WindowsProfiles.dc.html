@@ -24,6 +24,7 @@
     .combo { height: 28px; padding: 0 8px 0 10px; border-radius: 4px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
     .toggle { width: 40px; height: 20px; border-radius: 10px; background: #60cdff; position: relative; flex-shrink: 0; }
     .toggle::after { content: ""; position: absolute; top: 4px; left: 24px; width: 12px; height: 12px; border-radius: 6px; background: #000000; }
+    .toggle-off::after { left: 3px; background: rgba(255,255,255,0.786); }
     .ib { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
   </style>
 </helmet>
@@ -56,7 +57,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 24px;">
           <div style="display: flex; align-items: center; gap: 10px;"><div class="toggle"></div><span style="font-size: 13px;">Pinned in flyout</span></div>
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="t2" style="font-size: 13px;">Shortcut</span><span class="combo">Ctrl+Alt+R<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px;"><div style="display: flex; align-items: center; gap: 10px;"><div class="toggle toggle-off" style="background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.5442); box-sizing: border-box;"></div><span style="font-size: 13px;">Runs with the global shortcut</span></div><span class="t3" style="font-size: 11px;">Ctrl+Alt+E · Settings…</span></div>
         </div>
         <div style="flex: 1; display: flex; flex-direction: column; border-radius: 4px; background: #202020; border: 1px solid rgba(255,255,255,0.0837); overflow: hidden;">
           <div class="grp"><div style="width: 18px; height: 18px; border-radius: 50%; background: #60cdff; color: #000000; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600;">AN</div>alex@contoso.com · Contoso</div>
