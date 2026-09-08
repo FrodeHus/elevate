@@ -86,6 +86,25 @@ public class AppModelProfileTests
     }
 
     [Fact]
+    public async Task PinningPersistsAndStopsAtTheLimit()
+    {
+        using var test = await ModelAsync();
+        var model = test.Model;
+        var profiles = Enumerable.Range(0, ProfilePins.Limit + 1).Select(i => model.SaveProfile($"P{i}", [Sample.EntraKey])).ToList();
+
+        foreach (var p in profiles.Take(ProfilePins.Limit))
+        {
+            model.SetPinned(p.Id, true).Should().BeTrue();
+        }
+
+        model.SetPinned(profiles[ProfilePins.Limit].Id, true).Should().BeFalse();
+        model.PinnedProfiles.Select(p => p.Name).Should().Equal("P0", "P1", "P2", "P3");
+
+        model.SetPinned(profiles[1].Id, false).Should().BeTrue();
+        model.PinnedProfiles.Select(p => p.Name).Should().Equal("P0", "P2", "P3");
+    }
+
+    [Fact]
     public async Task BeginEditingReopensTheSelection()
     {
         using var test = await ModelAsync();

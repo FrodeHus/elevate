@@ -62,6 +62,17 @@ public struct AppState: Codable, Hashable, Sendable {
         if let i = profiles.firstIndex(where: { $0.id == p.id }) { profiles[i] = p } else { profiles.append(p) }
     }
     public mutating func removeProfile(id: UUID) { profiles.removeAll { $0.id == id } }
+    /// Pinned profiles in list order; what the panel shows as chips.
+    public var pinnedProfiles: [ActivationProfile] { profiles.filter(\.pinned) }
+    /// Pins or unpins a profile. Returns false, changing nothing, when pinning would exceed
+    /// `ProfilePins.limit`; unpinning always succeeds.
+    @discardableResult
+    public mutating func setPinned(id: UUID, _ pinned: Bool) -> Bool {
+        guard let i = profiles.firstIndex(where: { $0.id == id }) else { return false }
+        if pinned, !profiles[i].pinned, pinnedProfiles.count >= ProfilePins.limit { return false }
+        profiles[i].pinned = pinned
+        return true
+    }
     public mutating func moveProfile(fromOffsets: IndexSet, toOffset: Int) {
         let moving = fromOffsets.map { profiles[$0] }
         var remaining = profiles

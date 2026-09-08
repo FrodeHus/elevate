@@ -105,6 +105,24 @@ public sealed partial class AppModel
         }
     }
 
+    /// <summary>Profiles shown as chips in the panel, in list order.</summary>
+    public IReadOnlyList<ActivationProfile> PinnedProfiles => State.PinnedProfiles;
+
+    /// <summary>
+    /// Pins or unpins a profile. Returns false, changing nothing, when the pinned row is full
+    /// (<see cref="ProfilePins.Limit"/>); the caller says so instead of silently ignoring the click.
+    /// </summary>
+    public bool SetPinned(Guid id, bool pinned)
+    {
+        if (!State.SetPinned(id, pinned))
+        {
+            return false;
+        }
+
+        Persist();
+        return true;
+    }
+
     public void MoveProfiles(IEnumerable<int> fromOffsets, int toOffset)
     {
         State.MoveProfiles(fromOffsets, toOffset);

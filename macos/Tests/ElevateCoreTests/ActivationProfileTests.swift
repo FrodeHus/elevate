@@ -60,6 +60,34 @@ import Foundation
         #expect(entries.first?.roleKey == keepKey)
     }
 
+    @Test func pinnedDecodesTolerantlyAndIsWrittenOnlyWhenTrue() throws {
+        let legacy = #"{"id":"A1B2C3D4-E5F6-4A5B-8C7D-9E0FABCDEF12","name":"Ops","entries":[]}"#
+        let decoded = try JSONDecoder().decode(ActivationProfile.self, from: Data(legacy.utf8))
+        #expect(decoded.pinned == false)
+        let unpinnedJSON = String(decoding: try JSONEncoder().encode(decoded), as: UTF8.self)
+        #expect(!unpinnedJSON.contains("pinned"))
+        var pinned = decoded; pinned.pinned = true
+        let pinnedJSON = String(decoding: try JSONEncoder().encode(pinned), as: UTF8.self)
+        #expect(pinnedJSON.contains(#""pinned":true"#))
+        #expect(try JSONDecoder().decode(ActivationProfile.self, from: Data(pinnedJSON.utf8)).pinned)
+    }
+
+    @Test func pinningIsCappedAtTheLimit() {
+        var s = AppState()
+        let profiles = (0...ProfilePins.limit).map { ActivationProfile(name: "P\($0)", entries: []) }
+        for p in profiles { s.upsertProfile(p) }
+        for p in profiles.prefix(ProfilePins.limit) { #expect(s.setPinned(id: p.id, true)) }
+        #expect(s.pinnedProfiles.count == ProfilePins.limit)
+        #expect(!s.setPinned(id: profiles[ProfilePins.limit].id, true))
+        #expect(s.profile(id: profiles[ProfilePins.limit].id)?.pinned == false)
+        // Re-pinning an already pinned profile is not a new pin.
+        #expect(s.setPinned(id: profiles[0].id, true))
+        #expect(s.setPinned(id: profiles[0].id, false))
+        #expect(s.pinnedProfiles.map(\.name) == ["P1", "P2", "P3"])
+        #expect(s.setPinned(id: profiles[ProfilePins.limit].id, true))
+        #expect(!s.setPinned(id: UUID(), true))
+    }
+
     @Test func summaryCaption() {
         #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil)]) == "1 role")
         #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil), .init(roleKey: key("b", kind: .azureResource), lastDuration: nil)]) == "2 roles")
