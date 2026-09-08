@@ -36,8 +36,17 @@ struct AccessPackagesView: View {
     }
 
     static func filtered(_ rows: [Row], query: String) -> [Row] {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return rows }
+        guard PanelFilter.isActive(query) else { return rows }
         return rows.filter { PanelFilter.matches(query: query, text: $0.name) || ($0.detail.map { PanelFilter.matches(query: query, text: $0) } ?? false) }
+    }
+
+    /// What (if anything) to show in place of the rows: nil when there are rows to show, the
+    /// tab's own empty-collection caption when there is nothing to filter, or a "no matches"
+    /// caption when the search narrowed a non-empty collection down to nothing.
+    static func emptyCaption(total: Int, filtered: Int, query: String, emptyText: String) -> String? {
+        guard filtered == 0 else { return nil }
+        guard total > 0, PanelFilter.isActive(query) else { return emptyText }
+        return "No matches for \u{201C}\(query.trimmingCharacters(in: .whitespacesAndNewlines))\u{201D}."
     }
 
     var body: some View {
@@ -106,8 +115,11 @@ struct AccessPackagesView: View {
         List {
             if let packagesError, consentError == nil {
                 Text(packagesError).font(.caption).foregroundStyle(.red)
-            } else if packages.isEmpty, !loadingPackages {
-                Text("No access packages are available for you to request.").font(.caption).foregroundStyle(.secondary)
+            } else if !loadingPackages, let caption = Self.emptyCaption(
+                total: packages.count, filtered: availableRows.count, query: search,
+                emptyText: "No access packages are available for you to request."
+            ) {
+                Text(caption).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(availableRows, id: \.0.id) { row, package in
                 HStack(alignment: .top, spacing: 10) {
@@ -145,7 +157,9 @@ struct AccessPackagesView: View {
         let rows = Self.filtered(open.map { Row(id: $0.id, name: $0.packageName, detail: $0.justification) }, query: search)
         let byId = Dictionary(open.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return List {
-            if open.isEmpty { Text("No requests in progress.").font(.caption).foregroundStyle(.secondary) }
+            if let caption = Self.emptyCaption(total: open.count, filtered: rows.count, query: search, emptyText: "No requests in progress.") {
+                Text(caption).font(.caption).foregroundStyle(.secondary)
+            }
             ForEach(rows) { row in
                 if let r = byId[row.id] {
                     HStack(alignment: .top, spacing: 10) {
@@ -172,7 +186,9 @@ struct AccessPackagesView: View {
         let rows = Self.filtered(held.map { Row(id: $0.id, name: $0.packageName, detail: $0.policyName) }, query: search)
         let byId = Dictionary(held.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return List {
-            if held.isEmpty { Text("No access packages are assigned to you.").font(.caption).foregroundStyle(.secondary) }
+            if let caption = Self.emptyCaption(total: held.count, filtered: rows.count, query: search, emptyText: "No access packages are assigned to you.") {
+                Text(caption).font(.caption).foregroundStyle(.secondary)
+            }
             ForEach(rows) { row in
                 if let a = byId[row.id] {
                     let soon = Self.expiresSoon(a)
@@ -202,7 +218,9 @@ struct AccessPackagesView: View {
         let rows = Self.filtered(ended.map { Row(id: $0.id, name: $0.packageName, detail: $0.justification) }, query: search)
         let byId = Dictionary(ended.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return List {
-            if ended.isEmpty { Text("No denied, failed or canceled requests.").font(.caption).foregroundStyle(.secondary) }
+            if let caption = Self.emptyCaption(total: ended.count, filtered: rows.count, query: search, emptyText: "No denied, failed or canceled requests.") {
+                Text(caption).font(.caption).foregroundStyle(.secondary)
+            }
             ForEach(rows) { row in
                 if let r = byId[row.id] {
                     HStack(alignment: .top, spacing: 10) {
@@ -228,6 +246,7 @@ struct AccessPackagesView: View {
             Circle().fill(color).frame(width: 7, height: 7)
             Text(text).font(.caption).foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
     }
 

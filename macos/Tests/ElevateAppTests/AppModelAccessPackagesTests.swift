@@ -177,4 +177,11 @@ struct AppModelAccessPackagesTests {
         #expect(AccessPackagesView.filtered(rows, query: "ON-CALL").map(\.id) == ["2"])
         #expect(AccessPackagesView.filtered(rows, query: "nothing").isEmpty)
     }
+
+    @Test func emptyCaptionDistinguishesNoRowsFromNoMatches() {
+        #expect(AccessPackagesView.emptyCaption(total: 3, filtered: 2, query: "power", emptyText: "No packages.") == nil)
+        #expect(AccessPackagesView.emptyCaption(total: 0, filtered: 0, query: "", emptyText: "No packages.") == "No packages.")
+        #expect(AccessPackagesView.emptyCaption(total: 3, filtered: 0, query: "nothing", emptyText: "No packages.")
+            == "No matches for \u{201C}nothing\u{201D}.")
+    }
 }

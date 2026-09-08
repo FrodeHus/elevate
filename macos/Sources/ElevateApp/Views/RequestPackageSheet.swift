@@ -36,10 +36,13 @@ struct RequestPackageSheet: View {
                 Label(loadError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.red)
             } else if requirements.isEmpty {
                 Text("No policy lets you request this package right now.").font(.caption).foregroundStyle(.secondary)
-            } else if let selected, selected.requiresAnswers {
-                questionsNotice(selected)
             } else {
-                form
+                if requirements.count > 1 { policyPicker }
+                if let selected, selected.requiresAnswers {
+                    questionsNotice(selected)
+                } else {
+                    form
+                }
             }
             HStack {
                 if submitting { ProgressView().controlSize(.small) }
@@ -62,18 +65,19 @@ struct RequestPackageSheet: View {
         .task { await load() }
     }
 
-    @ViewBuilder private var form: some View {
-        if requirements.count > 1 {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Policy").font(.caption.weight(.semibold))
-                Picker("", selection: Binding(get: { selectedPolicyId ?? requirements[0].id }, set: { selectedPolicyId = $0 })) {
-                    ForEach(requirements) { r in Text(Self.policyLabel(r)).tag(r.id) }
-                }
-                .labelsHidden()
-                Text("\(requirements.count) policies let you request this package. The policy sets the duration and who approves.")
-                    .font(.caption).foregroundStyle(.secondary)
+    private var policyPicker: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("Policy").font(.caption.weight(.semibold))
+            Picker("", selection: Binding(get: { selectedPolicyId ?? requirements[0].id }, set: { selectedPolicyId = $0 })) {
+                ForEach(requirements) { r in Text(Self.policyLabel(r)).tag(r.id) }
             }
+            .labelsHidden()
+            Text("\(requirements.count) policies let you request this package. The policy sets the duration and who approves.")
+                .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    @ViewBuilder private var form: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text("Justification").font(.caption.weight(.semibold))
             TextField("Why you need this access", text: $justification, axis: .vertical).lineLimit(3...5)

@@ -42,6 +42,8 @@ struct TenantHeader: View {
                 if tenant.accessPackagesAvailable == true {
                     Button { open(.accessPackages(tenant.id)) } label: {
                         Image(systemName: "shippingbox").font(.caption).foregroundStyle(.secondary)
+                            .padding(4)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .help("Access packages")
