@@ -50,6 +50,10 @@ word or two instead of scrolling.
 - **Assigned** shows the packages you currently have.
 - **Declined** shows requests that were denied, failed, or that you canceled.
 
+If your search does not match anything on the current tab, the list shows a
+caption such as "No matches for your search." instead of the tab's usual
+empty message.
+
 At the bottom, the refresh button fetches the latest state from Entra, and the
 caption next to it tells you when the window was last updated. Press **Close**
 or Escape to dismiss the window.

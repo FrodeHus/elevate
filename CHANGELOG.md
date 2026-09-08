@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Access packages: each tenant whose sign-in carries the `EntitlementMgmt-SubjectAccess.ReadWrite`
+  permission shows a box glyph and an "Access packages…" menu item that open a window with
+  Available, Requested, Assigned and Declined tabs. Request with a justification and, when several
+  apply, a policy; packages that ask questions hand off to the My Access portal. Cancel pending
+  requests. Notifications when a request is approved, denied or fails, and when an assignment is
+  revoked or expires. Polled on panel open (at most every 15 minutes) and every 8 hours.
+- New eligible roles are marked in the panel with a "new" badge and announced once per tenant;
+  the marker clears the second time the panel opens.
+
+### Changed
+
+- The app registration gains one user-consentable Graph permission; see
+  `docs/entra-app-registration.md`.
+
 ## [1.3.0] - 2026-09-07
 
 ### Added
