@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profiles no longer push the roles down. "All N" opens a searchable list where Return runs the
   first match, the star pins or unpins, and each row and chip has a menu with run, run with the last
   reason, pin, manage and delete.
+- macOS: the Profiles window edits a profile in place. Select it on the left; rename, pin, bind the
+  global shortcut, change the duration each role proposes, remove roles, and "Add roles…" picks more
+  from every account and tenant with search and a kind filter. "Edit…" on a chip opens the window
+  on that profile. The old flow, where Edit reloaded the panel's selection and "Update profile"
+  saved it, is gone.
 
 ## [1.4.0] - 2026-09-08
 

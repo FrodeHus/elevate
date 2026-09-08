@@ -124,16 +124,8 @@ struct PanelView: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        if let editing = model.editingProfileId {
-                            Button(model.profiles.first { $0.id == editing }.map { "Update \"\($0.name)\"" } ?? "Update profile") {
-                                model.updateProfile(id: editing, keys: Array(model.selection))
-                                model.selectMode = false
-                            }
+                        Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
                             .disabled(model.selection.isEmpty)
-                        } else {
-                            Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
-                                .disabled(model.selection.isEmpty)
-                        }
                         Button {
                             open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
                         } label: {

@@ -50,15 +50,21 @@ a chip: run, run with the last reason, pin or unpin, manage, delete.
 
 ## Manage profiles
 
-Choose **Manage profiles…** from the All list or a chip's menu.
+Choose **Manage profiles…** from the All list, or **Edit…** from a chip's menu to open the window
+on that profile.
 
 ![The Profiles window listing three profiles with Run, Edit and delete controls](images/tutorials/manage-profiles.png)
 
-- **Run** opens the run sheet.
-- **Edit** loads the profile's roles into the panel's selection. Open the panel, adjust the ticks
-  across the tabs, then click **Update "<name>"** in the footer.
-- The trash button deletes a profile after confirmation. Active roles are not touched.
-- Drag profiles to reorder the chips.
+The list on the left holds every profile; the one you select is edited on the right, and every
+change is saved as you make it.
+
+- Rename in the name field. The pin switch puts the profile in the panel row; the shortcut switch
+  makes it the profile the global shortcut runs.
+- The roles are grouped by account and tenant. Each shows the duration the next run will propose,
+  which you can change here, and a **−** button removes it. **Add roles…** opens a picker over every
+  account and tenant with search and a kind filter; roles already in the profile are shown greyed.
+- **Run…** opens the run sheet, **Delete…** asks first. Active roles are never touched.
+- **+** under the list starts an empty profile; drag rows to reorder the chips.
 
 ## A global keyboard shortcut
 

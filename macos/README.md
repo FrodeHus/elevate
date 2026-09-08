@@ -27,9 +27,9 @@ chip per pinned profile (up to four, never wrapping) and "All N", a searchable l
 profile where the star pins or unpins. Clicking a chip opens a confirmation sheet that plans the
 run first: entries already active or awaiting approval are listed as skipped, the rest keep the
 duration you last chose for them and the reason you last gave, and approval-required entries are
-requested and come back as pending. "Manage profiles…" renames profiles, reorders them by dragging,
-deletes them, and Edit reopens the profile's selection in the panel so you can add or remove
-entries — "Update profile" saves the change. Profiles are stored with the rest of the app state in
+requested and come back as pending. The Profiles window edits a profile in place: rename, pin,
+bind the global shortcut, change the duration each role proposes, remove roles, and "Add roles…"
+picks more from every account and tenant. Profiles are stored with the rest of the app state in
 `state.json`.
 
 **Shortcuts.** Option-click on Activate, Extend or a profile chip activates immediately with the
