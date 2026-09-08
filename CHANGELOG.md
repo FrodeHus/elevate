@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-08
+
 ### Added
 
 - Windows Core: the access package layer (scope, models, provider, diff, new-role tracker and the
@@ -313,7 +315,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/FrodeHus/elevate/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FrodeHus/elevate/compare/v1.2.9...v1.3.0
 [1.2.9]: https://github.com/FrodeHus/elevate/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/FrodeHus/elevate/compare/v1.2.7...v1.2.8
