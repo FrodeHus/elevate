@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile row in the panel. The flag is written to `state.json` only when set, so files stay
   readable by older versions and macOS-written files round-trip unchanged on Windows.
 - macOS: the profiles row shows only pinned profiles, in one row that never wraps, so many
-  profiles no longer push the roles down. "All N" opens a searchable list where Return runs the
+  profiles no longer push the roles down. Chips show the name only; the count is in the
+  tooltip and the All list. "All N" opens a searchable list where Return runs the
   first match, the star pins or unpins, and each row and chip has a menu with run, run with the last
   reason, pin, manage and delete.
 - macOS: the Profiles window edits a profile in place. Select it on the left; rename, pin, bind the
