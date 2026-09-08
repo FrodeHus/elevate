@@ -7,7 +7,7 @@ namespace Elevate.App.ViewModels;
 /// <summary>Activation profiles. Port of <c>AppModel+Profiles.swift</c>.</summary>
 public sealed partial class AppModel
 {
-    private Guid? _editingProfileId;
+    private Guid? _profileToEdit;
 
     // MARK: Profiles
 
@@ -15,13 +15,16 @@ public sealed partial class AppModel
 
     public ActivationProfile? Profile(Guid id) => State.Profile(id);
 
-    /// <summary>The profile whose selection is open in the panel; the bulk bar offers "Update profile" while set.</summary>
-    public Guid? EditingProfileId
+    /// <summary>
+    /// The profile "Edit…" asked the Profiles window to select. The window reads and clears it, on
+    /// open and again when the existing window is fronted with a new request.
+    /// </summary>
+    public Guid? ProfileToEdit
     {
-        get => _editingProfileId;
-        private set
+        get => _profileToEdit;
+        set
         {
-            if (SetProperty(ref _editingProfileId, value))
+            if (SetProperty(ref _profileToEdit, value))
             {
                 Touch();
             }
@@ -129,22 +132,78 @@ public sealed partial class AppModel
         Persist();
     }
 
-    /// <summary>Edit = reopen the selection. The bulk bar offers "Update profile" while <see cref="EditingProfileId"/> is set.</summary>
-    public void BeginEditing(Guid profileId)
+    // MARK: In-place editing (the Profiles window)
+
+    /// <summary>An empty profile to fill in the Profiles window; the caller selects it there.</summary>
+    public ActivationProfile NewProfile()
     {
-        if (State.Profile(profileId) is not { } p)
+        var profile = new ActivationProfile("New profile", []);
+        State.UpsertProfile(profile);
+        Persist();
+        Touch();
+        return profile;
+    }
+
+    /// <summary>
+    /// Adds roles to a profile, keeping the entries it already has (and their durations) and the
+    /// stable order <see cref="SaveProfile"/> uses. Keys already present are ignored.
+    /// </summary>
+    public void AddProfileEntries(Guid id, IEnumerable<RoleKey> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        if (State.Profile(id) is not { } p)
         {
             return;
         }
 
-        SelectMode = true;
-        Selection.Clear();
-        foreach (var entry in p.Entries)
+        var existing = p.Entries.Select(e => e.RoleKey).ToHashSet();
+        var added = keys.Where(k => !existing.Contains(k)).Distinct().ToList();
+        if (added.Count == 0)
         {
-            Selection.Add(entry.RoleKey);
+            return;
         }
 
-        EditingProfileId = profileId;
+        UpdateProfile(id, [.. p.Entries.Select(e => e.RoleKey), .. added]);
+        Touch();
+    }
+
+    public void RemoveProfileEntry(Guid id, RoleKey key)
+    {
+        if (State.Profile(id) is not { } p)
+        {
+            return;
+        }
+
+        p.Entries.RemoveAll(e => e.RoleKey == key);
+        State.UpsertProfile(p);
+        Persist();
+        Touch();
+    }
+
+    /// <summary>The duration the next run proposes for one entry; null falls back to memory or the policy.</summary>
+    public void SetProfileEntryDuration(Guid id, RoleKey key, TimeSpan? duration)
+    {
+        if (State.Profile(id) is not { } p)
+        {
+            return;
+        }
+
+        var index = p.Entries.FindIndex(e => e.RoleKey == key);
+        if (index < 0)
+        {
+            return;
+        }
+
+        p.Entries[index] = p.Entries[index] with { LastDuration = duration };
+        State.UpsertProfile(p);
+        Persist();
+    }
+
+    /// <summary>Which profile the global shortcut runs; null unbinds it. The key itself is recorded in Settings.</summary>
+    public void SetHotKeyProfile(Guid? id)
+    {
+        Settings.HotKeyProfileId = id;
+        ApplyHotKey();
         Touch();
     }
 

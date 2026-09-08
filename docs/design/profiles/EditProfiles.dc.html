@@ -24,6 +24,7 @@
     .grp { font-size: 11px; font-weight: 600; color: #6e6e73; padding: 8px 10px 2px; display: flex; align-items: center; gap: 6px; }
     .toggle { width: 26px; height: 15px; border-radius: 8px; background: #34c759; position: relative; flex-shrink: 0; }
     .toggle::after { content: ""; position: absolute; top: 1px; left: 12px; width: 13px; height: 13px; border-radius: 7px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+    .toggle-off::after { left: 1px; }
     .x { width: 16px; height: 16px; border-radius: 8px; background: rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   </style>
 </helmet>
@@ -65,7 +66,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 18px; padding: 0 2px;">
           <div style="display: flex; align-items: center; gap: 7px;"><div class="toggle"></div><span style="font-size: 12px;">Pinned in panel</span></div>
-          <div style="display: flex; align-items: center; gap: 7px;"><span style="font-size: 12px; color: #6e6e73;">Shortcut</span><span class="select">⌃⌥M<svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px;"><div style="display: flex; align-items: center; gap: 7px;"><div class="toggle toggle-off" style="background: #d1d1d6;"></div><span style="font-size: 12px;">Runs with the global shortcut</span></div><span class="caption" style="font-size: 10px; line-height: 11px;">⌃⌥E · Settings…</span></div>
         </div>
         <div style="flex-grow: 1; display: flex; flex-direction: column; border-radius: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1); overflow: hidden;">
           <div class="grp"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#0a84ff" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg>alex.rivera@contoso.com · Contoso</div>

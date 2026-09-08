@@ -20,7 +20,6 @@ namespace Elevate.App.Views;
 public sealed partial class PanelView : UserControl
 {
     private readonly ObservableCollection<PanelGroup> _groups = [];
-    private readonly ObservableCollection<ProfileChip> _chips = [];
     private readonly DispatcherQueueTimer _clock;
     private AppModel? _model;
     private FlyoutWindow? _window;
@@ -31,7 +30,6 @@ public sealed partial class PanelView : UserControl
     {
         InitializeComponent();
         GroupedSource.Source = _groups;
-        ProfileChips.ItemsSource = _chips;
         Accelerate(SearchToggle, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", () =>
         {
             SearchToggle.IsChecked = SearchToggle.IsChecked != true;
@@ -211,8 +209,6 @@ public sealed partial class PanelView : UserControl
                 : $"{count} {noun}{(count == 1 ? "" : "s")} selected · {tenants} tenant{(tenants == 1 ? "" : "s")}";
             BulkActivate.Content = count == 0 ? "Activate" : $"Activate {count} {noun}{(count == 1 ? "" : "s")}";
             BulkActivate.IsEnabled = count > 0 && model.IsOnline;
-            var editing = model.EditingProfileId is { } id ? model.Profile(id) : null;
-            BulkProfile.Content = editing is null ? "Save as profile…" : $"Update \"{editing.Name}\"";
             BulkProfile.IsEnabled = count > 0;
             var (entra, azure, groups) = model.SelectionBreakdown;
             var parts = new List<string>();
@@ -236,48 +232,103 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    /// <summary>What the row last drew, so the chips are rebuilt only when a pin, a name or the count changed.</summary>
+    private string _profilesSignature = string.Empty;
+
     private void DrawProfiles(AppModel model, bool hidden)
     {
         var profiles = model.Profiles;
-        ProfilesRow.Visibility = hidden || profiles.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        // Reconcile by id so the repeater keeps its elements and the chips do not flash.
-        for (var i = _chips.Count - 1; i >= 0; i--)
+        var visible = !hidden && profiles.Count > 0;
+        ProfilesRow.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible)
         {
-            if (!profiles.Any(p => p.Id == _chips[i].Id))
-            {
-                _chips.RemoveAt(i);
-            }
+            _profilesSignature = string.Empty;
+            return;
         }
 
-        for (var i = 0; i < profiles.Count; i++)
+        var pinned = model.PinnedProfiles;
+        var signature = string.Join("|", pinned.Select(p => $"{p.Id}:{p.Name}:{p.Entries.Count}:{p.LastJustification is null}")) + "#" + profiles.Count;
+        if (signature == _profilesSignature)
         {
-            var profile = profiles[i];
-            var at = -1;
-            for (var j = i; j < _chips.Count; j++)
-            {
-                if (_chips[j].Id == profile.Id)
-                {
-                    at = j;
-                    break;
-                }
-            }
+            return;
+        }
 
-            if (at < 0)
+        _profilesSignature = signature;
+        AllProfilesLabel.Text = $"All {profiles.Count}";
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(AllProfiles, $"All profiles, {profiles.Count}");
+        ProfileChips.Children.Clear();
+        ProfileChips.ColumnDefinitions.Clear();
+        if (pinned.Count == 0)
+        {
+            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ProfileChips.Children.Add(new TextBlock
             {
-                _chips.Insert(i, new ProfileChip(profile.Id) { Name = profile.Name, Caption = ProfileSummary.Caption(profile.Entries) });
-                continue;
-            }
+                Text = "Pin profiles to show them here",
+                FontSize = 12,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            return;
+        }
 
-            if (at != i)
-            {
-                _chips.Move(at, i);
-            }
-
-            _chips[i].Name = profile.Name;
-            _chips[i].Caption = ProfileSummary.Caption(profile.Entries);
+        // Star-sized, capped columns: four chips shrink together and trim their names instead of wrapping.
+        for (var i = 0; i < pinned.Count; i++)
+        {
+            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 150 });
+            var chip = Chip(pinned[i]);
+            Grid.SetColumn(chip, i);
+            ProfileChips.Children.Add(chip);
         }
     }
 
+    /// <summary>A pinned profile: click runs it, Ctrl-click runs it silently, right-click for the rest.</summary>
+    private Button Chip(ActivationProfile profile)
+    {
+        var resources = Application.Current.Resources;
+        var id = profile.Id;
+        // No count on the chip: four names already compete for 356 px, and the tooltip and the All list carry it.
+        var content = new Grid { ColumnSpacing = 5 };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var bolt = new FontIcon { Glyph = "", FontSize = 10, Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["AccentFillColorDefaultBrush"], VerticalAlignment = VerticalAlignment.Center };
+        content.Children.Add(bolt);
+        var name = new TextBlock { Text = profile.Name, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(name, 1);
+        content.Children.Add(name);
+
+        var chip = new Button
+        {
+            Style = (Style)resources["SmallButtonStyle"],
+            Height = 28,
+            MinHeight = 28,
+            Padding = new Thickness(9, 0, 9, 0),
+            CornerRadius = new CornerRadius(14),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = content,
+        };
+        ToolTipService.SetToolTip(chip, $"Run {profile.Name} ({ProfileSummary.Caption(profile.Entries)}). Ctrl-click to run with the last reason and durations");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, $"Run {profile.Name}");
+        chip.Click += (_, _) =>
+        {
+            if (_model is not null)
+            {
+                _ = ProfileActions.RunAsync(_model, id, silentlyIfPossible: IsControlDown());
+            }
+        };
+        chip.ContextRequested += (s, e) =>
+        {
+            if (_model is null)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            ProfileActions.Menu(_model, id, XamlRoot).ShowAt((FrameworkElement)s);
+        };
+        return chip;
+    }
     /// <summary>Once a second while the flyout is open: countdowns, the deactivation lock, Extend.</summary>
     private void Tick()
     {
@@ -408,48 +459,23 @@ public sealed partial class PanelView : UserControl
     }
 
     /// <summary>Whether Ctrl is held: the quick-activate modifier, read at click time like the macOS Option check.</summary>
-    private static bool IsControlDown() =>
+    internal static bool IsControlDown() =>
         InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
     // MARK: Profiles
 
-    private void OnManageProfiles(object sender, RoutedEventArgs e) => App.Current.OpenManageProfiles();
-
-    private async void OnProfileChipClick(object sender, RoutedEventArgs e)
+    private void OnAllProfiles(object sender, RoutedEventArgs e)
     {
-        // ItemsRepeater does not set a DataContext on x:Bind templates; the element's index names the chip.
-        if (_model is null || sender is not UIElement element)
+        if (_model is not null && sender is FrameworkElement anchor)
         {
-            return;
+            AllProfilesFlyout.Show(_model, anchor);
         }
-
-        var index = ProfileChips.GetElementIndex(element);
-        if (index < 0 || index >= _chips.Count)
-        {
-            return;
-        }
-
-        var id = _chips[index].Id;
-        if (IsControlDown() && await _model.QuickRunAsync(id))
-        {
-            return;
-        }
-
-        _model.RequestRun(id);
-        App.Current.OpenRunProfile(id);
     }
 
     private void OnBulkProfile(object sender, RoutedEventArgs e)
     {
         if (_model is null || _model.Selection.Count == 0)
         {
-            return;
-        }
-
-        if (_model.EditingProfileId is { } editing)
-        {
-            _model.UpdateProfile(editing, _model.Selection);
-            _model.SelectMode = false;
             return;
         }
 
