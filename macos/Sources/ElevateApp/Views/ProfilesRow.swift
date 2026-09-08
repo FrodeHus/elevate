@@ -50,8 +50,8 @@ struct ProfileChip: View {
         Button { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: NSEvent.modifierFlags.contains(.option)) } label: {
             HStack(spacing: 5) {
                 Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.accentColor)
+                // No count on the chip: four names already compete for the row; the tooltip and the All list carry it.
                 Text(profile.name).font(.caption.weight(.medium)).lineLimit(1).truncationMode(.tail)
-                Text(ProfileActions.shortCaption(profile)).font(.caption2).foregroundStyle(.secondary).fixedSize()
             }
             .padding(.horizontal, 9).padding(.vertical, 4)
             .background(.background, in: Capsule())
@@ -221,17 +221,6 @@ struct ProfileMenuItems: View {
 
 /// Shared entry points for running and opening, so chips, rows and menus behave identically.
 enum ProfileActions {
-    /// "5 · 1" for five roles and a group; "3" for roles only. The long form is the tooltip.
-    static func shortCaption(_ p: ActivationProfile) -> String {
-        let groups = p.entries.filter { $0.roleKey.scope.kind == .group }.count
-        let roles = p.entries.count - groups
-        switch (roles, groups) {
-        case (_, 0): return "\(roles)"
-        case (0, _): return "\(groups)"
-        default: return "\(roles) · \(groups)"
-        }
-    }
-
     /// Runs a profile: silently with the remembered reason and durations when asked and possible,
     /// otherwise through the run sheet.
     @MainActor
