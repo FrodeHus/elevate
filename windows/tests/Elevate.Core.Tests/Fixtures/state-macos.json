@@ -16,6 +16,7 @@
       "source" : "home",
       "discoveryMode" : "automatic",
       "principalObjectId" : "obj-1",
+      "accessPackagesAvailable" : true,
       "entraActivation" : {
         "unsupported" : {
           "reason" : "The Azure CLI app is not granted RoleAssignmentSchedule.ReadWrite.Directory"
@@ -131,6 +132,64 @@
         }
       ],
       "lastJustification" : "INC-1234"
+    }
+  ],
+  "accessPackages" : [
+    {
+      "tenantKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-home"
+      },
+      "snapshot" : {
+        "requests" : [
+          {
+            "id" : "req-1",
+            "packageId" : "pkg-sandbox",
+            "packageName" : "Azure Sandbox Contributor",
+            "requestType" : "userAdd",
+            "state" : "pendingApproval",
+            "status" : "PendingApproval",
+            "justification" : "Need a sandbox for the cost-alerting spike (INC-4412).",
+            "createdAt" : "2026-09-08T07:12:00Z",
+            "policyId" : "pol-eng"
+          }
+        ],
+        "assignments" : [
+          {
+            "id" : "asg-1",
+            "packageId" : "pkg-exchange",
+            "packageName" : "Exchange Operations",
+            "state" : "delivered",
+            "policyName" : "On-call staff",
+            "expiresAt" : "2027-03-07T14:40:00Z"
+          }
+        ]
+      },
+      "polledAt" : "2026-09-08T07:15:00Z"
+    }
+  ],
+  "roleTracking" : [
+    {
+      "tenantKey" : {
+        "identityId" : "id1",
+        "tenantId" : "t-home"
+      },
+      "tracker" : {
+        "seen" : [
+          {
+            "identityId" : "id1",
+            "tenantId" : "t-home",
+            "scope" : {
+              "entraDirectory" : {
+                "roleDefinitionId" : "62e90394-69f5-4237-9190-012177145e10",
+                "directoryScopeId" : "/"
+              }
+            }
+          }
+        ],
+        "new" : [],
+        "shownOpens" : 0
+      }
     }
   ]
 }

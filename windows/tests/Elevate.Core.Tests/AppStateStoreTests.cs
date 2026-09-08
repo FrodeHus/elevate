@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using Elevate.Core.Catalogue;
+using Elevate.Core.Coordination;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
+using Elevate.Core.Tests.Support;
 using FluentAssertions;
 
 namespace Elevate.Core.Tests;
@@ -225,5 +227,86 @@ public class AppStateStoreTests
         var back = Json.Deserialize<AppState>(json)!;
         back.Tenants[0].AccessPackagesAvailable.Should().BeTrue();
         back.Tenants[1].AccessPackagesAvailable.Should().BeNull();
+    }
+
+    [Fact]
+    public void AccessPackageRecordsRoundTripAndDefaultEmpty()
+    {
+        var store = new AppStateStore(TempDir());
+        var state = new AppState();
+        var key = new TenantKey("i", "t");
+        var snapshot = new AccessPackageSnapshot([new AccessPackageRequest("r", "p", "Pkg", "userAdd", AccessPackageRequestState.PendingApproval)]);
+        var polledAt = Fixtures.Date("2026-09-08T07:00:00Z")!.Value;
+        state.SetAccessPackages(key, snapshot, polledAt);
+        var tracker = new NewRoleTracker();
+        tracker.Observe(new HashSet<RoleKey> { Key });
+        state.SetRoleTracker(key, tracker);
+
+        store.Save(state);
+        var loaded = store.Load();
+
+        loaded.AccessPackagesFor(key)!.Snapshot.Should().Be(snapshot);
+        loaded.AccessPackagesFor(key)!.PolledAt.Should().Be(polledAt);
+        loaded.RoleTrackerFor(key).Should().Be(tracker);
+        loaded.RoleTrackerFor(new TenantKey("i", "other")).Should().Be(new NewRoleTracker());
+        loaded.Should().Be(state);
+    }
+
+    [Fact]
+    public void SetAccessPackagesAndSetRoleTrackerReplacePerTenant()
+    {
+        var state = new AppState();
+        var key = new TenantKey("i", "t");
+        state.SetAccessPackages(key, new AccessPackageSnapshot(), Fixtures.Date("2026-09-08T07:00:00Z")!.Value);
+        state.SetAccessPackages(key, new AccessPackageSnapshot(), Fixtures.Date("2026-09-08T08:00:00Z")!.Value);
+        state.SetRoleTracker(key, new NewRoleTracker());
+        state.SetRoleTracker(key, new NewRoleTracker { ShownOpens = 1 });
+
+        state.AccessPackages.Should().ContainSingle().Which.PolledAt.Should().Be(Fixtures.Date("2026-09-08T08:00:00Z")!.Value);
+        state.RoleTracking.Should().ContainSingle().Which.Tracker.ShownOpens.Should().Be(1);
+    }
+
+    [Fact]
+    public void LegacyStateWithoutAccessPackagesLoads()
+    {
+        var state = Json.Deserialize<AppState>("""{"identities":[],"tenants":[],"manualRoles":[],"memory":[],"profiles":[]}""")!;
+        state.AccessPackages.Should().BeEmpty();
+        state.RoleTracking.Should().BeEmpty();
+        Json.Deserialize<AppState>("""{"accessPackages":null,"roleTracking":null}""").Should().Be(new AppState());
+    }
+
+    [Fact]
+    public void RemovingATenantDropsItsAccessPackageState()
+    {
+        var state = new AppState();
+        var key = new TenantKey("i", "t");
+        state.SetAccessPackages(key, new AccessPackageSnapshot(), DateTimeOffset.UtcNow);
+        state.SetRoleTracker(key, new NewRoleTracker());
+
+        state.RemoveTenant(key);
+
+        state.AccessPackagesFor(key).Should().BeNull();
+        state.RoleTracking.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CloneCopiesTrackersDeeply()
+    {
+        var state = new AppState();
+        var key = new TenantKey("i", "t");
+        var tracker = new NewRoleTracker();
+        tracker.Observe(new HashSet<RoleKey> { Key });
+        tracker.Observe(new HashSet<RoleKey> { Key, new RoleKey("i", "t", new EntraDirectoryScope("r2", "/")) });
+        state.SetRoleTracker(key, tracker);
+        state.SetAccessPackages(key, new AccessPackageSnapshot(), DateTimeOffset.UtcNow);
+
+        var clone = state.Clone();
+        clone.Should().Be(state);
+        clone.RoleTrackerFor(key).PanelOpened();
+        clone.RoleTrackerFor(key).PanelOpened();
+        clone.AccessPackages.Clear();
+
+        state.RoleTrackerFor(key).New.Should().ContainSingle();
+        state.AccessPackages.Should().ContainSingle();
     }
 }
