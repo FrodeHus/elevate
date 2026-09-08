@@ -57,7 +57,7 @@ The CLI signs in the same ways the apps do, chosen per account with `--method`:
 
 | Method | Command | What it can do |
 |---|---|---|
-| Your own app registration | `elevate config set client-id <application id>` then `elevate login` | Entra directory roles, Azure resource roles, PIM for Groups, approvals |
+| Your own app registration | `elevate config set client-id <application id>` then `elevate login` | Entra directory roles, Azure resource roles, PIM for Groups, approvals, access packages |
 | A custom (company) registration | `elevate login --method custom --client-id <application id>` | The same, given the same permissions; the id is remembered |
 | The Azure CLI app | `elevate login --method cli` | Azure resource roles only, no registration or consent needed |
 | The Azure PowerShell app | `elevate login --method pwsh` | Same, for tenants that block the Azure CLI app |
@@ -97,6 +97,7 @@ roles lists them instead of guessing.
 | `elevate deactivate <role…>` / `elevate cancel <role…>` | Deactivate an active role; withdraw a request that is awaiting approval or scheduled. |
 | `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles). |
 | `elevate approvals` | Requests awaiting your decision as an approver; `approve <id>` and `deny <id> --reason …`. Extend and renew requests are listed with "decide in the portal", as in the apps. |
+| `elevate packages` | Access packages (entitlement management) for accounts signed in with your own or a custom registration: `list` (with the state of any pending request or delivered assignment), `requests` (open ones; `--all` adds denied, failed and cancelled with dates and the service's status), `assigned` (delivered, with expiry and policy), `request <package> --justification …` (`--policy` when several apply; packages that ask questions are handed to My Access with a link), `cancel <id>`. The first call asks for the `EntitlementMgmt-SubjectAccess.ReadWrite` permission, which needs no admin consent. |
 | `elevate accounts` / `login` / `logout` | The signed-in accounts. |
 | `elevate tenants` | Tracked tenants with their flags; `discover`, `add`, `remove`, `retry` (clears the manual-roles, azure-off and groups-off latches), and `manual add|list|clear` for tenants that refuse discovery. |
 | `elevate config` | The client id, the remembered custom client id and the Linux cache mode; `config path` prints the data directory. |

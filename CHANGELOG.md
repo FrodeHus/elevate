@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Windows Core: the access package layer (scope, models, provider, diff, new-role tracker and the
+  per-tenant state records) is ported to `Elevate.Core`, so `state.json` keeps one schema across
+  the macOS app, the Windows app and the CLI.
+- CLI: `elevate packages list|requests|assigned|request|cancel` for access packages. Tables by
+  default, `--json` for scripts; requests need a justification and, when several policies apply,
+  `--policy`; packages whose policy asks questions are handed to My Access with a link.
 - Access packages: each tenant whose sign-in carries the `EntitlementMgmt-SubjectAccess.ReadWrite`
   permission shows a box glyph and an "Access packages…" menu item that open a window with
   Available, Requested, Assigned and Declined tabs. Request with a justification and, when several
