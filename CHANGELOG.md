@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core (macOS and Windows): a profile can be pinned, at most four at a time, ahead of the pinned
   profile row in the panel. The flag is written to `state.json` only when set, so files stay
   readable by older versions and macOS-written files round-trip unchanged on Windows.
+- macOS: the profiles row shows only pinned profiles, in one row that never wraps, so many
+  profiles no longer push the roles down. "All N" opens a searchable list where Return runs the
+  first match, the star pins or unpins, and each row and chip has a menu with run, run with the last
+  reason, pin, manage and delete.
 
 ## [1.4.0] - 2026-09-08
 

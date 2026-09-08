@@ -24,9 +24,11 @@ remembers for each role, or the policy default, and which roles need approval.
 Click **Save**. The reason you type on a run is remembered per role, so later runs are pre-filled
 with it.
 
-## Run a profile
+## Pin and run a profile
 
-Profiles appear as chips under the tabs. Click one to open the run sheet:
+Under the tabs sits one row: a chip for each **pinned** profile, and **All N** for the rest. Pin the
+profiles you run most, up to four; the row never wraps, so the panel stays the same height however
+many profiles you keep. Click a chip to open the run sheet:
 
 ![The run sheet for Incident response, with one entry already active and skipped](images/tutorials/run-profile.png)
 
@@ -41,9 +43,14 @@ Profiles appear as chips under the tabs. Click one to open the run sheet:
 **Option-click** a chip to run it without the sheet, using the remembered reason and durations.
 If anything needs input, such as a missing reason or an MFA step, the sheet opens instead.
 
+**All N** opens the full list. Type to filter, press Return to run the first match, or Option-Return
+to run it silently. The star on each row pins or unpins it; when four are already pinned the footer
+says so. Hover a row for **Run** and the **⋯** menu, which is the same menu you get by right-clicking
+a chip: run, run with the last reason, pin or unpin, manage, delete.
+
 ## Manage profiles
 
-Click **Manage…** on the Profiles row.
+Choose **Manage profiles…** from the All list or a chip's menu.
 
 ![The Profiles window listing three profiles with Run, Edit and delete controls](images/tutorials/manage-profiles.png)
 

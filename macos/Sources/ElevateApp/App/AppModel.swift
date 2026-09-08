@@ -77,6 +77,9 @@ final class AppModel {
     // MARK: Profiles — AppModel+Profiles
 
     var editingProfileId: UUID?
+    /// The profile a chip or list menu asked to delete; the confirmation dialog reads it. Lives
+    /// here because the menu and the dialog are on different views.
+    var profileToDelete: UUID?
     /// Bumped each time the user asks to run a profile. `WindowGroup(for:)` refocuses an existing
     /// window instead of re-running `.onAppear`, so the Run sheet re-plans on a change here —
     /// and only then, never merely because the window regained focus.

@@ -22,13 +22,15 @@ groups at all; its Groups tab explains that the sign-in method supports Azure re
 tenant where the group read is refused for permissions shows a "Groups off" pill with the reason.
 
 **Profiles.** Select mode turns the rows into checkboxes so you can pick roles and groups across
-every tab and account at once; "Save as profile…" names that set and pins it as a chip under the
-tabs. Clicking a chip opens a confirmation sheet that plans the run first: entries already active or
-awaiting approval are listed as skipped, the rest keep the duration you last chose for them and the
-reason you last gave, and approval-required entries are requested and come back as pending. "Manage…"
-renames profiles, reorders them by dragging, deletes them, and Edit reopens the profile's selection
-in the panel so you can add or remove entries — "Update profile" saves the change. Profiles are
-stored with the rest of the app state in `state.json`.
+every tab and account at once; "Save as profile…" names that set. The row under the tabs holds a
+chip per pinned profile (up to four, never wrapping) and "All N", a searchable list of every
+profile where the star pins or unpins. Clicking a chip opens a confirmation sheet that plans the
+run first: entries already active or awaiting approval are listed as skipped, the rest keep the
+duration you last chose for them and the reason you last gave, and approval-required entries are
+requested and come back as pending. "Manage profiles…" renames profiles, reorders them by dragging,
+deletes them, and Edit reopens the profile's selection in the panel so you can add or remove
+entries — "Update profile" saves the change. Profiles are stored with the rest of the app state in
+`state.json`.
 
 **Shortcuts.** Option-click on Activate, Extend or a profile chip activates immediately with the
 last reason and duration, skipping the dialog; the dialog still opens when a reason is missing, a
