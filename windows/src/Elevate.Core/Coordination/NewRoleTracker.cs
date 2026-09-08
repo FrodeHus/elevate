@@ -78,7 +78,11 @@ public sealed class NewRoleTracker : IEquatable<NewRoleTracker>
         }
     }
 
-    public bool IsNew(RoleKey key) => New.Contains(key);
+    public bool IsNew(RoleKey key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return New.Contains(key);
+    }
 
     public NewRoleTracker Clone() => new() { Seen = [.. Seen], New = [.. New], ShownOpens = ShownOpens };
 
