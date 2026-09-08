@@ -248,6 +248,7 @@ public static class PackageCommands
 
         var reads = new List<TenantPackages>();
         var failures = 0;
+        var failedTenants = new List<(TenantKey Key, string Message)>();
         var title = keys.Count == 1 ? $"Reading access packages in {session.TenantName(keys[0])}…" : $"Reading access packages in {keys.Count} tenants…";
         await context.Output.StatusAsync(title, async () =>
         {
@@ -264,10 +265,16 @@ public static class PackageCommands
                 catch (Exception e)
                 {
                     failures += 1;
-                    context.Output.Warn($"{Markup.Escape(session.TenantName(key))}: {Markup.Escape(ElevateSession.Describe(e))}");
+                    failedTenants.Add((key, ElevateSession.Describe(e)));
                 }
             }
         }).ConfigureAwait(false);
+
+        foreach (var (key, message) in failedTenants)
+        {
+            context.Output.Warn($"{Markup.Escape(session.TenantName(key))}: {Markup.Escape(message)}");
+        }
+
         return (reads, failures);
     }
 
