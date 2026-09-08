@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -18,16 +19,10 @@ public static partial class ClaimsChallenge
             return null;
         }
 
-        var b64 = match.Groups[1].Value.Replace('-', '+').Replace('_', '/');
-        while (b64.Length % 4 != 0)
-        {
-            b64 += "=";
-        }
-
         byte[] data;
         try
         {
-            data = Convert.FromBase64String(b64);
+            data = Base64Url.DecodeFromChars(match.Groups[1].Value);
         }
         catch (FormatException)
         {

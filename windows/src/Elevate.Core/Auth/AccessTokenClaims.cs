@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
 
@@ -67,11 +68,9 @@ public static class AccessTokenClaims
 
     private static byte[]? Base64UrlDecode(string value)
     {
-        var b64 = value.Replace('-', '+').Replace('_', '/');
-        b64 += new string('=', (4 - (b64.Length % 4)) % 4);
         try
         {
-            return Convert.FromBase64String(b64);
+            return Base64Url.DecodeFromChars(value);
         }
         catch (FormatException)
         {

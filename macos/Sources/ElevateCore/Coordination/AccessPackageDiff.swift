@@ -35,13 +35,16 @@ public enum AccessPackageDiff {
             }
         }
 
-        // Assignments: a delivered one that is gone or expired is either revoked or expired,
-        // decided by whether its end date has passed.
+        // Assignments: a delivered one that is gone or no longer delivered is either revoked or
+        // expired. Graph's own "expired" state wins; otherwise the end date decides, so an
+        // assignment that vanished after its end date reads as expired, not revoked.
         let currentById = Dictionary(current.assignments.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         for a in previous.assignments where a.state == .delivered {
-            let stillDelivered = currentById[a.id]?.state == .delivered
-            guard !stillDelivered else { continue }
-            if let end = a.expiresAt, end <= now {
+            let still = currentById[a.id]?.state
+            guard still != .delivered else { continue }
+            if still == .expired {
+                out.append(.expired(a))
+            } else if let end = a.expiresAt, end <= now {
                 out.append(.expired(a))
             } else {
                 out.append(.revoked(a))

@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Elevate.Core.Models;
 using Elevate.Core.Storage;
 
 namespace Elevate.Core;
@@ -47,6 +48,10 @@ public static class Json
             RespectNullableAnnotations = true,
             RespectRequiredConstructorParameters = true,
         };
+        // Before the strict enum converter: the collection is searched in order, and the attribute
+        // form on the enum type would rank below it.
+        options.Converters.Add(new UnknownEnumJsonConverter<AccessPackageRequestState>());
+        options.Converters.Add(new UnknownEnumJsonConverter<AccessPackageAssignmentState>());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         options.Converters.Add(new DurationJsonConverter());
         options.Converters.Add(new GuidJsonConverter());

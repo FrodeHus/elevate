@@ -78,15 +78,7 @@ public sealed class AppState : IEquatable<AppState>
     public void UpsertProfile(ActivationProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
-        var index = Profiles.FindIndex(p => p.Id == profile.Id);
-        if (index >= 0)
-        {
-            Profiles[index] = profile;
-        }
-        else
-        {
-            Profiles.Add(profile);
-        }
+        Upsert(Profiles, p => p.Id == profile.Id, profile);
     }
 
     public void RemoveProfile(Guid id) => Profiles.RemoveAll(p => p.Id == id);
@@ -115,15 +107,7 @@ public sealed class AppState : IEquatable<AppState>
     public void UpsertTenant(TenantContext tenant)
     {
         ArgumentNullException.ThrowIfNull(tenant);
-        var index = Tenants.FindIndex(t => t.Key == tenant.Key);
-        if (index >= 0)
-        {
-            Tenants[index] = tenant;
-        }
-        else
-        {
-            Tenants.Add(tenant);
-        }
+        Upsert(Tenants, t => t.Key == tenant.Key, tenant);
     }
 
     /// <summary>Drops a tenant along with the manual roles, memory and profile entries that named it.</summary>
@@ -160,16 +144,7 @@ public sealed class AppState : IEquatable<AppState>
 
     public void Remember(RoleKey roleKey, string justification, TimeSpan? duration)
     {
-        var entry = new RoleMemory(roleKey, justification, duration);
-        var index = Memory.FindIndex(m => m.RoleKey == roleKey);
-        if (index >= 0)
-        {
-            Memory[index] = entry;
-        }
-        else
-        {
-            Memory.Add(entry);
-        }
+        Upsert(Memory, m => m.RoleKey == roleKey, new RoleMemory(roleKey, justification, duration));
     }
 
     public AccessPackageRecord? AccessPackagesFor(TenantKey key) => AccessPackages.Find(r => r.TenantKey == key);
@@ -177,16 +152,7 @@ public sealed class AppState : IEquatable<AppState>
     public void SetAccessPackages(TenantKey key, AccessPackageSnapshot snapshot, DateTimeOffset polledAt)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        var record = new AccessPackageRecord(key, snapshot, polledAt);
-        var index = AccessPackages.FindIndex(r => r.TenantKey == key);
-        if (index >= 0)
-        {
-            AccessPackages[index] = record;
-        }
-        else
-        {
-            AccessPackages.Add(record);
-        }
+        Upsert(AccessPackages, r => r.TenantKey == key, new AccessPackageRecord(key, snapshot, polledAt));
     }
 
     /// <summary>The stored tracker for a tenant, or a fresh one that is not yet stored.</summary>
@@ -195,15 +161,20 @@ public sealed class AppState : IEquatable<AppState>
     public void SetRoleTracker(TenantKey key, NewRoleTracker tracker)
     {
         ArgumentNullException.ThrowIfNull(tracker);
-        var record = new RoleTrackingRecord(key, tracker);
-        var index = RoleTracking.FindIndex(r => r.TenantKey == key);
+        Upsert(RoleTracking, r => r.TenantKey == key, new RoleTrackingRecord(key, tracker));
+    }
+
+    /// <summary>Replaces the element <paramref name="matches"/> in place, or appends when there is none.</summary>
+    private static void Upsert<T>(List<T> list, Predicate<T> matches, T item)
+    {
+        var index = list.FindIndex(matches);
         if (index >= 0)
         {
-            RoleTracking[index] = record;
+            list[index] = item;
         }
         else
         {
-            RoleTracking.Add(record);
+            list.Add(item);
         }
     }
 
@@ -225,7 +196,7 @@ public sealed class AppState : IEquatable<AppState>
         Memory = [.. Memory],
         Profiles = [.. Profiles.Select(p => p.DeepCopy())],
         AccessPackages = [.. AccessPackages],
-        RoleTracking = [.. RoleTracking.Select(r => r with { Tracker = r.Tracker.Clone() })],
+        RoleTracking = [.. RoleTracking],
     };
 
     public bool Equals(AppState? other) =>

@@ -83,8 +83,9 @@ public static class AccessPackageDiff
             }
         }
 
-        // Assignments: a delivered one that is gone or expired is either revoked or expired,
-        // decided by whether its end date has passed.
+        // Assignments: a delivered one that is gone or no longer delivered is either revoked or
+        // expired. Graph's own "expired" state wins; otherwise the end date decides, so an
+        // assignment that vanished after its end date reads as expired, not revoked.
         var currentById = new Dictionary<string, AccessPackageAssignment>(StringComparer.Ordinal);
         foreach (var a in current.Assignments)
         {
@@ -93,12 +94,15 @@ public static class AccessPackageDiff
 
         foreach (var a in previous.Assignments.Where(a => a.State == AccessPackageAssignmentState.Delivered))
         {
-            if (currentById.TryGetValue(a.Id, out var still) && still.State == AccessPackageAssignmentState.Delivered)
+            var still = currentById.GetValueOrDefault(a.Id);
+            if (still?.State == AccessPackageAssignmentState.Delivered)
             {
                 continue;
             }
 
-            events.Add(a.ExpiresAt is { } end && end <= now
+            var expired = still?.State == AccessPackageAssignmentState.Expired
+                || (a.ExpiresAt is { } end && end <= now);
+            events.Add(expired
                 ? new AccessPackageEvent.Expired(a)
                 : new AccessPackageEvent.Revoked(a));
         }

@@ -52,6 +52,13 @@ import Foundation
         #expect(events.count == 4)
     }
 
+    @Test func graphsExpiredStateWinsOverTheClock() {
+        // The service already says expired, but this clock has not reached the end yet (skew, or an early poll).
+        let before = AccessPackageSnapshot(assignments: [assignment("a", expires: "2026-09-08T12:00:05Z")])
+        let after = AccessPackageSnapshot(assignments: [assignment("a", .expired, expires: "2026-09-08T12:00:05Z")])
+        #expect(AccessPackageDiff.events(previous: before, current: after, now: now) == [.expired(before.assignments[0])])
+    }
+
     @Test func eventsCarryTheirPackageName() {
         let e = AccessPackageEvent.approved(request("x", .delivered))
         #expect(e.packageName == "Package x")
