@@ -73,4 +73,40 @@ import Foundation
         s.removeIdentity("i")
         #expect(s == AppState())
     }
+
+    @Test func accessPackageRecordsRoundTripAndDefaultEmpty() async throws {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = AppStateStore(directory: dir)
+        var s = AppState()
+        let key = TenantKey(identityId: "i", tenantId: "t")
+        let snapshot = AccessPackageSnapshot(requests: [AccessPackageRequest(id: "r", packageId: "p", packageName: "Pkg", requestType: "userAdd", state: .pendingApproval)])
+        let polledAt = GraphJSON.parseDate("2026-09-08T07:00:00Z")!
+        s.setAccessPackages(key, snapshot: snapshot, polledAt: polledAt)
+        var tracker = NewRoleTracker()
+        tracker.observe(discovered: [RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: "r", directoryScopeId: "/"))])
+        s.setRoleTracker(key, tracker)
+        try await store.save(s)
+        let loaded = try await store.load()
+        #expect(loaded.accessPackageRecord(key)?.snapshot == snapshot)
+        #expect(loaded.accessPackageRecord(key)?.polledAt == polledAt)
+        #expect(loaded.roleTracker(key) == tracker)
+        #expect(loaded.roleTracker(TenantKey(identityId: "i", tenantId: "other")) == NewRoleTracker())
+    }
+
+    @Test func legacyStateWithoutAccessPackagesLoads() throws {
+        let legacy = Data(#"{"identities":[],"tenants":[],"manualRoles":[],"memory":[],"profiles":[]}"#.utf8)
+        let s = try JSONDecoder().decode(AppState.self, from: legacy)
+        #expect(s.accessPackages.isEmpty && s.roleTracking.isEmpty)
+    }
+
+    @Test func removingATenantDropsItsAccessPackageState() {
+        var s = AppState()
+        let key = TenantKey(identityId: "i", tenantId: "t")
+        s.setAccessPackages(key, snapshot: AccessPackageSnapshot(), polledAt: .now)
+        s.setRoleTracker(key, NewRoleTracker())
+        s.removeTenant(key)
+        #expect(s.accessPackageRecord(key) == nil)
+        #expect(s.roleTracking.isEmpty)
+    }
 }

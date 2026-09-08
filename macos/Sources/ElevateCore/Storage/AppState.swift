@@ -6,15 +6,42 @@ public struct RoleMemory: Codable, Hashable, Sendable {
     public var lastDuration: Duration?
 }
 
+/// The last poll of one tenant's access packages, kept so the next poll can diff against it.
+public struct AccessPackageRecord: Codable, Hashable, Sendable {
+    public var tenantKey: TenantKey
+    public var snapshot: AccessPackageSnapshot
+    public var polledAt: Date
+
+    public init(tenantKey: TenantKey, snapshot: AccessPackageSnapshot, polledAt: Date) {
+        self.tenantKey = tenantKey
+        self.snapshot = snapshot
+        self.polledAt = polledAt
+    }
+}
+
+/// Per-tenant new-role bookkeeping. An array of records, not a dictionary keyed by a struct, so
+/// the Windows port can read the same file.
+public struct RoleTrackingRecord: Codable, Hashable, Sendable {
+    public var tenantKey: TenantKey
+    public var tracker: NewRoleTracker
+
+    public init(tenantKey: TenantKey, tracker: NewRoleTracker) {
+        self.tenantKey = tenantKey
+        self.tracker = tracker
+    }
+}
+
 public struct AppState: Codable, Hashable, Sendable {
     public var identities: [Identity] = []
     public var tenants: [TenantContext] = []
     public var manualRoles: [ManualRole] = []
     public var memory: [RoleMemory] = []
     public var profiles: [ActivationProfile] = []
+    public var accessPackages: [AccessPackageRecord] = []
+    public var roleTracking: [RoleTrackingRecord] = []
 
     private enum CodingKeys: String, CodingKey {
-        case identities, tenants, manualRoles, memory, profiles
+        case identities, tenants, manualRoles, memory, profiles, accessPackages, roleTracking
     }
 
     public init() {}
@@ -26,6 +53,8 @@ public struct AppState: Codable, Hashable, Sendable {
         manualRoles = try c.decodeIfPresent([ManualRole].self, forKey: .manualRoles) ?? []
         memory = try c.decodeIfPresent([RoleMemory].self, forKey: .memory) ?? []
         profiles = try c.decodeIfPresent([ActivationProfile].self, forKey: .profiles) ?? []
+        accessPackages = try c.decodeIfPresent([AccessPackageRecord].self, forKey: .accessPackages) ?? []
+        roleTracking = try c.decodeIfPresent([RoleTrackingRecord].self, forKey: .roleTracking) ?? []
     }
 
     public func profile(id: UUID) -> ActivationProfile? { profiles.first { $0.id == id } }
@@ -55,6 +84,8 @@ public struct AppState: Codable, Hashable, Sendable {
         manualRoles.removeAll { $0.tenantKey == key }
         memory.removeAll { $0.roleKey.tenantKey == key }
         for i in profiles.indices { profiles[i].entries.removeAll { $0.roleKey.tenantKey == key } }
+        accessPackages.removeAll { $0.tenantKey == key }
+        roleTracking.removeAll { $0.tenantKey == key }
     }
 
     public mutating func removeIdentity(_ identityId: String) {
@@ -70,5 +101,23 @@ public struct AppState: Codable, Hashable, Sendable {
     public mutating func remember(roleKey: RoleKey, justification: String, duration: Duration?) {
         let entry = RoleMemory(roleKey: roleKey, justification: justification, lastDuration: duration)
         if let i = memory.firstIndex(where: { $0.roleKey == roleKey }) { memory[i] = entry } else { memory.append(entry) }
+    }
+
+    public func accessPackageRecord(_ key: TenantKey) -> AccessPackageRecord? {
+        accessPackages.first { $0.tenantKey == key }
+    }
+
+    public mutating func setAccessPackages(_ key: TenantKey, snapshot: AccessPackageSnapshot, polledAt: Date) {
+        let record = AccessPackageRecord(tenantKey: key, snapshot: snapshot, polledAt: polledAt)
+        if let i = accessPackages.firstIndex(where: { $0.tenantKey == key }) { accessPackages[i] = record } else { accessPackages.append(record) }
+    }
+
+    public func roleTracker(_ key: TenantKey) -> NewRoleTracker {
+        roleTracking.first { $0.tenantKey == key }?.tracker ?? NewRoleTracker()
+    }
+
+    public mutating func setRoleTracker(_ key: TenantKey, _ tracker: NewRoleTracker) {
+        let record = RoleTrackingRecord(tenantKey: key, tracker: tracker)
+        if let i = roleTracking.firstIndex(where: { $0.tenantKey == key }) { roleTracking[i] = record } else { roleTracking.append(record) }
     }
 }
