@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .win { background: #ececee; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 16px 40px rgba(0,0,0,0.22); border-radius: 11px; overflow: hidden; }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; white-space: nowrap; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .btn-lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
+    .field { height: 26px; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 8px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #1d1d1f; }
+    .select { display: inline-flex; align-items: center; justify-content: space-between; height: 20px; padding: 0 5px 0 8px; border-radius: 5px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); font-size: 11px; gap: 6px; white-space: nowrap; }
+    .srow { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 8px; border-radius: 6px; }
+    .srow-on { background: #0a84ff; color: #ffffff; }
+    .srow-on .caption { color: rgba(255,255,255,0.8); }
+    .rrow { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px 0 10px; }
+    .grp { font-size: 11px; font-weight: 600; color: #6e6e73; padding: 8px 10px 2px; display: flex; align-items: center; gap: 6px; }
+    .toggle { width: 26px; height: 15px; border-radius: 8px; background: #34c759; position: relative; flex-shrink: 0; }
+    .toggle::after { content: ""; position: absolute; top: 1px; left: 12px; width: 13px; height: 13px; border-radius: 7px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+    .x { width: 16px; height: 16px; border-radius: 8px; background: rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div class="win" style="width: 680px; display: flex; flex-direction: column;">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 12px; gap: 8px; background: #e4e4e6; border-bottom: 1px solid rgba(0,0,0,0.1);">
+      <div style="display: flex; gap: 7px;"><div style="width: 12px; height: 12px; border-radius: 6px; background: #ff5f57;"></div><div style="width: 12px; height: 12px; border-radius: 6px; background: #febc2e;"></div><div style="width: 12px; height: 12px; border-radius: 6px; background: #28c840;"></div></div>
+      <span style="flex-grow: 1; text-align: center; font-weight: 600; font-size: 13px;">Profiles</span>
+      <div style="width: 52px;"></div>
+    </div>
+    <div style="display: flex; height: 420px;">
+      <div style="width: 210px; display: flex; flex-direction: column; border-right: 1px solid rgba(0,0,0,0.1); background: #e6e6e8;">
+        <div style="padding: 10px 10px 6px;">
+          <div class="field" style="height: 24px; font-size: 12px; color: #8e8e93;"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg><span>Search</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 1px; padding: 0 6px; flex-grow: 1;">
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="#f5a623" stroke="#f5a623" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Incident</span><span class="caption" style="font-size: 10px; line-height: 11px;">5 roles · 1 group</span></div></div>
+          <div class="srow srow-on"><svg width="12" height="12" viewBox="0 0 12 12" fill="#ffffff" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Morning ops</span><span class="caption" style="font-size: 10px; line-height: 11px;">3 roles</span></div></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="#f5a623" stroke="#f5a623" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Break glass</span><span class="caption" style="font-size: 10px; line-height: 11px;">1 role</span></div></div>
+          <div style="height: 1px; background: rgba(0,0,0,0.08); margin: 4px 6px;"></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Release day</span><span class="caption" style="font-size: 10px; line-height: 11px;">2 roles</span></div></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Billing review</span><span class="caption" style="font-size: 10px; line-height: 11px;">1 role</span></div></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Exchange migration</span><span class="caption" style="font-size: 10px; line-height: 11px;">2 roles</span></div></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Key Vault rotation</span><span class="caption" style="font-size: 10px; line-height: 11px;">1 role</span></div></div>
+          <div class="srow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#a1a1a6" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="display: flex; flex-direction: column;"><span>Read only</span><span class="caption" style="font-size: 10px; line-height: 11px;">2 roles</span></div></div>
+          <div class="caption" style="padding: 4px 8px; color: #a1a1a6;">4 more</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-top: 1px solid rgba(0,0,0,0.08);">
+          <div style="width: 22px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round"><path d="M6 2v8M2 6h8"></path></svg></div>
+          <div style="width: 22px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round"><path d="M2 6h8"></path></svg></div>
+          <div style="flex-grow: 1;"></div>
+          <span class="caption">drag to reorder</span>
+        </div>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 14px 16px 12px; gap: 10px; background: #f2f2f4;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="field" style="flex-grow: 1; font-weight: 500;">Morning ops</div>
+          <span class="btn">Run…</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 18px; padding: 0 2px;">
+          <div style="display: flex; align-items: center; gap: 7px;"><div class="toggle"></div><span style="font-size: 12px;">Pinned in panel</span></div>
+          <div style="display: flex; align-items: center; gap: 7px;"><span style="font-size: 12px; color: #6e6e73;">Shortcut</span><span class="select">⌃⌥M<svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span></div>
+        </div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; border-radius: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.1); overflow: hidden;">
+          <div class="grp"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#0a84ff" stroke-width="1.4"><circle cx="8" cy="8" r="6.3"></circle><circle cx="8" cy="6.6" r="2.1"></circle><path d="M3.9 12.4c1-1.6 2.4-2.3 4.1-2.3s3.1.7 4.1 2.3"></path></svg>alex.rivera@contoso.com · Contoso</div>
+          <div class="rrow"><span>Global Reader</span><span class="caption">Entra</span><div style="flex-grow: 1;"></div><span class="select">2 h<svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><div class="x"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"></path></svg></div></div>
+          <div class="rrow"><span>Exchange Administrator</span><span class="caption">Entra · MFA</span><div style="flex-grow: 1;"></div><span class="select">4 h<svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><div class="x"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"></path></svg></div></div>
+          <div class="rrow"><div style="display: flex; flex-direction: column;"><span>Contributor</span><span class="caption" style="font-size: 10px; line-height: 11px;">Pay-As-You-Go · subscription</span></div><span class="caption">Azure</span><div style="flex-grow: 1;"></div><span class="select">8 h<svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><div class="x"><svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"></path></svg></div></div>
+          <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; margin-top: auto; border-top: 1px solid rgba(0,0,0,0.06);">
+            <span class="btn"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#1d1d1f" stroke-width="1.6" stroke-linecap="round" style="margin-right: 5px;"><path d="M6 2v8M2 6h8"></path></svg>Add roles…</span>
+            <span class="caption">Durations are what the next run proposes; you can still change them then.</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="btn" style="color: #d70015;">Delete…</span>
+          <div style="flex-grow: 1;"></div>
+          <span class="caption">Changes save as you go</span>
+          <span class="btn btn-primary">Done</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption" style="width: 680px; margin-top: 12px; line-height: 15px;">Profiles window, replaces the current list plus "Edit loads the panel" round-trip. Sidebar: pinned first, then the rest, search, drag to reorder, + creates an empty profile. Detail: name, pin toggle, the global shortcut moved here from Settings, roles grouped by account and tenant with the remembered duration and a remove button. "Add roles…" opens the picker. Edits apply immediately, as in System Settings; Done just closes. "Save as profile…" from select mode is unchanged and lands here with the new profile selected.</div>
+</div>
+</x-dc>
+</body>
+</html>

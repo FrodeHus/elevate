@@ -6,13 +6,14 @@ namespace Elevate.Core.Models;
 public sealed record ActivationProfile
 {
     [JsonConstructor]
-    public ActivationProfile(Guid id, string name, List<Entry> entries, string? lastJustification = null)
+    public ActivationProfile(Guid id, string name, List<Entry> entries, string? lastJustification = null, bool pinned = false)
     {
         ArgumentNullException.ThrowIfNull(entries);
         Id = id;
         Name = name;
         Entries = entries;
         LastJustification = lastJustification;
+        Pinned = pinned;
     }
 
     /// <summary>A new profile with a fresh id.</summary>
@@ -34,20 +35,34 @@ public sealed record ActivationProfile
     public string? LastJustification { get; set; }
 
     /// <summary>
+    /// Shown as a chip in the panel; at most <see cref="ProfilePins.Limit"/> profiles are pinned at a
+    /// time. Written only when true, so files from before pinning existed round-trip unchanged.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Pinned { get; set; }
+
+    /// <summary>
     /// A copy with its own <see cref="Entries"/> list, so mutating one profile's entries does not
     /// touch the other's. <see cref="Entry"/> is an immutable record, so the entries are shared.
     /// (Records may not declare a member named <c>Clone</c>, hence the name.)
     /// </summary>
-    public ActivationProfile DeepCopy() => new(Id, Name, [.. Entries], LastJustification);
+    public ActivationProfile DeepCopy() => new(Id, Name, [.. Entries], LastJustification, Pinned);
 
     public bool Equals(ActivationProfile? other) =>
         other is not null
         && Id == other.Id
         && Name == other.Name
         && LastJustification == other.LastJustification
+        && Pinned == other.Pinned
         && Entries.SequenceEqual(other.Entries);
 
-    public override int GetHashCode() => HashCode.Combine(Id, Name, Entries.Count, LastJustification);
+    public override int GetHashCode() => HashCode.Combine(Id, Name, Entries.Count, LastJustification, Pinned);
+}
+
+public static class ProfilePins
+{
+    /// <summary>How many profiles may be pinned to the panel; one row of chips that never wraps.</summary>
+    public const int Limit = 4;
 }
 
 public static class ProfileSummary

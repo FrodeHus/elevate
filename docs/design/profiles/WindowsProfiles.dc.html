@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #151618; color: #ffffff; font-family: "Segoe UI Variable Text", "Segoe UI", "Noto Sans", system-ui, sans-serif; font-size: 14px; line-height: 1.45; }
+    a { color: #60cdff; } a:hover { color: #99ebff; }
+    .t2 { color: rgba(255,255,255,0.786); } .t3 { color: rgba(255,255,255,0.5442); }
+    .win { width: 760px; border-radius: 8px; background: #202020; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; }
+    .btn { height: 32px; padding: 0 12px; border-radius: 4px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+    .btn-accent { background: #60cdff; color: #000000; border-color: #60cdff; font-weight: 600; }
+    .field { height: 32px; border-radius: 4px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); border-bottom-color: rgba(255,255,255,0.5442); display: flex; align-items: center; gap: 8px; padding: 0 10px; }
+    .nav { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px; border-radius: 4px; position: relative; }
+    .nav-on { background: rgba(255,255,255,0.0837); }
+    .nav-on::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: #60cdff; }
+    .row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,0.0837); }
+    .grp { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.786); padding: 10px 12px 4px; display: flex; align-items: center; gap: 8px; }
+    .combo { height: 28px; padding: 0 8px 0 10px; border-radius: 4px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+    .toggle { width: 40px; height: 20px; border-radius: 10px; background: #60cdff; position: relative; flex-shrink: 0; }
+    .toggle::after { content: ""; position: absolute; top: 4px; left: 24px; width: 12px; height: 12px; border-radius: 6px; background: #000000; }
+    .ib { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div class="win">
+    <div style="display: flex; align-items: center; height: 32px; padding: 0 0 0 14px;">
+      <span style="font-size: 12px;">Profiles</span>
+      <div style="flex: 1;"></div>
+      <div style="display: flex;"><div style="width: 46px; height: 32px; display: flex; align-items: center; justify-content: center;"><svg width="10" height="10" viewBox="0 0 10 10" stroke="#ffffff" stroke-width="1"><path d="M0 5h10"></path></svg></div><div style="width: 46px; height: 32px; display: flex; align-items: center; justify-content: center;"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1"><rect x="0.5" y="0.5" width="9" height="9"></rect></svg></div><div style="width: 46px; height: 32px; display: flex; align-items: center; justify-content: center;"><svg width="10" height="10" viewBox="0 0 10 10" stroke="#ffffff" stroke-width="1"><path d="M0 0l10 10M10 0L0 10"></path></svg></div></div>
+    </div>
+    <div style="display: flex; height: 460px;">
+      <div style="width: 240px; display: flex; flex-direction: column; padding: 8px; gap: 2px; border-right: 1px solid rgba(255,255,255,0.0837);">
+        <div class="field" style="margin-bottom: 6px;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="rgba(255,255,255,0.5442)" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg><span class="t3" style="font-size: 13px;">Search profiles</span></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="#fce100" stroke="#fce100" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Incident</div><div class="t3" style="font-size: 11px;">5 roles · 1 group</div></div></div>
+        <div class="nav nav-on"><svg width="14" height="14" viewBox="0 0 12 12" fill="#fce100" stroke="#fce100" stroke-width="1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Read only</div><div class="t3" style="font-size: 11px;">2 roles</div></div></div>
+        <div style="height: 1px; background: rgba(255,255,255,0.0837); margin: 4px 8px;"></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Morning ops</div><div class="t3" style="font-size: 11px;">3 roles</div></div></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Break glass</div><div class="t3" style="font-size: 11px;">1 role</div></div></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Release day</div><div class="t3" style="font-size: 11px;">2 roles</div></div></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Billing review</div><div class="t3" style="font-size: 11px;">1 role</div></div></div>
+        <div class="nav"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.1" stroke-linejoin="round"><path d="M6 1.2 7.5 4.3l3.4.4-2.5 2.3.7 3.4L6 8.7 2.9 10.4l.7-3.4L1.1 4.7l3.4-.4z"></path></svg><div style="flex: 1; line-height: 1.2;"><div>Exchange migration</div><div class="t3" style="font-size: 11px;">2 roles</div></div></div>
+        <div class="t3" style="font-size: 12px; padding: 4px 10px;">5 more</div>
+        <div style="flex: 1;"></div>
+        <span class="btn" style="justify-content: center;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"><path d="M6 2v8M2 6h8"></path></svg>New profile</span>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; padding: 14px 16px 12px; gap: 12px; background: #2b2b2b;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="field" style="flex: 1; font-weight: 600;">Read only</div>
+          <span class="btn">Run…</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 24px;">
+          <div style="display: flex; align-items: center; gap: 10px;"><div class="toggle"></div><span style="font-size: 13px;">Pinned in flyout</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="t2" style="font-size: 13px;">Shortcut</span><span class="combo">Ctrl+Alt+R<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span></div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; border-radius: 4px; background: #202020; border: 1px solid rgba(255,255,255,0.0837); overflow: hidden;">
+          <div class="grp"><div style="width: 18px; height: 18px; border-radius: 50%; background: #60cdff; color: #000000; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600;">AN</div>alex@contoso.com · Contoso</div>
+          <div class="row"><div style="flex: 1; line-height: 1.2;"><div>Global Reader</div><div class="t3" style="font-size: 11px;">Entra</div></div><span class="combo">2 h<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><div class="ib"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="rgba(255,255,255,0.786)" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"></path></svg></div></div>
+          <div class="row"><div style="flex: 1; line-height: 1.2;"><div>Reader</div><div class="t3" style="font-size: 11px;">Azure · Contoso Production · subscription</div></div><span class="combo">8 h<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></span><div class="ib"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="rgba(255,255,255,0.786)" stroke-width="1.4" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"></path></svg></div></div>
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.0837);">
+            <span class="btn"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"><path d="M6 2v8M2 6h8"></path></svg>Add roles…</span>
+            <span class="t3" style="font-size: 12px;">Durations are what the next run proposes.</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="btn" style="color: #ff99a4;">Delete…</span>
+          <div style="flex: 1;"></div>
+          <span class="t3" style="font-size: 12px;">Changes save as you go</span>
+          <span class="btn btn-accent">Done</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="t3" style="width: 760px; margin-top: 12px; font-size: 12px; line-height: 1.4;">Windows Profiles window: a NavigationView-style list on the left (pinned first, search, New profile), the editor on the right. Same model as macOS: rename in place, pin toggle, shortcut, role rows with duration ComboBox and remove, "Add roles…" opens a ContentDialog with the picker. Replaces the Edit-then-reopen-the-flyout round-trip.</div>
+</div>
+</x-dc>
+</body>
+</html>

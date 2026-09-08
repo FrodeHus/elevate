@@ -1,0 +1,27 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Profile listing" },
+    { "id": "page-2", "name": "Editing profiles" },
+    { "id": "page-3", "name": "Alternatives (not chosen)" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 460, "h": 680, "title": "Pinned row", "page": "page-1" },
+    { "file": "AllProfiles.dc.html", "x": 560, "y": 0, "w": 460, "h": 720, "title": "All profiles popover", "page": "page-1" },
+    { "file": "ChipMenu.dc.html", "x": 1120, "y": 0, "w": 340, "h": 300, "title": "Chip context menu", "page": "page-1" },
+    { "file": "WindowsPanel.dc.html", "x": 1120, "y": 420, "w": 460, "h": 700, "title": "Windows flyout", "page": "page-1" },
+    { "file": "EditProfiles.dc.html", "x": 0, "y": 0, "w": 760, "h": 640, "title": "macOS · Profiles window", "page": "page-2" },
+    { "file": "AddRoles.dc.html", "x": 860, "y": 0, "w": 420, "h": 520, "title": "macOS · Add roles picker", "page": "page-2" },
+    { "file": "WindowsProfiles.dc.html", "x": 0, "y": 780, "w": 840, "h": 660, "title": "Windows · Profiles window", "page": "page-2" },
+    { "file": "DirectionB.dc.html", "x": 0, "y": 0, "w": 460, "h": 680, "title": "B · Pinned rows", "page": "page-3" },
+    { "file": "DirectionC.dc.html", "x": 560, "y": 0, "w": 460, "h": 640, "title": "C · Header menu", "page": "page-3" }
+  ],
+  "annotations": [
+    { "id": "listing-brief", "x": 0, "y": -200, "w": 460, "page": "page-1", "text": "Decided 2026-09-08: Direction A, the pinned row.\n\nThe user stars the profiles they run most. Only starred profiles are chips, in one row that never wraps, capped at 4. Everything else is one click away behind \"All N\", a searchable popover. The panel height is fixed no matter how many profiles exist." },
+    { "id": "listing-behaviour", "x": 560, "y": -200, "w": 460, "page": "page-1", "text": "Behaviour: click a chip runs it (Option-click runs silently), right-click opens the chip menu. In the popover: type to filter, arrows move, Return runs, Option-Return runs silently, the star pins or unpins in place, ⋯ opens the same menu as a chip. \"Manage profiles…\" opens the Profiles window. The row is hidden when there are no profiles at all; with profiles but no pins it shows only \"All N\"." },
+    { "id": "listing-platform", "x": 1120, "y": -200, "w": 460, "page": "page-1", "text": "Platform notes. macOS: chips stay capsules, the overflow is an NSPopover with a search field. Windows: same row with WinUI chip heights, \"All\" as a HyperlinkButton opening a Flyout; right-click MenuFlyout on chips. Both: the Profiles header label goes away, the bolt glyph already says profile." },
+    { "id": "editing-brief", "x": 0, "y": -180, "w": 560, "page": "page-2", "text": "Problem today: Edit loads the profile into the panel's selection, the window closes, and the panel reopens in select mode. Two surfaces, no visible state in between.\n\nDecided: a master-detail Profiles window that is the editor. Everything about a profile is edited in place: name, pin, shortcut, roles, remembered durations. Roles are added from a picker inside the window, so the panel never has to be reopened. The panel's select mode keeps \"Save as profile…\" as the fast way to create one." },
+    { "id": "editing-model", "x": 860, "y": -180, "w": 420, "page": "page-2", "text": "Model changes implied: a pinned flag and a per-profile shortcut on ActivationProfile (today one global shortcut lives in Settings), and an \"eligible roles for picker\" query across loaded tenants. The remembered duration already exists per entry." },
+    { "id": "alternatives", "x": 0, "y": -160, "w": 560, "page": "page-3", "text": "Kept for reference, not chosen. B gives live per-profile state at 26 px per pin. C costs no height but hides the pins. Both reuse the same popover and chip menu as A." }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

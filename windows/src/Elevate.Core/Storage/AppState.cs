@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Elevate.Core.Catalogue;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
@@ -82,6 +83,31 @@ public sealed class AppState : IEquatable<AppState>
     }
 
     public void RemoveProfile(Guid id) => Profiles.RemoveAll(p => p.Id == id);
+
+    /// <summary>Pinned profiles in list order; what the panel shows as chips.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<ActivationProfile> PinnedProfiles => Profiles.Where(p => p.Pinned).ToList();
+
+    /// <summary>
+    /// Pins or unpins a profile. Returns false, changing nothing, when pinning would exceed
+    /// <see cref="ProfilePins.Limit"/> or the profile does not exist; unpinning always succeeds.
+    /// </summary>
+    public bool SetPinned(Guid id, bool pinned)
+    {
+        var profile = Profile(id);
+        if (profile is null)
+        {
+            return false;
+        }
+
+        if (pinned && !profile.Pinned && PinnedProfiles.Count >= ProfilePins.Limit)
+        {
+            return false;
+        }
+
+        profile.Pinned = pinned;
+        return true;
+    }
 
     /// <summary>Reorders profiles, like SwiftUI's <c>move(fromOffsets:toOffset:)</c>.</summary>
     public void MoveProfiles(IEnumerable<int> fromOffsets, int toOffset)

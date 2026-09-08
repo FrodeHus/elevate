@@ -92,6 +92,49 @@ public class ActivationProfileTests
     }
 
     [Fact]
+    public void PinnedDecodesTolerantlyAndIsWrittenOnlyWhenTrue()
+    {
+        const string legacy = """{"id":"A1B2C3D4-E5F6-4A5B-8C7D-9E0FABCDEF12","name":"Ops","entries":[]}""";
+
+        var decoded = Json.Deserialize<ActivationProfile>(legacy)!;
+
+        decoded.Pinned.Should().BeFalse();
+        Json.Serialize(decoded).Should().NotContain("pinned");
+
+        decoded.Pinned = true;
+        var json = Json.Serialize(decoded);
+
+        json.Should().Contain("\"pinned\":true");
+        Json.Deserialize<ActivationProfile>(json)!.Pinned.Should().BeTrue();
+        decoded.DeepCopy().Pinned.Should().BeTrue();
+        decoded.Should().NotBe(Json.Deserialize<ActivationProfile>(legacy));
+    }
+
+    [Fact]
+    public void PinningIsCappedAtTheLimit()
+    {
+        var state = new AppState();
+        var profiles = Enumerable.Range(0, ProfilePins.Limit + 1).Select(i => new ActivationProfile($"P{i}", [])).ToList();
+        profiles.ForEach(state.UpsertProfile);
+
+        foreach (var p in profiles.Take(ProfilePins.Limit))
+        {
+            state.SetPinned(p.Id, true).Should().BeTrue();
+        }
+
+        state.PinnedProfiles.Should().HaveCount(ProfilePins.Limit);
+        state.SetPinned(profiles[ProfilePins.Limit].Id, true).Should().BeFalse();
+        state.Profile(profiles[ProfilePins.Limit].Id)!.Pinned.Should().BeFalse();
+
+        // Re-pinning an already pinned profile is not a new pin.
+        state.SetPinned(profiles[0].Id, true).Should().BeTrue();
+        state.SetPinned(profiles[0].Id, false).Should().BeTrue();
+        state.PinnedProfiles.Select(p => p.Name).Should().Equal("P1", "P2", "P3");
+        state.SetPinned(profiles[ProfilePins.Limit].Id, true).Should().BeTrue();
+        state.SetPinned(Guid.NewGuid(), true).Should().BeFalse();
+    }
+
+    [Fact]
     public void SummaryCaption()
     {
         ProfileSummary.Caption([new ActivationProfile.Entry(Key("a"))]).Should().Be("1 role");

@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #151618; color: #ffffff; font-family: "Segoe UI Variable Text", "Segoe UI", "Noto Sans", system-ui, sans-serif; font-size: 14px; line-height: 1.45; }
+    a { color: #60cdff; } a:hover { color: #99ebff; }
+    .t2 { color: rgba(255,255,255,0.786); } .t3 { color: rgba(255,255,255,0.5442); }
+    .flyout { width: 380px; border-radius: 8px; background: #202020; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3); overflow: hidden; }
+    .ib { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    .pivot span { padding: 6px 10px; border-radius: 4px; color: rgba(255,255,255,0.786); position: relative; }
+    .pivot span.on { color: #ffffff; font-weight: 600; }
+    .pivot span.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -9px; height: 3px; border-radius: 2px; background: #60cdff; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border-radius: 14px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .chip .c { font-weight: 400; color: rgba(255,255,255,0.5442); }
+    .ghead { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #323232; border-top: 1px solid rgba(255,255,255,0.0837); border-bottom: 1px solid rgba(255,255,255,0.0837); font-weight: 600; }
+    .role { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 22px; border-bottom: 1px solid rgba(255,255,255,0.0837); }
+    .btn { height: 28px; padding: 0 12px; border-radius: 4px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); display: inline-flex; align-items: center; font-size: 13px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5442); box-sizing: border-box; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div class="flyout">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px;">
+      <b style="font-size: 16px; font-weight: 600;">Elevate</b>
+      <div style="display: flex; gap: 4px;">
+        <div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg></div>
+        <div class="ib" style="background: rgba(255,255,255,0.0837);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 3.7 5.7 6 3.4"></path><path d="M8 4.5h5.5"></path><path d="M2.5 9.5 3.7 10.7 6 8.4"></path><path d="M8 9.5h5.5"></path><path d="M8 13.5h5.5"></path></svg></div>
+        <div class="ib"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"></path><path d="M13 2.5v3h-3"></path></svg></div>
+      </div>
+    </div>
+    <div class="pivot" style="display: flex; gap: 2px; padding: 0 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.0837);"><span class="on">Entra</span><span>Azure</span><span>Groups</span></div>
+    <div style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; overflow: hidden;">
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span><span class="c">5 · 1</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Read only</span><span class="c">2</span></div>
+      <div style="flex-grow: 1;"></div>
+      <div class="chip" style="background: transparent; border-color: transparent; color: #60cdff; font-weight: 400;"><span>All 12</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#60cdff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid rgba(255,255,255,0.0837); border-bottom: 1px solid rgba(255,255,255,0.0837); background: #2b2b2b;">
+      <svg width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="rgba(255,255,255,0.786)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg>
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #60cdff; color: #000000; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;">AN</div>
+      <div style="flex: 1;"><b style="display: block; font-weight: 600;">alex@contoso.com</b><span class="t2" style="font-size: 12px;">Own app</span></div>
+      <span class="t2">⋯</span>
+    </div>
+    <div class="ghead"><svg width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="rgba(255,255,255,0.786)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><span>Contoso</span><span class="t2" style="font-weight: 400; font-size: 12px;">home</span><span style="font-size: 11px; padding: 1px 8px; border-radius: 9px; background: rgba(252,225,0,0.14); color: #fce100; font-weight: 500;">manual roles</span><div style="flex: 1;"></div><span class="t2">⋯</span></div>
+    <div class="role"><div class="dot"></div><div style="flex: 1;"><div>Global Administrator</div><div class="t2" style="font-size: 12px;">manual</div></div><span class="btn">Activate</span></div>
+    <div class="role"><div class="dot"></div><div style="flex: 1;"><div>Global Reader</div><div class="t2" style="font-size: 12px;">manual</div></div><span class="btn">Activate</span></div>
+    <div class="ghead"><svg width="14" height="14" viewBox="0 0 10 10" fill="none" stroke="rgba(255,255,255,0.786)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><span>Fabrikam</span><span style="font-size: 11px; padding: 1px 8px; border-radius: 9px; background: rgba(255,255,255,0.0605); color: rgba(255,255,255,0.786); font-weight: 500;">Azure off</span><div style="flex: 1;"></div><span class="t2">⋯</span></div>
+    <div class="role t2"><span>No roles configured.</span></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #2b2b2b;">
+      <span>Add account…</span><span class="t2">Settings…</span><span>Quit</span>
+    </div>
+  </div>
+  <div class="t3" style="width: 380px; margin-top: 12px; font-size: 12px; line-height: 1.4;">Windows flyout, Direction A. Same rule: pinned chips in one non-wrapping row, "All 12" is a hyperlink button that opens a Flyout with search and the full list. Chips get a right-click MenuFlyout (Run, Run with last reason, Edit…, Unpin, Delete). Control heights follow WinUI: 28 px chips, 32 px icon buttons.</div>
+</div>
+</x-dc>
+</body>
+</html>

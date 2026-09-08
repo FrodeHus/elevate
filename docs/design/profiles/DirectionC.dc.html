@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .glass { background: rgba(246, 247, 249, 0.92); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .sep { height: 1px; background: rgba(0, 0, 0, 0.08); }
+    .mi { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 10px; border-radius: 5px; font-size: 13px; }
+    .mi-on { background: #0a84ff; color: #ffffff; }
+    .mi .k { margin-left: auto; font-size: 12px; color: #8e8e93; }
+    .mi-on .k { color: rgba(255,255,255,0.8); }
+    .msep { height: 1px; background: rgba(0,0,0,0.1); margin: 4px 8px; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div class="glass" style="width: 380px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 38px; padding: 0 14px;">
+      <span style="font-size: 13px; font-weight: 600;">Elevate</span>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 3px; height: 22px; padding: 0 6px; border-radius: 5px; background: rgba(0,0,0,0.1);">
+          <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg>
+          <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 3.7 5.7 6 3.4"></path><path d="M8 4.5h5.5"></path><path d="M2.5 9.5 3.7 10.7 6 8.4"></path><path d="M8 9.5h5.5"></path><path d="M8 13.5h5.5"></path></svg>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"></path><path d="M13 2.5v3h-3"></path></svg>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="display: flex; padding: 6px 12px;">
+      <div style="display: flex; width: 100%; height: 22px; border-radius: 6px; background: rgba(0,0,0,0.06); padding: 2px; font-size: 12px;">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; border-radius: 5px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.12); font-weight: 500;">Entra</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Azure</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Groups</div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px; opacity: 0.45;">
+      <div style="display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px;">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg><span style="font-size: 12px; font-weight: 600;">Active now</span><span class="caption" style="color:#34c759;">2</span>
+      </div>
+      <div style="height: 26px; margin-left: 28px; border-radius: 6px; background: rgba(0,0,0,0.05);"></div>
+      <div style="height: 26px; margin-left: 28px; border-radius: 6px; background: rgba(0,0,0,0.05);"></div>
+      <div style="height: 150px; border-radius: 10px; background: rgba(0,0,0,0.05);"></div>
+    </div>
+    <div class="sep"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 14px; opacity: 0.45;">
+      <span style="font-size: 12px; color: #0a84ff;">Add account…</span>
+      <span style="font-size: 12px; color: #6e6e73;">Settings…</span>
+      <span style="font-size: 12px; color: #6e6e73;">Quit</span>
+    </div>
+
+    <div style="position: absolute; right: 78px; top: 34px; width: 250px; border-radius: 8px; background: rgba(246,247,249,0.98); border: 1px solid rgba(0,0,0,0.14); box-shadow: 0 8px 24px rgba(0,0,0,0.2); padding: 5px; display: flex; flex-direction: column;">
+      <div class="mi mi-on"><span>Incident</span><span class="k">⌘1</span></div>
+      <div class="mi"><span>Morning ops</span><span class="k">⌘2</span></div>
+      <div class="mi"><span>Break glass</span><span class="k">⌘3</span></div>
+      <div class="msep"></div>
+      <div class="mi"><span>Release day</span></div>
+      <div class="mi"><span>Billing review</span></div>
+      <div class="mi"><span>Exchange migration</span></div>
+      <div class="mi"><span>Key Vault rotation</span></div>
+      <div class="mi"><span>Read only</span></div>
+      <div class="mi"><span>Support escalation</span></div>
+      <div class="mi" style="color: #6e6e73;"><span>3 more</span><svg style="margin-left: auto;" width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="#6e6e73" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5 6.5 5 4 7.5"></path></svg></div>
+      <div class="msep"></div>
+      <div class="mi"><span>Manage profiles…</span></div>
+    </div>
+  </div>
+  <div class="caption" style="width: 380px; margin-top: 12px; line-height: 15px;">Direction C · header menu. No row in the panel at all: a bolt button in the header opens a standard menu with pinned profiles first (⌘1–⌘4 while the panel is open), the rest below, overflow in a submenu. Motivation: zero vertical cost, keyboard-first. Tradeoff: pinned profiles are no longer visible at a glance, and the ⌥-click affordance moves to ⌥ on the menu item.</div>
+</div>
+</x-dc>
+</body>
+</html>

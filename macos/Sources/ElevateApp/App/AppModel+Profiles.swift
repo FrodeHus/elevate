@@ -55,6 +55,18 @@ extension AppModel {
     }
     func moveProfile(fromOffsets: IndexSet, toOffset: Int) { state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist() }
 
+    /// Profiles shown as chips in the panel, in list order.
+    var pinnedProfiles: [ActivationProfile] { state.pinnedProfiles }
+
+    /// Pins or unpins a profile. Returns false, changing nothing, when the pinned row is full
+    /// (`ProfilePins.limit`); the caller says so instead of silently ignoring the click.
+    @discardableResult
+    func setPinned(id: UUID, _ pinned: Bool) -> Bool {
+        guard state.setPinned(id: id, pinned) else { return false }
+        persist()
+        return true
+    }
+
     /// Edit = reopen the selection. The bulk bar offers "Update profile" while `editingProfileId` is set.
     func beginEditing(profileId: UUID) {
         guard let p = state.profile(id: profileId) else { return }
