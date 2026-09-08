@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revoked or expires. Polled on panel open (at most every 15 minutes) and every 8 hours.
 - New eligible roles are marked in the panel with a "new" badge and announced once per tenant;
   the marker clears the second time the panel opens.
-- The first-run setup panel and the "Entra app registration" section in Settings link to the
-  getting-started and app registration guides on GitHub.
+- The first-run setup panel and the app registration section in Settings link to the
+  getting-started and app registration guides on GitHub, on macOS and Windows.
 
 ### Changed
 
