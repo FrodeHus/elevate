@@ -69,7 +69,10 @@ extension AppModel {
         case .denied: await notifier.notify(title: "Access package denied", body: where_)
         case .deliveryFailed: await notifier.notify(title: "Access package delivery failed", body: where_)
         case .revoked: await notifier.notify(title: "Access package revoked", body: where_)
-        case .expired: await notifier.notify(title: "Access package expired", body: where_)
+        // An assignment with a known end already has a timed toast from the notifier; a second one
+        // from the poll would repeat it. Only an end the service never told us about needs this.
+        case .expired(let a) where a.expiresAt == nil: await notifier.notify(title: "Access package expired", body: where_)
+        case .expired: break
         }
     }
 

@@ -25,6 +25,8 @@ public struct NewRoleTracker: Codable, Hashable, Sendable {
         new.formUnion(added)
         // A role that disappeared stops being "new"; it becomes new again if it returns.
         new.formIntersection(discovered)
+        // Opens counted against a marker that has since emptied must not shorten the next one.
+        if new.isEmpty { shownOpens = 0 }
         return Array(added)
     }
 

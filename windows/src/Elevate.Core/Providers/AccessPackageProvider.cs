@@ -46,8 +46,6 @@ public sealed class AccessPackageProvider : IAccessPackageProvider
 
     // MARK: Wire shapes
 
-    private sealed record Named(string? Id, string? DisplayName);
-
     private sealed record PackageDto(string Id, string? DisplayName, string? Description, bool? IsHidden);
 
     private sealed record AssignmentRef(string? Id, string? AccessPackageId, string? AssignmentPolicyId);
@@ -60,29 +58,23 @@ public sealed class AccessPackageProvider : IAccessPackageProvider
         string? Justification,
         DateTimeOffset? CreatedDateTime,
         DateTimeOffset? CompletedDateTime,
-        Named? AccessPackage,
+        GraphApprovals.Named? AccessPackage,
         AssignmentRef? Assignment);
-
-    private sealed record ExpirationDto(string? Type, DateTimeOffset? EndDateTime);
-
-    private sealed record ScheduleDto(DateTimeOffset? StartDateTime, ExpirationDto? Expiration);
 
     private sealed record AssignmentDto(
         string Id,
         string? State,
-        string? Status,
-        ScheduleDto? Schedule,
-        Named? AccessPackage,
-        Named? AssignmentPolicy);
+        ScheduleInfo? Schedule,
+        GraphApprovals.Named? AccessPackage,
+        GraphApprovals.Named? AssignmentPolicy);
 
-    private sealed record QuestionDto(string? Id, bool? IsRequired);
-
+    /// <summary>Only whether a policy asks questions matters, so the questions themselves are not modelled.</summary>
     private sealed record RequirementDto(
         string? PolicyId,
         string? PolicyDisplayName,
         string? PolicyDescription,
         bool? IsApprovalRequired,
-        IReadOnlyList<QuestionDto>? Questions);
+        IReadOnlyList<JsonElement>? Questions);
 
     private static AccessPackageRequest Request(RequestDto r) => new(
         r.Id,
@@ -102,7 +94,13 @@ public sealed class AccessPackageProvider : IAccessPackageProvider
         a.AccessPackage?.DisplayName ?? a.Id,
         AccessPackageAssignmentStates.Parse(a.State),
         a.AssignmentPolicy?.DisplayName,
-        a.Schedule?.Expiration?.EndDateTime);
+        ExpiresAt(a.Schedule));
+
+    /// <summary>An assignment's end, whether Graph sent it as a date or as a duration from the start.</summary>
+    private static DateTimeOffset? ExpiresAt(ScheduleInfo? schedule) =>
+        schedule?.Expiration is { } expiration && schedule.StartDateTime is { } start
+            ? ScheduleRules.End(expiration.EndDateTime, expiration.Duration, start)
+            : schedule?.Expiration?.EndDateTime;
 
     // MARK: Reads
 

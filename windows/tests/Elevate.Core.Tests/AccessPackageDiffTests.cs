@@ -79,6 +79,16 @@ public class AccessPackageDiffTests
     }
 
     [Fact]
+    public void GraphsExpiredStateWinsOverTheClock()
+    {
+        // The service already says expired, but this clock has not reached the end yet (skew, or an early poll).
+        var before = new AccessPackageSnapshot(assignments: [Assignment("a", expires: "2026-09-08T12:00:05Z")]);
+        var after = new AccessPackageSnapshot(assignments: [Assignment("a", AccessPackageAssignmentState.Expired, "2026-09-08T12:00:05Z")]);
+
+        AccessPackageDiff.Events(before, after, Now).Should().Equal(new AccessPackageEvent.Expired(before.Assignments[0]));
+    }
+
+    [Fact]
     public void EventsCarryTheirPackageName()
     {
         new AccessPackageEvent.Approved(Request("x", AccessPackageRequestState.Delivered)).PackageName.Should().Be("Package x");

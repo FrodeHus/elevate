@@ -155,6 +155,13 @@ public sealed partial class AppModel
 
     private async Task NotifyAsync(AccessPackageEvent e, TenantContext tenant)
     {
+        // An assignment with a known end already has a timed toast from the notifier; a second one
+        // from the poll would repeat it. Only an end the service never told us about needs this.
+        if (e is AccessPackageEvent.Expired { Assignment.ExpiresAt: not null })
+        {
+            return;
+        }
+
         var title = e switch
         {
             AccessPackageEvent.Approved => "Access package approved",
@@ -273,8 +280,7 @@ public sealed partial class AppModel
             return;
         }
 
-        var tracker = State.RoleTrackerFor(key).Clone();
-        var added = tracker.Observe(discovered.Select(r => r.Key).ToHashSet());
+        var (tracker, added) = State.RoleTrackerFor(key).Observe(discovered.Select(r => r.Key).ToHashSet());
         State.SetRoleTracker(key, tracker);
         Persist();
         if (added.Count == 0)
@@ -300,9 +306,8 @@ public sealed partial class AppModel
         var changed = false;
         foreach (var tenant in State.Tenants)
         {
-            var tracker = State.RoleTrackerFor(tenant.Key).Clone();
-            var before = tracker.Clone();
-            tracker.PanelOpened();
+            var before = State.RoleTrackerFor(tenant.Key);
+            var tracker = before.PanelOpened();
             if (!tracker.Equals(before))
             {
                 State.SetRoleTracker(tenant.Key, tracker);

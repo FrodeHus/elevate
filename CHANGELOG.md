@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Windows: the flyout's right edge no longer clips the row buttons and the header tools; the
   window sized its outer frame, not its content, so the client area came out one frame narrower.
+- Access packages: an assignment the service already reports as expired is announced as expired,
+  not revoked, when this machine's clock has not reached the end date yet; and an assignment with
+  a known end date no longer gets a second "expired" toast from the next poll on top of the timed
+  one.
+- New-role marker: panel opens counted while a marker was showing no longer carry over after the
+  marked roles disappear, so the next new role is highlighted for its full two opens.
+- Windows: a saved `state.json` holding an access package state this build has no name for (one
+  written by a newer build) loads with that state as unknown instead of being set aside as
+  unreadable along with every account, tenant and profile in it.
 
 ### Changed
 

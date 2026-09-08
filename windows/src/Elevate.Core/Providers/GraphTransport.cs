@@ -188,7 +188,9 @@ public sealed partial class GraphTransport
 
         var error = _mapper(response);
 
-        // Admin consent only helps the user's own app registration; for a first-party sign-in a 403 is a plain refusal.
+        // Admin consent only helps Elevate's own app registration: the consent link the app offers
+        // is built for that client id. For a Microsoft first-party sign-in, and for a custom
+        // registration whose manifest the app cannot see, a 403 is a plain refusal instead.
         if (error.Kind == PimErrorKind.ConsentRequired && identity.SignInMethod.Kind != SignInMethodKind.OwnApp)
         {
             throw new PimException(

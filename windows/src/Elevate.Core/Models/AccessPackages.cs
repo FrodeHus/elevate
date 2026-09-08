@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Elevate.Core.Support;
 
 namespace Elevate.Core.Models;
 
@@ -24,7 +25,7 @@ public static class AccessPackageRequestStates
 {
     /// <summary>Case-insensitive; anything unrecognised is <see cref="AccessPackageRequestState.Unknown"/> so one new value never fails a page.</summary>
     public static AccessPackageRequestState Parse(string? raw) =>
-        ParseName<AccessPackageRequestState>(raw) ?? AccessPackageRequestState.Unknown;
+        EnumNames.Parse<AccessPackageRequestState>(raw) ?? AccessPackageRequestState.Unknown;
 
     /// <summary>Requested tab: the request has not reached a final state.</summary>
     public static bool IsOpen(this AccessPackageRequestState state) => state is
@@ -38,26 +39,6 @@ public static class AccessPackageRequestStates
     /// <summary>Graph accepts a cancel only before delivery starts.</summary>
     public static bool IsCancellable(this AccessPackageRequestState state) => state is
         AccessPackageRequestState.Submitted or AccessPackageRequestState.PendingApproval;
-
-    /// <summary>Matches an enum member by name, ignoring case; never by numeric value.</summary>
-    internal static T? ParseName<T>(string? raw)
-        where T : struct, Enum
-    {
-        if (string.IsNullOrEmpty(raw))
-        {
-            return null;
-        }
-
-        foreach (var value in Enum.GetValues<T>())
-        {
-            if (string.Equals(value.ToString(), raw, StringComparison.OrdinalIgnoreCase))
-            {
-                return value;
-            }
-        }
-
-        return null;
-    }
 }
 
 /// <summary>One of the signed-in user's own access package requests.</summary>
@@ -85,7 +66,7 @@ public enum AccessPackageAssignmentState
 public static class AccessPackageAssignmentStates
 {
     public static AccessPackageAssignmentState Parse(string? raw) =>
-        AccessPackageRequestStates.ParseName<AccessPackageAssignmentState>(raw) ?? AccessPackageAssignmentState.Unknown;
+        EnumNames.Parse<AccessPackageAssignmentState>(raw) ?? AccessPackageAssignmentState.Unknown;
 }
 
 /// <summary>An access package currently (or formerly) assigned to the signed-in user.</summary>

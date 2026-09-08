@@ -238,8 +238,7 @@ public class AppStateStoreTests
         var snapshot = new AccessPackageSnapshot([new AccessPackageRequest("r", "p", "Pkg", "userAdd", AccessPackageRequestState.PendingApproval)]);
         var polledAt = Fixtures.Date("2026-09-08T07:00:00Z")!.Value;
         state.SetAccessPackages(key, snapshot, polledAt);
-        var tracker = new NewRoleTracker();
-        tracker.Observe(new HashSet<RoleKey> { Key });
+        var tracker = new NewRoleTracker().Observe(new HashSet<RoleKey> { Key }).Next;
         state.SetRoleTracker(key, tracker);
 
         store.Save(state);
@@ -290,23 +289,42 @@ public class AppStateStoreTests
     }
 
     [Fact]
-    public void CloneCopiesTrackersDeeply()
+    public void CloneKeepsTrackerAndAccessPackageListsIndependent()
     {
         var state = new AppState();
         var key = new TenantKey("i", "t");
-        var tracker = new NewRoleTracker();
-        tracker.Observe(new HashSet<RoleKey> { Key });
-        tracker.Observe(new HashSet<RoleKey> { Key, new RoleKey("i", "t", new EntraDirectoryScope("r2", "/")) });
+        var tracker = new NewRoleTracker()
+            .Observe(new HashSet<RoleKey> { Key }).Next
+            .Observe(new HashSet<RoleKey> { Key, new RoleKey("i", "t", new EntraDirectoryScope("r2", "/")) }).Next;
         state.SetRoleTracker(key, tracker);
         state.SetAccessPackages(key, new AccessPackageSnapshot(), DateTimeOffset.UtcNow);
 
         var clone = state.Clone();
         clone.Should().Be(state);
-        clone.RoleTrackerFor(key).PanelOpened();
-        clone.RoleTrackerFor(key).PanelOpened();
+        clone.SetRoleTracker(key, clone.RoleTrackerFor(key).PanelOpened().PanelOpened());
         clone.AccessPackages.Clear();
 
         state.RoleTrackerFor(key).New.Should().ContainSingle();
         state.AccessPackages.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void UnknownAccessPackageStatesInSavedStateLoadAsUnknown()
+    {
+        // A newer build wrote a state this one has no name for: the snapshot must not fail the whole file.
+        var json = """
+            {"accessPackages":[{"tenantKey":{"identityId":"i","tenantId":"t"},"polledAt":"2026-09-08T07:00:00Z","snapshot":{
+              "requests":[{"id":"r","packageId":"p","packageName":"Pkg","requestType":"userAdd","state":"revoked"}],
+              "assignments":[{"id":"a","packageId":"p","packageName":"Pkg","state":"partiallyDelivered"}]}}]}
+            """;
+
+        var state = Json.Deserialize<AppState>(json)!;
+
+        var snapshot = state.AccessPackagesFor(new TenantKey("i", "t"))!.Snapshot;
+        snapshot.Requests.Should().ContainSingle().Which.State.Should().Be(AccessPackageRequestState.Unknown);
+        snapshot.Assignments.Should().ContainSingle().Which.State.Should().Be(AccessPackageAssignmentState.Unknown);
+        Json.Serialize(snapshot.Requests[0]).Should().Contain("\"state\":\"unknown\"");
+        Json.Serialize(new AccessPackageRequest("r", "p", "Pkg", "userAdd", AccessPackageRequestState.PendingApproval))
+            .Should().Contain("\"state\":\"pendingApproval\"");
     }
 }

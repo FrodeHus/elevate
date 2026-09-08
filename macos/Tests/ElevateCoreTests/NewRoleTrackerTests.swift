@@ -51,6 +51,24 @@ import Foundation
         #expect(t.isNew(key("b")))
     }
 
+    @Test func opensCountedAgainstAVanishedMarkerDoNotShortenTheNextOne() {
+        // b is new, the panel opens once, then b disappears: the marker empties and the count must go with it.
+        var t = NewRoleTracker()
+        _ = t.observe(discovered: [key("a")])
+        _ = t.observe(discovered: [key("a"), key("b")])
+        t.panelOpened()
+        _ = t.observe(discovered: [key("a")])
+        #expect(t.new.isEmpty)
+        #expect(t.shownOpens == 0)
+
+        // c gets its full two opens.
+        _ = t.observe(discovered: [key("a"), key("c")])
+        t.panelOpened()
+        #expect(t.isNew(key("c")))
+        t.panelOpened()
+        #expect(!t.isNew(key("c")))
+    }
+
     @Test func emptyDiscoveryNeverBaselines() {
         var t = NewRoleTracker()
         #expect(t.observe(discovered: []).isEmpty)

@@ -103,6 +103,18 @@ public class AccessPackageProviderTests
     }
 
     [Fact]
+    public async Task ForbiddenIsAPlainRefusalForACustomApp()
+    {
+        // The consent link is built for Elevate's own client id, so it cannot help a custom registration.
+        var (p, http) = MakeProvider();
+        http.On("GET", "accessPackages/filterByCurrentUser", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges"}}""", status: 403);
+
+        var act = () => p.RequestablePackagesAsync(TestIdentity with { SignInMethod = SignInMethod.Custom("11111111-2222-3333-4444-555555555555") }, "t1");
+
+        (await act.Should().ThrowAsync<PimException>()).Which.Kind.Should().Be(PimErrorKind.Forbidden);
+    }
+
+    [Fact]
     public async Task RequirementsWithOnePolicy()
     {
         var (p, http) = MakeProvider();
