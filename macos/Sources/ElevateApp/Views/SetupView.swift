@@ -14,6 +14,8 @@ struct SetupView: View {
                 Text("This build is unsigned, so your own registration signs in through the browser: register http://localhost under Mobile and desktop applications rather than the msauth.… redirect.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
+            // Point first-time users at the guides on GitHub before they pick a route.
+            DocsLinksRow()
             // Stacked buttons share one width; the primary path is prominent, the other plain.
             VStack(spacing: 8) {
                 SettingsLink { Text("Open Settings…").frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent)

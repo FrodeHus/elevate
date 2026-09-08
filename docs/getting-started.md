@@ -20,9 +20,9 @@ icon (a double chevron) sits in the menu bar. Click it to open the panel.
 ## 2. Choose how to sign in
 
 Elevate signs in with an Entra app registration. On first launch the panel asks you to complete
-setup:
+setup, and links to this guide and to the app registration guide on GitHub:
 
-![The panel on first launch, offering Open Settings and Continue with the Azure CLI app](images/tutorials/panel-setup.png)
+![The panel on first launch, linking to the guides and offering Open Settings and Continue with the Azure CLI app](images/tutorials/panel-setup.png)
 
 You have two routes:
 

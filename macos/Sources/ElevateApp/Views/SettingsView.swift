@@ -76,12 +76,13 @@ struct SettingsView: View {
                     }
                 }
                 if model.ownAppViaLoopback {
-                    Text("This unsigned build signs in through the browser (loopback), so register http://localhost under the Mobile and desktop applications platform instead of the msauth.… URI, and add the Graph PIM permissions listed in the README. A signed build uses the msauth.\(AppSettings.bundleId)://auth redirect under the iOS/macOS platform; registering both is harmless.")
+                    Text("This unsigned build signs in through the browser (loopback), so register http://localhost under the Mobile and desktop applications platform instead of the msauth.… URI, and add the Graph PIM permissions listed in the app registration guide. A signed build uses the msauth.\(AppSettings.bundleId)://auth redirect under the iOS/macOS platform; registering both is harmless.")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId) and add the Graph PIM permissions listed in the README.")
+                    Text("Register the redirect URI under the iOS/macOS platform with bundle ID \(AppSettings.bundleId) and add the Graph PIM permissions listed in the app registration guide.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                DocsLinksRow()
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
                 else if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }
                 else if isSaveable { Text("Press Return to apply.").font(.caption).foregroundStyle(.secondary) }
