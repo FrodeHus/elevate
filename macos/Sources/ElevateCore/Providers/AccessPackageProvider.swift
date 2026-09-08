@@ -78,4 +78,52 @@ public struct AccessPackageProvider: Sendable {
         let items = try await transport.listAll(AssignmentDTO.self, identity: identity, tenantId: tenantId, url: url, scopes: scopes)
         return items.map(Self.assignment(from:))
     }
+
+    // MARK: Requirements and requests
+
+    struct QuestionDTO: Decodable { let id: String?; let isRequired: Bool? }
+    struct RequirementDTO: Decodable {
+        let policyId: String?
+        let policyDisplayName: String?
+        let policyDescription: String?
+        let isApprovalRequired: Bool?
+        let questions: [QuestionDTO]?
+    }
+
+    /// One entry per policy the caller may request `packageId` under.
+    public func requirements(packageId: String, identity: Identity, tenantId: String) async throws -> [PolicyRequirement] {
+        let url = try transport.graphURL("\(Self.base)/accessPackages/\(packageId)/getApplicablePolicyRequirements")
+        let r = try await transport.post(identity: identity, tenantId: tenantId, url: url, scopes: scopes, body: Data())
+        let page = try GraphJSON.decoder.decode(GraphTransport.Page<RequirementDTO>.self, from: r.body)
+        return page.value.compactMap { dto in
+            guard let id = dto.policyId else { return nil }
+            return PolicyRequirement(id: id, displayName: dto.policyDisplayName ?? id, description: dto.policyDescription,
+                                     isApprovalRequired: dto.isApprovalRequired ?? false,
+                                     requiresAnswers: !(dto.questions ?? []).isEmpty)
+        }
+    }
+
+    /// Submits a `userAdd` request for the caller. `policyId` is required by Graph only when
+    /// several policies apply; omitted otherwise.
+    public func request(packageId: String, policyId: String?, justification: String, identity: Identity, tenantId: String) async throws -> AccessPackageRequest {
+        var assignment: [String: Any] = ["accessPackageId": packageId]
+        if let policyId { assignment["assignmentPolicyId"] = policyId }
+        let body = try JSONSerialization.data(withJSONObject: ["requestType": "userAdd", "justification": justification, "assignment": assignment])
+        let url = try transport.graphURL("\(Self.base)/assignmentRequests")
+        let r = try await transport.post(identity: identity, tenantId: tenantId, url: url, scopes: scopes, body: body)
+        let dto = try GraphJSON.decoder.decode(RequestDTO.self, from: r.body)
+        var created = Self.request(from: dto)
+        if created.packageId.isEmpty { created.packageId = packageId }
+        return created
+    }
+
+    public func cancel(requestId: String, identity: Identity, tenantId: String) async throws {
+        let url = try transport.graphURL("\(Self.base)/assignmentRequests/\(requestId)/cancel")
+        _ = try await transport.post(identity: identity, tenantId: tenantId, url: url, scopes: scopes, body: Data())
+    }
+
+    /// The My Access portal page for one package, for policies whose questions Elevate does not collect.
+    public static func myAccessURL(tenantId: String, packageId: String) -> URL {
+        URL(string: "https://myaccess.microsoft.com/@\(tenantId)#/access-packages/\(packageId)")!
+    }
 }

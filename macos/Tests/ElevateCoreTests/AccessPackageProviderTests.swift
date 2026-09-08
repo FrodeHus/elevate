@@ -68,4 +68,65 @@ import Foundation
             _ = try await p.requestablePackages(identity: identity, tenantId: "t1")
         }
     }
+
+    @Test func requirementsWithOnePolicy() async throws {
+        let (p, http) = makeProvider()
+        await http.on("POST", "getApplicablePolicyRequirements", body: Fixtures.data("ap-requirements-one"))
+        let reqs = try await p.requirements(packageId: "pkg-sandbox", identity: identity, tenantId: "t1")
+        #expect(reqs.count == 1)
+        #expect(reqs[0].id == "pol-eng")
+        #expect(reqs[0].displayName == "Engineers")
+        #expect(reqs[0].description == "30 days, approval by the platform team.")
+        #expect(reqs[0].isApprovalRequired)
+        #expect(!reqs[0].requiresAnswers)
+        let sent = await http.requests.first!
+        #expect(sent.method == "POST")
+        #expect(sent.url.absoluteString.hasSuffix("/entitlementManagement/accessPackages/pkg-sandbox/getApplicablePolicyRequirements"))
+    }
+
+    @Test func requirementsWithTwoPoliciesAndQuestions() async throws {
+        let (p, http) = makeProvider()
+        await http.on("POST", "pkg-two/getApplicablePolicyRequirements", body: Fixtures.data("ap-requirements-two"))
+        await http.on("POST", "pkg-q/getApplicablePolicyRequirements", body: Fixtures.data("ap-requirements-questions"))
+        let two = try await p.requirements(packageId: "pkg-two", identity: identity, tenantId: "t1")
+        #expect(two.map(\.id) == ["pol-eng", "pol-lead"])
+        #expect(two[1].isApprovalRequired == false)
+        let q = try await p.requirements(packageId: "pkg-q", identity: identity, tenantId: "t1")
+        #expect(q.count == 1 && q[0].requiresAnswers)
+    }
+
+    @Test func requestPostsUserAddBodyWithOptionalPolicy() async throws {
+        let (p, http) = makeProvider()
+        await http.on("POST", "assignmentRequests", status: 201, body: Fixtures.data("ap-request-created"))
+        let created = try await p.request(packageId: "pkg-sandbox", policyId: "pol-eng", justification: "Need it", identity: identity, tenantId: "t1")
+        #expect(created.id == "req-new")
+        #expect(created.state == .submitted)
+        #expect(created.packageId == "pkg-sandbox")
+        #expect(created.policyId == "pol-eng")
+        let body = try JSONSerialization.jsonObject(with: await http.requests.first!.body!) as! [String: Any]
+        #expect(body["requestType"] as? String == "userAdd")
+        #expect(body["justification"] as? String == "Need it")
+        let assignment = body["assignment"] as! [String: Any]
+        #expect(assignment["accessPackageId"] as? String == "pkg-sandbox")
+        #expect(assignment["assignmentPolicyId"] as? String == "pol-eng")
+
+        _ = try await p.request(packageId: "pkg-sandbox", policyId: nil, justification: "Again", identity: identity, tenantId: "t1")
+        let second = try JSONSerialization.jsonObject(with: await http.requests.last!.body!) as! [String: Any]
+        let secondAssignment = second["assignment"] as! [String: Any]
+        #expect(secondAssignment["assignmentPolicyId"] == nil)
+    }
+
+    @Test func cancelPostsToTheCancelAction() async throws {
+        let (p, http) = makeProvider()
+        await http.on("POST", "assignmentRequests/req-1/cancel", status: 204)
+        try await p.cancel(requestId: "req-1", identity: identity, tenantId: "t1")
+        let sent = await http.requests.first!
+        #expect(sent.method == "POST")
+        #expect(sent.url.absoluteString.hasSuffix("/assignmentRequests/req-1/cancel"))
+    }
+
+    @Test func myAccessURLPointsAtThePackageInTheTenant() {
+        let url = AccessPackageProvider.myAccessURL(tenantId: "11111111-2222-3333-4444-555555555555", packageId: "pkg-sandbox")
+        #expect(url.absoluteString == "https://myaccess.microsoft.com/@11111111-2222-3333-4444-555555555555#/access-packages/pkg-sandbox")
+    }
 }
