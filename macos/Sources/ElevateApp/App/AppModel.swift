@@ -305,7 +305,7 @@ final class AppModel {
         components.path = "/\(tenantId)/v2.0/adminconsent"
         components.queryItems = [
             URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
-            URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all).joined(separator: " ")),
+            URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all + EntitlementScopes.all).joined(separator: " ")),
             URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
         ]
         return components.url

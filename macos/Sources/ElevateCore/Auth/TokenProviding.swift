@@ -23,6 +23,14 @@ public enum GroupScopes {
     ]
 }
 
+/// Delegated Graph permission for self-service entitlement management (access packages).
+/// User-consentable: no admin consent is needed, unlike the PIM scopes above.
+public enum EntitlementScopes {
+    public static let all = ["https://graph.microsoft.com/EntitlementMgmt-SubjectAccess.ReadWrite"]
+    /// The bare scope name as it appears in a token's `scp` claim.
+    public static let claim = "EntitlementMgmt-SubjectAccess.ReadWrite"
+}
+
 public protocol TokenProviding: Sendable {
     /// Interactive sign-in against the `organizations` authority using the given method. Returns the new identity.
     func signIn(method: SignInMethod) async throws -> Identity
