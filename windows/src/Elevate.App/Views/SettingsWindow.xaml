@@ -37,8 +37,9 @@
                     <TextBlock Text="Redirect URIs" FontWeight="SemiBold" />
                     <TextBlock x:Name="BrokerUri" FontSize="12" FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
                     <TextBlock x:Name="LoopbackUri" FontSize="12" FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" />
-                    <TextBlock Text="Register both under the Mobile and desktop applications platform, and add the Graph PIM permissions listed in the docs."
+                    <TextBlock Text="Register both under the Mobile and desktop applications platform, and add the Graph PIM permissions listed in the app registration guide."
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <views:DocsLinksRow Margin="0,2,0,0" />
                 </StackPanel>
                 <Button Grid.Column="1" x:Name="CopyUris" Content="Copy" Click="OnCopyUris" VerticalAlignment="Center" />
             </Grid>

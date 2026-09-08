@@ -281,6 +281,8 @@
                 <TextBlock Text="Complete initial setup" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
                 <TextBlock Text="Enter your app registration's client ID in Settings, or start with the Azure CLI app for Azure resource roles only."
                            FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <!-- Point first-time users at the guides on GitHub before they pick a route. -->
+                <views:DocsLinksRow HorizontalAlignment="Center" />
                 <!-- One width for the stacked pair; the accent on the primary path only. -->
                 <StackPanel Spacing="8" HorizontalAlignment="Center" Width="264" Margin="0,4,0,0">
                     <Button Content="Open Settings…" Style="{StaticResource AccentButtonStyle}" Click="OnSettings" HorizontalAlignment="Stretch" />
