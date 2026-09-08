@@ -66,9 +66,20 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
     }
 
     func setPackageExpiries(_ expiries: [PackageExpiry]) async {
-        await packageExpiries.replace(expiries)
+        let previous = await packageExpiries.replace(expiries)
         let center = UNUserNotificationCenter.current()
+        let stale = Self.staleIds(previous: previous.map(\.id), current: expiries.map(\.id))
+        if !stale.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: stale.map { "package-expired-" + $0 })
+        }
         for e in expiries { await addPackageExpiry(center, e) }
+    }
+
+    /// The ids present in `previous` but not `current`: the notifications that must be cancelled
+    /// because their assignment disappeared (e.g. the access package was revoked).
+    static func staleIds(previous: [String], current: [String]) -> [String] {
+        let currentSet = Set(current)
+        return previous.filter { !currentSet.contains($0) }
     }
 
     private func addPackageExpiry(_ center: UNUserNotificationCenter, _ e: PackageExpiry) async {
@@ -121,6 +132,13 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
 /// Serialises access to the package expiry list from the notifier's nonisolated methods.
 private actor PackageExpiryStore {
     private var items: [PackageExpiry] = []
-    func replace(_ new: [PackageExpiry]) { items = new }
+    /// Replaces the stored list and returns what it held before, so the caller can cancel
+    /// notifications for ids that dropped out.
+    @discardableResult
+    func replace(_ new: [PackageExpiry]) -> [PackageExpiry] {
+        let previous = items
+        items = new
+        return previous
+    }
     func all() -> [PackageExpiry] { items }
 }

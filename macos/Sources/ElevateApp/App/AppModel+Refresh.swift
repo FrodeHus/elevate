@@ -316,6 +316,7 @@ extension AppModel {
     /// alphabetically, and marked in the panel until the second open.
     // internal for tests
     func observeDiscoveredRoles(_ key: TenantKey, discovered: [EligibleRole]) async {
+        guard tenant(key) != nil else { return }
         var tracker = state.roleTracker(key)
         let added = tracker.observe(discovered: Set(discovered.map(\.key)))
         state.setRoleTracker(key, tracker)

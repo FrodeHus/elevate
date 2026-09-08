@@ -31,8 +31,10 @@ struct AccessPackagesView: View {
     private var tenantName: String { model.tenant(tenantKey)?.displayName ?? tenantKey.tenantId }
     private var snapshot: AccessPackageSnapshot { model.accessPackageSnapshot(tenantKey) ?? AccessPackageSnapshot() }
     private var consentError: String? {
-        let e = model.accessPackageErrors[tenantKey] ?? packagesError
-        return e == PIMError.consentRequired.userMessage ? e : nil
+        let pollError = model.accessPackageErrors[tenantKey]
+        if pollError == PIMError.consentRequired.userMessage { return pollError }
+        if packagesError == PIMError.consentRequired.userMessage { return packagesError }
+        return nil
     }
 
     static func filtered(_ rows: [Row], query: String) -> [Row] {
@@ -70,6 +72,9 @@ struct AccessPackagesView: View {
             }
             if let actionError {
                 Label(actionError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let pollError = model.accessPackageErrors[tenantKey], pollError != PIMError.consentRequired.userMessage {
+                Label(pollError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
