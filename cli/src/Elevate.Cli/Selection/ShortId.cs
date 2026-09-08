@@ -23,6 +23,13 @@ public static class ShortId
         return Hash(request.TenantKey.IdentityId + "|" + request.TenantKey.TenantId + "|" + request.Id);
     }
 
+    /// <summary>For an access package, request or assignment id inside one tenant.</summary>
+    public static string For(TenantKey key, string id)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        return Hash(key.IdentityId + "|" + key.TenantId + "|" + id);
+    }
+
     public static bool LooksLikeId(string text) =>
         text.Length == 8 && text.All(c => char.IsAsciiHexDigitLower(c) || char.IsAsciiDigit(c));
 
