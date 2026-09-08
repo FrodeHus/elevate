@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Work on branch `access-packages-core-cli`, created from `origin/main` (commit `4162783` or later). `main` is protected; merge by PR. The PR closes #91 and #93.
-- Core tests: `dotnet test windows/Elevate.sln` (runs on macOS; the WinUI app project is excluded from the solution build off Windows, so the whole solution builds here). Every Core task leaves the suite green.
+- Core tests: `dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj` (the solution itself does not build on macOS because the WinUI projects need Windows targeting; always test the Core test project directly). Every Core task leaves the suite green.
 - CLI tests: `dotnet test cli/Elevate.Cli.sln`. The CLI references `../windows/src/Elevate.Core` directly, so a Core change is immediately visible to the CLI.
 - Both test projects build with warnings as errors. Public methods take `ArgumentNullException.ThrowIfNull` for reference parameters, like the existing providers.
 - The only new Graph scope is `https://graph.microsoft.com/EntitlementMgmt-SubjectAccess.ReadWrite`; its bare claim name is `EntitlementMgmt-SubjectAccess.ReadWrite`. Never add `EntitlementManagement.Read.All` or `EntitlementManagement.ReadWrite.All`.
@@ -68,7 +68,7 @@ cd /Users/frode.hus/pimtray && git fetch -q origin main && git checkout -b acces
 - [ ] **Step 2: Confirm both suites are green before any change**
 
 ```bash
-cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln 2>&1 | tail -5 && dotnet test cli/Elevate.Cli.sln 2>&1 | tail -5
+cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj 2>&1 | tail -5 && dotnet test cli/Elevate.Cli.sln 2>&1 | tail -5
 ```
 
 Expected: both report `Passed!` with 0 failed.
@@ -128,7 +128,7 @@ Append to `AppStateStoreTests.cs` inside the class:
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessTokenClaimsTests|FullyQualifiedName~AccessPackagesAvailableFlag" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessTokenClaimsTests|FullyQualifiedName~AccessPackagesAvailableFlag" 2>&1 | tail -15`
 Expected: build error (`Scopes` has no `EntitlementAll`, `AccessTokenClaims` has no `PermitsEntitlementSelfService`, `TenantContext` has no `AccessPackagesAvailable`).
 
 - [ ] **Step 3: Implement**
@@ -169,7 +169,7 @@ In `Models/Identity.cs`, add a last positional parameter to `TenantContext` afte
 
 - [ ] **Step 4: Run the whole Core suite**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln 2>&1 | tail -5`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj 2>&1 | tail -5`
 Expected: `Passed!`, no failures (the golden fixture has no flag, so it stays null and is omitted on write).
 
 - [ ] **Step 5: Commit**
@@ -278,7 +278,7 @@ public class AccessPackageModelsTests
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageModelsTests" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageModelsTests" 2>&1 | tail -15`
 Expected: build errors for the missing types.
 
 - [ ] **Step 3: Implement**
@@ -418,7 +418,7 @@ public sealed record AccessPackageSnapshot
 
 - [ ] **Step 4: Run the tests**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageModelsTests" 2>&1 | tail -8`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageModelsTests" 2>&1 | tail -8`
 Expected: 5 passed.
 
 - [ ] **Step 5: Commit**
@@ -652,7 +652,7 @@ public class AccessPackageProviderTests
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageProviderTests" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageProviderTests" 2>&1 | tail -15`
 Expected: build errors (no `AccessPackageProvider`).
 
 - [ ] **Step 4: Implement**
@@ -853,7 +853,7 @@ public sealed class AccessPackageProvider : IAccessPackageProvider
 
 - [ ] **Step 5: Run the tests**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageProviderTests" 2>&1 | tail -8`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageProviderTests" 2>&1 | tail -8`
 Expected: 10 passed. If `MyAccessUrlPointsAtThePackageInTheTenant` fails because `Uri.ToString()` rewrites the `@`, compare `OriginalString` instead in the test and note it in the commit message.
 
 - [ ] **Step 6: Commit**
@@ -969,7 +969,7 @@ public class AccessPackageDiffTests
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageDiffTests" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageDiffTests" 2>&1 | tail -15`
 Expected: build errors (no `AccessPackageDiff`).
 
 - [ ] **Step 3: Implement**
@@ -1089,7 +1089,7 @@ public static class AccessPackageDiff
 
 - [ ] **Step 4: Run the tests**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AccessPackageDiffTests" 2>&1 | tail -8`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AccessPackageDiffTests" 2>&1 | tail -8`
 Expected: 6 passed.
 
 - [ ] **Step 5: Commit**
@@ -1227,7 +1227,7 @@ public class NewRoleTrackerTests
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~NewRoleTrackerTests" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~NewRoleTrackerTests" 2>&1 | tail -15`
 Expected: build errors (no `NewRoleTracker`).
 
 - [ ] **Step 3: Implement**
@@ -1330,7 +1330,7 @@ public sealed class NewRoleTracker : IEquatable<NewRoleTracker>
 
 - [ ] **Step 4: Run the tests**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~NewRoleTrackerTests" 2>&1 | tail -8`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~NewRoleTrackerTests" 2>&1 | tail -8`
 Expected: 8 passed.
 
 - [ ] **Step 5: Commit**
@@ -1520,7 +1520,7 @@ Append to `AppStateGoldenTests.MacOsStateFileDecodesToTheExpectedValues` at the 
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln --filter "FullyQualifiedName~AppStateStoreTests|FullyQualifiedName~AppStateGoldenTests" 2>&1 | tail -15`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj --filter "FullyQualifiedName~AppStateStoreTests|FullyQualifiedName~AppStateGoldenTests" 2>&1 | tail -15`
 Expected: build errors (no `SetAccessPackages` etc.).
 
 - [ ] **Step 3: Implement**
@@ -1616,7 +1616,7 @@ Update the class summary comment to mention access package snapshots and role tr
 
 - [ ] **Step 4: Run the whole Core suite**
 
-Run: `cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln 2>&1 | tail -5`
+Run: `cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj 2>&1 | tail -5`
 Expected: `Passed!`, no failures. `MacOsStateFileRoundTripsLosslessly` must still pass: the canonical comparison sorts keys, and the fixture's sets have one element so array order is stable.
 
 - [ ] **Step 5: Commit**
@@ -2875,7 +2875,7 @@ In `windows/CONTINUING.md`, add a bullet in the section that lists what the Wind
 - [ ] **Step 4: Run both suites once more**
 
 ```bash
-cd /Users/frode.hus/pimtray && dotnet test windows/Elevate.sln 2>&1 | tail -3 && dotnet test cli/Elevate.Cli.sln 2>&1 | tail -3
+cd /Users/frode.hus/pimtray && dotnet test windows/tests/Elevate.Core.Tests/Elevate.Core.Tests.csproj 2>&1 | tail -3 && dotnet test cli/Elevate.Cli.sln 2>&1 | tail -3
 ```
 
 Expected: both `Passed!`.
