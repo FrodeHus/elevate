@@ -6,6 +6,8 @@
   the Azure CLI script and the portal walkthrough, and troubleshooting sign-in errors.
 - [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS, Windows
   and the CLI), the optional signing secrets, the Homebrew cask and formula.
+- [Requesting access packages](access-packages.md) — finding, requesting and following
+  entitlement management access packages per tenant; notifications and the new-role marker.
 
 ## Design documents
 
@@ -21,6 +23,7 @@
 - [Windows app](superpowers/specs/2026-09-05-elevate-windows-design.md)
 - [Windows app, phase 3: parity and release hardening](superpowers/specs/2026-09-06-elevate-windows-phase3-design.md)
 - [CLI](superpowers/specs/2026-09-07-elevate-cli-design.md)
+- [Access packages](superpowers/specs/2026-09-08-elevate-access-packages-design.md)
 - [Design canvases (macOS and Windows)](design/README.md) — HTML mockups saved from Claude Design
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).
