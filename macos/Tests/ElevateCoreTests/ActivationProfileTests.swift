@@ -76,16 +76,25 @@ import Foundation
         var s = AppState()
         let profiles = (0...ProfilePins.limit).map { ActivationProfile(name: "P\($0)", entries: []) }
         for p in profiles { s.upsertProfile(p) }
-        for p in profiles.prefix(ProfilePins.limit) { #expect(s.setPinned(id: p.id, true)) }
+        // `#expect` captures its operands immutably, so each mutating call lands in a local first.
+        for p in profiles.prefix(ProfilePins.limit) {
+            let pinned = s.setPinned(id: p.id, true)
+            #expect(pinned)
+        }
         #expect(s.pinnedProfiles.count == ProfilePins.limit)
-        #expect(!s.setPinned(id: profiles[ProfilePins.limit].id, true))
+        let fifth = s.setPinned(id: profiles[ProfilePins.limit].id, true)
+        #expect(!fifth)
         #expect(s.profile(id: profiles[ProfilePins.limit].id)?.pinned == false)
         // Re-pinning an already pinned profile is not a new pin.
-        #expect(s.setPinned(id: profiles[0].id, true))
-        #expect(s.setPinned(id: profiles[0].id, false))
+        let repinned = s.setPinned(id: profiles[0].id, true)
+        #expect(repinned)
+        let unpinned = s.setPinned(id: profiles[0].id, false)
+        #expect(unpinned)
         #expect(s.pinnedProfiles.map(\.name) == ["P1", "P2", "P3"])
-        #expect(s.setPinned(id: profiles[ProfilePins.limit].id, true))
-        #expect(!s.setPinned(id: UUID(), true))
+        let afterUnpin = s.setPinned(id: profiles[ProfilePins.limit].id, true)
+        #expect(afterUnpin)
+        let unknown = s.setPinned(id: UUID(), true)
+        #expect(!unknown)
     }
 
     @Test func summaryCaption() {
