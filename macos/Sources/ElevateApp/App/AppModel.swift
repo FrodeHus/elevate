@@ -304,6 +304,7 @@ final class AppModel {
     }
     func role(for key: RoleKey) -> EligibleRole? { roles[key.tenantKey]?.first { $0.key == key } }
     func assignment(for key: RoleKey) -> ActiveAssignment? { active[key] }
+    func isNewRole(_ key: RoleKey) -> Bool { state.roleTracker(key.tenantKey).isNew(key) }
     func remembered(for key: RoleKey) -> RoleMemory? { state.memory(for: key) }
     func identity(_ id: String) -> Identity? { state.identities.first { $0.id == id } }
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
@@ -416,7 +417,8 @@ final class AppModel {
         accessPackageTimer = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.accessPackageBackgroundInterval))
-                guard let self, self.isOnline else { continue }
+                guard let self else { return }
+                guard self.isOnline else { continue }
                 await self.pollAccessPackagesIfDue()
             }
         }

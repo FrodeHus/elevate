@@ -73,9 +73,22 @@ extension AppModel {
         }
     }
 
+    /// Waits out a poll for this tenant already in flight, then starts a fresh one. `requestPackage`
+    /// and `cancelPackageRequest` need this rather than calling `pollAccessPackages` directly: that
+    /// method returns immediately when a poll for the tenant is already running, so a request made
+    /// while one is in flight would otherwise never land in the snapshot.
+    private func waitForPollThenPoll(_ key: TenantKey) async {
+        var iterations = 0
+        while accessPackagesPolling.contains(key), iterations < 50 {
+            try? await Task.sleep(for: .milliseconds(100))
+            iterations += 1
+        }
+        await pollAccessPackages(key)
+    }
+
     /// Every delivered assignment with an end date, across tenants, handed to the notifier so the
     /// expiry notification fires on time even between polls.
-    // internal for AppModel (applyClientId) and tests
+    // internal for tests
     func reschedulePackageExpiries() async {
         var expiries: [PackageExpiry] = []
         for record in state.accessPackages {
@@ -113,7 +126,7 @@ extension AppModel {
         _ = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
             try await provider.request(packageId: packageId, policyId: policyId, justification: justification, identity: identity, tenantId: key.tenantId)
         }
-        await pollAccessPackages(key)
+        await waitForPollThenPoll(key)
     }
 
     func cancelPackageRequest(_ key: TenantKey, requestId: String) async throws {
@@ -122,6 +135,6 @@ extension AppModel {
         try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
             try await provider.cancel(requestId: requestId, identity: identity, tenantId: key.tenantId)
         }
-        await pollAccessPackages(key)
+        await waitForPollThenPoll(key)
     }
 }

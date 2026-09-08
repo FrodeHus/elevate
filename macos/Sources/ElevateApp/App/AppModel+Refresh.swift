@@ -9,13 +9,19 @@ extension AppModel {
     func panelOpened() {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         searchQuery = ""
+        var trackersChanged = false
         for tenant in state.tenants {
             var tracker = state.roleTracker(tenant.id)
             let before = tracker
             tracker.panelOpened()
-            if tracker != before { state.setRoleTracker(tenant.id, tracker) }
+            if tracker != before {
+                state.setRoleTracker(tenant.id, tracker)
+                trackersChanged = true
+            }
         }
-        persist()
+        // A panel open before `bootstrap()` finishes loading state must not write a default
+        // state over the saved file; and there is nothing to persist when nothing changed.
+        if trackersChanged, bootstrapped { persist() }
         guard bootstrapped, isOnline, !identities.isEmpty else { return }
         Task { await self.pollAccessPackagesIfDue() }
         guard Date().timeIntervalSince(lastRefresh) > 30 else { return }
@@ -207,6 +213,11 @@ extension AppModel {
         }
         let discovered = discoveredByKind.values.flatMap { $0 }.sorted { $0.displayName < $1.displayName }
         roles[key] = ManualRoleSource.merge(discovered: discovered, manual: manual)
+        // Only a full, error-free discovery may move the new-role baseline: a partial or failed
+        // read would otherwise report the missing kinds as new when they come back.
+        if requestedKinds == nil, errors.isEmpty, !consentBlocked {
+            await observeDiscoveredRoles(key, discovered: discovered)
+        }
         // Replace only the kinds we successfully re-read; keep the rest.
         active = active.filter { !($0.key.tenantKey == key && kindsWithActive.contains($0.key.scope.kind)) }
         for a in current { active[a.roleKey] = a }
@@ -299,6 +310,20 @@ extension AppModel {
             return r
         }
         .sorted { $0.displayName < $1.displayName }
+    }
+
+    /// Feeds one tenant's discovered roles to its tracker; additions are announced once, named
+    /// alphabetically, and marked in the panel until the second open.
+    // internal for tests
+    func observeDiscoveredRoles(_ key: TenantKey, discovered: [EligibleRole]) async {
+        var tracker = state.roleTracker(key)
+        let added = tracker.observe(discovered: Set(discovered.map(\.key)))
+        state.setRoleTracker(key, tracker)
+        persist()
+        guard !added.isEmpty else { return }
+        let names = discovered.filter { added.contains($0.key) }.map(\.displayName).sorted()
+        let tenantName = tenant(key)?.displayName ?? key.tenantId
+        await notifier.notify(title: "New roles available in \(tenantName)", body: names.joined(separator: ", "))
     }
 
     // MARK: Notifications

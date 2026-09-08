@@ -106,4 +106,64 @@ struct AppModelAccessPackagesTests {
         #expect(model.accessPackageSnapshot(Sample.tenantKey)?.requests.map(\.id) == ["new"])
         cleanup(model)
     }
+
+    /// `requestPackage` calls `pollAccessPackages` (via `waitForPollThenPoll`), which returns
+    /// immediately when a poll for the tenant is already in flight. Without waiting for that poll
+    /// to clear, the fresh request would never land in the snapshot. Deterministic per the brief's
+    /// fallback: rather than racing a real network poll, the in-flight flag is set and cleared on a
+    /// timer so the test does not depend on scheduling order.
+    @Test func requestPackageWaitsForAnInFlightPollBeforeRePolling() async throws {
+        let http = StubHTTPClient(), notifier = RecordingNotifier()
+        await http.on("POST", "assignmentRequests", status: 201, body: Data(#"{"id":"new","state":"submitted","assignment":{"accessPackageId":"p"}}"#.utf8))
+        await http.on("GET", "assignmentRequests/filterByCurrentUser", body: Data(#"{"value":[{"id":"new","state":"submitted","accessPackage":{"id":"p","displayName":"Pkg"}}]}"#.utf8))
+        await http.on("GET", "assignments/filterByCurrentUser", body: Data(#"{"value":[]}"#.utf8))
+        let model = await modelWithTenant(http: http, notifier: notifier)
+        model.accessPackagesPolling = [Sample.tenantKey]
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            model.accessPackagesPolling.remove(Sample.tenantKey)
+        }
+        try await model.requestPackage(Sample.tenantKey, packageId: "p", policyId: nil, justification: "Because")
+        #expect(model.accessPackageSnapshot(Sample.tenantKey)?.requests.map(\.id) == ["new"])
+        cleanup(model)
+    }
+
+    @Test func newRolesAreMarkedNotifiedAndClearedOnSecondOpen() async throws {
+        let http = StubHTTPClient(), notifier = RecordingNotifier()
+        var state = AppState()
+        state.identities = [Sample.identity()]
+        state.tenants = [Sample.tenant()]
+        let model = await makeModel(state: state, http: http, notifier: notifier)
+        let reader = Sample.role(Sample.entraKey, name: "Global Reader")
+        let exchange = Sample.role(Sample.key(.entraDirectory(roleDefinitionId: "exchange", directoryScopeId: "/")), name: "Exchange Administrator")
+
+        await model.observeDiscoveredRoles(Sample.tenantKey, discovered: [reader])
+        #expect(await notifier.notifications.isEmpty)
+        #expect(!model.isNewRole(reader.key))
+
+        await model.observeDiscoveredRoles(Sample.tenantKey, discovered: [reader, exchange])
+        let notes = await notifier.notifications
+        #expect(notes.count == 1)
+        #expect(notes[0].title == "New roles available in Contoso")
+        #expect(notes[0].body == "Exchange Administrator")
+        #expect(model.isNewRole(exchange.key))
+
+        model.panelOpened()
+        #expect(model.isNewRole(exchange.key))
+        model.panelOpened()
+        #expect(!model.isNewRole(exchange.key))
+        cleanup(model)
+    }
+
+    @Test func emptyDiscoveryDoesNotBaselineOrNotify() async throws {
+        let http = StubHTTPClient(), notifier = RecordingNotifier()
+        var state = AppState()
+        state.identities = [Sample.identity()]
+        state.tenants = [Sample.tenant()]
+        let model = await makeModel(state: state, http: http, notifier: notifier)
+        await model.observeDiscoveredRoles(Sample.tenantKey, discovered: [])
+        await model.observeDiscoveredRoles(Sample.tenantKey, discovered: [Sample.role(Sample.entraKey, name: "Global Reader")])
+        #expect(await notifier.notifications.isEmpty)
+        cleanup(model)
+    }
 }
