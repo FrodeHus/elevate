@@ -2,6 +2,20 @@
 
 ## Guides
 
+User guides for the macOS app, with screenshots:
+
+- [Getting started](getting-started.md) — install, choose a sign-in method, add accounts and
+  tenants, find your way around the panel and Settings.
+- [Activating roles](activating-roles.md) — activate, schedule, extend and deactivate Entra, Azure
+  and group roles; quick activation; search; notifications and the menu bar icon.
+- [Profiles and shortcuts](profiles-and-shortcuts.md) — save role sets, run them with one click
+  or a global shortcut, edit and manage them.
+- [Approving requests](approvals.md) — decide other people's activation requests from the panel.
+- [Troubleshooting](troubleshooting.md) — manual roles and consent, Azure-only accounts, sign-in
+  banners, refused activations, diagnostics.
+
+Reference:
+
 - [Setting up the Entra app registration](entra-app-registration.md) — permissions, consent,
   the Azure CLI script and the portal walkthrough, and troubleshooting sign-in errors.
 - [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS, Windows

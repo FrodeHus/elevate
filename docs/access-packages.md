@@ -7,8 +7,7 @@ packages you are allowed to request, request them, and keep an eye on what
 happened, all from the menu bar.
 
 > The pictures in this guide are design mockups with sample data from a
-> fictional organization. They will be replaced with real screenshots when the
-> feature ships.
+> fictional organization; the real app looks the same in layout and wording.
 
 ## Before you start
 
