@@ -69,6 +69,7 @@ public static class Program
         root.Subcommands.Add(ActivationCommands.Cancel());
         root.Subcommands.Add(ProfileCommands.Profiles());
         root.Subcommands.Add(ApprovalCommands.Approvals());
+        root.Subcommands.Add(PackageCommands.Packages());
         root.Subcommands.Add(ConfigCommands.Config());
         root.Subcommands.Add(MiscCommands.Catalogue());
         root.Subcommands.Add(MiscCommands.Diagnostics());

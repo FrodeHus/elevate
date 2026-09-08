@@ -1,3 +1,7 @@
+using Elevate.Cli.Commands;
+using Elevate.Cli.Infrastructure;
+using Elevate.Cli.Selection;
+using Elevate.Cli.Session;
 using Elevate.Cli.Tests.Support;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
@@ -99,5 +103,38 @@ public class PackageSessionTests
         (await t.Session.ProbeAccessPackagesAsync(cli, "t1")).Should().BeFalse();
         // The fake token provider hands out the opaque string "token".
         (await t.Session.ProbeAccessPackagesAsync(TestSession.Account, "t1")).Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolvePackageMatchesShortIdThenNameThenSubstring()
+    {
+        using var t = new TestSession();
+        var read = new TenantPackages(Home, [new AccessPackage("pkg-sandbox", "Azure Sandbox Contributor"), new AccessPackage("pkg-exchange", "Exchange Operations")], [], []);
+
+        PackageCommands.ResolvePackage(t.Session, [read], ShortId.For(Home, "pkg-exchange")).Package.Id.Should().Be("pkg-exchange");
+        PackageCommands.ResolvePackage(t.Session, [read], "pkg-sandbox").Package.Id.Should().Be("pkg-sandbox");
+        PackageCommands.ResolvePackage(t.Session, [read], "exchange operations").Package.Id.Should().Be("pkg-exchange");
+        PackageCommands.ResolvePackage(t.Session, [read], "sandbox").Package.Id.Should().Be("pkg-sandbox");
+        var none = () => PackageCommands.ResolvePackage(t.Session, [read], "nothing");
+        none.Should().Throw<CliException>().Which.ExitCode.Should().Be(ExitCodes.NotFound);
+        var many = () => PackageCommands.ResolvePackage(t.Session, [read], "e");
+        many.Should().Throw<CliException>().Which.Message.Should().Contain("several");
+    }
+
+    [Fact]
+    public void ChoosePolicyHandlesNoneOneAndSeveral()
+    {
+        var eng = new PolicyRequirement("pol-eng", "Engineers", null, true, false);
+        var lead = new PolicyRequirement("pol-lead", "Team leads", null, false, false);
+
+        var none = () => PackageCommands.ChoosePolicy([], null, "P");
+        none.Should().Throw<CliException>().Which.ExitCode.Should().Be(ExitCodes.Failure);
+        PackageCommands.ChoosePolicy([eng], null, "P").Should().Be(eng);
+        var several = () => PackageCommands.ChoosePolicy([eng, lead], null, "P");
+        several.Should().Throw<CliException>().Which.ExitCode.Should().Be(ExitCodes.Usage);
+        PackageCommands.ChoosePolicy([eng, lead], "pol-lead", "P").Should().Be(lead);
+        PackageCommands.ChoosePolicy([eng, lead], "team", "P").Should().Be(lead);
+        var missing = () => PackageCommands.ChoosePolicy([eng, lead], "nope", "P");
+        missing.Should().Throw<CliException>().Which.ExitCode.Should().Be(ExitCodes.NotFound);
     }
 }
