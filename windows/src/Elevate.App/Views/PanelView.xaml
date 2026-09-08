@@ -10,7 +10,8 @@
 
         <!-- One eligible role, or one active assignment in the summary. -->
         <DataTemplate x:Key="RoleRowTemplate" x:DataType="views:RoleRow">
-            <Grid MinHeight="44" Padding="14,6,14,6" ColumnSpacing="10"
+            <!-- A role added since the last discovery gets a faint accent tint; the "new" badge carries the meaning. -->
+            <Grid MinHeight="44" Padding="14,6,14,6" ColumnSpacing="10" Background="{x:Bind RowBrush, Mode=OneWay}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -26,7 +27,10 @@
                 <views:StatusDot Grid.Column="1" Status="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
                     <!-- One line with trimming, in select mode too; the tenant · account caption below keeps the 12 px caption size. -->
-                    <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontSize="14" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontSize="14" VerticalAlignment="Center" />
+                        <views:Pill Text="new" Tint="Accent" Visibility="{x:Bind NewVisibility, Mode=OneWay}" Tooltip="Added since the last discovery" />
+                    </StackPanel>
                     <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                                ToolTipService.ToolTip="{x:Bind DetailTooltip, Mode=OneWay}" />
@@ -166,6 +170,11 @@
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                         <!-- A mode the user chose, not a problem: the neutral tint. -->
                         <views:Pill Text="manual roles" Visibility="{x:Bind ManualVisibility, Mode=OneWay}" Tooltip="Discovery is refused in this tenant; the roles are the ones you configured" />
+                        <!-- The box glyph opens the tenant's access packages; shown only when the token carries the entitlement scope. -->
+                        <Button Style="{StaticResource SubtleButtonStyle}" Width="22" Height="22" Visibility="{x:Bind AccessPackagesVisibility, Mode=OneWay}"
+                                Click="OnAccessPackagesClick" ToolTipService.ToolTip="Access packages" AutomationProperties.Name="Access packages">
+                            <FontIcon Glyph="&#xE7B8;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </Button>
                         <!-- One glyph for everything that limits the tenant: orange for limitations, red when discovery or refresh failed. Hover for the titles, click for the reasons. -->
                         <Button Style="{StaticResource SubtleButtonStyle}" Width="22" Height="22" Visibility="{x:Bind IssuesVisibility, Mode=OneWay}"
                                 Click="OnIssuesClick" ToolTipService.ToolTip="{x:Bind IssuesTooltip, Mode=OneWay}"

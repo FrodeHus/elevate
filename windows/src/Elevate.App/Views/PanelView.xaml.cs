@@ -571,6 +571,14 @@ public sealed partial class PanelView : UserControl
     }
 
     /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
+    private void OnAccessPackagesClick(object sender, RoutedEventArgs e)
+    {
+        if (Group(sender) is { TenantKey: { } key })
+        {
+            App.Current.OpenAccessPackages(key);
+        }
+    }
+
     private void OnIssuesClick(object sender, RoutedEventArgs e)
     {
         if (Group(sender) is not { } group || group.Issues.Count == 0 || sender is not FrameworkElement anchor)
@@ -642,6 +650,13 @@ public sealed partial class PanelView : UserControl
         }
 
         var model = _model;
+        if (tenant.AccessPackagesAvailable == true)
+        {
+            // First, as on macOS: the one item that opens a window of its own.
+            menu.Items.Add(Item("Access packages…", () => App.Current.OpenAccessPackages(tenant.Key)));
+            menu.Items.Add(new MenuFlyoutSeparator());
+        }
+
         menu.Items.Add(Item("Configure known PIM roles…", () => App.Current.OpenConfigureRoles(tenant.Key)));
         menu.Items.Add(Item("Retry discovery", () => _ = model.RetryDiscoveryAsync(tenant.Key)));
         if ((tenant.DiscoveryMode == DiscoveryMode.ManualRoles || tenant.GroupsUnavailableReason is not null)

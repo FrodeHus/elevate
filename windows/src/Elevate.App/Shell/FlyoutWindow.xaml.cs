@@ -120,6 +120,13 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(origin.X, origin.Y, width, height));
     }
 
+    /// <summary>
+    /// The outer window size that gives the content its full width. The presenter keeps a border,
+    /// and <see cref="Microsoft.UI.Windowing.AppWindow.Size"/> counts that invisible frame, so
+    /// sizing the outer rectangle to 380 logical pixels left the client area a frame narrower and
+    /// pushed the row buttons off the right edge. The frame is measured, not assumed: it differs
+    /// per DPI and per Windows build.
+    /// </summary>
     private (int Width, int Height) PixelSize()
     {
         // Let the list realise its containers first, so the unbounded measure below sees every row.
@@ -129,7 +136,9 @@ public sealed partial class FlyoutWindow : Window
         // panel that grows and shrinks with every pivot moves the pivots and footer under the
         // cursor. Only the setup and no-accounts states, which have no list, size to their content.
         var desired = Panel.ListVisible ? MaxHeight : Math.Max(44, Math.Min(MaxHeight, Root.DesiredSize.Height));
-        return ((int)Math.Round(Width * Scale), (int)Math.Round(desired * Scale));
+        var frameWidth = Math.Max(0, AppWindow.Size.Width - AppWindow.ClientSize.Width);
+        var frameHeight = Math.Max(0, AppWindow.Size.Height - AppWindow.ClientSize.Height);
+        return ((int)Math.Round(Width * Scale) + frameWidth, (int)Math.Round(desired * Scale) + frameHeight);
     }
 
     /// <summary>Content grew or shrank while open: keep the bottom edge anchored to the taskbar.</summary>

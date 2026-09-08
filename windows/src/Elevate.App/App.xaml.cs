@@ -125,7 +125,7 @@ public partial class App : Application
                 _notifier?.HandleLaunch(toast);
             }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
-            // `--show <settings|add-account|configure|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window.
+            // `--show <settings|add-account|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window.
             var args = Environment.GetCommandLineArgs();
             if (args.Contains("--flyout", StringComparer.OrdinalIgnoreCase))
             {
@@ -225,6 +225,9 @@ public partial class App : Application
                 break;
             case "configure" when tenant is not null:
                 OpenConfigureRoles(tenant.Key);
+                break;
+            case "access-packages" when tenant is not null:
+                OpenAccessPackages(tenant.Key);
                 break;
             case "activation" when tenant is not null:
                 OpenActivation([.. model.RolesFor(tenant.Key).Take(1).Select(r => r.Key)]);
@@ -338,6 +341,12 @@ public partial class App : Application
     }
 
     public void OpenConfigureRoles(TenantKey tenantKey) => Open("configure:" + tenantKey, () => new ConfigureRolesWindow(Model!, tenantKey));
+
+    public void OpenAccessPackages(TenantKey tenantKey) => Open("access-packages:" + tenantKey, () => new AccessPackagesWindow(Model!, tenantKey));
+
+    /// <summary>The request dialog for one package; <paramref name="onSubmitted"/> runs after a successful submit, before it closes.</summary>
+    public void OpenRequestPackage(TenantKey tenantKey, Elevate.Core.Models.AccessPackage package, Action onSubmitted) =>
+        Open("request-package:" + tenantKey + ":" + package.Id, () => new RequestPackageWindow(Model!, tenantKey, package, onSubmitted));
 
     public void OpenAddTenant(string identityId) => Open("add-tenant:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Add));
 

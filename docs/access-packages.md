@@ -4,10 +4,14 @@ Access packages are bundles of access that your organization offers through
 Microsoft Entra entitlement management: group memberships, application roles,
 SharePoint sites, Azure roles, or eligible PIM roles. Elevate lets you find the
 packages you are allowed to request, request them, and keep an eye on what
-happened, all from the menu bar.
+happened, all from the menu bar on macOS or the tray flyout on Windows.
 
 > The pictures in this guide are design mockups with sample data from a
 > fictional organization; the real app looks the same in layout and wording.
+> They show the macOS app. Elevate for Windows has the same controls in the
+> same places, drawn in the Windows style: the request sheet is a small
+> window, state labels are pills, and notifications are Windows toasts. Where
+> the Windows app differs, the guide says so.
 
 ## Before you start
 
@@ -21,9 +25,10 @@ so for such accounts the access package controls simply do not appear.
 
 ## Finding the access packages for a tenant
 
-Open the Elevate panel from the menu bar. Every tenant that supports access
-packages shows a small box icon next to its name, and an **Access packages…**
-item at the top of its tenant menu.
+Open the Elevate panel from the menu bar (on Windows, click the tray icon or
+press the global shortcut). Every tenant that supports access packages shows a
+small box icon next to its name, and an **Access packages…** item at the top
+of its tenant menu (the **⋯** button on the tenant row on Windows).
 
 ![The Elevate panel with the box icon beside the Contoso tenant and the tenant menu open](images/access-packages/panel.png)
 
@@ -131,7 +136,7 @@ the request in the My Access portal.
 
 You do not need to keep the window open. Elevate checks your requests and
 assignments in the background a few times a day, and every time you open the
-panel, and sends a macOS notification when:
+panel, and sends a notification (a macOS notification or a Windows toast) when:
 
 - a request is **approved** or **denied**, or its delivery **failed**;
 - an assignment is **revoked** by an administrator;

@@ -2,6 +2,9 @@ using Elevate.Core.Models;
 
 namespace Elevate.App.Notifications;
 
+/// <summary>One delivered access package assignment with an end date, for the timed "expired" toast.</summary>
+public sealed record PackageExpiry(string Id, string PackageName, string TenantName, DateTimeOffset At);
+
 /// <summary>Port of the macOS <c>ExpiryNotifying</c> protocol: expiry toasts and one-off notices.</summary>
 public interface IExpiryNotifier
 {
@@ -10,6 +13,9 @@ public interface IExpiryNotifier
         IReadOnlyList<ActiveAssignment> assignments,
         IReadOnlyDictionary<RoleKey, string> names,
         IReadOnlyDictionary<TenantKey, string> tenantNames);
+
+    /// <summary>Replaces every scheduled access package expiry notification with one per delivered assignment.</summary>
+    Task SetPackageExpiriesAsync(IReadOnlyList<PackageExpiry> expiries);
 
     /// <summary>Posts a notification immediately.</summary>
     Task NotifyAsync(string title, string body);
@@ -21,6 +27,8 @@ public sealed class NoopNotifier : IExpiryNotifier
         IReadOnlyList<ActiveAssignment> assignments,
         IReadOnlyDictionary<RoleKey, string> names,
         IReadOnlyDictionary<TenantKey, string> tenantNames) => Task.CompletedTask;
+
+    public Task SetPackageExpiriesAsync(IReadOnlyList<PackageExpiry> expiries) => Task.CompletedTask;
 
     public Task NotifyAsync(string title, string body) => Task.CompletedTask;
 }

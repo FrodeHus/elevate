@@ -15,7 +15,14 @@ public sealed partial class AppModel
     {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         SearchQuery = string.Empty;
-        if (!Bootstrapped || !IsOnline || Identities.Count == 0 || DateTimeOffset.UtcNow - LastRefresh <= TimeSpan.FromSeconds(30))
+        CountPanelOpenForTrackers();
+        if (!Bootstrapped || !IsOnline || Identities.Count == 0)
+        {
+            return;
+        }
+
+        _ = PollAccessPackagesIfDueAsync();
+        if (DateTimeOffset.UtcNow - LastRefresh <= TimeSpan.FromSeconds(30))
         {
             return;
         }
@@ -153,6 +160,19 @@ public sealed partial class AppModel
                         }
 
                         tenant = tenant with { EntraActivation = support };
+                        State.UpsertTenant(tenant);
+                        Persist();
+                    }
+
+                    if (isEntra && await ProbeAccessPackagesAsync(identity, key.TenantId) is { } available
+                        && available != tenant.AccessPackagesAvailable)
+                    {
+                        if (generation != ConfigGeneration || Tenant(key) is null)
+                        {
+                            return;
+                        }
+
+                        tenant = tenant with { AccessPackagesAvailable = available };
                         State.UpsertTenant(tenant);
                         Persist();
                     }
@@ -342,6 +362,17 @@ public sealed partial class AppModel
             .OrderBy(r => r.DisplayName, StringComparer.Ordinal)
             .ToList();
         Roles[key] = [.. ManualRoleSource.Merge(discovered, manual)];
+        // Only a full, error-free discovery may move the new-role baseline: a partial or failed
+        // read would otherwise report the missing kinds as new when they come back.
+        if (requestedKinds is null && errors.Count == 0 && !consentBlocked)
+        {
+            await ObserveDiscoveredRolesAsync(key, discovered);
+            if (generation != ConfigGeneration)
+            {
+                return;
+            }
+        }
+
         // Replace only the kinds we successfully re-read; keep the rest.
         foreach (var roleKey in Active.Keys.Where(k => k.TenantKey == key && kindsWithActive.Contains(k.Scope.Kind)).ToList())
         {
