@@ -166,4 +166,15 @@ struct AppModelAccessPackagesTests {
         #expect(await notifier.notifications.isEmpty)
         cleanup(model)
     }
+
+    @Test func windowSearchFiltersByNameAndDescription() {
+        let rows = [
+            AccessPackagesView.Row(id: "1", name: "Finance Reporting Tools", detail: "Power BI workspace"),
+            AccessPackagesView.Row(id: "2", name: "Exchange Operations", detail: "PIM roles for on-call staff"),
+        ]
+        #expect(AccessPackagesView.filtered(rows, query: "").map(\.id) == ["1", "2"])
+        #expect(AccessPackagesView.filtered(rows, query: "power").map(\.id) == ["1"])
+        #expect(AccessPackagesView.filtered(rows, query: "ON-CALL").map(\.id) == ["2"])
+        #expect(AccessPackagesView.filtered(rows, query: "nothing").isEmpty)
+    }
 }
