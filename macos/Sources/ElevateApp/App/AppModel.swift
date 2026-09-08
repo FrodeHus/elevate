@@ -44,7 +44,7 @@ final class AppModel {
 
     // MARK: Panel — AppModel+Panel
 
-    var selectMode = false { didSet { if !selectMode { selection.removeAll(); editingProfileId = nil } } }
+    var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
     /// Panel search. Not persisted; changing it drops the bulk selection since rows may disappear.
     var searchQuery = "" { didSet { if searchQuery != oldValue { selection.removeAll() } } }
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
@@ -76,7 +76,9 @@ final class AppModel {
 
     // MARK: Profiles — AppModel+Profiles
 
-    var editingProfileId: UUID?
+    /// The profile "Edit…" asked the Profiles window to select. The window reads and clears it,
+    /// on open and again when the existing window is refocused with a new request.
+    var profileToEdit: UUID?
     /// The profile a chip or list menu asked to delete; the confirmation dialog reads it. Lives
     /// here because the menu and the dialog are on different views.
     var profileToDelete: UUID?

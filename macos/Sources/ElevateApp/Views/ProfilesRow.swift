@@ -206,6 +206,7 @@ struct ProfileMenuItems: View {
         Button("Run with last reason") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: true) }
             .disabled(profile.lastJustification == nil)
         Divider()
+        Button("Edit…") { model.profileToEdit = profile.id; ProfileActions.open(.manageProfiles, openWindow: openWindow) }
         if profile.pinned {
             Button("Unpin from panel") { model.setPinned(id: profile.id, false) }
         } else {

@@ -6,6 +6,7 @@ extension AppModel {
     // MARK: Profiles
 
     var profiles: [ActivationProfile] { state.profiles }
+    func profile(id: UUID) -> ActivationProfile? { state.profile(id: id) }
 
     func requestRun(_ id: UUID) { runRequests[id, default: 0] += 1 }
 
@@ -67,12 +68,43 @@ extension AppModel {
         return true
     }
 
-    /// Edit = reopen the selection. The bulk bar offers "Update profile" while `editingProfileId` is set.
-    func beginEditing(profileId: UUID) {
-        guard let p = state.profile(id: profileId) else { return }
-        selectMode = true
-        selection = Set(p.entries.map(\.roleKey))
-        editingProfileId = profileId
+    // MARK: In-place editing (the Profiles window)
+
+    /// An empty profile to fill in the Profiles window; the caller selects it there.
+    @discardableResult
+    func newProfile() -> ActivationProfile {
+        let p = ActivationProfile(name: "New profile", entries: [])
+        state.upsertProfile(p); persist()
+        return p
+    }
+
+    /// Adds roles to a profile, keeping the entries it already has (and their durations) and the
+    /// stable order `saveProfile` uses. Keys already present are ignored.
+    func addProfileEntries(id: UUID, keys: [RoleKey]) {
+        guard let p = state.profile(id: id) else { return }
+        let existing = Set(p.entries.map(\.roleKey))
+        let added = keys.filter { !existing.contains($0) }
+        guard !added.isEmpty else { return }
+        updateProfile(id: id, keys: p.entries.map(\.roleKey) + added)
+    }
+
+    func removeProfileEntry(id: UUID, key: RoleKey) {
+        guard var p = state.profile(id: id) else { return }
+        p.entries.removeAll { $0.roleKey == key }
+        state.upsertProfile(p); persist()
+    }
+
+    /// The duration the next run proposes for one entry; nil falls back to memory or the policy.
+    func setProfileEntryDuration(id: UUID, key: RoleKey, duration: Duration?) {
+        guard var p = state.profile(id: id), let i = p.entries.firstIndex(where: { $0.roleKey == key }) else { return }
+        p.entries[i].lastDuration = duration
+        state.upsertProfile(p); persist()
+    }
+
+    /// Which profile the global shortcut runs; nil unbinds it. The key itself is recorded in Settings.
+    func setHotKeyProfile(_ id: UUID?) {
+        settings.hotKeyProfileId = id
+        applyHotKey()
     }
 
     func plan(for profileId: UUID) -> [ProfilePlanItem] {
