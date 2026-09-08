@@ -87,6 +87,16 @@ public class AppStateGoldenTests
         profile.Entries.Should().HaveCount(2);
         profile.Entries[0].LastDuration.Should().Be(TimeSpan.FromHours(1));
         profile.Entries[1].LastDuration.Should().BeNull();
+
+        state.Tenants[0].AccessPackagesAvailable.Should().BeTrue();
+        state.Tenants[1].AccessPackagesAvailable.Should().BeNull();
+        var home = new TenantKey("id1", "t-home");
+        var record = state.AccessPackagesFor(home)!;
+        record.PolledAt.Should().Be(Fixtures.Date("2026-09-08T07:15:00Z"));
+        record.Snapshot.Requests.Should().ContainSingle().Which.State.Should().Be(AccessPackageRequestState.PendingApproval);
+        record.Snapshot.Assignments.Should().ContainSingle().Which.ExpiresAt.Should().Be(Fixtures.Date("2027-03-07T14:40:00Z"));
+        state.RoleTrackerFor(home).Seen.Should().ContainSingle().Which.Should().Be(entra);
+        state.RoleTrackerFor(home).New.Should().BeEmpty();
     }
 
     [Fact]

@@ -37,6 +37,20 @@ public static class Dto
         string Account, string? Duration, DateTimeOffset? RequestedAt, string? Justification, bool Decidable);
 
     public sealed record CatalogueEntry(string TemplateId, string DisplayName, string Description, bool IsPrivileged);
+
+    public sealed record Package(
+        string Id, string PackageId, string Name, string? Description, bool Hidden, string TenantId, string Tenant, string Account,
+        string? State, string? RequestId, string? AssignmentId);
+
+    public sealed record PackageRequest(
+        string Id, string RequestId, string PackageId, string Package, string State, string? Status, string? Justification,
+        DateTimeOffset? RequestedAt, DateTimeOffset? CompletedAt, string? PolicyId, string TenantId, string Tenant, string Account, bool Cancellable);
+
+    public sealed record PackageAssignment(
+        string Id, string AssignmentId, string PackageId, string Package, string State, string? Policy, DateTimeOffset? ExpiresAt, string? ExpiresIn,
+        string TenantId, string Tenant, string Account);
+
+    public sealed record PolicyOption(string Id, string Name, string? Description, bool RequiresApproval, bool RequiresAnswers);
 }
 
 /// <summary>Turns session objects into DTOs and Spectre tables. Shared by the commands and the watch loop.</summary>
@@ -368,6 +382,235 @@ public static class Views
                 r.RequestedDuration is { } d ? Markup.Escape(Countdown.Label(d)) : "—",
                 r.CreatedAt is { } at ? Markup.Escape(Countdown.Label(now - at) + " ago") : "—",
                 Markup.Escape(r.Justification ?? "—"));
+        }
+
+        return table;
+    }
+
+    // MARK: Access packages
+
+    public static string RequestStateName(AccessPackageRequestState state) => state switch
+    {
+        AccessPackageRequestState.Submitted => "submitted",
+        AccessPackageRequestState.PendingApproval => "pendingApproval",
+        AccessPackageRequestState.Delivering => "delivering",
+        AccessPackageRequestState.Delivered => "delivered",
+        AccessPackageRequestState.DeliveryFailed => "deliveryFailed",
+        AccessPackageRequestState.Denied => "denied",
+        AccessPackageRequestState.Scheduled => "scheduled",
+        AccessPackageRequestState.Canceled => "canceled",
+        AccessPackageRequestState.PartiallyDelivered => "partiallyDelivered",
+        _ => "unknown",
+    };
+
+    public static string AssignmentStateName(AccessPackageAssignmentState state) => state switch
+    {
+        AccessPackageAssignmentState.Delivering => "delivering",
+        AccessPackageAssignmentState.Delivered => "delivered",
+        AccessPackageAssignmentState.Expired => "expired",
+        _ => "unknown",
+    };
+
+    /// <summary>The state caption for a requestable package: a delivered assignment wins, then the newest open request.</summary>
+    public static (string? Text, string? RequestId, string? AssignmentId) PackageState(TenantPackages read, string packageId)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        if (read.Assignments.FirstOrDefault(a => a.PackageId == packageId && a.State == AccessPackageAssignmentState.Delivered) is { } delivered)
+        {
+            return ("delivered", null, delivered.Id);
+        }
+
+        var open = read.Requests
+            .Where(r => r.PackageId == packageId && r.State.IsOpen())
+            .OrderByDescending(r => r.CreatedAt ?? DateTimeOffset.MinValue)
+            .FirstOrDefault();
+        return open is null ? (null, null, null) : (RequestStateName(open.State), open.Id, null);
+    }
+
+    public static Dto.Package Package(ElevateSession session, TenantPackages read, AccessPackage package)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(package);
+        var (state, requestId, assignmentId) = PackageState(read, package.Id);
+        return new Dto.Package(ShortId.For(read.Key, package.Id), package.Id, package.DisplayName, package.Description, package.IsHidden,
+            read.Key.TenantId, session.TenantName(read.Key), session.AccountName(read.Key.IdentityId), state, requestId, assignmentId);
+    }
+
+    public static Dto.PackageRequest PackageRequest(ElevateSession session, TenantKey key, AccessPackageRequest r)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(r);
+        return new Dto.PackageRequest(ShortId.For(key, r.Id), r.Id, r.PackageId, r.PackageName, RequestStateName(r.State), r.Status, r.Justification,
+            r.CreatedAt, r.CompletedAt, r.PolicyId, key.TenantId, session.TenantName(key), session.AccountName(key.IdentityId), r.State.IsCancellable());
+    }
+
+    public static Dto.PackageAssignment PackageAssignment(ElevateSession session, TenantKey key, AccessPackageAssignment a, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(a);
+        var left = a.ExpiresAt is { } end && end > now ? Countdown.Label(end - now) : null;
+        return new Dto.PackageAssignment(ShortId.For(key, a.Id), a.Id, a.PackageId, a.PackageName, AssignmentStateName(a.State), a.PolicyName, a.ExpiresAt, left,
+            key.TenantId, session.TenantName(key), session.AccountName(key.IdentityId));
+    }
+
+    public static Dto.PolicyOption PolicyOption(PolicyRequirement p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        return new Dto.PolicyOption(p.Id, p.DisplayName, p.Description, p.IsApprovalRequired, p.RequiresAnswers);
+    }
+
+    public static string RequestStateMarkup(AccessPackageRequestState state) => state switch
+    {
+        AccessPackageRequestState.Submitted => "[yellow]submitted[/]",
+        AccessPackageRequestState.PendingApproval => "[yellow]awaiting approval[/]",
+        AccessPackageRequestState.Delivering => "[yellow]delivering[/]",
+        AccessPackageRequestState.Scheduled => "[yellow]scheduled[/]",
+        AccessPackageRequestState.PartiallyDelivered => "[yellow]partially delivered[/]",
+        AccessPackageRequestState.Delivered => "[green]delivered[/]",
+        AccessPackageRequestState.Denied => "[red]denied[/]",
+        AccessPackageRequestState.DeliveryFailed => "[red]delivery failed[/]",
+        AccessPackageRequestState.Canceled => "[grey]canceled[/]",
+        _ => "[grey]unknown[/]",
+    };
+
+    private static string LocalDate(DateTimeOffset? date) =>
+        date is { } d ? d.ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) : "—";
+
+    public static Table PackagesTable(ElevateSession session, IReadOnlyList<TenantPackages> reads, bool showAccount)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(reads);
+        var table = new Table().Border(TableBorder.Rounded).Expand();
+        table.AddColumn("[grey]ID[/]");
+        table.AddColumn("Package");
+        table.AddColumn("Description");
+        table.AddColumn("Tenant");
+        if (showAccount)
+        {
+            table.AddColumn("Account");
+        }
+
+        table.AddColumn("State");
+        foreach (var read in reads)
+        {
+            foreach (var p in read.Packages.OrderBy(p => p.DisplayName, StringComparer.Ordinal))
+            {
+                var (state, _, _) = PackageState(read, p.Id);
+                var name = Markup.Escape(p.DisplayName);
+                if (p.IsHidden)
+                {
+                    name += " [grey](hidden)[/]";
+                }
+
+                var cells = new List<string> { $"[grey]{ShortId.For(read.Key, p.Id)}[/]", name, Markup.Escape(p.Description ?? "—"), Markup.Escape(session.TenantName(read.Key)) };
+                if (showAccount)
+                {
+                    cells.Add(Markup.Escape(session.AccountName(read.Key.IdentityId)));
+                }
+
+                cells.Add(state switch
+                {
+                    null => "[grey]—[/]",
+                    "delivered" => "[green]delivered[/]",
+                    _ => RequestStateMarkup(AccessPackageRequestStates.Parse(state)),
+                });
+                table.AddRow(cells.ToArray());
+            }
+        }
+
+        return table;
+    }
+
+    public static Table PackageRequestsTable(ElevateSession session, IEnumerable<(TenantKey Key, AccessPackageRequest Request)> requests, DateTimeOffset now, bool all, bool showAccount)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(requests);
+        var table = new Table().Border(TableBorder.Rounded).Expand();
+        table.AddColumn("[grey]ID[/]");
+        table.AddColumn("Package");
+        table.AddColumn("Tenant");
+        if (showAccount)
+        {
+            table.AddColumn("Account");
+        }
+
+        table.AddColumn("State");
+        table.AddColumn("Requested");
+        if (all)
+        {
+            table.AddColumn("Completed");
+        }
+
+        table.AddColumn("Reason");
+        foreach (var (key, r) in requests)
+        {
+            var state = RequestStateMarkup(r.State);
+            if (all && r.State is AccessPackageRequestState.DeliveryFailed or AccessPackageRequestState.Canceled && !string.IsNullOrWhiteSpace(r.Status))
+            {
+                state += $" [grey]{Markup.Escape(r.Status)}[/]";
+            }
+
+            var cells = new List<string> { $"[grey]{ShortId.For(key, r.Id)}[/]", Markup.Escape(r.PackageName), Markup.Escape(session.TenantName(key)) };
+            if (showAccount)
+            {
+                cells.Add(Markup.Escape(session.AccountName(key.IdentityId)));
+            }
+
+            cells.Add(state);
+            cells.Add(r.CreatedAt is { } at ? Markup.Escape(Countdown.Label(now - at) + " ago") : "—");
+            if (all)
+            {
+                cells.Add(Markup.Escape(LocalDate(r.CompletedAt)));
+            }
+
+            cells.Add(Markup.Escape(r.Justification ?? "—"));
+            table.AddRow(cells.ToArray());
+        }
+
+        return table;
+    }
+
+    public static Table PackageAssignmentsTable(ElevateSession session, IEnumerable<(TenantKey Key, AccessPackageAssignment Assignment)> assignments, DateTimeOffset now, bool showAccount)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(assignments);
+        var table = new Table().Border(TableBorder.Rounded).Expand();
+        table.AddColumn("[grey]ID[/]");
+        table.AddColumn("Package");
+        table.AddColumn("Tenant");
+        if (showAccount)
+        {
+            table.AddColumn("Account");
+        }
+
+        table.AddColumn("Policy");
+        table.AddColumn("Expires");
+        foreach (var (key, a) in assignments)
+        {
+            string expires;
+            if (a.ExpiresAt is { } end)
+            {
+                var left = end - now;
+                var color = left <= TimeSpan.FromDays(7) ? "orange1" : "grey";
+                expires = left > TimeSpan.Zero
+                    ? $"{Markup.Escape(LocalDate(end))} [{color}]in {Markup.Escape(Countdown.Label(left))}[/]"
+                    : $"{Markup.Escape(LocalDate(end))} [red]expired[/]";
+            }
+            else
+            {
+                expires = "[grey]No expiry[/]";
+            }
+
+            var cells = new List<string> { $"[grey]{ShortId.For(key, a.Id)}[/]", Markup.Escape(a.PackageName), Markup.Escape(session.TenantName(key)) };
+            if (showAccount)
+            {
+                cells.Add(Markup.Escape(session.AccountName(key.IdentityId)));
+            }
+
+            cells.Add(Markup.Escape(a.PolicyName ?? "—"));
+            cells.Add(expires);
+            table.AddRow(cells.ToArray());
         }
 
         return table;

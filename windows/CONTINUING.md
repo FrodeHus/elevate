@@ -11,7 +11,8 @@ that cost time, and what is left.
 
 | Area | Where |
 |---|---|
-| Core port, including the phase-3 planner, quick activate, summary and approval providers | `src/Elevate.Core`, `tests/Elevate.Core.Tests` (272 tests) |
+| Core port, including the phase-3 planner, quick activate, summary and approval providers | `src/Elevate.Core`, `tests/Elevate.Core.Tests` (313 tests) |
+| Access packages: scope, models, provider, diff, new-role tracker, per-tenant state records (the CLI uses them; the WinUI window, tenant glyph and menu item, polling and toasts are an open GitHub issue) | `src/Elevate.Core/Providers/AccessPackageProvider.cs`, `Coordination/AccessPackageDiff.cs`, `Coordination/NewRoleTracker.cs`, `Storage/AppState.cs` |
 | App model: accounts, refresh, activation, panel, profiles, approvals, operations | `src/Elevate.App.Model/ViewModels/AppModel.*.cs`, `tests/Elevate.App.Tests` (53 tests) |
 | Settings, network monitor, notifier seam, hot-key seam, update checker, build info | `src/Elevate.App.Model/Services` |
 | Tray icon, hot key, flyout, window chrome | `src/Elevate.App/Tray`, `Shell` |

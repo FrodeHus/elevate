@@ -200,6 +200,7 @@ public sealed partial class ElevateSession
                 AzureUnavailableReason = null,
                 GroupsUnavailableReason = null,
                 EntraActivation = null,
+                AccessPackagesAvailable = null,
             });
             foreach (var roleKey in PolicyCache.Keys.Where(k => k.TenantKey == key).ToList())
             {

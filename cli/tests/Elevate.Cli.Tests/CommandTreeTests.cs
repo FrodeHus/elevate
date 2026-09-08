@@ -12,7 +12,7 @@ public class CommandTreeTests
         var root = Program.BuildRootCommand();
         root.Subcommands.Select(c => c.Name).Should().Contain(
             ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel",
-             "profiles", "approvals", "config", "catalogue", "diagnostics", "update", "completion"]);
+             "profiles", "approvals", "packages", "config", "catalogue", "diagnostics", "update", "completion"]);
     }
 
     [Theory]
@@ -23,10 +23,23 @@ public class CommandTreeTests
     [InlineData("approvals deny abcd1234 --reason no")]
     [InlineData("config set client-id 11111111-2222-3333-4444-555555555555 --yes")]
     [InlineData("--data-dir /tmp/x --device-code status")]
+    [InlineData("packages list --tenant contoso --json")]
+    [InlineData("packages requests --all")]
+    [InlineData("packages assigned -a alex")]
+    [InlineData("packages request \"Azure Sandbox\" --justification \"INC-4412\" --policy Engineers")]
+    [InlineData("packages cancel 0123abcd 4567ef01")]
     public void CommandLinesParseWithoutErrors(string line)
     {
         var result = Program.BuildRootCommand().Parse(line);
         result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PackagesSubcommandsArePresent()
+    {
+        var packages = Program.BuildRootCommand().Subcommands.Single(c => c.Name == "packages");
+        packages.Subcommands.Select(c => c.Name).Should().BeEquivalentTo(["list", "requests", "assigned", "request", "cancel"]);
+        Program.BuildRootCommand().Parse("packages request").Errors.Should().NotBeEmpty("the package argument is required");
     }
 
     [Fact]

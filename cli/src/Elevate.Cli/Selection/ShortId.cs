@@ -20,7 +20,14 @@ public static class ShortId
     public static string For(ApprovalRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Hash(request.TenantKey.IdentityId + "|" + request.TenantKey.TenantId + "|" + request.Id);
+        return For(request.TenantKey, request.Id);
+    }
+
+    /// <summary>For an access package, request or assignment id inside one tenant.</summary>
+    public static string For(TenantKey key, string id)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        return Hash(key.IdentityId + "|" + key.TenantId + "|" + id);
     }
 
     public static bool LooksLikeId(string text) =>

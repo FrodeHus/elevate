@@ -35,6 +35,13 @@ public static class AccessTokenClaims
     public static bool? PermitsEntraActivation(string accessToken) =>
         GrantedScopes(accessToken) is { } scopes ? scopes.Overlaps(EntraActivationScopes) : null;
 
+    /// <summary>
+    /// Whether a Graph token carries the self-service entitlement management scope. Null when the
+    /// token does not expose its scopes.
+    /// </summary>
+    public static bool? PermitsEntitlementSelfService(string accessToken) =>
+        GrantedScopes(accessToken) is { } scopes ? scopes.Contains(Scopes.EntitlementClaim) : null;
+
     private static string? Claim(string accessToken, string name)
     {
         var parts = accessToken?.Split('.');

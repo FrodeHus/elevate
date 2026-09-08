@@ -47,7 +47,10 @@ public sealed record TenantContext(
     // What the Graph token in this tenant allows for Entra roles; null until a refresh has looked at one.
     EntraActivationSupport? EntraActivation = null,
     // Set when group PIM reads are not permitted in this tenant (missing admin consent).
-    string? GroupsUnavailableReason = null)
+    string? GroupsUnavailableReason = null,
+    // Whether the Graph token in this tenant carries the entitlement management scope, so access
+    // packages can be read. Null until a refresh has looked at a token.
+    bool? AccessPackagesAvailable = null)
 {
     [JsonIgnore]
     public TenantKey Key => new(IdentityId, TenantId);

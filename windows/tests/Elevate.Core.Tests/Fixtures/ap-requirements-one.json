@@ -1,0 +1,7 @@
+{
+  "value": [
+    { "policyId": "pol-eng", "policyDisplayName": "Engineers", "policyDescription": "30 days, approval by the platform team.",
+      "isApprovalRequired": true, "isApprovalRequiredForExtension": false, "isRequestorJustificationRequired": true,
+      "questions": [], "existingAnswers": [], "schedule": null }
+  ]
+}

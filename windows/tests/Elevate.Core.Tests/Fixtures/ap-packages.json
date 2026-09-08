@@ -1,0 +1,7 @@
+{
+  "@odata.nextLink": "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/accessPackages/filterByCurrentUser(on='allowedRequestor')?$skiptoken=page2",
+  "value": [
+    { "id": "pkg-finance", "displayName": "Finance Reporting Tools", "description": "Power BI workspace, Finance SharePoint site and the FinOps security group.", "isHidden": false },
+    { "id": "pkg-exchange", "displayName": "Exchange Operations", "description": "Eligible Exchange Administrator and Teams Administrator PIM roles for on-call staff.", "isHidden": false }
+  ]
+}

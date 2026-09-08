@@ -1,0 +1,6 @@
+{
+  "value": [
+    { "id": "pkg-sandbox", "displayName": "Azure Sandbox Contributor", "description": "Contributor on the sandbox subscription for 30 days.", "isHidden": false },
+    { "id": "pkg-hidden", "displayName": "Legacy VPN", "description": null, "isHidden": true }
+  ]
+}
