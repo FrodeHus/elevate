@@ -60,7 +60,6 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectMode, value) && !value)
             {
                 Selection.Clear();
-                EditingProfileId = null;
             }
 
             Touch();

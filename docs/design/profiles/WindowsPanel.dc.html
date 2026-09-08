@@ -17,7 +17,9 @@
     .pivot span { padding: 6px 10px; border-radius: 4px; color: rgba(255,255,255,0.786); position: relative; }
     .pivot span.on { color: #ffffff; font-weight: 600; }
     .pivot span.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -9px; height: 3px; border-radius: 2px; background: #60cdff; }
-    .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border-radius: 14px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border-radius: 14px; background: rgba(255,255,255,0.0605); border: 1px solid rgba(255,255,255,0.0837); font-size: 12px; font-weight: 600; white-space: nowrap; flex-shrink: 1; min-width: 0; }
+    .chip > span:first-of-type { overflow: hidden; text-overflow: ellipsis; }
+    .chip .c { flex-shrink: 0; }
     .chip .c { font-weight: 400; color: rgba(255,255,255,0.5442); }
     .ghead { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #323232; border-top: 1px solid rgba(255,255,255,0.0837); border-bottom: 1px solid rgba(255,255,255,0.0837); font-weight: 600; }
     .role { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 22px; border-bottom: 1px solid rgba(255,255,255,0.0837); }
@@ -37,8 +39,8 @@
     </div>
     <div class="pivot" style="display: flex; gap: 2px; padding: 0 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.0837);"><span class="on">Entra</span><span>Azure</span><span>Groups</span></div>
     <div style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; overflow: hidden;">
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span><span class="c">5 · 1</span></div>
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Read only</span><span class="c">2</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60cdff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Read only</span></div>
       <div style="flex-grow: 1;"></div>
       <div class="chip" style="background: transparent; border-color: transparent; color: #60cdff; font-weight: 400;"><span>All 12</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#60cdff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></div>
     </div>

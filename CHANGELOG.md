@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from every account and tenant with search and a kind filter. "Edit…" on a chip opens the window
   on that profile. The old flow, where Edit reloaded the panel's selection and "Update profile"
   saved it, is gone.
+- Windows: the same profiles redesign as macOS. The flyout row shows pinned profiles as chips in
+  one row and "All N" opens a searchable list with Enter to run, the star to pin, and a right-click
+  menu; the Profiles window edits a profile in place, with "Add roles…" picking from every account
+  and tenant. Ctrl-click keeps running a chip with the last reason and durations.
 
 ## [1.4.0] - 2026-09-08
 

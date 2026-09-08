@@ -15,8 +15,10 @@
     .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
     .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
     .sep { height: 1px; background: rgba(0, 0, 0, 0.08); }
-    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
-    .chip-more { background: rgba(0,0,0,0.05); border-color: transparent; box-shadow: none; color: #3a3a3c; font-weight: 500; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 1px 1px rgba(0,0,0,0.06); font-size: 12px; font-weight: 500; white-space: nowrap; flex-shrink: 1; min-width: 0; }
+    .chip > span:first-of-type { overflow: hidden; text-overflow: ellipsis; }
+    .chip .caption { flex-shrink: 0; }
+    .chip-more { background: rgba(0,0,0,0.05); border-color: transparent; box-shadow: none; color: #3a3a3c; font-weight: 500;  flex-shrink: 0; }
   </style>
 </helmet>
 <div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
@@ -39,9 +41,8 @@
     </div>
     <div class="sep"></div>
     <div style="display: flex; align-items: center; gap: 6px; padding: 7px 12px; overflow: hidden;">
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span><span class="caption">5 · 1</span></div>
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Morning ops</span><span class="caption">3</span></div>
-      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Break glass</span><span class="caption">1</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Incident</span></div>
+      <div class="chip"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.8 1.2 2.6 6.8h3.2l-.6 4 4.2-5.6H6.2z"></path></svg><span>Morning ops</span></div>
       <div style="flex-grow: 1;"></div>
       <div class="chip chip-more"><span>All 12</span><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#3a3a3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4 5 6.5 7.5 4"></path></svg></div>
     </div>

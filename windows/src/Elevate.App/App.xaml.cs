@@ -363,7 +363,16 @@ public partial class App : Application
         Open("save-profile", () => new SaveProfileWindow(Model!, keys));
     }
 
-    public void OpenManageProfiles() => Open("manage-profiles", () => new ManageProfilesWindow(Model!));
+    /// <summary>The Profiles window, opened on <paramref name="profileId"/> when given; an open window selects it instead.</summary>
+    public void OpenManageProfiles(Guid? profileId = null)
+    {
+        if (profileId is not null)
+        {
+            Model!.ProfileToEdit = profileId;
+        }
+
+        Open("manage-profiles", () => new ManageProfilesWindow(Model!));
+    }
 
     public void OpenRunProfile(Guid profileId) => Open("run-profile:" + profileId, () => new RunProfileWindow(Model!, profileId));
 

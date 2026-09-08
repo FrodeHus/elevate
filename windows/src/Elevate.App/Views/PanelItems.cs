@@ -322,21 +322,6 @@ public sealed class ApprovalRow(string requestId) : PanelItem
     }
 }
 
-/// <summary>One saved profile, as a chip in the profiles row.</summary>
-public sealed class ProfileChip(Guid id) : ObservableObject
-{
-    private string _name = string.Empty;
-    private string _caption = string.Empty;
-
-    public Guid Id { get; } = id;
-
-    public string Name { get => _name; set => SetProperty(ref _name, value); }
-
-    public string Caption { get => _caption; set => SetProperty(ref _caption, value); }
-
-    public string Tooltip => $"Run {Name}. Ctrl-click to run with the last reason and durations";
-}
-
 public enum GroupKind
 {
     Approvals,
