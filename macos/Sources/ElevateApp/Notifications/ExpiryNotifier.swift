@@ -9,11 +9,14 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
     static let expiredCategoryId = "PIMTRAY_EXPIRED"
     static let activateAgainAction = "PIMTRAY_ACTIVATE_AGAIN"
     static let expiredDelay: TimeInterval = 5
+    static let packageExpiredCategoryId = "PIMTRAY_PACKAGE_EXPIRED"
 
     /// Set by the app on launch; receives the role to re-activate.
     @MainActor var onExtend: ((RoleKey) -> Void)?
     /// Called when the user has refused notification permission, so the panel can explain the silence.
     @MainActor var onAuthorizationDenied: (() -> Void)?
+    /// Access package end dates, re-added after every `reschedule` (which clears the center).
+    private let packageExpiries = PackageExpiryStore()
 
     override init() {
         super.init()
@@ -24,6 +27,7 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.categoryId, actions: [extend], intentIdentifiers: []),
             UNNotificationCategory(identifier: Self.expiredCategoryId, actions: [again], intentIdentifiers: []),
+            UNNotificationCategory(identifier: Self.packageExpiredCategoryId, actions: [], intentIdentifiers: []),
         ])
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
             guard !granted else { return }
@@ -58,6 +62,36 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
                 at: end.addingTimeInterval(Self.expiredDelay)
             )
         }
+        for e in await packageExpiries.all() { await addPackageExpiry(center, e) }
+    }
+
+    func setPackageExpiries(_ expiries: [PackageExpiry]) async {
+        let previous = await packageExpiries.replace(expiries)
+        let center = UNUserNotificationCenter.current()
+        let stale = Self.staleIds(previous: previous.map(\.id), current: expiries.map(\.id))
+        if !stale.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: stale.map { "package-expired-" + $0 })
+        }
+        for e in expiries { await addPackageExpiry(center, e) }
+    }
+
+    /// The ids present in `previous` but not `current`: the notifications that must be cancelled
+    /// because their assignment disappeared (e.g. the access package was revoked).
+    static func staleIds(previous: [String], current: [String]) -> [String] {
+        let currentSet = Set(current)
+        return previous.filter { !currentSet.contains($0) }
+    }
+
+    private func addPackageExpiry(_ center: UNUserNotificationCenter, _ e: PackageExpiry) async {
+        let delay = e.at.addingTimeInterval(Self.expiredDelay).timeIntervalSinceNow
+        guard delay > 1 else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "\(e.packageName) expired"
+        content.body = "Access package in \(e.tenantName)"
+        content.categoryIdentifier = Self.packageExpiredCategoryId
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+        try? await center.add(UNNotificationRequest(identifier: "package-expired-" + e.id, content: content, trigger: trigger))
     }
 
     /// Immediate, untriggered notification reporting the outcome of a quick activation.
@@ -93,4 +127,18 @@ final class ExpiryNotifier: NSObject, ExpiryNotifying, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
     }
+}
+
+/// Serialises access to the package expiry list from the notifier's nonisolated methods.
+private actor PackageExpiryStore {
+    private var items: [PackageExpiry] = []
+    /// Replaces the stored list and returns what it held before, so the caller can cancel
+    /// notifications for ids that dropped out.
+    @discardableResult
+    func replace(_ new: [PackageExpiry]) -> [PackageExpiry] {
+        let previous = items
+        items = new
+        return previous
+    }
+    func all() -> [PackageExpiry] { items }
 }

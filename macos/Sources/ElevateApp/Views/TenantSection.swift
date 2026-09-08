@@ -39,6 +39,16 @@ struct TenantHeader: View {
                 // Secondary, not green: 10 pt green text fails contrast on the light ground, and the
                 // green dots on the rows below already carry the colour.
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary) }
+                if tenant.accessPackagesAvailable == true {
+                    Button { open(.accessPackages(tenant.id)) } label: {
+                        Image(systemName: "shippingbox").font(.caption).foregroundStyle(.secondary)
+                            .padding(4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Access packages")
+                    .accessibilityLabel("Access packages")
+                }
                 HeaderMenu(label: "Tenant actions") {
                     TenantMenuItems(tenant: tenant, confirmRemove: $confirmRemove)
                 }
@@ -162,6 +172,12 @@ struct TenantMenuItems: View {
     let tenant: TenantContext
     @Binding var confirmRemove: Bool
     var body: some View {
+        if tenant.accessPackagesAvailable == true {
+            Button("Access packages…") {
+                openWindow(value: PanelRoute.accessPackages(tenant.id))
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
         Button("Configure known PIM roles…") {
             openWindow(value: PanelRoute.configureRoles(tenant.id))
             NSApp.activate(ignoringOtherApps: true)

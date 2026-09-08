@@ -28,7 +28,7 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
             throw PIMError.unexpected(status: 0, body: "MSAL only signs in with your own app registration")
         }
         return try await gate.run { [self] in
-            let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead], claims: nil, prompt: .selectAccount)
+            let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead] + EntitlementScopes.all, claims: nil, prompt: .selectAccount)
             return Self.identity(from: result.account)
         }
     }

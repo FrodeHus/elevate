@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .glass { background: rgba(246, 247, 249, 0.92); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; white-space: nowrap; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .btn-lg { height: 28px; padding: 0 14px; font-size: 13px; border-radius: 7px; }
+    .btn-disabled { color: #a1a1a6; background: #f5f5f7; box-shadow: none; }
+    .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+    .field { height: 28px; border-radius: 7px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 9px; display: flex; align-items: center; font-size: 13px; color: #1d1d1f; }
+    .select { display: inline-flex; align-items: center; justify-content: space-between; height: 22px; padding: 0 6px 0 9px; border-radius: 6px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); font-size: 12px; gap: 6px; }
+    .badge { font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+    .seg { display: flex; gap: 0px; padding: 2px; border-radius: 7px; background: rgba(0, 0, 0, 0.06); }
+    .seg span { padding: 3px 12px; font-size: 12px; color: #3a3a3c; border-radius: 5px; }
+    .seg .on { background: #ffffff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); font-weight: 500; color: #1d1d1f; }
+    .list { display: flex; flex-direction: column; flex-grow: 1; border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.1); background: #ffffff; overflow: hidden; }
+    .row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+    .row:last-child { border-bottom: none; }
+    .col { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0; }
+    .meta { display: flex; align-items: center; gap: 6px; }
+    .state { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6e6e73; }
+  </style>
+</helmet>
+<div style="display: flex; justify-content: center; padding: 28px 0 40px;">
+  <div class="glass" style="width: 560px; height: 520px; box-sizing: border-box; border-radius: 12px; display: flex; flex-direction: column; gap: 12px; padding: 18px 16px 16px; position: relative;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 15px; font-weight: 600; line-height: 18px;">Access packages in Contoso</span>
+      <span class="caption">Packages you can request through Entra entitlement management. Approvals and delivery happen in Entra.</span>
+    </div>
+    <div style="display: flex; justify-content: center;">
+      <div class="seg">
+        <span class="on">Available</span>
+        <span class="">Requested</span>
+        <span class="">Assigned</span>
+        <span class="">Declined</span>
+      </div>
+    </div>
+    <div class="field" style="gap: 6px; color: #8e8e93;">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg>
+      <span>Search packages</span>
+    </div>
+    <div class="list">
+      <div class="row">
+        <div class="col">
+          <span>Finance Reporting Tools</span>
+          <span class="caption">Power BI workspace, Finance SharePoint site and the FinOps security group.</span>
+        </div>
+        <span class="btn btn-primary" style="margin-top: 2px;">Request</span>
+      </div>
+      <div class="row">
+        <div class="col">
+          <span>Exchange Operations</span>
+          <span class="caption">Eligible Exchange Administrator and Teams Administrator PIM roles for on-call staff.</span>
+        </div>
+        <span class="state" style="margin-top: 5px; white-space: nowrap;"><span class="dot" style="background: #34c759;"></span>assigned</span>
+      </div>
+      <div class="row">
+        <div class="col">
+          <span>Azure Sandbox Contributor</span>
+          <span class="caption">Contributor on the sandbox subscription for 30 days. Approval by the platform team.</span>
+        </div>
+        <span class="state" style="margin-top: 5px; white-space: nowrap;"><span class="dot" style="background: #ffcc00;"></span>pending approval</span>
+      </div>
+      <div class="row">
+        <div class="col">
+          <span>GitHub Enterprise Member</span>
+          <span class="caption">Membership in the contoso GitHub organization.</span>
+        </div>
+        <span class="state" style="margin-top: 5px; white-space: nowrap;"><span class="dot" style="background: #ffcc00;"></span>submitted</span>
+      </div>
+      <div class="row">
+        <div class="col">
+          <span>Contractor Onboarding</span>
+          <span class="caption">Baseline access for external contractors. Requires answers to policy questions.</span>
+        </div>
+        <span class="btn btn-primary" style="margin-top: 2px;">Request</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="btn btn-lg" style="gap: 5px; padding: 0 10px;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#1d1d1f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"></path><path d="M13 2.5v3h-3"></path></svg></span>
+      <span class="caption">Updated 2 min ago</span>
+      <div style="flex-grow: 1;"></div>
+      <span class="btn btn-lg">Close</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

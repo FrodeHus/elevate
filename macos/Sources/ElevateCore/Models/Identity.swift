@@ -59,13 +59,17 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
     /// Set when the group PIM reads are not permitted in this tenant (missing admin consent).
     /// The group provider is skipped while it is set; "Retry discovery" clears it.
     public var groupsUnavailableReason: String?
+    /// Whether the Graph token in this tenant carries the entitlement management scope, so the
+    /// access packages entry point is shown. nil until a refresh has looked at a token.
+    public var accessPackagesAvailable: Bool?
 
     public var id: TenantKey { TenantKey(identityId: identityId, tenantId: tenantId) }
 
     public init(identityId: String, tenantId: String, displayName: String, source: Source,
                 discoveryMode: DiscoveryMode = .automatic, principalObjectId: String? = nil,
                 lastDiscoveryError: String? = nil, azureUnavailableReason: String? = nil,
-                entraActivation: EntraActivationSupport? = nil, groupsUnavailableReason: String? = nil) {
+                entraActivation: EntraActivationSupport? = nil, groupsUnavailableReason: String? = nil,
+                accessPackagesAvailable: Bool? = nil) {
         self.identityId = identityId
         self.tenantId = tenantId
         self.displayName = displayName
@@ -76,6 +80,7 @@ public struct TenantContext: Codable, Hashable, Sendable, Identifiable {
         self.azureUnavailableReason = azureUnavailableReason
         self.entraActivation = entraActivation
         self.groupsUnavailableReason = groupsUnavailableReason
+        self.accessPackagesAvailable = accessPackagesAvailable
     }
 }
 

@@ -21,7 +21,15 @@ struct RoleRow: View {
             }
             statusDot
             VStack(alignment: .leading, spacing: 1) {
-                Text(role.displayName).font(.body).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(role.displayName).font(.body).lineLimit(1)
+                    if model.isNewRole(role.key) {
+                        Text("new").font(.caption2.weight(.medium))
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(0.18), in: Capsule())
+                            .accessibilityLabel("New role")
+                    }
+                }
                 if let detail = role.detail {
                     Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip ?? detail)
                 }
@@ -43,6 +51,7 @@ struct RoleRow: View {
         .padding(.vertical, 3)
         .padding(.leading, PanelMetrics.roleInset)
         .padding(.trailing, PanelMetrics.trailingInset)
+        .background(model.isNewRole(role.key) ? Color.accentColor.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
     }
 
     private var statusDot: some View {

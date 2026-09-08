@@ -1,0 +1,6 @@
+{
+  "id": "req-new", "requestType": "userAdd", "state": "submitted", "status": "Accepted",
+  "justification": "Need a sandbox for the cost-alerting spike (INC-4412).",
+  "createdDateTime": "2026-09-08T07:12:00Z", "completedDateTime": null,
+  "assignment": { "id": "asg-new", "accessPackageId": "pkg-sandbox", "assignmentPolicyId": "pol-eng" }
+}

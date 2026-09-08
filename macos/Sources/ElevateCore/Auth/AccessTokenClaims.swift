@@ -33,4 +33,11 @@ public enum AccessTokenClaims {
         guard let scopes = grantedScopes(accessToken) else { return nil }
         return !scopes.isDisjoint(with: entraActivationScopes)
     }
+
+    /// Whether a Graph token carries the self-service entitlement management scope.
+    /// nil when the token does not expose its scopes.
+    public static func permitsEntitlementSelfService(_ accessToken: String) -> Bool? {
+        guard let scopes = grantedScopes(accessToken) else { return nil }
+        return scopes.contains(EntitlementScopes.claim)
+    }
 }

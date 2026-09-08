@@ -15,6 +15,7 @@ struct RouteWindow: View {
         case .runProfile(let id): RunProfileView(profileId: id)
         case .manageProfiles: ManageProfilesView()
         case .decide(let requestId, let approve): DecisionView(requestId: requestId, approve: approve)
+        case .accessPackages(let tenantKey): AccessPackagesView(tenantKey: tenantKey)
         }
     }
 }
