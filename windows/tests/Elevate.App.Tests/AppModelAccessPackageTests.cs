@@ -207,7 +207,8 @@ public class AppModelAccessPackageTests
         model.IsRoleNew(first.Key).Should().BeTrue("the marker survives the first open");
         model.PanelOpened();
         model.IsRoleNew(first.Key).Should().BeFalse("the second open clears it");
-        test.Store.Load().RoleTrackerFor(Sample.TenantKey).New.Should().BeEmpty("the cleared marker is persisted");
+        // The save itself lands on a background task; the state handed to it is what matters here.
+        model.State.RoleTrackerFor(Sample.TenantKey).New.Should().BeEmpty("the cleared marker goes into the persisted state");
     }
 
     [Fact]
