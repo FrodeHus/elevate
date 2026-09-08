@@ -1,0 +1,84 @@
+# Troubleshooting
+
+What the panel's warnings mean and how to get past them.
+
+> The pictures in this guide are real renders of the app with sample data from a fictional
+> organization.
+
+## A tenant shows "manual roles"
+
+![A tenant header with a manual roles pill and a warning triangle](images/tutorials/panel-entra.png)
+
+Elevate could not read your eligible roles in that tenant, usually because an administrator has
+not yet consented to the Elevate app registration there. Two ways forward:
+
+- **Get consent.** Open the tenant menu (the circled dots on the tenant row) and choose **Open
+  admin consent link…**. Send the link to a tenant administrator, or open it yourself if you are
+  one. After consent, choose **Retry discovery** from the same menu.
+- **Configure the roles you know you hold.** Choose **Configure known PIM roles…** in the tenant
+  menu:
+
+![The Known PIM roles window with the Entra roles tab and a searchable catalogue](images/tutorials/configure-roles.png)
+
+Tick Entra roles from the catalogue, add Azure scopes with a role name, or add group IDs. Elevate
+lists them with a **manual** caption and tries to activate them when you ask; Entra still
+validates every request, so a role you do not actually hold fails with a clear message.
+
+## An account is marked "Azure roles only"
+
+The account was added with the Azure CLI or Azure PowerShell app. Microsoft grants those apps no
+Graph PIM permissions, so Elevate never reads or activates Entra roles or group memberships for
+it and never shows permission errors for them either. Azure resource roles work normally.
+
+To get Entra roles for that account, sign it out and add it again with **Own app registration**
+or a **Custom app**.
+
+## Azure is off in a tenant
+
+A quiet **Azure off** caption in a tenant header means the first Azure read in that tenant was
+refused, most often because the account has no Azure access there at all. Elevate stops asking so
+the tenant stays clean. If you gain Azure access later, choose **Retry discovery** from the tenant
+menu.
+
+## "needs to sign in again"
+
+An orange banner names an account whose saved sign-in is gone: the refresh token expired, was
+revoked, or the keychain item was removed. Click the **Sign in** button on the account row, or
+choose **Sign in again** from its menu. Roles and profiles are kept while the account waits.
+
+## A refresh or discovery failed
+
+A red triangle on a tenant header means the last refresh hit an error. Hover for the message,
+or click for the full list. Typical causes:
+
+- No network. The header shows **offline** and Elevate resumes on its own.
+- A step-up sign-in was dismissed. Press the refresh button and complete it.
+- A tenant's Conditional Access blocks the sign-in method. Try another method, or use your own
+  registration.
+
+## Activation refused
+
+A red message on the row states Entra's reason. The usual ones:
+
+- **Not eligible**: the eligibility ended or was never there; refresh, or remove the role from
+  known roles.
+- **Policy violation**: a ticket number is required, the duration exceeds the maximum, or the
+  role must stay active for five minutes before it can be deactivated.
+- **Multi-factor authentication required**: complete the browser step-up and try again.
+
+## Notifications are silent
+
+Allow notifications for Elevate under System Settings → Notifications. Elevate shows a notice in
+the panel when permission was denied.
+
+## Launch at login does not stick
+
+macOS may require approval the first time. The Settings toggle explains this under the switch;
+approve Elevate under System Settings → General → Login Items.
+
+## Reporting a bug
+
+Open **Settings…** and click **Copy diagnostics**. The clipboard now holds the app version and
+signing state, your accounts and tenants with their modes and limits, profile names, and the last
+errors with timestamps. It never contains tokens, client secrets or role justifications. Paste it
+into a GitHub issue at https://github.com/FrodeHus/elevate/issues.
