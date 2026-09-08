@@ -32,6 +32,16 @@ final class AppModel {
     /// Last decision failure per request id, shown on the row and in the sheet.
     var approvalErrors: [String: String] = [:]
 
+    // MARK: Access packages — AppModel+AccessPackages
+
+    /// Last poll failure per tenant, shown in the access packages window.
+    var accessPackageErrors: [TenantKey: String] = [:]
+    /// Tenants with a poll in flight, so two triggers cannot overlap.
+    var accessPackagesPolling: Set<TenantKey> = []
+    /// Self-service entitlement calls, rebuilt with the coordinator when the client id changes.
+    private(set) var accessPackageProvider: AccessPackageProvider
+    private var accessPackageTimer: Task<Void, Never>?
+
     // MARK: Panel — AppModel+Panel
 
     var selectMode = false { didSet { if !selectMode { selection.removeAll(); editingProfileId = nil } } }
@@ -168,6 +178,7 @@ final class AppModel {
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens)], tokens: tokens)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
+        accessPackageProvider = AccessPackageProvider(http: http, tokens: tokens)
     }
 
     private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
@@ -253,6 +264,8 @@ final class AppModel {
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: composite)
         discovery = TenantDiscovery(http: http, tokens: composite)
+        accessPackageProvider = AccessPackageProvider(http: http, tokens: composite)
+        accessPackageErrors = [:]
         notice = nil
         startupError = nil
         Task { await self.rescheduleNotifications() }
@@ -397,6 +410,14 @@ final class AppModel {
                 // Pending approvals live in `active` too, and they need polling to flip to active.
                 guard self.isOnline, !self.active.isEmpty else { continue }
                 await self.refreshAll()
+            }
+        }
+        accessPackageTimer?.cancel()
+        accessPackageTimer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.accessPackageBackgroundInterval))
+                guard let self, self.isOnline else { continue }
+                await self.pollAccessPackagesIfDue()
             }
         }
     }

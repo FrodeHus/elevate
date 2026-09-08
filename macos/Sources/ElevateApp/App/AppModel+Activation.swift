@@ -32,6 +32,14 @@ extension AppModel {
         return .unsupported(reason: reason)
     }
 
+    /// Whether this tenant's Graph token carries the entitlement scope. nil when no token is
+    /// available or it is opaque, so the caller keeps the previous answer.
+    func probeAccessPackages(identity: Identity, tenantId: String) async -> Bool? {
+        guard identity.signInMethod.isPreauthorisedForEntraActivation else { return false }
+        guard let token = try? await tokens.accessToken(identity: identity, tenantId: tenantId, scopes: EntitlementScopes.all) else { return nil }
+        return AccessTokenClaims.permitsEntitlementSelfService(token)
+    }
+
     // MARK: Activation
 
     /// Activates the requests. Roles that are already active are deactivated first so "Extend" works.

@@ -9,7 +9,16 @@ extension AppModel {
     func panelOpened() {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         searchQuery = ""
-        guard bootstrapped, isOnline, !identities.isEmpty, Date().timeIntervalSince(lastRefresh) > 30 else { return }
+        for tenant in state.tenants {
+            var tracker = state.roleTracker(tenant.id)
+            let before = tracker
+            tracker.panelOpened()
+            if tracker != before { state.setRoleTracker(tenant.id, tracker) }
+        }
+        persist()
+        guard bootstrapped, isOnline, !identities.isEmpty else { return }
+        Task { await self.pollAccessPackagesIfDue() }
+        guard Date().timeIntervalSince(lastRefresh) > 30 else { return }
         Task { await self.refreshAll() }
     }
 
@@ -94,6 +103,13 @@ extension AppModel {
                        support != tenant.entraActivation {
                         guard generation == configGeneration, self.tenant(key) != nil else { return }
                         tenant.entraActivation = support
+                        state.upsertTenant(tenant)
+                        persist()
+                    }
+                    if isEntra, let available = await probeAccessPackages(identity: identity, tenantId: key.tenantId),
+                       available != tenant.accessPackagesAvailable {
+                        guard generation == configGeneration, self.tenant(key) != nil else { return }
+                        tenant.accessPackagesAvailable = available
                         state.upsertTenant(tenant)
                         persist()
                     }
