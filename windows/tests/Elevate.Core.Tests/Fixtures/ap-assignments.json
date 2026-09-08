@@ -1,0 +1,22 @@
+{
+  "value": [
+    {
+      "id": "asg-1", "state": "delivered", "status": "Delivered", "expiredDateTime": null,
+      "schedule": { "startDateTime": "2026-09-07T14:40:00Z", "expiration": { "type": "afterDateTime", "endDateTime": "2027-03-07T14:40:00Z" } },
+      "accessPackage": { "id": "pkg-exchange", "displayName": "Exchange Operations" },
+      "assignmentPolicy": { "id": "pol-oncall", "displayName": "On-call staff" }
+    },
+    {
+      "id": "asg-2", "state": "delivered", "status": "Delivered", "expiredDateTime": null,
+      "schedule": { "startDateTime": "2026-01-01T00:00:00Z", "expiration": { "type": "noExpiration" } },
+      "accessPackage": { "id": "pkg-dev", "displayName": "Developer Baseline" },
+      "assignmentPolicy": { "id": "pol-all", "displayName": "All employees" }
+    },
+    {
+      "id": "asg-3", "state": "expired", "status": "Expired", "expiredDateTime": "2026-08-01T00:00:00Z",
+      "schedule": { "startDateTime": "2026-07-01T00:00:00Z", "expiration": { "type": "afterDateTime", "endDateTime": "2026-08-01T00:00:00Z" } },
+      "accessPackage": { "id": "pkg-old", "displayName": "Old Project" },
+      "assignmentPolicy": null
+    }
+  ]
+}

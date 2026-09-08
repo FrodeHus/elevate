@@ -1,0 +1,6 @@
+{
+  "value": [
+    { "policyId": "pol-eng", "policyDisplayName": "Engineers", "policyDescription": "30 days.", "isApprovalRequired": true, "questions": [] },
+    { "policyId": "pol-lead", "policyDisplayName": "Team leads", "policyDescription": "90 days, no approval.", "isApprovalRequired": false, "questions": [] }
+  ]
+}
