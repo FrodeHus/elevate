@@ -24,7 +24,13 @@ public sealed class MsalTokenProvider : MsalProviderBase, IOwnAppTokenProvider
 
     protected override SignInMethod Method => SignInMethod.OwnApp;
 
-    protected override IReadOnlyList<string> SignInScopes { get; } = [Scopes.GraphUserRead];
+    /// <summary>
+    /// The sign-in asks for the entitlement scope alongside User.Read, as the macOS provider does:
+    /// it is user-consentable, so the prompt never blocks adding an account, and the PIM scopes
+    /// (admin consent) are still acquired on the first read. Users in already-consented tenants
+    /// see one incremental consent prompt on their next interactive sign-in.
+    /// </summary>
+    protected override IReadOnlyList<string> SignInScopes { get; } = [Scopes.GraphUserRead, .. Scopes.EntitlementAll];
 
     protected override IReadOnlyList<string> Requested(IReadOnlyList<string> scopes) => scopes;
 

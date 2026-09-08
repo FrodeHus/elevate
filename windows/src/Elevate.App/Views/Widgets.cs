@@ -105,7 +105,7 @@ public sealed partial class Pill : ContentControl
         set => SetValue(TooltipProperty, value);
     }
 
-    /// <summary>"Caution", "Critical", "Success" or "Neutral".</summary>
+    /// <summary>"Caution", "Critical", "Success", "Accent" or "Neutral".</summary>
     public string Tint
     {
         get => (string)GetValue(TintProperty);
@@ -132,6 +132,12 @@ public sealed partial class Pill : ContentControl
             case "Success":
                 _border.Background = new SolidColorBrush(WithAlpha((Windows.UI.Color)resources["SystemFillColorSuccess"], 0x1F));
                 _label.Foreground = (Brush)resources["SystemFillColorSuccessBrush"];
+                _border.BorderThickness = new Thickness(0);
+                break;
+            case "Accent":
+                // The "new" badge: the accent colour, the way the new-role rows are tinted.
+                _border.Background = new SolidColorBrush(WithAlpha((Windows.UI.Color)resources["SystemAccentColor"], 0x2E));
+                _label.Foreground = (Brush)resources["AccentTextFillColorPrimaryBrush"];
                 _border.BorderThickness = new Thickness(0);
                 break;
             default:

@@ -105,6 +105,7 @@ public sealed class RoleRow : PanelItem
     private string? _policyNotes;
     private string? _policyTooltip;
     private bool _requiresApproval;
+    private bool _isNew;
 
     public string Name { get => _name; set => SetProperty(ref _name, value); }
 
@@ -163,6 +164,9 @@ public sealed class RoleRow : PanelItem
     /// <summary>The primary action is a request, not an activation, when an approver must accept it.</summary>
     public bool RequiresApproval { get => _requiresApproval; set => SetProperty(ref _requiresApproval, value); }
 
+    /// <summary>Added since the last discovery: a "new" badge and a faint accent tint until the second panel open.</summary>
+    public bool IsNew { get => _isNew; set => SetProperty(ref _isNew, value); }
+
     // Derived, for x:Bind (recomputed through the notifications of the properties above).
     public Visibility DetailVisibility => string.IsNullOrEmpty(Detail) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -209,6 +213,15 @@ public sealed class RoleRow : PanelItem
 
     public Windows.UI.Text.FontWeight CountdownWeight => CountdownSoon ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
 
+    public Visibility NewVisibility => IsNew ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The accent at low opacity behind a new role; transparent otherwise. Decoration only: the badge carries the meaning.</summary>
+    public Brush RowBrush => IsNew
+        ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x1A, AccentColor.R, AccentColor.G, AccentColor.B))
+        : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+    private static Windows.UI.Color AccentColor => (Windows.UI.Color)Application.Current.Resources["SystemAccentColor"];
+
     public bool ActivateEnabled => Online;
 
     public bool ExtendEnabled => Online;
@@ -244,6 +257,7 @@ public sealed class RoleRow : PanelItem
         PolicyNotes = other.PolicyNotes;
         PolicyTooltip = other.PolicyTooltip;
         RequiresApproval = other.RequiresApproval;
+        IsNew = other.IsNew;
         OnPropertyChanged(string.Empty);
     }
 
@@ -410,6 +424,11 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public bool Busy { get => _busy; set => Set(ref _busy, value); }
 
+    private bool _accessPackages;
+
+    /// <summary>The tenant's token carries the entitlement scope: the header shows the box glyph and the menu the item.</summary>
+    public bool AccessPackages { get => _accessPackages; set => Set(ref _accessPackages, value); }
+
     // Derived, for x:Bind.
     public string ActiveText => ActiveCount > 0 ? $"{ActiveCount} active" : string.Empty;
 
@@ -447,6 +466,8 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public Visibility BusyVisibility => Busy ? Visibility.Visible : Visibility.Collapsed;
 
+    public Visibility AccessPackagesVisibility => AccessPackages ? Visibility.Visible : Visibility.Collapsed;
+
     public string ChevronGlyph => Expanded ? "" : "";
 
     public Brush HeaderBrush => (Brush)Application.Current.Resources[
@@ -468,6 +489,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         Issues = other.Issues;
         HasError = other.HasError;
         Busy = other.Busy;
+        AccessPackages = other.AccessPackages;
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
     }
 
@@ -683,6 +705,7 @@ public static class PanelListBuilder
         group.Issues = issues;
         group.HasError = error is not null;
         group.Busy = model.Busy.Contains(tenant.Key);
+        group.AccessPackages = tenant.AccessPackagesAvailable == true;
     }
 
     private static void AddTenantRows(AppModel model, PanelGroup group, TenantContext tenant, DateTimeOffset now)
@@ -723,6 +746,7 @@ public static class PanelListBuilder
             Name = role.DisplayName,
             Via = role.ViaGroup is { } via ? (via == "group" ? "via group" : $"via {via}") : null,
             IsManual = role.Source == RoleSource.Manual,
+            IsNew = model.IsRoleNew(role.Key),
         };
         row.Detail = role.Detail;
         row.DetailTooltip = role.Key.Scope is AzureResourceScope azure ? azure.Scope : role.Detail;

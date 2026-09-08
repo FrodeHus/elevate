@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Elevate.App.Views.RequestPackageWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="3">
+            <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="Description" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="12">
+            <StackPanel x:Name="Loading" Orientation="Horizontal" Spacing="10">
+                <ProgressRing Width="20" Height="20" IsActive="True" />
+                <TextBlock Text="Checking the request policy…" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <InfoBar x:Name="LoadError" IsOpen="False" IsClosable="False" Severity="Error" />
+            <TextBlock x:Name="NoPolicy" Text="No policy lets you request this package right now." FontSize="12" TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+
+            <!-- Only when several policies apply: the policy sets the duration and who approves. -->
+            <StackPanel x:Name="PolicyPane" Spacing="5" Visibility="Collapsed">
+                <TextBlock Text="Policy" FontSize="12" FontWeight="SemiBold" />
+                <ComboBox x:Name="Policies" HorizontalAlignment="Stretch" SelectionChanged="OnPolicyChanged" AutomationProperties.Name="Policy" />
+                <TextBlock x:Name="PolicyHint" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- The chosen policy asks questions Elevate does not collect: hand off to My Access. -->
+            <Grid x:Name="QuestionsPane" Visibility="Collapsed" Padding="12,10" ColumnSpacing="10" CornerRadius="6"
+                  Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel Grid.Column="1" Spacing="3">
+                    <TextBlock Text="This package asks questions before it can be requested." TextWrapping="Wrap" />
+                    <TextBlock x:Name="QuestionsDetail" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel x:Name="FormPane" Spacing="5" Visibility="Collapsed">
+                <TextBlock Text="Justification" FontSize="12" FontWeight="SemiBold" />
+                <TextBox x:Name="Justification" PlaceholderText="Why you need this access" AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="72" MaxHeight="120" TextChanged="OnJustificationChanged" AutomationProperties.Name="Justification" />
+                <TextBlock Text="Required. Approvers see this text." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <InfoBar x:Name="SubmitError" IsOpen="False" IsClosable="False" Severity="Error" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <ProgressRing x:Name="Working" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" MinWidth="90" />
+            <Button x:Name="PrimaryButton" Content="Submit Request" Style="{StaticResource AccentButtonStyle}" Click="OnPrimary" MinWidth="130" />
+        </StackPanel>
+    </Grid>
+</Window>

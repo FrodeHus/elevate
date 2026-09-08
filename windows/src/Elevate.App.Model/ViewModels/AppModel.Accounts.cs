@@ -229,7 +229,9 @@ public sealed partial class AppModel
 
         DropApprovals(k => k == key);
         DropPolicies(k => k.TenantKey == key);
+        AccessPackageErrors.Remove(key);
         Persist();
+        _ = ReschedulePackageExpiriesAsync();
     }
 
     public async Task RetryDiscoveryAsync(TenantKey key)
@@ -247,7 +249,9 @@ public sealed partial class AppModel
             AzureUnavailableReason = null,
             GroupsUnavailableReason = null,
             EntraActivation = null,
+            AccessPackagesAvailable = null,
         };
+        AccessPackageErrors.Remove(key);
         DropPolicies(k => k.TenantKey == key);
         State.UpsertTenant(t);
         Persist();

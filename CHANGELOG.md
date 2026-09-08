@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the marker clears the second time the panel opens.
 - The first-run setup panel and the app registration section in Settings link to the
   getting-started and app registration guides on GitHub, on macOS and Windows.
+- Windows: the access packages window, the tenant box glyph and menu item, the request dialog with
+  the policy picker and My Access hand-off, the polling and toasts, and the "new" role marker,
+  matching the macOS app. The own-app sign-in asks for the entitlement permission alongside
+  User.Read.
+
+### Fixed
+
+- Windows: the flyout's right edge no longer clips the row buttons and the header tools; the
+  window sized its outer frame, not its content, so the client area came out one frame narrower.
 
 ### Changed
 

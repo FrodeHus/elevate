@@ -229,6 +229,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         HotKeys = hotKeys ?? new NoopHotKeyCenter();
         Coordinator = MakeCoordinator(tokens);
         ApprovalProviders = MakeApprovalProviders(http, tokens);
+        Packages = MakeAccessPackageProvider(http, tokens);
         Discovery = new TenantDiscovery(http, tokens);
         _network.Changed += OnNetworkChanged;
     }
@@ -286,6 +287,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         InFlight.Clear();
         DecisionInFlight.Clear();
         ApprovalErrors.Clear();
+        AccessPackageErrors.Clear();
         PendingExtend = null;
         SelectMode = false;
         Persist();
@@ -295,6 +297,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         Tokens = composite;
         Coordinator = MakeCoordinator(composite);
         ApprovalProviders = MakeApprovalProviders(Http, composite);
+        Packages = MakeAccessPackageProvider(Http, composite);
         Discovery = new TenantDiscovery(Http, composite);
         Notice = null;
         StartupError = null;
@@ -315,6 +318,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         RemoveWhere(Active, k => k.IdentityId == identityId);
         RemoveWhere(Progress, k => k.IdentityId == identityId);
         RemoveWhere(TenantErrors, k => k.IdentityId == identityId);
+        RemoveWhere(AccessPackageErrors, k => k.IdentityId == identityId);
         DropApprovals(k => k.IdentityId == identityId);
         DropPolicies(k => k.IdentityId == identityId);
     }
@@ -375,7 +379,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             return null;
         }
 
-        var scopes = string.Join(' ', Scopes.GraphAll.Concat(Scopes.GroupAll));
+        var scopes = string.Join(' ', Scopes.GraphAll.Concat(Scopes.GroupAll).Concat(Scopes.EntitlementAll));
         var query = new Dictionary<string, string>
         {
             ["client_id"] = Settings.ClientId.Trim(),
@@ -485,6 +489,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         _timers = cts;
         _ = RunClockAsync(cts.Token);
         _ = RunRefreshTimerAsync(cts.Token);
+        _ = RunAccessPackageTimerAsync(cts.Token);
     }
 
     private async Task RunClockAsync(CancellationToken ct)

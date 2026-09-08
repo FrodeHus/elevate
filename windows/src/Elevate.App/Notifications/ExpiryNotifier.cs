@@ -19,7 +19,8 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
     public static readonly TimeSpan LeadTime = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan ExpiredDelay = TimeSpan.FromSeconds(5);
 
-    private sealed record Planned(DateTimeOffset FireAt, string Tag, string Title, string Body, string Button, RoleKey Key);
+    /// <summary>A timed toast. Role toasts carry a key and a button; package expiries (<c>Key</c> null) are plain.</summary>
+    private sealed record Planned(DateTimeOffset FireAt, string Tag, string Title, string Body, string Button, RoleKey? Key);
 
     private readonly Lock _gate = new();
     private readonly DispatcherQueue _dispatcher;
@@ -131,7 +132,29 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 
         lock (_gate)
         {
-            _planned.Clear();
+            // Role toasts only; the package expiries keep their own entries.
+            _planned.RemoveAll(p => p.Key is not null);
+            _planned.AddRange(planned.Where(p => p.FireAt > DateTimeOffset.UtcNow.AddSeconds(1)));
+            Arm();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// One "expired" toast per delivered access package assignment with an end date, timed to the
+    /// end date so it fires on time even between polls. Replaces the previous set, so an
+    /// assignment that was revoked drops its pending toast.
+    /// </summary>
+    public Task SetPackageExpiriesAsync(IReadOnlyList<PackageExpiry> expiries)
+    {
+        ArgumentNullException.ThrowIfNull(expiries);
+        var planned = expiries
+            .Select(e => new Planned(e.At + ExpiredDelay, "package-expired-" + e.Id, $"{e.PackageName} expired", $"Access package in {e.TenantName}", string.Empty, null))
+            .ToList();
+        lock (_gate)
+        {
+            _planned.RemoveAll(p => p.Key is null);
             _planned.AddRange(planned.Where(p => p.FireAt > DateTimeOffset.UtcNow.AddSeconds(1)));
             Arm();
         }
@@ -183,6 +206,13 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 
         foreach (var toast in due)
         {
+            if (toast.Key is null)
+            {
+                // A package expiry has no action: nothing in Elevate can renew it.
+                Show(new AppNotificationBuilder().AddText(toast.Title).AddText(toast.Body).SetTag(toast.Tag).SetGroup(Group).BuildNotification());
+                continue;
+            }
+
             var keyJson = Json.Serialize(toast.Key);
             var action = toast.Button == "Extend" ? "extend" : "again";
             var builder = new AppNotificationBuilder()

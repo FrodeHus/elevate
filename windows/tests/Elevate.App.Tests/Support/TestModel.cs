@@ -53,6 +53,15 @@ public sealed class RecordingNotifier : IExpiryNotifier
         IReadOnlyDictionary<RoleKey, string> names,
         IReadOnlyDictionary<TenantKey, string> tenantNames) => Task.CompletedTask;
 
+    /// <summary>The last set of package expiries the model handed over.</summary>
+    public IReadOnlyList<PackageExpiry> PackageExpiries { get; private set; } = [];
+
+    public Task SetPackageExpiriesAsync(IReadOnlyList<PackageExpiry> expiries)
+    {
+        PackageExpiries = expiries;
+        return Task.CompletedTask;
+    }
+
     public Task NotifyAsync(string title, string body)
     {
         Posted.Add((title, body));
