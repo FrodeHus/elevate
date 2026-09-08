@@ -139,3 +139,52 @@ public sealed class NoHttpClient : IHttpClient
     public Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken ct) =>
         Task.FromException<HttpResponseData>(new PimException(PimErrorKind.Network, "no network in tests"));
 }
+
+/// <summary>An access package provider whose lists and failures the test scripts.</summary>
+public sealed class FakeAccessPackageProvider : IAccessPackageProvider
+{
+    public IReadOnlyList<string> Scopes { get; } = ["scope"];
+
+    public List<AccessPackage> Packages { get; } = [];
+
+    public List<AccessPackageRequest> Requests { get; } = [];
+
+    public List<AccessPackageAssignment> Assignments { get; } = [];
+
+    public Dictionary<string, List<PolicyRequirement>> Requirements { get; } = new(StringComparer.Ordinal);
+
+    public List<(string PackageId, string? PolicyId, string Justification)> Requested { get; } = [];
+
+    public List<string> Cancelled { get; } = [];
+
+    /// <summary>Thrown by every read while set.</summary>
+    public PimException? ReadError { get; set; }
+
+    public Task<IReadOnlyList<AccessPackage>> RequestablePackagesAsync(Identity identity, string tenantId, CancellationToken ct = default) =>
+        ReadError is { } e ? Task.FromException<IReadOnlyList<AccessPackage>>(e) : Task.FromResult<IReadOnlyList<AccessPackage>>([.. Packages]);
+
+    public Task<IReadOnlyList<AccessPackageRequest>> MyRequestsAsync(Identity identity, string tenantId, CancellationToken ct = default) =>
+        ReadError is { } e ? Task.FromException<IReadOnlyList<AccessPackageRequest>>(e) : Task.FromResult<IReadOnlyList<AccessPackageRequest>>([.. Requests]);
+
+    public Task<IReadOnlyList<AccessPackageAssignment>> MyAssignmentsAsync(Identity identity, string tenantId, CancellationToken ct = default) =>
+        ReadError is { } e ? Task.FromException<IReadOnlyList<AccessPackageAssignment>>(e) : Task.FromResult<IReadOnlyList<AccessPackageAssignment>>([.. Assignments]);
+
+    public Task<IReadOnlyList<PolicyRequirement>> RequirementsAsync(string packageId, Identity identity, string tenantId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<PolicyRequirement>>(Requirements.TryGetValue(packageId, out var list) ? [.. list] : []);
+
+    public Task<AccessPackageRequest> RequestAsync(string packageId, string? policyId, string justification, Identity identity, string tenantId, CancellationToken ct = default)
+    {
+        Requested.Add((packageId, policyId, justification));
+        var created = new AccessPackageRequest("req-new", packageId, Packages.FirstOrDefault(p => p.Id == packageId)?.DisplayName ?? packageId,
+            "userAdd", AccessPackageRequestState.Submitted, "Accepted", justification, DateTimeOffset.UtcNow, null, policyId);
+        Requests.Add(created);
+        return Task.FromResult(created);
+    }
+
+    public Task CancelAsync(string requestId, Identity identity, string tenantId, CancellationToken ct = default)
+    {
+        Cancelled.Add(requestId);
+        Requests.RemoveAll(r => r.Id == requestId);
+        return Task.CompletedTask;
+    }
+}

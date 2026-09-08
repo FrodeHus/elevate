@@ -30,7 +30,8 @@ public sealed partial class ElevateSession
         ITokenProvider tokens,
         IHttpClient http,
         IEnumerable<IPimProvider>? providers = null,
-        IEnumerable<IApprovalProvider>? approvalProviders = null)
+        IEnumerable<IApprovalProvider>? approvalProviders = null,
+        IAccessPackageProvider? accessPackages = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(settings);
@@ -47,6 +48,7 @@ public sealed partial class ElevateSession
             ?? [new EntraApprovalProvider(http, tokens), new GroupApprovalProvider(http, tokens), new AzureApprovalProvider(http, tokens)])
             .DistinctBy(p => p.Kind).ToDictionary(p => p.Kind);
         Discovery = new TenantDiscovery(http, tokens);
+        Packages = accessPackages ?? new AccessPackageProvider(http, tokens);
     }
 
     public CliSettings Settings { get; }
@@ -56,6 +58,8 @@ public sealed partial class ElevateSession
     public ActivationCoordinator Coordinator { get; }
 
     public Dictionary<RoleScopeKind, IApprovalProvider> ApprovalProviders { get; }
+
+    public IAccessPackageProvider Packages { get; }
 
     public TenantDiscovery Discovery { get; }
 

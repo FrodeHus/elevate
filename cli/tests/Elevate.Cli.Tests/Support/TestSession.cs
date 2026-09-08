@@ -23,7 +23,8 @@ public sealed class TestSession : IDisposable
         Azure = new FakeProvider(RoleScopeKind.AzureResource);
         Groups = new FakeProvider(RoleScopeKind.Group);
         EntraApprovals = new FakeApprovalProvider(RoleScopeKind.EntraDirectory);
-        Session = new ElevateSession(Store, Settings, Tokens, new NoHttpClient(), [Entra, Azure, Groups], [EntraApprovals]);
+        Packages = new FakeAccessPackageProvider();
+        Session = new ElevateSession(Store, Settings, Tokens, new NoHttpClient(), [Entra, Azure, Groups], [EntraApprovals], Packages);
         Session.Load();
         Session.State.Identities.Add(Account);
         Session.State.UpsertTenant(Tenant);
@@ -45,6 +46,8 @@ public sealed class TestSession : IDisposable
     public FakeProvider Groups { get; }
 
     public FakeApprovalProvider EntraApprovals { get; }
+
+    public FakeAccessPackageProvider Packages { get; }
 
     public ElevateSession Session { get; }
 
