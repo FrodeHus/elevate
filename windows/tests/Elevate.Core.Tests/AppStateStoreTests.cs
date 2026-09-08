@@ -212,4 +212,18 @@ public class AppStateStoreTests
         tenant.IndexOf("\"discoveryMode\"", StringComparison.Ordinal)
             .Should().BeLessThan(tenant.IndexOf("\"displayName\"", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void AccessPackagesAvailableFlagRoundTripsAndDefaultsToNull()
+    {
+        var state = new AppState();
+        state.UpsertTenant(new TenantContext("i", "t", "Home", TenantSource.Home, AccessPackagesAvailable: true));
+        state.UpsertTenant(new TenantContext("i", "u", "Other", TenantSource.Manual));
+
+        var json = Json.Serialize(state);
+        json.Should().Contain("\"accessPackagesAvailable\":true");
+        var back = Json.Deserialize<AppState>(json)!;
+        back.Tenants[0].AccessPackagesAvailable.Should().BeTrue();
+        back.Tenants[1].AccessPackagesAvailable.Should().BeNull();
+    }
 }

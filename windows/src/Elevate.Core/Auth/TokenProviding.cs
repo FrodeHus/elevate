@@ -24,6 +24,15 @@ public static class Scopes
         "https://graph.microsoft.com/PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup",
         "https://graph.microsoft.com/RoleManagementPolicy.Read.AzureADGroup",
     ];
+
+    /// <summary>
+    /// Delegated Graph permission for self-service entitlement management (access packages).
+    /// User-consentable: no admin consent is needed, unlike the PIM scopes above.
+    /// </summary>
+    public static IReadOnlyList<string> EntitlementAll { get; } = ["https://graph.microsoft.com/EntitlementMgmt-SubjectAccess.ReadWrite"];
+
+    /// <summary>The bare scope name as it appears in a token's <c>scp</c> claim.</summary>
+    public const string EntitlementClaim = "EntitlementMgmt-SubjectAccess.ReadWrite";
 }
 
 /// <summary>Port of the Swift <c>TokenProviding</c> protocol.</summary>

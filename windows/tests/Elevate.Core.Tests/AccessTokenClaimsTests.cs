@@ -51,4 +51,20 @@ public class AccessTokenClaimsTests
         AccessTokenClaims.PermitsEntraActivation("not-a-jwt").Should().BeNull();
         AccessTokenClaims.PermitsEntraActivation(Token(null)).Should().BeNull();
     }
+
+    [Fact]
+    public void EntitlementScopeIsDetected()
+    {
+        AccessTokenClaims.PermitsEntitlementSelfService(Token("User.Read EntitlementMgmt-SubjectAccess.ReadWrite")).Should().BeTrue();
+        AccessTokenClaims.PermitsEntitlementSelfService(Token("User.Read RoleAssignmentSchedule.ReadWrite.Directory")).Should().BeFalse();
+        AccessTokenClaims.PermitsEntitlementSelfService("not-a-jwt").Should().BeNull();
+        AccessTokenClaims.PermitsEntitlementSelfService(Token(null)).Should().BeNull();
+    }
+
+    [Fact]
+    public void EntitlementScopeSetHoldsOneUserConsentableScope()
+    {
+        Scopes.EntitlementAll.Should().Equal("https://graph.microsoft.com/EntitlementMgmt-SubjectAccess.ReadWrite");
+        Scopes.EntitlementClaim.Should().Be("EntitlementMgmt-SubjectAccess.ReadWrite");
+    }
 }
