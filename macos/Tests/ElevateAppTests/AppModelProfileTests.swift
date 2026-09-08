@@ -42,10 +42,11 @@ struct AppModelProfileTests {
         entries = model.profile(id: p.id)?.entries ?? []
         #expect(entries.first { $0.roleKey == Sample.groupKey }?.lastDuration == .seconds(7200))
 
-        // Adding more keeps the duration already chosen.
+        // Adding more keeps the duration already chosen. Kinds sort by their raw name here, so
+        // Azure lands before Entra.
         model.addProfileEntries(id: p.id, keys: [Sample.azureKey])
         entries = model.profile(id: p.id)?.entries ?? []
-        #expect(entries.map(\.roleKey) == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        #expect(entries.map(\.roleKey) == [Sample.azureKey, Sample.entraKey, Sample.groupKey])
         #expect(entries.last?.lastDuration == .seconds(7200))
 
         model.removeProfileEntry(id: p.id, key: Sample.entraKey)
