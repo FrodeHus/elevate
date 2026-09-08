@@ -41,12 +41,16 @@ public sealed partial class ElevateSession
     /// <summary>Tracked tenants that may hold access packages, narrowed by the account and tenant filters.</summary>
     public IReadOnlyList<TenantKey> AccessPackageTenants(string? account, string? tenant) =>
         [.. Tenants
-            .Where(t => string.IsNullOrWhiteSpace(account) || AccountMatches(t.IdentityId, account))
-            .Where(t => string.IsNullOrWhiteSpace(tenant)
-                || t.DisplayName.Contains(tenant, StringComparison.OrdinalIgnoreCase)
-                || t.TenantId.Equals(tenant, StringComparison.OrdinalIgnoreCase))
+            .Where(t => TenantMatchesFilter(t, account, tenant))
             .Where(t => AccessPackagesUnavailableReason(t.Key) is null)
             .Select(t => t.Key)];
+
+    /// <summary>Whether a tenant matches the account and tenant filters used to scope access-package commands.</summary>
+    public bool TenantMatchesFilter(TenantContext tenant, string? account, string? tenantFilter) =>
+        (string.IsNullOrWhiteSpace(account) || AccountMatches(tenant.IdentityId, account))
+        && (string.IsNullOrWhiteSpace(tenantFilter)
+            || tenant.DisplayName.Contains(tenantFilter, StringComparison.OrdinalIgnoreCase)
+            || tenant.TenantId.Equals(tenantFilter, StringComparison.OrdinalIgnoreCase));
 
     private bool AccountMatches(string identityId, string account) =>
         Identity(identityId) is { } i

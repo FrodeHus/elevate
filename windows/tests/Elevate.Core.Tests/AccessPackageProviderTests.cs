@@ -33,6 +33,7 @@ public class AccessPackageProviderTests
         var first = http.Requests[0];
         first.Headers["Authorization"].Should().Be("Bearer token-t1");
         first.Url.AbsoluteUri.Should().Contain("identityGovernance/entitlementManagement/accessPackages/filterByCurrentUser(on='allowedRequestor')");
+        first.Url.AbsoluteUri.Should().StartWith("https://graph.microsoft.com/v1.0/");
     }
 
     [Fact]

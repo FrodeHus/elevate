@@ -88,7 +88,7 @@ call takes `identity` and `tenantId`.
   `GET /identityGovernance/entitlementManagement/accessPackages/filterByCurrentUser(on='allowedRequestor')`,
   all pages via `listAll`. Hidden packages are kept but flagged.
 - `myRequests()` →
-  `GET .../assignmentRequests/filterByCurrentUser(on='target')?$expand=accessPackage`.
+  `GET .../assignmentRequests/filterByCurrentUser(on='target')?$expand=accessPackage,assignment`.
 - `myAssignments()` →
   `GET .../assignments/filterByCurrentUser(on='target')?$expand=accessPackage,assignmentPolicy`.
 - `requirements(packageId:)` →

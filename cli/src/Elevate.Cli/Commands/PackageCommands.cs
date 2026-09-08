@@ -242,7 +242,10 @@ public static class PackageCommands
         var keys = session.AccessPackageTenants(account, tenant);
         if (keys.Count == 0)
         {
-            var excluded = session.Tenants.Select(t => session.AccessPackagesUnavailableReason(t.Key)).FirstOrDefault(r => r is not null);
+            var excluded = session.Tenants
+                .Where(t => session.TenantMatchesFilter(t, account, tenant))
+                .Select(t => session.AccessPackagesUnavailableReason(t.Key))
+                .FirstOrDefault(r => r is not null);
             throw new CliException(excluded ?? "No tracked tenant matches. Run 'elevate tenants' to list them.", ExitCodes.NotFound);
         }
 

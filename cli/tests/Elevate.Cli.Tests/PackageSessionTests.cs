@@ -137,4 +137,28 @@ public class PackageSessionTests
         var missing = () => PackageCommands.ChoosePolicy([eng, lead], "nope", "P");
         missing.Should().Throw<CliException>().Which.ExitCode.Should().Be(ExitCodes.NotFound);
     }
+
+    [Fact]
+    public async Task TenantsRetryClearsTheAccessPackagesLatch()
+    {
+        using var t = new TestSession();
+        t.Packages.ReadError = new PimException(PimErrorKind.ConsentRequired);
+        var act = () => t.Session.ReadPackagesAsync(Home, includePackages: false, CancellationToken.None);
+        await act.Should().ThrowAsync<PimException>();
+        t.Session.Tenant(Home)!.AccessPackagesAvailable.Should().BeFalse();
+
+        t.Session.ResetTenant(Home);
+
+        t.Session.Tenant(Home)!.AccessPackagesAvailable.Should().BeNull();
+        t.Session.AccessPackageTenants(null, null).Should().Equal(Home);
+    }
+
+    [Fact]
+    public void TenantMatchesFilterHonoursAccountAndTenantFilters()
+    {
+        using var t = new TestSession();
+
+        t.Session.TenantMatchesFilter(TestSession.Tenant, null, "fabrikam").Should().BeFalse();
+        t.Session.TenantMatchesFilter(TestSession.Tenant, "alex", "t1").Should().BeTrue();
+    }
 }
