@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13px; line-height: 16px; color: #1d1d1f; -webkit-font-smoothing: antialiased; background: #d9dde3; }
+    a { color: #0a84ff; } a:hover { color: #0060df; }
+    .caption { font-size: 11px; line-height: 13px; color: #6e6e73; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 500; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+    .btn-primary { background: #0a84ff; color: #ffffff; border-color: #0a84ff; }
+    .field { height: 26px; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.14); background: #ffffff; padding: 0 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1d1d1f; }
+    .check { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.25); background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .check-on { background: #0a84ff; border-color: #0a84ff; }
+    .check-dim { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.1); }
+    .rrow { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px; }
+    .grp { font-size: 11px; font-weight: 600; color: #6e6e73; padding: 8px 10px 2px; }
+    .badge { font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; font-weight: 500; }
+  </style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: center; padding: 28px 0 40px;">
+  <div style="width: 360px; border-radius: 10px; background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.22); display: flex; flex-direction: column; position: relative;">
+    <div style="position: absolute; top: -6px; left: 34px; width: 10px; height: 10px; background: #ffffff; border-left: 1px solid rgba(0,0,0,0.12); border-top: 1px solid rgba(0,0,0,0.12); transform: rotate(45deg);"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 6px;">
+      <div class="field"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#8e8e93" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg><span style="font-weight: 500;">key</span><span style="color:#8e8e93;">|</span></div>
+      <div style="display: flex; height: 20px; border-radius: 6px; background: rgba(0,0,0,0.06); padding: 2px; font-size: 11px;">
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; border-radius: 4px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.12); font-weight: 500;">All</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Entra</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Azure</div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #3a3a3c;">Groups</div>
+      </div>
+    </div>
+    <div style="height: 1px; background: rgba(0,0,0,0.08);"></div>
+    <div style="display: flex; flex-direction: column; padding-bottom: 6px;">
+      <div class="grp">alex.rivera@contoso.com · Contoso</div>
+      <div class="rrow"><div class="check check-on"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2 4.2 7.4 8 3.4"></path></svg></div><div style="display: flex; flex-direction: column;"><span>Key Vault Administrator</span><span class="caption" style="font-size: 10px; line-height: 11px;">Contoso Production · subscription</span></div><div style="flex-grow: 1;"></div><span class="caption">Azure · approval</span></div>
+      <div class="rrow"><div class="check"></div><div style="display: flex; flex-direction: column;"><span>Key Vault Secrets Officer</span><span class="caption" style="font-size: 10px; line-height: 11px;">kv-prod-eu · key vault</span></div><div style="flex-grow: 1;"></div><span class="caption">Azure</span></div>
+      <div class="rrow" style="color: #a1a1a6;"><div class="check check-dim"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#a1a1a6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2 4.2 7.4 8 3.4"></path></svg></div><span>Key Vault Reader</span><div style="flex-grow: 1;"></div><span class="caption" style="color:#a1a1a6;">already in profile</span></div>
+      <div class="grp">alex.admin@northwind.com · Northwind</div>
+      <div class="rrow"><div class="check check-on"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2 4.2 7.4 8 3.4"></path></svg></div><span>sg-keyvault-operators</span><div style="flex-grow: 1;"></div><span class="caption">Group</span></div>
+      <div class="rrow"><div class="check"></div><span>Key Vault Crypto Officer</span><div style="flex-grow: 1;"></div><span class="caption">Azure · MFA</span></div>
+    </div>
+    <div style="height: 1px; background: rgba(0,0,0,0.08);"></div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px;">
+      <span class="caption">Eligible roles across all accounts. Tenants still loading show a spinner.</span>
+      <div style="flex-grow: 1;"></div>
+      <span class="btn">Cancel</span>
+      <span class="btn btn-primary">Add 2</span>
+    </div>
+  </div>
+  <div class="caption" style="width: 360px; margin-top: 12px; line-height: 15px;">Add roles picker, a popover from the "Add roles…" button. Search first, then a scope filter; results grouped by account and tenant like the panel. Roles already in the profile are shown but disabled so the user sees why a search finds nothing new.</div>
+</div>
+</x-dc>
+</body>
+</html>
