@@ -6,20 +6,21 @@ import Foundation
 /// common "I activated but I am still denied" report. Lives in Core so the app and the CLI word
 /// the hint the same way and the check is testable without either.
 public enum TokenCacheHint {
-    /// Refreshes the Azure CLI's cached ARM token without signing out; the safe alternative to `az account clear`.
-    public static let azureCliCommand = "az account get-access-token --force-refresh"
+    /// Signing in again is the only way to get an Azure CLI token that carries the new assignment:
+    /// `az account get-access-token` reuses the cached one and has no flag to force a fresh sign-in.
+    public static let azureCliCommand = "az login"
 
     /// Drops kubelogin's cached AKS tokens; the next kubectl call gets a fresh one.
     public static let kubeloginCommand = "kubelogin remove-tokens"
 
     /// The line to put in front of the user; the commands follow in `advice`.
     public static func message(account: String) -> String {
-        "Tokens the Azure CLI, Azure PowerShell and kubelogin cached for \(account) may predate this activation and lack the new assignment."
+        "Azure CLI, Azure PowerShell and kubelogin tokens cached for \(account) predate this activation."
     }
 
     /// What to run before retrying, naming the exact commands.
     public static var advice: String {
-        "Refresh with '\(azureCliCommand)' (AKS: '\(kubeloginCommand)'); Azure PowerShell needs Connect-AzAccount again."
+        "Run '\(azureCliCommand)' again (AKS: '\(kubeloginCommand)'); Azure PowerShell needs Connect-AzAccount again."
     }
 
     /// Ids of the accounts whose cached tokens the outcomes make stale: those with an Azure resource

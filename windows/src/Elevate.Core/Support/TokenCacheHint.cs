@@ -12,19 +12,22 @@ namespace Elevate.Core.Support;
 /// </summary>
 public static class TokenCacheHint
 {
-    /// <summary>Refreshes the Azure CLI's cached ARM token without signing out; the safe alternative to <c>az account clear</c>.</summary>
-    public const string AzureCliCommand = "az account get-access-token --force-refresh";
+    /// <summary>
+    /// Signing in again is the only way to get an Azure CLI token that carries the new assignment:
+    /// <c>az account get-access-token</c> reuses the cached one and has no flag to force a fresh sign-in.
+    /// </summary>
+    public const string AzureCliCommand = "az login";
 
     /// <summary>Drops kubelogin's cached AKS tokens; the next kubectl call gets a fresh one.</summary>
     public const string KubeloginCommand = "kubelogin remove-tokens";
 
     /// <summary>The line to put in front of the user; the commands follow in <see cref="Advice"/>.</summary>
     public static string Message(string account) =>
-        $"Tokens the Azure CLI, Azure PowerShell and kubelogin cached for {account} may predate this activation and lack the new assignment.";
+        $"Azure CLI, Azure PowerShell and kubelogin tokens cached for {account} predate this activation.";
 
     /// <summary>What to run before retrying, naming the exact commands.</summary>
     public static string Advice =>
-        $"Refresh with '{AzureCliCommand}' (AKS: '{KubeloginCommand}'); Azure PowerShell needs Connect-AzAccount again.";
+        $"Run '{AzureCliCommand}' again (AKS: '{KubeloginCommand}'); Azure PowerShell needs Connect-AzAccount again.";
 
     /// <summary>
     /// Ids of the accounts whose cached tokens the outcomes make stale: those with an Azure resource

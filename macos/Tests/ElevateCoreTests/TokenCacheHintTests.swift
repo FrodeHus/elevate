@@ -37,8 +37,9 @@ import Foundation
 
     @Test func wordingNamesTheAccountAndTheExactCommands() {
         #expect(TokenCacheHint.message(account: "alex@contoso.com").contains("alex@contoso.com"))
-        #expect(TokenCacheHint.advice.contains("az account get-access-token --force-refresh"))
+        #expect(TokenCacheHint.advice.contains("az login"))
         #expect(TokenCacheHint.advice.contains("kubelogin remove-tokens"))
-        #expect(!TokenCacheHint.advice.contains("az account clear"))
+        // az has no flag that forces a fresh token; signing in again is the only way.
+        #expect(!TokenCacheHint.advice.contains("--force-refresh"))
     }
 }

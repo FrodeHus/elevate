@@ -73,8 +73,8 @@ token does not carry the new Azure role assignment or group membership, and the 
 until it expires, so a command right after activating is refused as if nothing had happened.
 Elevate shows a hint after an Azure or group activation, in the panel and in the CLI, with the fix:
 
-- Azure CLI: `az account get-access-token --force-refresh` (not `az account clear`, which signs
-  every account out).
+- Azure CLI: `az login` again (`az account get-access-token` has no flag that forces a fresh
+  token; it hands back the cached one). `az account clear` first if the sign-in reuses the cache.
 - AKS with kubelogin: `kubelogin remove-tokens`, then run the `kubectl` command again.
 - Azure PowerShell: `Connect-AzAccount` again.
 
