@@ -132,8 +132,8 @@ in place; during the command it reaches the command, and `run` exits with the co
 **Stale tokens.** After an Azure resource role or a group membership activates, the Azure CLI,
 Azure PowerShell and kubelogin keep using the token they cached before it, which lacks the new
 assignment, so the next command is refused as if nothing had happened. The CLI says so after such
-an activation and names the fix: `az account get-access-token --force-refresh` (and
-`kubelogin remove-tokens` for AKS), or a fresh `Connect-AzAccount`. `elevate config set token-hint
+an activation and names the fix: `az login` again (and `kubelogin remove-tokens` for AKS), or a
+fresh `Connect-AzAccount`. `elevate config set token-hint
 off --account alex` hides the line for one account; `on` brings it back.
 
 Global options: `--json`, `--quiet`, `--no-color` (or `NO_COLOR`), `--device-code`, `--data-dir`.

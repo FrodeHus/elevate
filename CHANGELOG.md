@@ -53,9 +53,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   helm and suggests `elevate run` when one of them fails with an authorization error.
 - macOS, Windows and CLI: after an Azure resource role or a group membership activates, a one-line
   hint says the Azure CLI, Azure PowerShell and kubelogin caches predate it, with the commands that
-  refresh them (`az account get-access-token --force-refresh`, `kubelogin remove-tokens`). The apps
+  refresh them (`az login`, `kubelogin remove-tokens`). The apps
   offer "Copy command"; the hint is dismissable per account, and the CLI hides it with
   `elevate config set token-hint off --account <name>`.
+
+### Fixed
+
+- macOS: the stale-token hint banner grew no taller than one line, so its caption was drawn over
+  the "Active now" section and the rows below it. It now wraps to the height it needs and pushes
+  the list down, with the message and the advice on separate lines.
+- macOS, Windows and CLI: the stale-token hint named `az account get-access-token --force-refresh`,
+  a flag the Azure CLI does not have. It now says to run `az login` again, which is what actually
+  gets a token carrying the new assignment.
 
 ## [1.5.0] - 2026-09-08
 
