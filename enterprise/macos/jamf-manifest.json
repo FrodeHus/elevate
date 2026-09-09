@@ -1,0 +1,108 @@
+{
+  "title": "Elevate",
+  "description": "Organization-managed settings for Elevate (preference domain no.reothor.elevate). Leave a setting out to leave the choice to the user; every setting you send is locked and shows a \"Managed by your organization\" caption in the app.",
+  "__comment": "Jamf Pro > Computers > Configuration Profiles > Application & Custom Settings > External Applications: source 'Custom Schema', preference domain 'no.reothor.elevate', then upload this file.",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "options": {
+    "remove_empty_properties": true
+  },
+  "links": [
+    {
+      "rel": "Key reference",
+      "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md"
+    }
+  ],
+  "properties": {
+    "ClientId": {
+      "type": "string",
+      "title": "Application (client) id",
+      "description": "The Entra application (client) id Elevate signs in with, as a GUID. Leave out to let each user enter their own.",
+      "links": [
+        {
+          "rel": "ClientId",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#clientid"
+        }
+      ]
+    },
+    "DisableUpdateCheck": {
+      "type": "boolean",
+      "title": "Disable the update check",
+      "description": "true stops the daily GitHub releases check and hides the update user interface. Leave out to let the check run.",
+      "links": [
+        {
+          "rel": "DisableUpdateCheck",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#disableupdatecheck"
+        }
+      ]
+    },
+    "AllowedSignInMethods": {
+      "type": "array",
+      "title": "Allowed sign-in methods",
+      "description": "The sign-in methods users may add accounts with. Leave out or empty to allow all of them.",
+      "items": {
+        "type": "string",
+        "title": "Method",
+        "enum": ["ownApp", "azureCLI", "azurePowerShell", "custom"]
+      },
+      "links": [
+        {
+          "rel": "AllowedSignInMethods",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#allowedsigninmethods"
+        }
+      ]
+    },
+    "AllowedTenants": {
+      "type": "array",
+      "title": "Allowed tenants",
+      "description": "Tenant ids or verified domains users may add or discover. Leave out for no restriction.",
+      "items": {
+        "type": "string",
+        "title": "Tenant id or verified domain"
+      },
+      "links": [
+        {
+          "rel": "AllowedTenants",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#allowedtenants"
+        }
+      ]
+    },
+    "PinnedTenants": {
+      "type": "array",
+      "title": "Pinned tenants",
+      "description": "Tenant ids or verified domains tracked automatically for every account that can reach them.",
+      "items": {
+        "type": "string",
+        "title": "Tenant id or verified domain"
+      },
+      "links": [
+        {
+          "rel": "PinnedTenants",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#pinnedtenants"
+        }
+      ]
+    },
+    "ManagedProfiles": {
+      "type": "string",
+      "title": "Managed profiles (inline)",
+      "description": "A profile set as a JSON document, in the format of docs/enterprise/keys.md. Published profiles can be run but not edited or deleted.",
+      "links": [
+        {
+          "rel": "ManagedProfiles",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#managedprofiles"
+        }
+      ]
+    },
+    "ManagedProfilesUrl": {
+      "type": "string",
+      "title": "Managed profiles URL",
+      "description": "An https:// URL serving the same profile set, fetched once a day. http:// URLs are ignored.",
+      "links": [
+        {
+          "rel": "ManagedProfilesUrl",
+          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#managedprofilesurl"
+        }
+      ]
+    }
+  }
+}

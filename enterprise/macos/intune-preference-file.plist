@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Elevate settings for an Intune macOS "Preference file" profile.
+
+  Devices > Configuration > Create > macOS > Templates > Preference file:
+  preference domain name `no.reothor.elevate`, then upload this file. Delete the keys you do not
+  want to force; every key present is locked. See docs/enterprise/keys.md.
+-->
+<plist version="1.0">
+<dict>
+  <key>ClientId</key>
+  <string>00000000-0000-0000-0000-000000000000</string>
+  <key>DisableUpdateCheck</key>
+  <true/>
+  <key>AllowedSignInMethods</key>
+  <array>
+    <string>ownApp</string>
+  </array>
+  <key>AllowedTenants</key>
+  <array>
+    <string>contoso.com</string>
+  </array>
+  <key>PinnedTenants</key>
+  <array>
+    <string>contoso.com</string>
+  </array>
+  <key>ManagedProfiles</key>
+  <string>{"version":1,"profiles":[{"id":"prod-incident","name":"Prod incident","reason":"Incident response","pinned":true,"roles":[{"kind":"entraDirectory","tenant":"contoso.com","role":"Security Reader"}]}]}</string>
+  <key>ManagedProfilesUrl</key>
+  <string>https://example.com/elevate/profiles.json</string>
+</dict>
+</plist>

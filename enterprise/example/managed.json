@@ -1,0 +1,48 @@
+{
+  "ClientId": "11111111-2222-3333-4444-555555555555",
+  "DisableUpdateCheck": true,
+  "AllowedSignInMethods": [
+    "ownApp"
+  ],
+  "AllowedTenants": [
+    "contoso.com",
+    "fabrikam.com"
+  ],
+  "PinnedTenants": [
+    "contoso.com",
+    "fabrikam.com"
+  ],
+  "ManagedProfiles": {
+    "version": 1,
+    "profiles": [
+      {
+        "id": "prod-incident",
+        "name": "Prod incident",
+        "reason": "Incident response",
+        "pinned": true,
+        "roles": [
+          {
+            "kind": "azureResource",
+            "tenant": "contoso.com",
+            "scope": "/subscriptions/00000000-0000-0000-0000-000000000001",
+            "role": "Contributor",
+            "duration": "PT2H"
+          },
+          {
+            "kind": "entraDirectory",
+            "tenant": "contoso.com",
+            "role": "Security Reader"
+          },
+          {
+            "kind": "group",
+            "tenant": "contoso.com",
+            "group": "SRE on-call",
+            "access": "member",
+            "duration": "PT4H"
+          }
+        ]
+      }
+    ]
+  },
+  "ManagedProfilesUrl": "https://example.com/elevate/profiles.json"
+}

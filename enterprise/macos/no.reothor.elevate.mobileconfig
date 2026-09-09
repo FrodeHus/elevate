@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Elevate managed preferences template for macOS.
+
+  Replace the placeholders below, delete the keys you do not want to force, then upload the file
+  as a Jamf Pro configuration profile (Computers > Configuration Profiles > Upload) or an Intune
+  macOS "Templates > Custom" profile. Every key present here is LOCKED: the setting renders
+  disabled in Elevate with a "Managed by your organization" caption. A key you delete leaves the
+  choice to the user.
+
+  Generate fresh UUIDs for PayloadUUID (there are two) with `uuidgen` before you deploy, and set
+  PayloadOrganization and PayloadIdentifier to your own organization's values.
+
+  Every key is documented in docs/enterprise/keys.md.
+-->
+<plist version="1.0">
+<dict>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadIdentifier</key>
+  <string>no.reothor.elevate.managed</string>
+  <key>PayloadUUID</key>
+  <string>1B7A2A6E-0000-4000-A000-000000000001</string>
+  <key>PayloadDisplayName</key>
+  <string>Elevate managed settings</string>
+  <key>PayloadDescription</key>
+  <string>Organization-managed settings for Elevate.</string>
+  <key>PayloadOrganization</key>
+  <string>Contoso</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadRemovalDisallowed</key>
+  <true/>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>com.apple.ManagedClient.preferences</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>PayloadIdentifier</key>
+      <string>no.reothor.elevate.managed.preferences</string>
+      <key>PayloadUUID</key>
+      <string>1B7A2A6E-0000-4000-A000-000000000002</string>
+      <key>PayloadDisplayName</key>
+      <string>Elevate preferences</string>
+      <key>PayloadEnabled</key>
+      <true/>
+      <key>PayloadContent</key>
+      <dict>
+        <key>no.reothor.elevate</key>
+        <dict>
+          <key>Forced</key>
+          <array>
+            <dict>
+              <key>mcx_preference_settings</key>
+              <dict>
+                <!-- Delete this key to let each user enter their own app registration. -->
+                <key>ClientId</key>
+                <string>00000000-0000-0000-0000-000000000000</string>
+
+                <!-- Delete this key to leave the daily update check to the user. -->
+                <key>DisableUpdateCheck</key>
+                <true/>
+
+                <!-- Delete this key to allow every sign-in method.
+                     Allowed names: ownApp, azureCLI, azurePowerShell, custom. -->
+                <key>AllowedSignInMethods</key>
+                <array>
+                  <string>ownApp</string>
+                </array>
+
+                <!-- Delete this key to let users add any tenant. -->
+                <key>AllowedTenants</key>
+                <array>
+                  <string>contoso.com</string>
+                </array>
+
+                <!-- Delete this key to let users choose which tenants they track. -->
+                <key>PinnedTenants</key>
+                <array>
+                  <string>contoso.com</string>
+                </array>
+
+                <!-- The profile set as one JSON string. Delete this key when you publish
+                     profiles through ManagedProfilesUrl only, or when you publish none. -->
+                <key>ManagedProfiles</key>
+                <string>{"version":1,"profiles":[{"id":"prod-incident","name":"Prod incident","reason":"Incident response","pinned":true,"roles":[{"kind":"entraDirectory","tenant":"contoso.com","role":"Security Reader"}]}]}</string>
+
+                <!-- Delete this key when you do not host a profile set. https:// only. -->
+                <key>ManagedProfilesUrl</key>
+                <string>https://example.com/elevate/profiles.json</string>
+              </dict>
+            </dict>
+          </array>
+        </dict>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

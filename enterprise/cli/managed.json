@@ -1,0 +1,22 @@
+{
+  "ClientId": "00000000-0000-0000-0000-000000000000",
+  "DisableUpdateCheck": true,
+  "AllowedSignInMethods": ["ownApp"],
+  "AllowedTenants": ["contoso.com"],
+  "PinnedTenants": ["contoso.com"],
+  "ManagedProfiles": {
+    "version": 1,
+    "profiles": [
+      {
+        "id": "prod-incident",
+        "name": "Prod incident",
+        "reason": "Incident response",
+        "pinned": true,
+        "roles": [
+          { "kind": "entraDirectory", "tenant": "contoso.com", "role": "Security Reader" }
+        ]
+      }
+    ]
+  },
+  "ManagedProfilesUrl": "https://example.com/elevate/profiles.json"
+}
