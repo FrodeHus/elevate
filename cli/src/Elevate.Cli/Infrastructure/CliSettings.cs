@@ -68,6 +68,22 @@ public sealed class CliSettings
         set => Set("latestKnownVersion", value);
     }
 
+    /// <summary>
+    /// Ids of the accounts for which the stale-token hint after an Azure or group activation is
+    /// hidden. Same key as the Windows app's settings, so a shared data directory shares the choice.
+    /// </summary>
+    public IReadOnlySet<string> DismissedTokenHintAccounts
+    {
+        get => _root["dismissedTokenHintAccounts"] is JsonArray array
+            ? array.Select(n => n?.GetValue<string>()).OfType<string>().ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Set("dismissedTokenHintAccounts", value.Count == 0 ? null : new JsonArray([.. value.Order(StringComparer.Ordinal).Select(v => (JsonNode)v)]));
+        }
+    }
+
     public bool IsConfigured => IsValidClientId(ClientId);
 
     public static bool IsValidClientId(string? value)

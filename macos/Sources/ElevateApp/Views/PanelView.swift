@@ -77,6 +77,25 @@ struct PanelView: View {
                 .background(.blue.opacity(0.12))
                 Divider()
             }
+            // After an Azure or group activation: cached az / kubelogin tokens predate it. Dismiss hides it for that account.
+            if let hint = model.tokenHint {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "key.horizontal").foregroundStyle(.blue)
+                    Text("\(TokenCacheHint.message(account: hint.account)) \(TokenCacheHint.advice)")
+                        .font(.caption).textSelection(.enabled)
+                    Spacer()
+                    Button("Copy command") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(TokenCacheHint.azureCliCommand, forType: .string)
+                    }
+                    .buttonStyle(.borderless).help("Copies '\(TokenCacheHint.azureCliCommand)'")
+                    Button("Dismiss") { model.dismissTokenHint() }
+                        .buttonStyle(.borderless).help("Hide this for \(hint.account)")
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(.blue.opacity(0.12))
+                Divider()
+            }
             if !model.isConfigured && model.identities.isEmpty {
                 SetupView()
             } else if let fatal = model.startupError {

@@ -41,6 +41,7 @@ public sealed class AppSettings : ObservableObject
     private Guid? _hotKeyProfileId;
     private DateTimeOffset? _lastUpdateCheck;
     private string? _dismissedUpdateVersion;
+    private HashSet<string> _dismissedTokenHintAccounts = new(StringComparer.Ordinal);
 
     public AppSettings(string? directory = null)
     {
@@ -62,7 +63,8 @@ public sealed class AppSettings : ObservableObject
         HotKeyBinding? HotKey = null,
         Guid? HotKeyProfileId = null,
         DateTimeOffset? LastUpdateCheck = null,
-        string? DismissedUpdateVersion = null);
+        string? DismissedUpdateVersion = null,
+        List<string>? DismissedTokenHintAccounts = null);
 
     public string Directory { get; }
 
@@ -221,6 +223,25 @@ public sealed class AppSettings : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Ids of the accounts for which the stale-token hint after an Azure or group activation was
+    /// dismissed. Same key as the CLI's settings, so a shared data directory shares the choice.
+    /// </summary>
+    public IReadOnlySet<string> DismissedTokenHintAccounts
+    {
+        get => _dismissedTokenHintAccounts;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (!_dismissedTokenHintAccounts.SetEquals(value))
+            {
+                _dismissedTokenHintAccounts = new HashSet<string>(value, StringComparer.Ordinal);
+                OnPropertyChanged();
+                Save();
+            }
+        }
+    }
+
     public bool IsConfigured => IsValidClientId(ClientId);
 
     /// <summary>The redirect URI the Windows broker (WAM) expects the registration to list for a client id.</summary>
@@ -259,6 +280,7 @@ public sealed class AppSettings : ObservableObject
             _hotKeyProfileId = model.HotKeyProfileId;
             _lastUpdateCheck = model.LastUpdateCheck;
             _dismissedUpdateVersion = model.DismissedUpdateVersion;
+            _dismissedTokenHintAccounts = new HashSet<string>(model.DismissedTokenHintAccounts ?? [], StringComparer.Ordinal);
         }
         catch (JsonException)
         {
@@ -272,7 +294,8 @@ public sealed class AppSettings : ObservableObject
         var model = new FileModel(
             _clientId, _customClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
-            _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion);
+            _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
+            _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)]);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);

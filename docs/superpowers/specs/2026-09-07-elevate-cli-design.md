@@ -95,6 +95,25 @@ for scripts; `extend` is the explicit deactivate-and-reactivate. `--wait` polls 
 the role reports active, up to five minutes. `profiles run` prints the plan, then the outcomes.
 Missing reasons and tickets are prompted for only when stdin is a terminal and `--json` is off.
 
+`run [--profile NAME] [--role ROLE…] [--deactivate-after] -- <command>` is the activate-then-retry
+loop as one command. It resolves the executable first (a typo must not cost an activation),
+activates what is named for ten minutes by default (`--duration` overrides; the override is never
+remembered as a role's or profile's duration), then `ActivationWaiter` polls until every key is
+active: provisioning, an approval (reported as such; a pending request that disappears was denied
+and fails the run) or a scheduled start, up to `--timeout` (15 minutes). A group activation is
+followed by a `--settle` pause (30 s) for the claim to propagate. The command then runs through
+`CommandLauncher` with inherited stdio; the executable is found the way a shell finds it, `PATHEXT`
+included, because `CreateProcess` would not see `az.cmd` behind `az`. Ctrl+C reaches the child
+through the shared console, so `Program` raises System.CommandLine's termination grace for `run`
+and waits for the child instead of exiting after two seconds. `run` exits with the child's code,
+127 when the command was not found. `--json` is refused: stdout belongs to the command.
+
+After an Azure or group activation every activating command prints `TokenCacheHint` (Core) on
+stderr: the Azure CLI, Azure PowerShell and kubelogin caches predate the activation. The hint is per
+account and `config set token-hint off --account X` stores the dismissal under the same settings key
+the Windows app uses. `init bash|zsh|fish|pwsh` prints `ShellHooks`: wrappers for az, kubectl,
+terraform and helm that tee stderr and, on `AuthorizationFailed`, suggest `elevate run`.
+
 ## 7. Release
 
 `.github/workflows/cli.yml` tests on Ubuntu, macOS and Windows and publishes the host RID once.

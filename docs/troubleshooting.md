@@ -66,6 +66,23 @@ A red message on the row states Entra's reason. The usual ones:
   role must stay active for five minutes before it can be deactivated.
 - **Multi-factor authentication required**: complete the browser step-up and try again.
 
+## Activated, but the Azure CLI or kubectl still says AuthorizationFailed
+
+The Azure CLI, Azure PowerShell and kubelogin cache the token they got before the activation. That
+token does not carry the new Azure role assignment or group membership, and the tools keep using it
+until it expires, so a command right after activating is refused as if nothing had happened.
+Elevate shows a hint after an Azure or group activation, in the panel and in the CLI, with the fix:
+
+- Azure CLI: `az account get-access-token --force-refresh` (not `az account clear`, which signs
+  every account out).
+- AKS with kubelogin: `kubelogin remove-tokens`, then run the `kubectl` command again.
+- Azure PowerShell: `Connect-AzAccount` again.
+
+A group membership also takes a few minutes to reach new tokens. The CLI's `elevate run` waits for
+the activation and, for groups, pauses before running the command (`--settle` sets how long). The
+hint can be hidden per account: close it in the panel, or `elevate config set token-hint off
+--account <name>` in the CLI (`on` brings it back).
+
 ## Notifications are silent
 
 Allow notifications for Elevate under System Settings → Notifications. Elevate shows a notice in

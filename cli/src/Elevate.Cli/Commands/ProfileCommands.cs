@@ -218,29 +218,8 @@ public static class ProfileCommands
                 }
             }
 
-            var justification = (parse.GetValue(reason) ?? profile.LastJustification ?? string.Empty).Trim();
-            if (justification.Length == 0 && toRun.Any(i => i.Role?.Policy.RequiresJustification ?? true))
-            {
-                if (!context.Output.CanPrompt)
-                {
-                    throw new CliException("The profile needs a reason: pass --reason.", ExitCodes.Usage);
-                }
-
-                justification = context.Output.Stderr.Prompt(new TextPrompt<string>($"Reason for [bold]{Markup.Escape(profile.Name)}[/]:"));
-            }
-
-            TicketInfo? ticketInfo = string.IsNullOrWhiteSpace(parse.GetValue(ticket)) ? null : new TicketInfo(parse.GetValue(ticket)!.Trim(), (parse.GetValue(ticketSystem) ?? string.Empty).Trim());
-            if (ticketInfo is null && toRun.Any(i => i.Role?.Policy.RequiresTicket == true))
-            {
-                if (!context.Output.CanPrompt)
-                {
-                    throw new CliException("A role in the profile needs a ticket: pass --ticket and --ticket-system.", ExitCodes.Usage);
-                }
-
-                var number = context.Output.Stderr.Prompt(new TextPrompt<string>("Ticket number:"));
-                var system = context.Output.Stderr.Prompt(new TextPrompt<string>("Ticket system:").AllowEmpty());
-                ticketInfo = new TicketInfo(number.Trim(), system.Trim());
-            }
+            var justification = RequireJustification(context, profile, toRun, parse.GetValue(reason));
+            var ticketInfo = RequireTicket(context, toRun, ActivationCommands.TicketFrom(parse.GetValue(ticket), parse.GetValue(ticketSystem)));
 
             var start = parse.GetValue(at) is { } a ? StartTimeParser.Require(a) : (DateTimeOffset?)null;
             var outcomes = await context.Output.StatusAsync($"Running {profile.Name}…",
@@ -248,21 +227,7 @@ public static class ProfileCommands
             var now = DateTimeOffset.UtcNow;
             if (parse.GetValue(wait))
             {
-                var waiting = outcomes.Where(o => o.Result is ActivationResult.Activated).Select(o => o.RoleKey).ToList();
-                var deadline = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5);
-                await context.Output.StatusAsync("Waiting for the roles to become active…", async () =>
-                {
-                    while (waiting.Count > 0 && DateTimeOffset.UtcNow < deadline)
-                    {
-                        await session.RefreshAsync(waiting.Select(k => k.TenantKey), ct).ConfigureAwait(false);
-                        if (waiting.All(k => session.Active.GetValueOrDefault(k)?.Status.Kind == AssignmentStatusKind.Active))
-                        {
-                            return;
-                        }
-
-                        await Task.Delay(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-                    }
-                }).ConfigureAwait(false);
+                await ActivationCommands.WaitForActiveAsync(context, outcomes, ct).ConfigureAwait(false);
             }
 
             if (context.Output.Json)
@@ -274,10 +239,46 @@ public static class ProfileCommands
                 context.Output.Write(Views.OutcomesTable(session, outcomes, now));
             }
 
+            TokenHints.Report(context, outcomes);
             var failed = outcomes.Count(o => o.Result is ActivationResult.Failed);
             return failed == 0 ? ExitCodes.Ok : failed == outcomes.Count ? ExitCodes.Failure : ExitCodes.Partial;
         });
         return command;
+    }
+
+    /// <summary>The reason for a profile run: the option, then the profile's last one, then a prompt when a policy needs one.</summary>
+    internal static string RequireJustification(CommandContext context, ActivationProfile profile, IReadOnlyList<ProfilePlanItem> toRun, string? reason)
+    {
+        var justification = (reason ?? profile.LastJustification ?? string.Empty).Trim();
+        if (justification.Length == 0 && toRun.Any(i => i.Role?.Policy.RequiresJustification ?? true))
+        {
+            if (!context.Output.CanPrompt)
+            {
+                throw new CliException("The profile needs a reason: pass --reason.", ExitCodes.Usage);
+            }
+
+            justification = context.Output.Stderr.Prompt(new TextPrompt<string>($"Reason for [bold]{Markup.Escape(profile.Name)}[/]:"));
+        }
+
+        return justification;
+    }
+
+    /// <summary>The ticket for a profile run: the one given, else a prompt when a policy needs one.</summary>
+    internal static TicketInfo? RequireTicket(CommandContext context, IReadOnlyList<ProfilePlanItem> toRun, TicketInfo? ticket)
+    {
+        if (ticket is not null || !toRun.Any(i => i.Role?.Policy.RequiresTicket == true))
+        {
+            return ticket;
+        }
+
+        if (!context.Output.CanPrompt)
+        {
+            throw new CliException("A role in the profile needs a ticket: pass --ticket and --ticket-system.", ExitCodes.Usage);
+        }
+
+        var number = context.Output.Stderr.Prompt(new TextPrompt<string>("Ticket number:"));
+        var system = context.Output.Stderr.Prompt(new TextPrompt<string>("Ticket system:").AllowEmpty());
+        return new TicketInfo(number.Trim(), system.Trim());
     }
 
     private static Dto.PlanItem PlanDto(CommandContext context, ProfilePlanItem item)

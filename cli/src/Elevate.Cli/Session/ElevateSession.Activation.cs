@@ -10,9 +10,12 @@ public sealed partial class ElevateSession
     /// Sends the requests. With <paramref name="deactivateFirst"/> an already active role is
     /// deactivated before it is re-activated, which is how Extend works. Outcomes come back in
     /// request order; the state (memory, rekeyed manual roles, consent latches) is persisted.
+    /// With <paramref name="rememberDuration"/> off the reason is remembered but the duration is
+    /// not: <c>elevate run</c> activates for minutes and must not change what <c>activate</c> proposes.
     /// </summary>
     public async Task<IReadOnlyList<ActivationOutcome>> ActivateAsync(
-        IReadOnlyList<ActivationRequest> requests, bool deactivateFirst, Action<ActivationOutcome>? onProgress = null, CancellationToken ct = default)
+        IReadOnlyList<ActivationRequest> requests, bool deactivateFirst, Action<ActivationOutcome>? onProgress = null, CancellationToken ct = default,
+        bool rememberDuration = true)
     {
         ArgumentNullException.ThrowIfNull(requests);
         var deactivated = new HashSet<RoleKey>();
@@ -68,7 +71,7 @@ public sealed partial class ElevateSession
                         }
 
                         Active[a.RoleKey] = a;
-                        State.Remember(a.RoleKey, request.Justification, request.Duration);
+                        State.Remember(a.RoleKey, request.Justification, rememberDuration ? request.Duration : State.MemoryFor(a.RoleKey)?.LastDuration);
                         break;
                     case ActivationResult.Failed { Error: var error }:
                         Active.Remove(request.RoleKey);
