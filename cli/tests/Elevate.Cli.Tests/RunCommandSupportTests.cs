@@ -21,13 +21,14 @@ public class RunCommandSupportTests
             File.WriteAllText(Path.Combine(dir, "kubectl"), "#!/bin/sh");
             var path = "/nowhere" + Path.PathSeparator + dir;
 
-            // BeEquivalentTo: the extension comes back as PATHEXT spells it, and Windows does not mind the case.
-            CommandLauncher.Resolve("az", path, ".COM;.EXE;.CMD").Should().BeEquivalentTo(Path.Combine(dir, "az.cmd"));
-            CommandLauncher.Resolve("az.cmd", path, ".COM;.EXE;.CMD").Should().Be(Path.Combine(dir, "az.cmd"));
+            // The extension is probed as PATHEXT spells it. Windows ignores the case, but this test also
+            // runs on Linux where the file system does not, so PATHEXT here spells it the way the file does.
+            CommandLauncher.Resolve("az", path, ".COM;.EXE;.cmd").Should().Be(Path.Combine(dir, "az.cmd"));
+            CommandLauncher.Resolve("az.cmd", path, ".COM;.EXE;.cmd").Should().Be(Path.Combine(dir, "az.cmd"));
             CommandLauncher.Resolve("kubectl", path, string.Empty).Should().Be(Path.Combine(dir, "kubectl"));
-            CommandLauncher.Resolve("terraform", path, ".COM;.EXE;.CMD").Should().BeNull();
-            CommandLauncher.Resolve(Path.Combine(dir, "az"), string.Empty, ".CMD").Should().BeEquivalentTo(Path.Combine(dir, "az.cmd"), "a path is tried as given, with the extensions");
-            CommandLauncher.Resolve(Path.Combine(dir, "missing"), string.Empty, ".CMD").Should().BeNull();
+            CommandLauncher.Resolve("terraform", path, ".COM;.EXE;.cmd").Should().BeNull();
+            CommandLauncher.Resolve(Path.Combine(dir, "az"), string.Empty, ".cmd").Should().Be(Path.Combine(dir, "az.cmd"), "a path is tried as given, with the extensions");
+            CommandLauncher.Resolve(Path.Combine(dir, "missing"), string.Empty, ".cmd").Should().BeNull();
         }
         finally
         {
