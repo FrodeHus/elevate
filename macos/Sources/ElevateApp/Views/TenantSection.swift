@@ -109,9 +109,10 @@ struct TenantRoles: View {
     }
 }
 
-/// The tenant's status: a "manual roles" pill (a mode, not a problem), then one warning glyph in
-/// place of a run of pills for everything that limits this tenant — hover for a summary, click for
-/// the full list — and a spinner while busy.
+/// The tenant's status: a "manual roles" pill (a mode, not a problem), then one glyph in place of a
+/// run of pills for everything that limits this tenant — an informational `info.circle` for mere
+/// capability limitations, or a red warning triangle when discovery/refresh actually failed — hover
+/// for a summary, click for the full list — and a spinner while busy.
 struct TenantPills: View {
     @Environment(AppModel.self) private var model
     let tenant: TenantContext
@@ -139,13 +140,15 @@ struct TenantPills: View {
         let issues = issues
         if !issues.isEmpty {
             Button { showingIssues.toggle() } label: {
-                Image(systemName: hasError ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
-                    .font(.caption).foregroundStyle(hasError ? .red : .orange)
+                Image(systemName: hasError ? "exclamationmark.triangle.fill" : "info.circle")
+                    .font(.caption).foregroundStyle(hasError ? .red : .secondary)
                     .frame(width: 16, height: 16).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(issues.map(\.title).joined(separator: "\n"))
-            .accessibilityLabel(issues.count == 1 ? "1 limitation" : "\(issues.count) limitations")
+            .accessibilityLabel(hasError
+                ? (issues.count == 1 ? "1 error" : "\(issues.count) errors")
+                : (issues.count == 1 ? "1 limitation" : "\(issues.count) limitations"))
             .popover(isPresented: $showingIssues, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(issues) { issue in
