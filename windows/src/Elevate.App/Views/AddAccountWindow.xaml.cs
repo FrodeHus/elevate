@@ -68,7 +68,6 @@ public sealed partial class AddAccountWindow : Window
         SignInMethodKind.Custom => CustomChoice,
         _ => CliChoice,
     };
-    }
 
     private SignInMethod Selection
     {
