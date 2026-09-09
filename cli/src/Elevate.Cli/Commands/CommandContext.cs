@@ -32,6 +32,7 @@ public sealed class CommandContext
     }
 
     private ElevateSession? _session;
+    private bool _managedResolved;
 
     private CommandContext(Output output, string dataDirectory, InteractiveFlow flow)
     {
@@ -83,6 +84,31 @@ public sealed class CommandContext
 
             return _session;
         }
+    }
+
+    /// <summary>
+    /// The session with the organization's managed tenants resolved: the allowed and pinned lists
+    /// turned into tenant ids, tenants the organization no longer permits dropped, and the pinned
+    /// ones tracked. Every command that lists or changes tenants or accounts goes through here, so
+    /// the policy is in place before anything is shown or written. Resolves once per invocation,
+    /// and does nothing at all when no tenants are managed.
+    /// </summary>
+    public async Task<ElevateSession> SessionAsync(CancellationToken ct = default)
+    {
+        var session = Session;
+        if (_managedResolved)
+        {
+            return session;
+        }
+
+        _managedResolved = true;
+        await session.ResolveManagedTenantsAsync(ct).ConfigureAwait(false);
+        foreach (var warning in session.ManagedTenantWarnings)
+        {
+            Output.Warn(Markup.Escape(warning));
+        }
+
+        return session;
     }
 
     /// <summary>The account for <c>--account</c>, or the only one, or an error naming the choices.</summary>

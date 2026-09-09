@@ -10,7 +10,7 @@ namespace Elevate.Cli.Rendering;
 /// <summary>The JSON shapes the read commands print. Stable field names; add, never rename.</summary>
 public static class Dto
 {
-    public sealed record Account(string Id, string Upn, string DisplayName, string HomeTenantId, string SignInMethod, int Tenants);
+    public sealed record Account(string Id, string Upn, string DisplayName, string HomeTenantId, string SignInMethod, int Tenants, bool NotPermitted);
 
     public sealed record Tenant(
         string AccountId, string Account, string TenantId, string DisplayName, string Source, string DiscoveryMode,
@@ -107,7 +107,7 @@ public static class Views
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(identity);
         return new Dto.Account(identity.Id, identity.Upn, identity.DisplayName, identity.HomeTenantId, identity.SignInMethod.StorageKey,
-            session.Tenants.Count(t => t.IdentityId == identity.Id));
+            session.Tenants.Count(t => t.IdentityId == identity.Id), !session.IsMethodAllowed(identity.SignInMethod));
     }
 
     public static IReadOnlyList<string> TenantFlags(ElevateSession session, TenantContext tenant)
@@ -138,6 +138,11 @@ public static class Views
         if (tenant.EntraActivation is { IsSupported: false })
         {
             flags.Add("entra view-only");
+        }
+
+        if (session.IsPinnedTenant(tenant.Key))
+        {
+            flags.Add("pinned");
         }
 
         return flags;

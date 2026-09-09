@@ -12,6 +12,7 @@ namespace Elevate.Cli.Tests;
 /// one and cannot be changed, <c>config</c> says where each value came from, and
 /// <c>config managed</c> reports the policy in effect.
 /// </summary>
+[Collection(ConsoleCollection.Name)]
 public class ManagedConfigTests
 {
     private static ManagedConfiguration Managed(params (string Key, object? Value)[] pairs) =>

@@ -75,7 +75,7 @@ public static class RunCommands
                 ?? throw new CliException($"Command not found: {words[0]}", ExitCodes.CommandNotFound);
 
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             var chosenProfile = profileName is null
                 ? null

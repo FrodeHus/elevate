@@ -34,7 +34,7 @@ public static class ActivationCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = await ChooseAsync(context, parse.GetValue(roles) ?? [], filter, "activate").ConfigureAwait(false);
@@ -102,7 +102,7 @@ public static class ActivationCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);
@@ -140,7 +140,7 @@ public static class ActivationCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);
@@ -193,7 +193,7 @@ public static class ActivationCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);

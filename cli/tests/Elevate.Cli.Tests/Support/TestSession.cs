@@ -3,6 +3,7 @@ using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Session;
 using Elevate.Core.Managed;
 using Elevate.Core.Models;
+using Elevate.Core.Networking;
 using Elevate.Core.Storage;
 
 namespace Elevate.Cli.Tests.Support;
@@ -17,7 +18,11 @@ public sealed class TestSession : IDisposable
     /// <param name="managed">
     /// The managed configuration the settings — and any command run against this directory — see.
     /// </param>
-    public TestSession(ManagedConfiguration? managed = null)
+    /// <param name="http">
+    /// The HTTP client the session talks to; the default answers nothing, so a test that needs an
+    /// unauthenticated lookup (tenant resolution) passes a <see cref="StubHttpClient"/>.
+    /// </param>
+    public TestSession(ManagedConfiguration? managed = null, IHttpClient? http = null)
     {
         CommandContext.ManagedOverride = managed;
         Directory = Path.Combine(Path.GetTempPath(), "elevate-cli-tests", Guid.NewGuid().ToString("N"));
@@ -30,7 +35,7 @@ public sealed class TestSession : IDisposable
         Groups = new FakeProvider(RoleScopeKind.Group);
         EntraApprovals = new FakeApprovalProvider(RoleScopeKind.EntraDirectory);
         Packages = new FakeAccessPackageProvider();
-        Session = new ElevateSession(Store, Settings, Tokens, new NoHttpClient(), [Entra, Azure, Groups], [EntraApprovals], Packages);
+        Session = new ElevateSession(Store, Settings, Tokens, http ?? new NoHttpClient(), [Entra, Azure, Groups], [EntraApprovals], Packages);
         Session.Load();
         Session.State.Identities.Add(Account);
         Session.State.UpsertTenant(Tenant);

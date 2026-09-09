@@ -112,7 +112,7 @@ public static class ProfileCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var terms = parse.GetValue(roles) ?? [];
@@ -181,7 +181,7 @@ public static class ProfileCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var profile = Require(context, parse.GetValue(name)!);
             var tenants = profile.Entries.Select(e => e.RoleKey.TenantKey).Distinct().Where(k => session.Tenant(k) is not null).ToList();
             if (tenants.Count > 0)
