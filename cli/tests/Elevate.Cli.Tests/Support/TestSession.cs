@@ -1,5 +1,7 @@
+using Elevate.Cli.Commands;
 using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Session;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
 
@@ -12,12 +14,16 @@ public sealed class TestSession : IDisposable
 
     public static readonly TenantContext Tenant = new("id1", "t1", "Contoso", TenantSource.Home);
 
-    public TestSession()
+    /// <param name="managed">
+    /// The managed configuration the settings — and any command run against this directory — see.
+    /// </param>
+    public TestSession(ManagedConfiguration? managed = null)
     {
+        CommandContext.ManagedOverride = managed;
         Directory = Path.Combine(Path.GetTempPath(), "elevate-cli-tests", Guid.NewGuid().ToString("N"));
         System.IO.Directory.CreateDirectory(Directory);
         Store = new AppStateStore(Directory);
-        Settings = new CliSettings(Directory);
+        Settings = new CliSettings(Directory, managed ?? ManagedConfiguration.None);
         Tokens = new FakeTokenProvider();
         Entra = new FakeProvider(RoleScopeKind.EntraDirectory);
         Azure = new FakeProvider(RoleScopeKind.AzureResource);
@@ -59,6 +65,7 @@ public sealed class TestSession : IDisposable
 
     public void Dispose()
     {
+        CommandContext.ManagedOverride = null;
         try
         {
             System.IO.Directory.Delete(Directory, recursive: true);

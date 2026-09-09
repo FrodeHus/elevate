@@ -6,6 +6,7 @@ using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Rendering;
 using Elevate.Cli.Update;
 using Elevate.Core.Catalogue;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Networking;
 using Elevate.Core.Support;
@@ -80,7 +81,11 @@ public static class MiscCommands
                     t.DiscoveryMode == DiscoveryMode.Automatic ? "automatic" : "manual roles", Views.TenantFlags(session, t)))],
                 [.. session.Profiles.Select(p => p.Name)],
                 null,
-                session.ErrorLog.Entries);
+                session.ErrorLog.Entries,
+                // Key names only: a managed value (the client id) never belongs in a bug report.
+                session.Settings.Managed is { IsEmpty: false } managed
+                    ? new DiagnosticsManaged(managed.Origin ?? "policy", [.. managed.KeysInEffect.Select(k => k.Name())], managed.Warnings)
+                    : null);
             // The shared renderer labels the OS line for the Windows app; this report is not Windows-only.
             var text = DiagnosticsReport.Render(input).Replace("\nWindows: ", "\nOS: ", StringComparison.Ordinal);
             context.Output.Plain(text);
@@ -126,15 +131,26 @@ public static class MiscCommands
         return command;
     }
 
+    /// <summary>
+    /// Whether the update hint after <c>status</c> is worth printing at all: not with machine
+    /// output, not under --quiet, and never when the organization has turned the check off.
+    /// </summary>
+    internal static bool ShouldMentionUpdate(Output output, CliSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(settings);
+        return !output.Json && !output.Quiet && !settings.UpdateCheckDisabled;
+    }
+
     /// <summary>At most once a day, and only when it costs nothing: a one-line hint after <c>status</c>.</summary>
     internal static async Task DailyUpdateHintAsync(CommandContext context, CancellationToken ct)
     {
-        if (context.Output.Json || context.Output.Quiet)
+        var settings = context.Session.Settings;
+        if (!ShouldMentionUpdate(context.Output, settings))
         {
             return;
         }
 
-        var settings = context.Session.Settings;
         if (settings.LastUpdateCheck is { } last && DateTimeOffset.UtcNow - last < TimeSpan.FromHours(24))
         {
             if (settings.LatestKnownVersion is { } known && AppVersion.IsNewer(known, Version))

@@ -1,7 +1,21 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Elevate.Core.Managed;
 
 namespace Elevate.Cli.Infrastructure;
+
+/// <summary>Where a setting's value came from.</summary>
+public enum SettingSource
+{
+    /// <summary>Pushed by the organization's managed configuration; the stored value is ignored.</summary>
+    Managed,
+
+    /// <summary>Stored in <c>settings.json</c> by the user.</summary>
+    User,
+
+    /// <summary>Not set anywhere; the built-in default applies.</summary>
+    Default,
+}
 
 /// <summary>
 /// <c>settings.json</c> in the data directory. Only the values the CLI understands are exposed;
@@ -15,22 +29,53 @@ public sealed class CliSettings
     private readonly string _path;
     private JsonObject _root;
 
-    public CliSettings(string directory)
+    /// <param name="managed">
+    /// The organization's managed configuration; the platform default source when omitted.
+    /// </param>
+    public CliSettings(string directory, ManagedConfiguration? managed = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(directory);
         Directory.CreateDirectory(directory);
         _path = Path.Combine(directory, "settings.json");
         _root = Load(_path);
+        Managed = managed ?? ManagedConfiguration.Load(ManagedConfigurationSources.Default());
     }
 
     public string FilePath => _path;
 
-    /// <summary>Application (client) id of the user's own app registration; empty until configured.</summary>
+    /// <summary>The managed configuration in effect; <see cref="ManagedConfiguration.IsEmpty"/> when there is none.</summary>
+    public ManagedConfiguration Managed { get; }
+
+    /// <summary>Whether the client id comes from managed configuration and cannot be changed here.</summary>
+    public bool IsClientIdManaged => Managed.ClientId is { Length: > 0 };
+
+    /// <summary>Whether the organization has turned the update check off.</summary>
+    public bool UpdateCheckDisabled => Managed.DisableUpdateCheck;
+
+    public SettingSource ClientIdSource => IsClientIdManaged
+        ? SettingSource.Managed
+        : Text("clientId").Length > 0 ? SettingSource.User : SettingSource.Default;
+
+    /// <summary>
+    /// Application (client) id of the user's own app registration; empty until configured. A
+    /// managed client id wins over the stored one, and refuses to be changed.
+    /// </summary>
     public string ClientId
     {
-        get => Text("clientId");
-        set => Set("clientId", value.Trim());
+        get => Managed.ClientId ?? Text("clientId");
+        set
+        {
+            if (IsClientIdManaged)
+            {
+                throw new InvalidOperationException(ManagedClientIdMessage);
+            }
+
+            Set("clientId", value.Trim());
+        }
     }
+
+    /// <summary>The one message used wherever a managed client id blocks a change.</summary>
+    public const string ManagedClientIdMessage = "client-id is managed by your organization.";
 
     /// <summary>The custom client id used last, so the next <c>login --method custom</c> needs no id.</summary>
     public string CustomClientId

@@ -3,6 +3,7 @@ using Spectre.Console;
 using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Session;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Networking;
 using Elevate.Core.Storage;
@@ -17,6 +18,18 @@ public sealed class CommandContext
     public static readonly Option<bool> NoColorOption = new("--no-color") { Description = "Plain output without colours (NO_COLOR is honoured too).", Recursive = true };
     public static readonly Option<bool> DeviceCodeOption = new("--device-code") { Description = "Sign in with a device code instead of the browser; for SSH sessions and containers.", Recursive = true };
     public static readonly Option<string?> DataDirOption = new("--data-dir") { Description = "Where state, settings and the token cache live (also ELEVATE_CLI_HOME).", Recursive = true };
+
+    /// <summary>
+    /// Test seam: the managed configuration commands see, instead of the platform source. Async-local
+    /// so tests that run side by side do not see each other's policy.
+    /// </summary>
+    private static readonly AsyncLocal<ManagedConfiguration?> Override = new();
+
+    internal static ManagedConfiguration? ManagedOverride
+    {
+        get => Override.Value;
+        set => Override.Value = value;
+    }
 
     private ElevateSession? _session;
 
@@ -52,7 +65,7 @@ public sealed class CommandContext
             }
 
             var store = new AppStateStore(DataDirectory);
-            var settings = new CliSettings(DataDirectory);
+            var settings = new CliSettings(DataDirectory, ManagedOverride);
             var cache = new TokenCacheStore(DataDirectory, settings.UnprotectedCache);
             var tokens = new CliTokenProvider(cache, () => settings.ClientId, Flow, message => Output.Stderr.MarkupLine($"[blue]{Markup.Escape(message)}[/]"));
             var http = new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
