@@ -218,7 +218,7 @@ struct ProfileMenuItems: View {
                 Button("Unpin from panel") { model.setPinned(id: profile.id, false) }
             } else {
                 Button("Pin to panel") { model.setPinned(id: profile.id, true) }
-                    .disabled(model.pinnedProfiles.count >= ProfilePins.limit)
+                    .disabled(!model.canPinAnotherProfile)
             }
         }
         Button("Manage profiles…") { ProfileActions.open(.manageProfiles, openWindow: openWindow) }

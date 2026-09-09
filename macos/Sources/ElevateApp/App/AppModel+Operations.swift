@@ -16,19 +16,31 @@ extension AppModel {
             return
         }
         hotKeys.onFire = { [weak self] in
-            Task { @MainActor in
-                guard let self, let id = self.settings.hotKeyProfileId else { return }
-                if await self.quickRun(profileId: id) { return }
-                // Needs a justification, ticket or duration: open the Run sheet instead.
-                self.requestRun(id)
-                self.pendingProfileRun = id
-            }
+            Task { @MainActor in await self?.runShortcutProfile() }
         }
         do {
             try hotKeys.register(binding)
         } catch {
             hotKeyError = error.localizedDescription
         }
+    }
+
+    /// What the global shortcut fires: runs the bound profile, or opens the Run sheet when it
+    /// needs a justification, ticket or duration. A policy change can remove the managed profile
+    /// the shortcut was bound to out from under it; that is not a reason to pop a Run sheet with
+    /// nothing to run, so this bails out quietly (beyond the log and the notice) when the bound id
+    /// no longer resolves to anything.
+    func runShortcutProfile() async {
+        guard let id = settings.hotKeyProfileId else { return }
+        guard profile(id: id) != nil else {
+            logError("Shortcut profile is no longer available")
+            notice = "The profile bound to the shortcut is no longer available"
+            return
+        }
+        if await quickRun(profileId: id) { return }
+        // Needs a justification, ticket or duration: open the Run sheet instead.
+        requestRun(id)
+        pendingProfileRun = id
     }
 
     // MARK: Diagnostics

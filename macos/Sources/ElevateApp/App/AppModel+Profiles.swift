@@ -72,6 +72,10 @@ extension AppModel {
     /// cost the user a pin of their own.
     var pinnedProfiles: [ActivationProfile] { managedProfiles.filter(\.pinned) + state.pinnedProfiles }
 
+    /// Whether the user still has a pin slot free. Only the user's own pins count against
+    /// `ProfilePins.limit`; pinned managed profiles must not cost the user a slot here either.
+    var canPinAnotherProfile: Bool { state.pinnedProfiles.count < ProfilePins.limit }
+
     /// Pins or unpins a profile. Returns false, changing nothing, when the pinned row is full
     /// (`ProfilePins.limit`); the caller says so instead of silently ignoring the click.
     @discardableResult

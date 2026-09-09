@@ -143,6 +143,39 @@ struct AppModelManagedProfilesTests {
         #expect(model.managedProfileWarnings.first?.hasPrefix("ManagedProfiles: ") == true)
     }
 
+    @Test func pinnedManagedProfilesDoNotUseUpTheUsersPinSlots() async {
+        let model = await loadedModel()
+        defer { cleanup(model) }
+        // The document's one profile is pinned already, and it must not cost a slot.
+        #expect(model.pinnedProfiles.contains { $0.id == Self.managedId })
+        #expect(model.canPinAnotherProfile)
+
+        for i in 0..<(ProfilePins.limit - 1) {
+            let p = model.saveProfile(name: "P\(i)", keys: [Self.entraKey])
+            #expect(model.setPinned(id: p.id, true))
+            #expect(model.canPinAnotherProfile)
+        }
+        // The fourth user pin fills the row; the managed pin still doesn't count.
+        let last = model.saveProfile(name: "Last", keys: [Self.entraKey])
+        #expect(model.setPinned(id: last.id, true))
+        #expect(!model.canPinAnotherProfile)
+    }
+
+    @Test func aVanishedManagedProfileLeavesTheShortcutQuiet() async {
+        // No managed document at all: the id the shortcut was bound to resolves to nothing,
+        // as if the organization's policy had since removed the profile.
+        let model = await loadedModel(document: nil)
+        defer { cleanup(model) }
+        model.setHotKeyProfile(Self.managedId)
+        #expect(model.profile(id: Self.managedId) == nil)
+
+        await model.runShortcutProfile()
+
+        #expect(model.pendingProfileRun == nil)
+        #expect(model.notice == "The profile bound to the shortcut is no longer available")
+        #expect(model.errorLog.entries.map(\.message).contains("Shortcut profile is no longer available"))
+    }
+
     @Test func theUrlDocumentIsFetchedCachedMergedAndThrottled() async {
         let http = StubHTTPClient()
         await http.on("GET", "profiles.json", body: Data(Self.document(name: "Fetched incident").utf8))

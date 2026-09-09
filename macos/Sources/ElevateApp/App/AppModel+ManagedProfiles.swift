@@ -74,8 +74,8 @@ extension AppModel {
         guard let url = managed.managedProfilesUrl else { return }
         // The cache first, so even a launch whose fetch fails has the last good copy.
         if fetchedProfileSet == nil, let cached = profileFetcher.cached() { fetchedProfileSet = cached }
+        guard isOnline else { return }
         if !force {
-            guard isOnline else { return }
             if let fetchedAt = managedProfilesFetchedAt,
                abs(Date().timeIntervalSince(fetchedAt)) < Self.managedProfilesInterval { return }
         }
