@@ -45,9 +45,19 @@ extension AppModel {
     /// organization does not permit are dropped (the accounts' home tenants excepted — that is
     /// where the account lives), and pinned tenants are tracked for every account. Never throws:
     /// an entry that could not be resolved becomes a warning and restricts nothing.
+    /// Resolving needs the network — the entries are looked up over HTTP — so offline it does
+    /// nothing at all and leaves `managedTenantsResolved` false; applying half a configuration
+    /// would drop tenants on a guess. `AppModel.watchNetwork()` runs it once the path comes back.
     func resolveManagedTenants() async {
         let entries = managedTenantEntries
-        guard !entries.isEmpty else { return }
+        guard !entries.isEmpty else {
+            managedTenantsResolved = true
+            return
+        }
+        guard isOnline else {
+            managedTenantsResolved = false
+            return
+        }
         let resolution = await tenantResolver.resolve(entries)
         managedTenantIds = resolution.ids
 
@@ -71,14 +81,20 @@ extension AppModel {
         }
         pinnedTenantIds = managed.pinnedTenants.compactMap { resolution.ids[$0] }
 
+        managedTenantsResolved = true
         removeDisallowedTenants()
         for identity in identities { await trackPinnedTenants(identityId: identity.id) }
     }
 
     /// Drops tracked tenants the organization no longer permits, telling the user which ones went.
+    /// A pinned tenant is never dropped even when it is off the allow-list: `PinnedTenants` says
+    /// the organization wants it tracked, and removing it here would only have it re-added below,
+    /// wiping its roles and approvals on every launch.
     private func removeDisallowedTenants() {
         guard allowedTenantIds != nil else { return }
-        let removed = state.tenants.filter { $0.source != .home && !isTenantAllowed($0.tenantId) }
+        let removed = state.tenants.filter {
+            $0.source != .home && !isTenantAllowed($0.tenantId) && !isPinnedTenant($0.id)
+        }
         guard !removed.isEmpty else { return }
         for tenant in removed { forgetTenant(tenant.id) }
         logError("Removed tenants not permitted by your organization: \(removed.map(\.displayName).joined(separator: ", "))")

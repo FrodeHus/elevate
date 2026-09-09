@@ -131,6 +131,10 @@ final class AppModel {
     /// One line per managed tenant entry that could not be resolved, shown in Settings.
     /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
     var managedTenantWarnings: [String] = []
+    /// False while the managed tenants still need resolving — there was no network path when
+    /// `bootstrap()` tried. The reconnect handler runs the resolution once when the path returns.
+    /// Setter internal: set by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantsResolved = false
 
     // MARK: Dependencies
 
@@ -416,15 +420,31 @@ final class AppModel {
             logError("Could not read saved sign-ins from the Keychain")
         }
         persist()
-        // Managed tenants first: it may remove tenants the organization no longer permits and add
-        // pinned ones, and `refreshAll()` should see the final list. It never throws and never
-        // waits on a missing network — an unresolved entry is only a warning.
-        await resolveManagedTenants()
-        if isOnline { await refreshAll() }
+        // Neither the timer nor the hot key needs the network, and both are started first so a
+        // slow tenant lookup cannot delay the shortcut the user may already be pressing.
         startTimer()
         applyHotKey()
+        watchNetwork()
+        // Managed tenants before the refresh: resolving may remove tenants the organization no
+        // longer permits and add pinned ones, and `refreshAll()` should see the final list. It
+        // never throws; offline it resolves nothing and `watchNetwork()` retries it once the
+        // path comes back.
+        await resolveManagedTenants()
+        if isOnline { await refreshAll() }
         // Fire and forget: an update check must never hold up the first panel open.
         Task { await self.checkForUpdates() }
+    }
+
+    /// Picks up the work held back while the machine had no network path, once it comes back:
+    /// the managed tenants first, if they never resolved, so the refresh sees the final tenant list.
+    private func watchNetwork() {
+        network.onChange = { [weak self] online in
+            guard online, let self else { return }
+            Task { @MainActor in
+                if !self.managedTenantsResolved { await self.resolveManagedTenants() }
+                await self.refreshAll()
+            }
+        }
     }
 
     // MARK: Timers

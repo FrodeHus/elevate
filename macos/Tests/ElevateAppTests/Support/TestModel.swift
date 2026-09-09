@@ -28,12 +28,16 @@ func makeSettings(managed: ManagedConfiguration = .none) -> AppSettings {
 /// no refresh and no update check of its own. Call `cleanup(_:)` once the test is done with the
 /// model to remove its temp state directory and UserDefaults suite.
 ///
+/// Pass `network` to keep hold of the monitor, so the test can flip it with
+/// `simulatePathChange(online:)` and exercise what the app does when the path comes back;
+/// `online` is ignored then, the monitor carries its own state.
+///
 /// `ownAppViaLoopback` overrides what `BuildInfo.signingState` would say (it describes the test
 /// host, not a build under test): pass true to model an unsigned build, where the own-app
 /// registration signs in through the loopback flow instead of MSAL.
 @MainActor
 func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClient(),
-               online: Bool = false, settings: AppSettings? = nil,
+               online: Bool = false, network: NetworkMonitor? = nil, settings: AppSettings? = nil,
                managed: ManagedConfiguration = .none,
                tokens: FakeTokenProvider = FakeTokenProvider(),
                ownAppViaLoopback: Bool? = nil, notifier: any ExpiryNotifying = NoopNotifier()) async -> AppModel {
@@ -42,7 +46,7 @@ func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClie
     let store = AppStateStore(directory: directory)
     if state != AppState() { try? await store.save(state) }
     let model = AppModel(tokens: tokens, http: http, store: store, notifier: notifier,
-                         network: NetworkMonitor(forcedOnline: online),
+                         network: network ?? NetworkMonitor(forcedOnline: online),
                          settings: settings ?? makeSettings(managed: managed),
                          ownAppViaLoopbackOverride: ownAppViaLoopback)
     await model.bootstrap()

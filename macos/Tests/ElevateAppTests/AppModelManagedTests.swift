@@ -112,7 +112,7 @@ struct AppModelManagedTenantTests {
         await Self.stubTenantLookup(http, domain: "fabrikam.com", tenantId: Self.fabrikamId)
         await Self.stubTenantLookup(http, domain: "zzz", tenantId: "bbbbbbbb-0000-0000-0000-000000000003")
         let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["AllowedTenants": [Self.allowedGuid, "fabrikam.com"]]))
-        let model = await makeModel(state: state, http: http, managed: managed)
+        let model = await makeModel(state: state, http: http, online: true, managed: managed)
         defer { cleanup(model) }
 
         #expect(model.allowedTenantIds == [Self.allowedGuid, Self.fabrikamId])
@@ -141,7 +141,7 @@ struct AppModelManagedTenantTests {
         let http = StubHTTPClient()
         await Self.stubTenantLookup(http, domain: "fabrikam.com", tenantId: Self.fabrikamId)
         let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["PinnedTenants": ["fabrikam.com"]]))
-        let model = await makeModel(state: state, http: http, managed: managed)
+        let model = await makeModel(state: state, http: http, online: true, managed: managed)
         defer { cleanup(model) }
 
         #expect(model.pinnedTenantIds == [Self.fabrikamId])
@@ -168,7 +168,7 @@ struct AppModelManagedTenantTests {
         let http = StubHTTPClient()
         await http.on("GET", "nowhere.example/v2.0/.well-known/openid-configuration", status: 404)
         let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["AllowedTenants": ["nowhere.example"]]))
-        let model = await makeModel(state: state, http: http, managed: managed)
+        let model = await makeModel(state: state, http: http, online: true, managed: managed)
         defer { cleanup(model) }
 
         #expect(model.allowedTenantIds == nil)
@@ -179,5 +179,56 @@ struct AppModelManagedTenantTests {
             DiscoveredTenant(tenantId: "zzz", displayName: "Zzz", defaultDomain: nil),
         ])
         #expect(model.tenants(for: Sample.identityId).map(\.tenantId).contains("zzz"))
+    }
+
+    @Test func pinnedTenantOutsideTheAllowListSurvives() async {
+        var state = AppState()
+        state.identities = [Sample.identity(method: .azureCLI)]
+        state.upsertTenant(Sample.tenant())
+        // As a previous launch left it: the pin is already tracked, and it is off the allow-list.
+        state.upsertTenant(TenantContext(identityId: Sample.identityId, tenantId: Self.fabrikamId,
+                                         displayName: "fabrikam.com", source: .discovered))
+        let http = StubHTTPClient()
+        await Self.stubTenantLookup(http, domain: "fabrikam.com", tenantId: Self.fabrikamId)
+        let managed = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "AllowedTenants": [Self.allowedGuid],
+            "PinnedTenants": ["fabrikam.com"],
+        ]))
+        let model = await makeModel(state: state, http: http, online: true, managed: managed)
+        defer { cleanup(model) }
+
+        #expect(model.allowedTenantIds == [Self.allowedGuid])
+        #expect(model.pinnedTenantIds == [Self.fabrikamId])
+        // The pin outweighs the allow-list: the tenant is tracked exactly once, and it was never
+        // removed and re-added — a round trip that would wipe its roles and approvals every launch.
+        let tracked = model.tenants(for: Sample.identityId).map(\.tenantId)
+        #expect(tracked.count { $0 == Self.fabrikamId } == 1)
+        #expect(!model.errorLog.entries.contains { $0.message.hasPrefix("Removed tenants") })
+    }
+
+    @Test func managedTenantsResolveWhenTheNetworkComesBack() async {
+        var state = AppState()
+        state.identities = [Sample.identity(method: .azureCLI)]
+        state.upsertTenant(Sample.tenant())
+        let http = StubHTTPClient()
+        await Self.stubTenantLookup(http, domain: "fabrikam.com", tenantId: Self.fabrikamId)
+        let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["PinnedTenants": ["fabrikam.com"]]))
+        let monitor = NetworkMonitor(forcedOnline: false)
+        let model = await makeModel(state: state, http: http, network: monitor, managed: managed)
+        defer { cleanup(model) }
+
+        // Offline the lookup cannot run at all, so nothing is pinned and nothing is tracked.
+        #expect(!model.managedTenantsResolved)
+        #expect(model.pinnedTenantIds.isEmpty)
+        #expect(model.tenants(for: Sample.identityId).map(\.tenantId) == [Sample.tenantId])
+
+        monitor.simulatePathChange(online: true)
+        // The reconnect handler runs in a detached task; wait for the pin to land.
+        for _ in 0..<200 where !model.managedTenantsResolved {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.managedTenantsResolved)
+        #expect(model.pinnedTenantIds == [Self.fabrikamId])
+        #expect(model.tenants(for: Sample.identityId).map(\.tenantId).contains(Self.fabrikamId))
     }
 }
