@@ -127,18 +127,27 @@ public sealed partial class ElevateSession
         }
     }
 
-    /// <summary>Activates the plan's Activate items, then remembers the reason and each duration on the profile.</summary>
+    /// <summary>
+    /// Activates the plan's Activate items, then remembers the reason and each duration on the
+    /// profile. A <paramref name="durationOverride"/> (capped per role by its policy) is used for
+    /// every request but not remembered: <c>elevate run</c> activates for minutes only.
+    /// </summary>
     public async Task<IReadOnlyList<ActivationOutcome>> RunProfileAsync(
         ActivationProfile profile, IReadOnlyList<ProfilePlanItem> items, string justification, TicketInfo? ticket,
-        DateTimeOffset? startDateTime, Action<ActivationOutcome>? onProgress, CancellationToken ct)
+        DateTimeOffset? startDateTime, Action<ActivationOutcome>? onProgress, CancellationToken ct, TimeSpan? durationOverride = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(items);
+        TimeSpan Duration(ProfilePlanItem i) => durationOverride is { } d
+            ? (i.Role is { } role && d > role.Policy.MaximumDuration ? role.Policy.MaximumDuration : d)
+            : i.Duration;
         var requests = items
             .Where(i => i.Disposition == ProfilePlanDisposition.Activate)
-            .Select(i => new ActivationRequest(i.RoleKey, i.Duration, justification, ticket, i.Role?.Policy.AuthenticationContext, startDateTime))
+            .Select(i => new ActivationRequest(i.RoleKey, Duration(i), justification, ticket, i.Role?.Policy.AuthenticationContext, startDateTime))
             .ToList();
-        var outcomes = requests.Count == 0 ? [] : await ActivateAsync(requests, deactivateFirst: false, onProgress, ct).ConfigureAwait(false);
+        var outcomes = requests.Count == 0
+            ? []
+            : await ActivateAsync(requests, deactivateFirst: false, onProgress, ct, rememberDuration: durationOverride is null).ConfigureAwait(false);
         lock (_sync)
         {
             if (State.Profile(profile.Id) is not { } p)
@@ -147,7 +156,7 @@ public sealed partial class ElevateSession
             }
 
             p.LastJustification = justification;
-            foreach (var item in items.Where(i => i.Disposition is not (ProfilePlanDisposition.NotEligible or ProfilePlanDisposition.NotLoaded)))
+            foreach (var item in items.Where(i => durationOverride is null && i.Disposition is not (ProfilePlanDisposition.NotEligible or ProfilePlanDisposition.NotLoaded)))
             {
                 var index = p.Entries.FindIndex(e => e.RoleKey == item.RoleKey);
                 if (index >= 0)

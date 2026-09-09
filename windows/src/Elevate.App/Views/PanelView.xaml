@@ -270,6 +270,12 @@
                     <Button Content="Open" Click="OnUpdateOpen" />
                 </InfoBar.ActionButton>
             </InfoBar>
+            <!-- After an Azure or group activation: cached az / kubelogin tokens predate it. Closing hides it for that account. -->
+            <InfoBar x:Name="TokenHintBar" IsOpen="False" Severity="Informational" Margin="12,8,12,0" Title="Cached tokens may be stale" Closed="OnTokenHintClosed">
+                <InfoBar.ActionButton>
+                    <Button x:Name="TokenHintCopy" Content="Copy command" Click="OnTokenHintCopy" />
+                </InfoBar.ActionButton>
+            </InfoBar>
         </StackPanel>
 
         <!-- Body -->

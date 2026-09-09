@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using Elevate.Cli.Commands;
 using Elevate.Cli.Infrastructure;
 using Elevate.Core.Models;
@@ -12,10 +13,18 @@ public static class Program
         TryUseUtf8();
         var root = BuildRootCommand();
         var parse = root.Parse(args);
+        var configuration = new InvocationConfiguration { EnableDefaultExceptionHandler = false };
+        if (IsRun(parse))
+        {
+            // Ctrl+C goes to the command `run` started as much as to elevate. The default two-second
+            // grace would end elevate while the command is still cleaning up; wait for it instead.
+            configuration.ProcessTerminationTimeout = TimeSpan.FromDays(1);
+        }
+
         try
         {
             // Exceptions come back here for one plain line on stderr and an exit code, not a stack trace.
-            return await parse.InvokeAsync(new InvocationConfiguration { EnableDefaultExceptionHandler = false }).ConfigureAwait(false);
+            return await parse.InvokeAsync(configuration).ConfigureAwait(false);
         }
         catch (CliException e)
         {
@@ -67,6 +76,7 @@ public static class Program
         root.Subcommands.Add(ActivationCommands.Extend());
         root.Subcommands.Add(ActivationCommands.Deactivate());
         root.Subcommands.Add(ActivationCommands.Cancel());
+        root.Subcommands.Add(RunCommands.Run());
         root.Subcommands.Add(ProfileCommands.Profiles());
         root.Subcommands.Add(ApprovalCommands.Approvals());
         root.Subcommands.Add(PackageCommands.Packages());
@@ -75,9 +85,14 @@ public static class Program
         root.Subcommands.Add(MiscCommands.Diagnostics());
         root.Subcommands.Add(MiscCommands.Update());
         root.Subcommands.Add(MiscCommands.Completion());
+        root.Subcommands.Add(MiscCommands.Init());
 
         // Bare `elevate` shows what is active, the way opening the desktop panel does.
         root.SetAction((parse, ct) => RoleCommands.RunStatusAsync(CommandContext.From(parse), ct));
         return root;
     }
+
+    /// <summary>Whether the invoked command is the top-level <c>run</c> (not <c>profiles run</c>).</summary>
+    internal static bool IsRun(ParseResult parse) =>
+        parse.CommandResult.Command.Name == "run" && parse.CommandResult.Parent is CommandResult { Command: RootCommand };
 }

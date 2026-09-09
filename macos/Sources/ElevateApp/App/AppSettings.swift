@@ -20,6 +20,7 @@ final class AppSettings {
     static let hotKeyProfileKey = "hotKeyProfileId"
     static let lastUpdateCheckKey = "lastUpdateCheck"
     static let dismissedUpdateVersionKey = "dismissedUpdateVersion"
+    static let dismissedTokenHintAccountsKey = "dismissedTokenHintAccounts"
 
     private let defaults: UserDefaults
 
@@ -110,6 +111,18 @@ final class AppSettings {
         }
     }
 
+    /// Ids of the accounts for which the stale-token hint after an Azure or group activation was
+    /// dismissed. Same key as the CLI's settings file, so the wording of the choice matches.
+    var dismissedTokenHintAccounts: Set<String> {
+        didSet {
+            if dismissedTokenHintAccounts.isEmpty {
+                defaults.removeObject(forKey: Self.dismissedTokenHintAccountsKey)
+            } else {
+                defaults.set(dismissedTokenHintAccounts.sorted(), forKey: Self.dismissedTokenHintAccountsKey)
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
@@ -133,6 +146,7 @@ final class AppSettings {
         hotKeyProfileId = (defaults.string(forKey: Self.hotKeyProfileKey)).flatMap(UUID.init(uuidString:))
         lastUpdateCheck = defaults.object(forKey: Self.lastUpdateCheckKey) as? Date
         dismissedUpdateVersion = defaults.string(forKey: Self.dismissedUpdateVersionKey)
+        dismissedTokenHintAccounts = Set(defaults.stringArray(forKey: Self.dismissedTokenHintAccountsKey) ?? [])
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }

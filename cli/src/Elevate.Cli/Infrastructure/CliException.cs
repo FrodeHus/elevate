@@ -20,6 +20,9 @@ public static class ExitCodes
     /// <summary>Some, not all, of the requested activations or decisions went through.</summary>
     public const int Partial = 5;
 
+    /// <summary><c>elevate run</c> could not find the command to run; the shells' own code for it.</summary>
+    public const int CommandNotFound = 127;
+
     /// <summary>Interrupted with Ctrl+C.</summary>
     public const int Interrupted = 130;
 }

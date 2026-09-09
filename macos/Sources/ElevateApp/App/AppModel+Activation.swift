@@ -117,6 +117,7 @@ extension AppModel {
             state.upsertTenant(t)
         }
         persist()
+        noteTokenHint(outcomes)
         let changedGroupTenants = Set(outcomes.compactMap { o -> TenantKey? in
             guard o.roleKey.scope.kind == .group, case .activated = o.result else { return nil }
             return o.roleKey.tenantKey
@@ -128,6 +129,29 @@ extension AppModel {
         // updates cached policy/role data afterwards, never `inFlight`.
         Task { await self.learnPoliciesForManualRoles(outcomes) }
         return outcomes
+    }
+
+    // MARK: Stale token hint
+
+    /// The account the panel's stale-token hint names, or nil when there is none.
+    var tokenHint: (identityId: String, account: String)? {
+        guard let id = tokenHintAccounts.first else { return nil }
+        return (id, identity(id)?.upn ?? id)
+    }
+
+    /// Raises the hint for each account the outcomes affect, unless it was dismissed for that account.
+    func noteTokenHint(_ outcomes: [ActivationOutcome]) {
+        for id in TokenCacheHint.affectedAccounts(outcomes)
+        where !settings.dismissedTokenHintAccounts.contains(id) && !tokenHintAccounts.contains(id) {
+            tokenHintAccounts.append(id)
+        }
+    }
+
+    /// Hides the hint for the account it names and remembers not to raise it again for that account.
+    func dismissTokenHint() {
+        guard let hint = tokenHint else { return }
+        tokenHintAccounts.removeAll { $0 == hint.identityId }
+        settings.dismissedTokenHintAccounts.insert(hint.identityId)
     }
 
     // MARK: Quick activate

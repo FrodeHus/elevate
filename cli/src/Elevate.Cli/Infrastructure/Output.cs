@@ -96,4 +96,22 @@ public sealed class Output
         await work().ConfigureAwait(false);
         return true;
     });
+
+    /// <summary>
+    /// Like <see cref="StatusAsync(string, Func{Task})"/>, but the work can change the line as it
+    /// goes: the spinner's text in a terminal, one progress note per change when stderr is a file.
+    /// </summary>
+    public async Task StatusAsync(string title, Func<Action<string>, Task> work)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        if (Quiet || Json || Console.IsErrorRedirected)
+        {
+            await work(message => Note(Markup.Escape(message))).ConfigureAwait(false);
+            return;
+        }
+
+        await Stderr.Status().Spinner(Spinner.Known.Dots)
+            .StartAsync(Markup.Escape(title), ctx => work(message => ctx.Status = Markup.Escape(message)))
+            .ConfigureAwait(false);
+    }
 }

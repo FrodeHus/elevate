@@ -11,8 +11,32 @@ public class CommandTreeTests
     {
         var root = Program.BuildRootCommand();
         root.Subcommands.Select(c => c.Name).Should().Contain(
-            ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel",
-             "profiles", "approvals", "packages", "config", "catalogue", "diagnostics", "update", "completion"]);
+            ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel", "run",
+             "profiles", "approvals", "packages", "config", "catalogue", "diagnostics", "update", "completion", "init"]);
+    }
+
+    [Fact]
+    public void RunSeparatesWhatToActivateFromTheCommand()
+    {
+        var root = Program.BuildRootCommand();
+        var run = root.Subcommands.Single(c => c.Name == "run");
+        var roles = (Option<string[]>)run.Options.Single(o => o.Name == "--role");
+        var command = (Argument<string[]>)run.Arguments.Single(a => a.Name == "command");
+
+        var parse = root.Parse("run --role Reader --role Owner --deactivate-after -- az group list --output table");
+        parse.Errors.Should().BeEmpty();
+        parse.GetValue(roles).Should().Equal("Reader", "Owner");
+        parse.GetValue(command).Should().Equal("az", "group", "list", "--output", "table");
+        Program.IsRun(parse).Should().BeTrue();
+
+        // Without the separator the first unknown word starts the command.
+        parse = root.Parse("run -p Morning --settle 2m --timeout 1h terraform apply");
+        parse.Errors.Should().BeEmpty();
+        parse.GetValue(command).Should().Equal("terraform", "apply");
+
+        Program.IsRun(root.Parse("profiles run Morning")).Should().BeFalse("only the top-level run waits for a child process");
+        root.Parse("init zsh").Errors.Should().BeEmpty();
+        root.Parse("config set token-hint off --account alex").Errors.Should().BeEmpty();
     }
 
     [Theory]
@@ -66,6 +90,7 @@ public class CommandTreeTests
         var paths = CompletionScripts.Paths(Program.BuildRootCommand());
         paths.Should().Contain(p => p.Path == "tenants manual add");
         paths.Single(p => p.Path == "profiles run").Words.Should().Contain("--json").And.Contain("--wait").And.Contain("--help");
+        paths.Single(p => p.Path == "run").Words.Should().Contain("--deactivate-after").And.Contain("--settle").And.Contain("--profile");
         paths.Single(p => p.Path == "").Words.Should().Contain("activate").And.Contain("--help").And.NotContain("/h");
     }
 
