@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a flag the Azure CLI does not have. It now says to run `az login` again, which is what actually
   gets a token carrying the new assignment.
 
+### Changed
+
+- Core (macOS and Windows): the tenant status glyph now shows an informational icon for mere
+  capability limitations (Entra roles view-only, Azure resource roles off, PIM for Groups off);
+  the red/critical warning triangle is reserved for an actual discovery or refresh failure.
+
 ## [1.5.0] - 2026-09-08
 
 ### Added

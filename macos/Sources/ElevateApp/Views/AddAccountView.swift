@@ -79,13 +79,13 @@ struct AddAccountView: View {
     @ViewBuilder private var limitations: some View {
         if let summary = selection.limitationSummary {
             VStack(alignment: .leading, spacing: 4) {
-                Label(summary, systemImage: "exclamationmark.triangle.fill").font(.callout.weight(.medium))
+                Label(summary, systemImage: "info.circle").font(.callout.weight(.medium))
                 Text("Microsoft grants the \(selection.displayName) no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or a custom app registration for Entra roles.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         } else if selection.isCustom {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Capabilities depend on what the app was consented for.", systemImage: "info.circle")

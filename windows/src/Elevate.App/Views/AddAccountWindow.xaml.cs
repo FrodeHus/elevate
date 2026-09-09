@@ -97,7 +97,7 @@ public sealed partial class AddAccountWindow : Window
             : Visibility.Collapsed;
         if (selection.LimitationSummary is { } summary)
         {
-            Limits.Severity = InfoBarSeverity.Warning;
+            Limits.Severity = InfoBarSeverity.Informational;
             Limits.Title = summary;
             Limits.Message = $"Microsoft grants the {selection.DisplayName} no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or a custom app registration for Entra roles.";
         }
