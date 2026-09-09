@@ -11,14 +11,18 @@ public sealed partial class AppModel
 {
     // MARK: Sign-in methods
 
-    /// <summary>Fixed sign-in methods offered by "Add account" (a custom client id is typed there).</summary>
-    public IReadOnlyList<SignInMethod> AvailableMethods => SignInMethod.BuiltIn;
+    /// <summary>
+    /// Fixed sign-in methods offered by "Add account" (a custom client id is typed there). The
+    /// own-app row is listed even when unconfigured; the view disables it and explains why. A
+    /// method the organization does not permit is not listed at all.
+    /// </summary>
+    public IReadOnlyList<SignInMethod> AvailableMethods => [.. SignInMethod.BuiltIn.Where(IsMethodAllowed)];
 
     /// <summary>The custom client id used last time, for prefilling the add-account dialog.</summary>
     public string RememberedCustomClientId => Settings.CustomClientId;
 
     /// <summary>Whether a method can be used right now. A custom method needs a well-formed client id.</summary>
-    public bool IsAvailable(SignInMethod method) => method.Kind switch
+    public bool IsAvailable(SignInMethod method) => IsMethodAllowed(method) && method.Kind switch
     {
         SignInMethodKind.OwnApp => IsConfigured,
         SignInMethodKind.Custom => AppSettings.IsValidClientId(method.CustomClientId),
@@ -34,6 +38,13 @@ public sealed partial class AppModel
     /// </summary>
     public async Task<bool> AddAccountAsync(SignInMethod method, CancellationToken ct = default)
     {
+        if (!IsMethodAllowed(method))
+        {
+            Notice = DisallowedMethodNotice;
+            LogError($"Add account ({method.DisplayName}): {DisallowedMethodNotice}");
+            return false;
+        }
+
         if (!IsAvailable(method))
         {
             Notice = method.Kind switch
@@ -100,6 +111,7 @@ public sealed partial class AppModel
 
             Persist();
             await RefreshAsync(homeKey);
+            await TrackPinnedTenantsAsync(identity.Id, ct);
             return true;
         }
         catch (OperationCanceledException)
@@ -148,6 +160,11 @@ public sealed partial class AppModel
             return;
         }
 
+        if (!IsTenantAllowed(tenantId))
+        {
+            throw new InvalidOperationException($"Tenant {domainOrId} is not permitted by your organization");
+        }
+
         var key = new TenantKey(identityId, tenantId);
         if (Tenant(key) is not null)
         {
@@ -192,7 +209,8 @@ public sealed partial class AppModel
     {
         ArgumentNullException.ThrowIfNull(tenants);
         var generation = ConfigGeneration;
-        var list = tenants.ToList();
+        // A tenant the organization does not permit is skipped rather than tracked and dropped again.
+        var list = tenants.Where(t => IsTenantAllowed(t.TenantId)).ToList();
         foreach (var t in list)
         {
             var key = new TenantKey(identityId, t.TenantId);
@@ -219,6 +237,25 @@ public sealed partial class AppModel
 
     public void RemoveTenant(TenantKey key)
     {
+        if (IsPinnedTenant(key))
+        {
+            // A pinned tenant would only come back on the next launch; say so rather than
+            // removing it and re-adding it behind the user's back.
+            Notice = PinnedTenantNotice;
+            return;
+        }
+
+        ForgetTenant(key);
+        Persist();
+        _ = ReschedulePackageExpiriesAsync();
+    }
+
+    /// <summary>
+    /// Drops one tenant and everything derived from it, without saving: the callers that remove
+    /// several at once persist the result themselves.
+    /// </summary>
+    internal void ForgetTenant(TenantKey key)
+    {
         DeclinedTenants.Remove(key);
         State.RemoveTenant(key);
         Roles.Remove(key);
@@ -230,8 +267,6 @@ public sealed partial class AppModel
         DropApprovals(k => k == key);
         DropPolicies(k => k.TenantKey == key);
         AccessPackageErrors.Remove(key);
-        Persist();
-        _ = ReschedulePackageExpiriesAsync();
     }
 
     public async Task RetryDiscoveryAsync(TenantKey key)

@@ -619,6 +619,21 @@ public static class PanelListBuilder
             Initials = Initials(identity),
             Expanded = !model.CollapsedIdentities.Contains(identity.Id),
         };
+        // An account signed in with a method the organization has since withheld keeps its roles
+        // but can never sign in again; the row says so where the tenant line would be.
+        if (!model.IsMethodAllowed(identity.SignInMethod))
+        {
+            group.Caption = AppModel.DisallowedMethodCaption;
+            if (soleTenant is not null)
+            {
+                ApplyStatus(model, group, soleTenant);
+                group.ActiveCount = model.ActiveCount(soleTenant.Key);
+                group.IsHome = soleTenant.Source == TenantSource.Home;
+            }
+
+            return group;
+        }
+
         var caption = new List<string> { identity.Upn };
         if (soleTenant is not null)
         {

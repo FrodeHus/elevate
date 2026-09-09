@@ -43,22 +43,31 @@ internal static class ProfileActions
         var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true));
         last.IsEnabled = profile.LastJustification is not null;
         menu.Items.Add(last);
+        var managed = profile.Source == ProfileSource.Managed;
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(Item("Edit…", () => App.Current.OpenManageProfiles(id)));
-        if (profile.Pinned)
+        menu.Items.Add(Item(managed ? "Show…" : "Edit…", () => App.Current.OpenManageProfiles(id)));
+        // A published profile is the organization's: it cannot be pinned, unpinned or deleted here.
+        if (!managed)
         {
-            menu.Items.Add(Item("Unpin from flyout", () => model.SetPinned(id, false)));
-        }
-        else
-        {
-            var pin = Item("Pin to flyout", () => model.SetPinned(id, true));
-            pin.IsEnabled = model.PinnedProfiles.Count < ProfilePins.Limit;
-            menu.Items.Add(pin);
+            if (profile.Pinned)
+            {
+                menu.Items.Add(Item("Unpin from flyout", () => model.SetPinned(id, false)));
+            }
+            else
+            {
+                var pin = Item("Pin to flyout", () => model.SetPinned(id, true));
+                pin.IsEnabled = model.CanPinAnotherProfile;
+                menu.Items.Add(pin);
+            }
         }
 
         menu.Items.Add(Item("Manage profiles…", () => App.Current.OpenManageProfiles()));
-        menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(Item("Delete…", () => _ = ConfirmDeleteAsync(model, id, root)));
+        if (!managed)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(Item("Delete…", () => _ = ConfirmDeleteAsync(model, id, root)));
+        }
+
         return menu;
     }
 
@@ -66,7 +75,7 @@ internal static class ProfileActions
     public static async Task ConfirmDeleteAsync(AppModel model, Guid id, XamlRoot root)
     {
         ArgumentNullException.ThrowIfNull(model);
-        if (model.Profile(id) is not { } profile)
+        if (model.Profile(id) is not { } profile || profile.Source == ProfileSource.Managed)
         {
             return;
         }

@@ -333,6 +333,9 @@ public sealed partial class AppModel
             {
                 if (IsOnline)
                 {
+                    // Both are background reads on the same slow cadence; the profile fetch
+                    // throttles itself to once a day, so riding this tick costs nothing extra.
+                    await RefreshManagedProfilesAsync();
                     await PollAccessPackagesIfDueAsync();
                 }
             }

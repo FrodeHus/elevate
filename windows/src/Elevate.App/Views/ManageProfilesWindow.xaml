@@ -60,11 +60,16 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" x:Name="NameBox" PlaceholderText="Profile name" LostFocus="OnNameLostFocus" KeyDown="OnNameKeyDown" AutomationProperties.Name="Profile name" />
-                <Button Grid.Column="1" x:Name="RunButton" Content="Run…" Click="OnRun" />
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBox x:Name="NameBox" PlaceholderText="Profile name" LostFocus="OnNameLostFocus" KeyDown="OnNameKeyDown" AutomationProperties.Name="Profile name" />
+                    <!-- A profile the organization published: read-only here, run like any other. -->
+                    <TextBlock x:Name="ManagedCaption" Text="Published by your organization" FontSize="11"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="RunButton" Content="Run…" Click="OnRun" VerticalAlignment="Top" />
             </Grid>
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="24">
-                <StackPanel Spacing="2">
+                <StackPanel x:Name="PinBlock" Spacing="2">
                     <ToggleSwitch x:Name="PinSwitch" OnContent="Pinned in flyout" OffContent="Pinned in flyout" Toggled="OnPinToggled" MinWidth="0" />
                     <TextBlock x:Name="PinHint" FontSize="11" Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed" />
                 </StackPanel>
@@ -96,7 +101,7 @@
                                 <TextBlock Text="Add roles…" />
                             </StackPanel>
                         </Button>
-                        <TextBlock Grid.Column="1" Text="Durations are what the next run proposes; you can still change them then."
+                        <TextBlock Grid.Column="1" x:Name="DurationHint" Text="Durations are what the next run proposes; you can still change them then."
                                    FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
                     </Grid>
                 </Grid>
@@ -109,7 +114,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0" x:Name="DeleteButton" Content="Delete…" Click="OnDelete" />
-                <TextBlock Grid.Column="2" Text="Changes save as you go" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" x:Name="SaveHint" Text="Changes save as you go" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                 <Button Grid.Column="3" x:Name="DoneButton" Content="Done" Style="{StaticResource AccentButtonStyle}" Click="OnDone" MinWidth="90" />
             </Grid>
         </Grid>

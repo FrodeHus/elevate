@@ -720,6 +720,14 @@ public sealed partial class PanelView : UserControl
         }
 
         menu.Items.Add(new MenuFlyoutSeparator());
+        if (model.IsPinnedTenant(tenant.Key))
+        {
+            // A pinned tenant would only come back on the next launch; the menu says so rather
+            // than offering a removal that does nothing.
+            menu.Items.Add(new MenuFlyoutItem { Text = "Pinned by your organization", IsEnabled = false });
+            return;
+        }
+
         var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
         remove.IsEnabled = tenant.Source != TenantSource.Home;
         menu.Items.Add(remove);

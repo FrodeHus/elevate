@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Elevate.Core.Managed;
 using Elevate.Core.Storage;
 
 namespace Elevate.App.Services;
@@ -42,14 +43,29 @@ public sealed class AppSettings : ObservableObject
     private DateTimeOffset? _lastUpdateCheck;
     private string? _dismissedUpdateVersion;
     private HashSet<string> _dismissedTokenHintAccounts = new(StringComparer.Ordinal);
+    private DateTimeOffset? _managedProfilesFetchedAt;
 
-    public AppSettings(string? directory = null)
+    /// <param name="managed">
+    /// The organization's managed configuration; the platform default source (Windows policy) when
+    /// omitted. Read once at construction: managed configuration does not change under a running app.
+    /// </param>
+    public AppSettings(string? directory = null, ManagedConfiguration? managed = null)
     {
         Directory = directory ?? AppStateStore.DefaultDirectory;
         System.IO.Directory.CreateDirectory(Directory);
         _path = Path.Combine(Directory, "settings.json");
+        Managed = managed ?? ManagedConfiguration.Load(ManagedConfigurationSources.Default());
         Load();
     }
+
+    /// <summary>The managed configuration in effect; <see cref="ManagedConfiguration.IsEmpty"/> when there is none.</summary>
+    public ManagedConfiguration Managed { get; }
+
+    /// <summary>True when the client id comes from managed configuration and cannot be edited here.</summary>
+    public bool IsClientIdManaged => Managed.ClientId is { Length: > 0 };
+
+    /// <summary>True when the organization turned the update check off; the app then never calls GitHub.</summary>
+    public bool UpdateCheckDisabled => Managed.DisableUpdateCheck;
 
     /// <summary>The persisted shape; every field optional so an older file still loads.</summary>
     private sealed record FileModel(
@@ -64,18 +80,30 @@ public sealed class AppSettings : ObservableObject
         Guid? HotKeyProfileId = null,
         DateTimeOffset? LastUpdateCheck = null,
         string? DismissedUpdateVersion = null,
-        List<string>? DismissedTokenHintAccounts = null);
+        List<string>? DismissedTokenHintAccounts = null,
+        DateTimeOffset? ManagedProfilesFetchedAt = null);
 
     public string Directory { get; }
 
     public string FilePath => _path;
 
-    /// <summary>Application (client) id of the user's own app registration; empty until configured.</summary>
+    /// <summary>
+    /// Application (client) id of the user's own app registration; empty until configured. The
+    /// managed id wins over the stored one, and a write is ignored while it is managed —
+    /// <see cref="ViewModels.AppModel.ApplyClientId"/> throws instead, so the user gets a reason
+    /// rather than a silently discarded edit. The stored value itself is never touched, so
+    /// removing the policy brings the user's own id back.
+    /// </summary>
     public string ClientId
     {
-        get => _clientId;
+        get => Managed.ClientId ?? _clientId;
         set
         {
+            if (IsClientIdManaged)
+            {
+                return;
+            }
+
             if (SetProperty(ref _clientId, value ?? string.Empty))
             {
                 OnPropertyChanged(nameof(IsConfigured));
@@ -242,6 +270,22 @@ public sealed class AppSettings : ObservableObject
         }
     }
 
+    /// <summary>
+    /// When the organization's published profile document was last fetched successfully, so the
+    /// once-a-day throttle survives a relaunch. Null until the first successful fetch.
+    /// </summary>
+    public DateTimeOffset? ManagedProfilesFetchedAt
+    {
+        get => _managedProfilesFetchedAt;
+        set
+        {
+            if (SetProperty(ref _managedProfilesFetchedAt, value))
+            {
+                Save();
+            }
+        }
+    }
+
     public bool IsConfigured => IsValidClientId(ClientId);
 
     /// <summary>The redirect URI the Windows broker (WAM) expects the registration to list for a client id.</summary>
@@ -281,6 +325,7 @@ public sealed class AppSettings : ObservableObject
             _lastUpdateCheck = model.LastUpdateCheck;
             _dismissedUpdateVersion = model.DismissedUpdateVersion;
             _dismissedTokenHintAccounts = new HashSet<string>(model.DismissedTokenHintAccounts ?? [], StringComparer.Ordinal);
+            _managedProfilesFetchedAt = model.ManagedProfilesFetchedAt;
         }
         catch (JsonException)
         {
@@ -295,7 +340,8 @@ public sealed class AppSettings : ObservableObject
             _clientId, _customClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
-            _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)]);
+            _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],
+            _managedProfilesFetchedAt);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);

@@ -130,21 +130,24 @@ internal sealed class AllProfilesFlyout
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+        // A published profile's pin is the organization's choice, so the star is a marker here.
+        var managed = profile.Source == ProfileSource.Managed;
         var star = new Button
         {
             Style = (Style)resources["SubtleButtonStyle"],
             Width = 28,
             Height = 28,
+            IsEnabled = !managed,
             Content = new FontIcon
             {
-                Glyph = profile.Pinned ? "" : "",
+                Glyph = managed ? "" : profile.Pinned ? "" : "",
                 FontSize = 12,
-                Foreground = (Brush)resources[profile.Pinned ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"],
+                Foreground = (Brush)resources[!managed && profile.Pinned ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"],
             },
         };
-        var starName = profile.Pinned ? $"Unpin {profile.Name}" : $"Pin {profile.Name}";
+        var starName = managed ? "Published by your organization" : profile.Pinned ? $"Unpin {profile.Name}" : $"Pin {profile.Name}";
         AutomationProperties.SetName(star, starName);
-        ToolTipService.SetToolTip(star, profile.Pinned ? "Unpin from the flyout" : "Pin to the flyout");
+        ToolTipService.SetToolTip(star, managed ? "Published by your organization" : profile.Pinned ? "Unpin from the flyout" : "Pin to the flyout");
         star.Click += (_, _) =>
         {
             _pinHint = _model.SetPinned(id, !profile.Pinned) ? null : ProfileActions.PinRefusedHint;

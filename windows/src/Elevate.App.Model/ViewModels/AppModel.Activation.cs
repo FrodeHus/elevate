@@ -324,7 +324,7 @@ public sealed partial class AppModel
             return true;
         }
 
-        if (State.Profile(profileId) is not { } profile)
+        if (Profile(profileId) is not { } profile)
         {
             return false;
         }

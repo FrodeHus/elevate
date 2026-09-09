@@ -26,6 +26,11 @@
                 <TextBox x:Name="ClientId" PlaceholderText="00000000-0000-0000-0000-000000000000" FontFamily="Cascadia Mono, Consolas"
                          TextChanged="OnClientIdChanged" KeyDown="OnClientIdKeyDown" LostFocus="OnClientIdLostFocus" />
                 <TextBlock x:Name="ApplyHint" Text="Press Enter to apply." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                <!-- A managed client id is shown, never edited: the box is disabled and says why. -->
+                <StackPanel x:Name="ClientIdManaged" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE825;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="Managed by your organization" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
             </StackPanel>
             <Grid Padding="14,12" CornerRadius="4" ColumnSpacing="14" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1">
@@ -77,6 +82,9 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <ProgressRing x:Name="Checking" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
                     <Button x:Name="CheckUpdates" Content="Check for updates" Click="OnCheckUpdates" />
+                    <TextBlock x:Name="UpdatesManaged" Text="Updates are managed by your organization" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" MaxWidth="220"
+                               VerticalAlignment="Center" Visibility="Collapsed" />
                     <HyperlinkButton Content="Release notes" NavigateUri="https://github.com/FrodeHus/elevate/releases" />
                 </StackPanel>
             </Grid>
@@ -123,6 +131,17 @@
                            FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock x:Name="HotKeyError" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap" />
             </StackPanel>
+        </StackPanel>
+
+        <!-- What the organization pushed, and where it came from. Hidden without a policy. -->
+        <StackPanel Grid.Row="4" x:Name="ManagedGroup" Spacing="8" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE825;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                <TextBlock Text="Managed by your organization" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+            <StackPanel x:Name="ManagedRows" Padding="14,12" Spacing="6" CornerRadius="4" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" />
         </StackPanel>
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">

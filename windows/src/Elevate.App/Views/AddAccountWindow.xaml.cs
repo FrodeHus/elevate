@@ -28,15 +28,46 @@ public sealed partial class AddAccountWindow : Window
         OwnAppCaption.Text = ownAppAvailable
             ? "Signs in with Windows (WAM) using the client ID from Settings; needs admin consent in each tenant. Supports Entra roles, Azure roles and PIM for Groups."
             : "Unavailable — configure a client ID in Settings.";
+        // A method the organization does not permit is not offered at all: its row goes, and so
+        // does the client-id box under "Custom client ID" when custom registrations are withheld.
+        var offered = model.AvailableMethods;
+        OwnAppChoice.Visibility = Offered(offered, SignInMethodKind.OwnApp);
+        CliChoice.Visibility = Offered(offered, SignInMethodKind.AzureCLI);
+        PowerShellChoice.Visibility = Offered(offered, SignInMethodKind.AzurePowerShell);
+        CustomChoice.Visibility = model.IsCustomMethodAllowed ? Visibility.Visible : Visibility.Collapsed;
         var initial = preselected ?? (ownAppAvailable ? SignInMethod.OwnApp : SignInMethod.AzureCLI);
-        (initial.Kind switch
+        var choice = Row(initial.Kind);
+        if (choice.Visibility != Visibility.Visible)
         {
-            SignInMethodKind.OwnApp => OwnAppChoice,
-            SignInMethodKind.AzurePowerShell => PowerShellChoice,
-            SignInMethodKind.Custom => CustomChoice,
-            _ => CliChoice,
-        }).IsChecked = true;
+            // Every fixed method may be withheld, leaving "Custom client ID" as all there is — and
+            // it may be withheld too, in which case the dialog has nothing to offer.
+            choice = new[] { OwnAppChoice, CliChoice, PowerShellChoice, CustomChoice }
+                .FirstOrDefault(r => r.Visibility == Visibility.Visible) ?? OwnAppChoice;
+        }
+
+        if (choice.Visibility == Visibility.Visible)
+        {
+            choice.IsChecked = true;
+        }
+        else
+        {
+            Error.Message = AppModel.DisallowedMethodNotice;
+            Error.IsOpen = true;
+        }
+
         Update();
+    }
+
+    private static Visibility Offered(IReadOnlyList<SignInMethod> methods, SignInMethodKind kind) =>
+        methods.Any(m => m.Kind == kind) ? Visibility.Visible : Visibility.Collapsed;
+
+    private RadioButton Row(SignInMethodKind kind) => kind switch
+    {
+        SignInMethodKind.OwnApp => OwnAppChoice,
+        SignInMethodKind.AzurePowerShell => PowerShellChoice,
+        SignInMethodKind.Custom => CustomChoice,
+        _ => CliChoice,
+    };
     }
 
     private SignInMethod Selection
