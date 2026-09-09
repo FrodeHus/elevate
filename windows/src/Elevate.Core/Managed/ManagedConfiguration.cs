@@ -1,3 +1,4 @@
+using System.Linq;
 using Elevate.Core.Models;
 
 namespace Elevate.Core.Managed;
@@ -87,9 +88,11 @@ public sealed record ManagedConfiguration
             var kinds = new HashSet<SignInMethodKind>();
             foreach (var name in methodNames)
             {
-                if (Enum.TryParse<SignInMethodKind>(name, ignoreCase: true, out var kind) && Enum.IsDefined(kind))
+                var matchedName = Enum.GetNames<SignInMethodKind>()
+                    .FirstOrDefault(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
+                if (matchedName is not null)
                 {
-                    kinds.Add(kind);
+                    kinds.Add(Enum.Parse<SignInMethodKind>(matchedName));
                 }
                 else
                 {

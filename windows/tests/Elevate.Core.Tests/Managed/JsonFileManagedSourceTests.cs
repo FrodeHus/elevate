@@ -57,6 +57,42 @@ public class JsonFileManagedSourceTests
     }
 
     [Fact]
+    public void NonIntegralNumberForBoolIsIgnoredNotThrown()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        File.WriteAllText(path, """{"DisableUpdateCheck":1.5}""");
+        try
+        {
+            var source = new JsonFileManagedSource(path, _ => true);
+            source.Bool(ManagedKey.DisableUpdateCheck).Should().BeNull();
+
+            var config = ManagedConfiguration.Load(source);
+            config.DisableUpdateCheck.Should().BeFalse();
+            config.KeysInEffect.Should().NotContain(ManagedKey.DisableUpdateCheck);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void NullArrayItemIsDroppedNotThrown()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        File.WriteAllText(path, """{"AllowedTenants":["contoso.com",null]}""");
+        try
+        {
+            var source = new JsonFileManagedSource(path, _ => true);
+            source.List(ManagedKey.AllowedTenants).Should().Equal("contoso.com");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void MalformedJsonIsIgnoredWithWarning()
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");

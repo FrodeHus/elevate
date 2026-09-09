@@ -87,6 +87,17 @@ public class ManagedConfigurationTests
     }
 
     [Fact]
+    public void AllowedMethodsRejectNumericStringsAsUnknown()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["AllowedSignInMethods"] = new[] { "0", "ownApp" },
+        }));
+        config.AllowedSignInMethods.Should().BeEquivalentTo(new[] { SignInMethodKind.OwnApp });
+        config.Warnings.Should().Equal("AllowedSignInMethods: unknown method '0' ignored");
+    }
+
+    [Fact]
     public void TenantListsKeepEntriesTrimmedAndDeduplicated()
     {
         var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>

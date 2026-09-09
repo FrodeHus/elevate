@@ -52,7 +52,7 @@ internal static class ManagedValue
         string s when IsFalse(s) => false,
         JsonElement { ValueKind: JsonValueKind.True } => true,
         JsonElement { ValueKind: JsonValueKind.False } => false,
-        JsonElement { ValueKind: JsonValueKind.Number } e => e.GetInt64() != 0,
+        JsonElement { ValueKind: JsonValueKind.Number } e => e.TryGetInt64(out var n) ? n != 0 : null,
         JsonElement { ValueKind: JsonValueKind.String } e when IsTrue(e.GetString()) => true,
         JsonElement { ValueKind: JsonValueKind.String } e when IsFalse(e.GetString()) => false,
         _ => null,
@@ -64,11 +64,18 @@ internal static class ManagedValue
         IEnumerable<string> e => e.ToList(),
         string s => s.Split(',').Select(part => part.Trim()).ToList(),
         JsonElement { ValueKind: JsonValueKind.Array } e => e.EnumerateArray()
-            .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText())
+            .Select(ItemToString)
             .Where(s => s is not null)
             .Select(s => s!)
             .ToList(),
         _ => null,
+    };
+
+    private static string? ItemToString(JsonElement item) => item.ValueKind switch
+    {
+        JsonValueKind.String => item.GetString(),
+        JsonValueKind.Null or JsonValueKind.Undefined => null,
+        _ => item.GetRawText(),
     };
 
     private static bool IsTrue(string? s) => s is not null && (s.Equals("true", StringComparison.OrdinalIgnoreCase) || s == "1");
