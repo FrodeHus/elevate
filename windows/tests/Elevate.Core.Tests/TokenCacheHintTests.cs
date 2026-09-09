@@ -56,7 +56,7 @@ public class TokenCacheHintTests
     public void WordingNamesTheAccountAndTheExactCommands()
     {
         TokenCacheHint.Message("alex@contoso.com").Should().Contain("alex@contoso.com").And.Contain("Azure CLI");
-        TokenCacheHint.Advice.Should().Contain("az account get-access-token --force-refresh").And.Contain("kubelogin remove-tokens");
-        TokenCacheHint.Advice.Should().NotContain("az account clear", "that signs every account out");
+        TokenCacheHint.Advice.Should().Contain("az login").And.Contain("kubelogin remove-tokens");
+        TokenCacheHint.Advice.Should().NotContain("--force-refresh", "az has no such flag; signing in again is the only way");
     }
 }

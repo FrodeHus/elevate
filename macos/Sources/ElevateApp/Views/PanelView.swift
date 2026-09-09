@@ -79,18 +79,29 @@ struct PanelView: View {
             }
             // After an Azure or group activation: cached az / kubelogin tokens predate it. Dismiss hides it for that account.
             if let hint = model.tokenHint {
+                // The text wraps to as many lines as it needs: without fixedSize the HStack sizes the
+                // row for one line and the rest of the caption spills over the list below it.
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "key.horizontal").foregroundStyle(.blue)
-                    Text("\(TokenCacheHint.message(account: hint.account)) \(TokenCacheHint.advice)")
-                        .font(.caption).textSelection(.enabled)
-                    Spacer()
-                    Button("Copy command") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(TokenCacheHint.azureCliCommand, forType: .string)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(TokenCacheHint.message(account: hint.account))
+                            .font(.caption).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(TokenCacheHint.advice)
+                            .font(.caption2).foregroundStyle(.secondary).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 8) {
+                            Button("Copy command") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(TokenCacheHint.azureCliCommand, forType: .string)
+                            }
+                            .buttonStyle(.borderless).help("Copies '\(TokenCacheHint.azureCliCommand)'")
+                            Button("Dismiss") { model.dismissTokenHint() }
+                                .buttonStyle(.borderless).help("Hide this for \(hint.account)")
+                        }
+                        .font(.caption)
                     }
-                    .buttonStyle(.borderless).help("Copies '\(TokenCacheHint.azureCliCommand)'")
-                    Button("Dismiss") { model.dismissTokenHint() }
-                        .buttonStyle(.borderless).help("Hide this for \(hint.account)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .background(.blue.opacity(0.12))
