@@ -183,7 +183,7 @@ struct AppModelManagedTenantTests {
 
     @Test func pinnedTenantOutsideTheAllowListSurvives() async {
         var state = AppState()
-        state.identities = [Sample.identity(method: .azureCLI)]
+        state.identities = [Sample.identity(method: .azureCLI), Sample.identity("id-2", method: .azureCLI)]
         state.upsertTenant(Sample.tenant())
         // As a previous launch left it: the pin is already tracked, and it is off the allow-list.
         state.upsertTenant(TenantContext(identityId: Sample.identityId, tenantId: Self.fabrikamId,
@@ -204,6 +204,20 @@ struct AppModelManagedTenantTests {
         let tracked = model.tenants(for: Sample.identityId).map(\.tenantId)
         #expect(tracked.count { $0 == Self.fabrikamId } == 1)
         #expect(!model.errorLog.entries.contains { $0.message.hasPrefix("Removed tenants") })
+
+        // A bulk track that includes the already-tracked pin leaves it untouched, not dropped.
+        await model.trackTenants(identityId: Sample.identityId, tenants: [
+            DiscoveredTenant(tenantId: Self.fabrikamId, displayName: "Fabrikam", defaultDomain: "fabrikam.com"),
+        ])
+        #expect(model.tenants(for: Sample.identityId).map(\.tenantId).count { $0 == Self.fabrikamId } == 1)
+
+        // A manual add of the pinned tenant, for another identity entirely, is not refused either.
+        do {
+            try await model.addTenant(identityId: "id-2", domainOrId: Self.fabrikamId)
+        } catch {
+            Issue.record("adding a pinned tenant should not throw: \(error)")
+        }
+        #expect(model.tenants(for: "id-2").map(\.tenantId).contains(Self.fabrikamId))
     }
 
     @Test func managedTenantsResolveWhenTheNetworkComesBack() async {

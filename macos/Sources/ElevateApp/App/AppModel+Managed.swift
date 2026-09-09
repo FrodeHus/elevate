@@ -16,9 +16,14 @@ extension AppModel {
 
     // MARK: Tenants
 
-    /// Whether `tenantId` may be tracked. Unrestricted while `allowedTenantIds` is nil.
+    /// Whether `tenantId` may be tracked. Unrestricted while `allowedTenantIds` is nil. A pinned
+    /// tenant is always allowed, even outside the allow-list: the organization pinning it says it
+    /// wants it tracked, so a manual add must not refuse it and a bulk track must not drop it.
     func isTenantAllowed(_ tenantId: String) -> Bool {
-        ManagedPolicy.isTenantAllowed(tenantId, allowedIds: allowedTenantIds)
+        if pinnedTenantIds.contains(where: { $0.caseInsensitiveCompare(tenantId) == .orderedSame }) {
+            return true
+        }
+        return ManagedPolicy.isTenantAllowed(tenantId, allowedIds: allowedTenantIds)
     }
 
     /// Whether the organization pins this tenant, in which case the user cannot remove it.
@@ -93,7 +98,7 @@ extension AppModel {
     private func removeDisallowedTenants() {
         guard allowedTenantIds != nil else { return }
         let removed = state.tenants.filter {
-            $0.source != .home && !isTenantAllowed($0.tenantId) && !isPinnedTenant($0.id)
+            $0.source != .home && !isTenantAllowed($0.tenantId)
         }
         guard !removed.isEmpty else { return }
         for tenant in removed { forgetTenant(tenant.id) }
