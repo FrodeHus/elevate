@@ -74,6 +74,20 @@ import Foundation
         }
     }
 
+    @Test func rejectsANonIntegerVersion() {
+        let json = #"{"version":1.9,"profiles":[]}"#
+        #expect(throws: ManagedProfileError.invalid("version 1.9 is not supported")) {
+            try ManagedProfileSet.parse(json)
+        }
+    }
+
+    @Test func rejectsATrailingNewlineInTheSlug() {
+        let json = "{\"profiles\":[{\"id\":\"prod-incident\\n\",\"name\":\"P\",\"roles\":[]}]}"
+        #expect(throws: ManagedProfileError.invalid("profile 'prod-incident\n': id must match [a-z0-9-]{1,64}")) {
+            try ManagedProfileSet.parse(json)
+        }
+    }
+
     @Test func requiresAName() {
         let json = #"{"version":1,"profiles":[{"id":"prod-incident","roles":[]}]}"#
         #expect(throws: ManagedProfileError.invalid("profile 'prod-incident': name is required")) {

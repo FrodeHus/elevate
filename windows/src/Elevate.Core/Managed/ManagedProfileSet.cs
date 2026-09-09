@@ -89,7 +89,7 @@ public sealed record ManagedProfileSet
     public const int Version = 1;
 
     /// <summary>The slug an administrator gives a profile; the derived UUID depends on it.</summary>
-    private static readonly Regex Slug = new("^[a-z0-9-]{1,64}$", RegexOptions.CultureInvariant);
+    private static readonly Regex Slug = new(@"\A[a-z0-9-]{1,64}\z", RegexOptions.CultureInvariant);
 
     /// <summary>RFC 4122's DNS namespace, so the derived ids are reproducible outside this app.</summary>
     private static ReadOnlySpan<byte> DnsNamespace =>

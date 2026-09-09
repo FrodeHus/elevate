@@ -109,7 +109,7 @@ public struct ManagedProfileSet: Hashable, Sendable {
             throw ManagedProfileError.invalid("not a JSON object")
         }
         if let version = root["version"] {
-            guard number(version)?.intValue == Self.version else {
+            guard isSupportedVersion(version) else {
                 throw ManagedProfileError.invalid("version \(describe(version)) is not supported")
             }
         }
@@ -205,8 +205,19 @@ public struct ManagedProfileSet: Hashable, Sendable {
         return value
     }
 
+    /// Accepted only when the value is a whole number equal to `version`: `1.9` is a shape error,
+    /// not a value that truncates to `1`.
+    private static func isSupportedVersion(_ value: Any) -> Bool {
+        guard let number = number(value) else { return false }
+        let double = number.doubleValue
+        return double == double.rounded(.towardZero) && number.intValue == Self.version
+    }
+
     private static func describe(_ value: Any) -> String {
-        if let number = number(value) { return "\(number.intValue)" }
+        if let number = number(value) {
+            let double = number.doubleValue
+            return double == double.rounded(.towardZero) ? "\(number.intValue)" : "\(double)"
+        }
         return "\(value)"
     }
 }

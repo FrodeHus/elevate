@@ -86,6 +86,16 @@ public class ManagedProfileSetTests
             .Should().Be("version 2 is not supported");
 
     [Fact]
+    public void RejectsANonIntegerVersion()
+        => Invalid(() => ManagedProfileSet.Parse("""{"version":1.9,"profiles":[]}"""))
+            .Should().Be("version 1.9 is not supported");
+
+    [Fact]
+    public void RejectsATrailingNewlineInTheSlug()
+        => Invalid(() => ManagedProfileSet.Parse("{\"profiles\":[{\"id\":\"prod-incident\\n\",\"name\":\"P\",\"roles\":[]}]}"))
+            .Should().Be("profile 'prod-incident\n': id must match [a-z0-9-]{1,64}");
+
+    [Fact]
     public void RequiresAName()
         => Invalid(() => ManagedProfileSet.Parse("""{"version":1,"profiles":[{"id":"prod-incident","roles":[]}]}"""))
             .Should().Be("profile 'prod-incident': name is required");
