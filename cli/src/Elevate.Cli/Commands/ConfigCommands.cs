@@ -227,7 +227,7 @@ public static class ConfigCommands
     {
         var file = new Option<string?>("--file") { Description = "Read a managed.json from this path instead of the platform source; a dry run for testing a policy file." };
         var command = new Command("managed", "Show the managed (MDM/GPO) configuration in effect: where it comes from, which keys it sets, and anything it got wrong.") { file };
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             ManagedConfiguration managed;
@@ -244,9 +244,13 @@ public static class ConfigCommands
             }
             else
             {
-                managed = context.Session.Settings.Managed;
+                // The session must resolve (managed tenants, then the published profiles) before
+                // ManagedProfileWarnings has anything in it: without this the ManagedProfilesUrl
+                // warning is unreachable and every domain-named profile tenant looks unresolved.
+                var session = await context.SessionAsync(ct).ConfigureAwait(false);
+                managed = session.Settings.Managed;
                 // Whatever the published profile document got wrong belongs here too.
-                warnings = [.. managed.Warnings, .. context.Session.ManagedProfileWarnings];
+                warnings = [.. managed.Warnings, .. session.ManagedProfileWarnings];
                 origin = managed.Origin;
             }
 
@@ -254,13 +258,13 @@ public static class ConfigCommands
             if (context.Output.Json)
             {
                 context.Output.WriteJson(new { origin, keys, warnings });
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             if (keys.Count == 0 && warnings.Count == 0)
             {
                 context.Output.Note("No managed configuration.");
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded).HideHeaders();
@@ -278,7 +282,7 @@ public static class ConfigCommands
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
         return command;
     }

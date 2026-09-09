@@ -15,6 +15,13 @@ public sealed partial class ElevateSession
     /// <summary>The published document is fetched at most once a day; the cached copy stands in between.</summary>
     public static readonly TimeSpan ManagedProfilesInterval = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// The published-profile fetch runs inside every command's session setup, so it cannot be
+    /// left to the shared HTTP client's 60 s timeout: a slow or hanging endpoint would stall every
+    /// command. Bounded here instead; the cached set (if any) stands in on timeout.
+    /// </summary>
+    internal static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>The cache file, kept next to <c>state.json</c>.</summary>
     public const string ManagedProfilesCacheFile = "managed-profiles.json";
 
@@ -167,16 +174,21 @@ public sealed partial class ElevateSession
             _fetchedProfileSet = cached;
         }
 
+        // Freshness only excuses the fetch when there is something cached to fall back on: a
+        // fresh timestamp with no cache file (say, the cache was deleted) must still fetch.
         if (!force
+            && _fetchedProfileSet is not null
             && Settings.ManagedProfilesFetchedAt is { } fetchedAt
             && (DateTimeOffset.UtcNow - fetchedAt).Duration() < ManagedProfilesInterval)
         {
             return;
         }
 
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(FetchTimeout);
         try
         {
-            _fetchedProfileSet = await _profileFetcher.FetchAsync(url, ct).ConfigureAwait(false);
+            _fetchedProfileSet = await _profileFetcher.FetchAsync(url, timeoutCts.Token).ConfigureAwait(false);
             Settings.ManagedProfilesFetchedAt = DateTimeOffset.UtcNow;
             _fetchWarning = null;
 
@@ -186,6 +198,14 @@ public sealed partial class ElevateSession
             {
                 await ResolveManagedTenantsAsync(ct).ConfigureAwait(false);
             }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // The timeout fired, not the caller's own token: this is a fetch failure, not a
+            // cancelled command, so the cached set stands and a warning is left behind.
+            var message = $"timed out after {FetchTimeout.TotalSeconds:0} s";
+            _fetchWarning = $"ManagedProfilesUrl: {message}";
+            LogError($"Managed profiles: {message}");
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

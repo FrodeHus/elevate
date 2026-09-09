@@ -237,3 +237,17 @@ public sealed class StubHttpClient : IHttpClient
             ?? new HttpResponseData(599, new Dictionary<string, string>(), System.Text.Encoding.UTF8.GetBytes($"no stub for {request.Method} {request.Url.AbsoluteUri}")));
     }
 }
+
+/// <summary>
+/// An HTTP client that never answers until <paramref name="ct"/> is cancelled — for proving a
+/// deadline actually bounds a fetch rather than trusting whatever timeout the caller's own token
+/// carries. Honours cancellation properly, unlike a client that just sleeps past a fixed delay.
+/// </summary>
+public sealed class HangingHttpClient : IHttpClient
+{
+    public async Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken ct)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+        throw new OperationCanceledException(ct); // unreachable: Task.Delay throws first
+    }
+}

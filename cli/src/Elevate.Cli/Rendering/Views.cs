@@ -214,7 +214,7 @@ public static class Views
                 null, null, null, duration),
             GroupScope group => new("group", key.TenantId, null, null, null, name ?? group.GroupId,
                 group.AccessId == GroupAccess.Owner ? "owner" : "member", duration),
-            _ => new("group", key.TenantId, null, null, null, name ?? "unknown", "member", duration),
+            _ => throw new ArgumentOutOfRangeException(nameof(entry), key.Scope, "unknown role scope kind"),
         };
     }
 

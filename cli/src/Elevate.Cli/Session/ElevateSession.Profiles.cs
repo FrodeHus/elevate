@@ -28,6 +28,18 @@ public sealed partial class ElevateSession
             return exact[0];
         }
 
+        // A user profile and a published one sharing a name is otherwise refused before it can
+        // happen (RefuseIfManagedName on save/rename), but an exact tie should still resolve
+        // rather than vanish: the user's own profile wins.
+        if (exact.Count > 1)
+        {
+            var userExact = exact.Where(p => !IsManagedProfile(p.Id)).ToList();
+            if (userExact.Count == 1)
+            {
+                return userExact[0];
+            }
+        }
+
         var prefix = all.Where(p => p.Name.StartsWith(s, StringComparison.OrdinalIgnoreCase)).ToList();
         if (prefix.Count == 1)
         {

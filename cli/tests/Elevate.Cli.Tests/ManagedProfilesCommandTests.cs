@@ -296,4 +296,90 @@ public class ManagedProfilesCommandTests
 
     private static int Fetches(StubHttpClient http) =>
         http.Requests.Count(r => r.Url.AbsoluteUri.Contains("profiles.json", StringComparison.Ordinal));
+
+    // MARK: Fix round 1
+
+    [Fact]
+    public async Task ConfigManagedResolvesTheSessionSoAFetchFailureWarningShows()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "profiles.json", string.Empty, status: 500);
+        using var t = Published(http: http, url: ProfilesUrl);
+
+        var (code, json, _) = await RunAsync(t, "config", "managed", "--json");
+        code.Should().Be(ExitCodes.Ok);
+        var warnings = JsonDocument.Parse(json).RootElement.GetProperty("warnings").EnumerateArray().Select(e => e.GetString()!).ToList();
+        warnings.Should().Contain(w => w.StartsWith("ManagedProfilesUrl:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ConfigManagedResolvesADomainNamedProfileTenantWithoutAWarning()
+    {
+        var document = $$"""
+            {
+              "version": 1,
+              "profiles": [
+                {
+                  "id": "prod-incident",
+                  "name": "Prod incident",
+                  "roles": [
+                    { "kind": "entraDirectory", "tenant": "contoso.com", "role": "Security Reader" }
+                  ]
+                }
+              ]
+            }
+            """;
+        var http = new StubHttpClient();
+        http.On("GET", "well-known/openid-configuration", $$"""{"issuer":"https://login.microsoftonline.com/{{ContosoId}}/v2.0"}""");
+        using var t = new TestSession(Managed(("ManagedProfiles", document)), http);
+        t.Session.State.UpsertTenant(new TenantContext("id1", ContosoId, "Contoso", TenantSource.Discovered));
+        t.Session.Persist();
+
+        var (code, json, _) = await RunAsync(t, "config", "managed", "--json");
+        code.Should().Be(ExitCodes.Ok);
+        var warnings = JsonDocument.Parse(json).RootElement.GetProperty("warnings").EnumerateArray().Select(e => e.GetString()!).ToList();
+        warnings.Should().NotContain(w => w.Contains("could not resolve tenant", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheFetchIsBoundedAtFiveSeconds()
+    {
+        using var t = Published(http: new HangingHttpClient(), url: ProfilesUrl);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await t.Session.RefreshManagedProfilesAsync(force: true);
+        stopwatch.Stop();
+
+        // Well under the shared HTTP client's own 60 s timeout, which this deadline exists to pre-empt.
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(20));
+        t.Session.ManagedProfileWarnings.Should().Contain(w => w.Contains("ManagedProfilesUrl: timed out after 5 s", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AFreshTimestampWithNoCacheFileStillFetches()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "profiles.json", Document(name: "Prod incident (published)"));
+        using var t = Published(http: http, url: ProfilesUrl);
+        t.Settings.ManagedProfilesFetchedAt = DateTimeOffset.UtcNow;
+
+        await t.Session.RefreshManagedProfilesAsync(false);
+
+        Fetches(http).Should().Be(1);
+    }
+
+    [Fact]
+    public void FindProfilePrefersTheUserProfileOnAnExactNameTie()
+    {
+        using var t = Published();
+
+        // The name-collision guard (RefuseIfManagedName) normally prevents this at save time; this
+        // bypasses it, the way an organization publishing a profile after the user already saved
+        // one with the same name would.
+        t.Session.State.UpsertProfile(new ActivationProfile("Prod incident", [new(TestSession.EntraKey("role-1"))]));
+        t.Session.Persist();
+
+        var found = t.Session.FindProfile("Prod incident");
+        found.Should().NotBeNull();
+        t.Session.IsManagedProfile(found!.Id).Should().BeFalse();
+    }
 }
