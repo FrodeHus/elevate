@@ -256,7 +256,7 @@ public class ManagedPolicyCommandTests
 
         var act = async () => await t.Session.AddTenantAsync(TestSession.Account, OtherId);
         var thrown = await act.Should().ThrowAsync<CliException>();
-        thrown.Which.Message.Should().Be($"Tenant {OtherId} is not permitted by your organization.");
+        thrown.Which.Message.Should().Be($"Tenant {OtherId} is not permitted by your organization");
         thrown.Which.ExitCode.Should().Be(ExitCodes.Usage);
 
         // Discovery keeps the permitted ones and skips the rest.

@@ -90,7 +90,11 @@ public static class ManagedProfileResolver
         return new ManagedProfileResolution(profiles, warnings);
     }
 
-    /// <summary>A GUID entry is its own tenant id; anything else is a domain the resolver had to look up.</summary>
+    /// <summary>
+    /// A GUID entry is its own tenant id; anything else is a domain the resolver had to look up.
+    /// The lookup ignores case: a profile may name <c>Contoso.com</c> where the policy said
+    /// <c>contoso.com</c>, and the two must resolve to the same tenant on every platform.
+    /// </summary>
     private static string? TenantId(string entry, IReadOnlyDictionary<string, string> tenantIds)
     {
         if (Guid.TryParseExact(entry, "D", out _))
@@ -98,7 +102,20 @@ public static class ManagedProfileResolver
             return entry.ToLowerInvariant();
         }
 
-        return tenantIds.TryGetValue(entry, out var id) ? id.ToLowerInvariant() : null;
+        if (tenantIds.TryGetValue(entry, out var id))
+        {
+            return id.ToLowerInvariant();
+        }
+
+        foreach (var pair in tenantIds)
+        {
+            if (string.Equals(pair.Key, entry, StringComparison.OrdinalIgnoreCase))
+            {
+                return pair.Value.ToLowerInvariant();
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Kind, then the scope constraints, then the role's name or the id the spec named it by.</summary>

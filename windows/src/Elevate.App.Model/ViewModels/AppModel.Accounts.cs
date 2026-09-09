@@ -162,7 +162,7 @@ public sealed partial class AppModel
 
         if (!IsTenantAllowed(tenantId))
         {
-            throw new InvalidOperationException($"Tenant {domainOrId} is not permitted by your organization");
+            throw new InvalidOperationException(DisallowedTenantMessage(domainOrId));
         }
 
         var key = new TenantKey(identityId, tenantId);

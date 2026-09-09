@@ -20,7 +20,7 @@ struct AppModelProfileTests {
 
     @Test func pinningStopsAtTheLimit() async {
         let model = await loadedModel()
-        let profiles = (0...ProfilePins.limit).map { model.saveProfile(name: "P\($0)", keys: [Sample.entraKey]) }
+        let profiles = (0...ProfilePins.limit).compactMap { model.saveProfile(name: "P\($0)", keys: [Sample.entraKey]) }
         for p in profiles.prefix(ProfilePins.limit) { #expect(model.setPinned(id: p.id, true)) }
         #expect(!model.setPinned(id: profiles[ProfilePins.limit].id, true))
         #expect(model.pinnedProfiles.map(\.name) == ["P0", "P1", "P2", "P3"])
@@ -31,7 +31,7 @@ struct AppModelProfileTests {
 
     @Test func entriesAreAddedRemovedAndGivenDurationsInPlace() async {
         let model = await loadedModel()
-        let p = model.saveProfile(name: "Ops", keys: [Sample.entraKey])
+        let p = model.saveProfile(name: "Ops", keys: [Sample.entraKey])!
 
         model.addProfileEntries(id: p.id, keys: [Sample.groupKey, Sample.entraKey])
         var entries = model.profile(id: p.id)?.entries ?? []

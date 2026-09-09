@@ -15,7 +15,7 @@ public static class AccountCommands
     {
         var method = new Option<string?>("--method", "-m")
         {
-            Description = "own (your app registration, the default), cli (Azure CLI app), pwsh (Azure PowerShell app) or custom.",
+            Description = "own (your app registration), cli (Azure CLI app), pwsh (Azure PowerShell app) or custom; the first one your organization permits is the default.",
         };
         var clientId = new Option<string?>("--client-id") { Description = "With --method custom: the application (client) id of the registration. Remembered for next time." };
         var command = new Command("login", "Sign in and add an account. Opens the browser, or shows a device code with --device-code.")

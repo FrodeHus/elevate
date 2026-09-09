@@ -1,4 +1,5 @@
 using Elevate.App.Services;
+using Elevate.App.ViewModels;
 using Elevate.App.Tests.Support;
 using Elevate.Core.Discovery;
 using Elevate.Core.Managed;
@@ -207,5 +208,47 @@ public class ManagedSettingsTests
         model.Profile(profile.Id)!.Entries.Should().ContainSingle();
         // Managed profiles are recomputed, never persisted.
         model.State.Profiles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AUserProfileCannotTakeAPublishedProfilesName()
+    {
+        using var test = new TestModel(managed: Managed((ManagedKey.ManagedProfiles, Document)));
+        var model = test.Model;
+        model.ManagedProfiles.Select(p => p.Name).Should().Equal("Ops");
+
+        model.SaveProfile("  ops  ", [Sample.EntraKey]).Should().BeNull();
+        model.Notice.Should().Be("'Ops' is published by your organization and cannot be changed.");
+        model.State.Profiles.Should().BeEmpty();
+
+        var mine = model.SaveProfile("Mine", [Sample.EntraKey])!;
+        model.Notice = null;
+        model.RenameProfile(mine.Id, "OPS");
+
+        model.Profile(mine.Id)!.Name.Should().Be("Mine");
+        model.Notice.Should().Be("'Ops' is published by your organization and cannot be changed.");
+    }
+
+    [Fact]
+    public async Task AHangingFetchIsBoundedAndLeavesTheCachedDocumentStanding()
+    {
+        var http = new StubHttpClient();
+        http.Hang("GET", "profiles.json");
+        using var test = new TestModel(http: http, online: true,
+            managed: Managed((ManagedKey.ManagedProfilesUrl, "https://example.com/profiles.json")));
+        File.WriteAllText(
+            Path.Combine(test.Directory, AppModel.ManagedProfilesCacheFile),
+            Document.Replace("Ops", "Cached ops", StringComparison.Ordinal));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await test.Model.RefreshManagedProfilesAsync(force: true);
+        stopwatch.Stop();
+
+        // Well under the shared HTTP client's own default timeout, which this deadline pre-empts.
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(20));
+        test.Model.ManagedProfileSet.Profiles.Select(p => p.Name).Should().Equal("Cached ops");
+        test.Model.ManagedProfileWarnings.Should()
+            .Contain(w => w.Contains("ManagedProfilesUrl: timed out after 5 s", StringComparison.Ordinal));
+        test.Model.ManagedProfilesFetchedAt.Should().BeNull();
     }
 }

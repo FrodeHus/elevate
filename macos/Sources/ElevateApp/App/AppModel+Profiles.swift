@@ -26,11 +26,32 @@ extension AppModel {
         }
     }
 
+    /// The one refusal for a name a published profile already carries, worded as the CLI words it.
+    static func managedProfileRefusal(_ name: String) -> String {
+        "'\(name)' is published by your organization and cannot be changed."
+    }
+
+    /// Refuses a name a published profile already carries, so a user profile cannot shadow one —
+    /// the CLI refuses the same name, and a state the app allowed must not error there.
+    /// Returns the notice to show, or nil when the name is free.
+    private func managedNameRefusal(_ name: String) -> String? {
+        guard let published = managedProfiles.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })
+        else { return nil }
+        return Self.managedProfileRefusal(published.name)
+    }
+
+    /// Saves a new profile, or returns nil having set `notice` when the organization publishes a
+    /// profile by that name.
     @discardableResult
-    func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile {
+    func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile? {
         let entries = orderedKeys(keys).map { ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = ActivationProfile(name: trimmed.isEmpty ? "Untitled profile" : trimmed, entries: entries)
+        let final = trimmed.isEmpty ? "Untitled profile" : trimmed
+        if let refusal = managedNameRefusal(final) {
+            notice = refusal
+            return nil
+        }
+        let profile = ActivationProfile(name: final, entries: entries)
         state.upsertProfile(profile); persist()
         return profile
     }
@@ -46,6 +67,10 @@ extension AppModel {
         guard !isManagedProfile(id), var p = state.profile(id: id) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        if let refusal = managedNameRefusal(trimmed) {
+            notice = refusal
+            return
+        }
         p.name = trimmed; state.upsertProfile(p); persist()
     }
 

@@ -116,7 +116,7 @@ public sealed partial class ElevateSession
         var tenantId = await Discovery.ResolveTenantIdAsync(domainOrId, ct).ConfigureAwait(false);
         if (!IsTenantAllowed(tenantId))
         {
-            throw new CliException($"Tenant {domainOrId} is not permitted by your organization.", ExitCodes.Usage);
+            throw new CliException($"Tenant {domainOrId} is not permitted by your organization", ExitCodes.Usage);
         }
 
         var key = new TenantKey(identity.Id, tenantId);

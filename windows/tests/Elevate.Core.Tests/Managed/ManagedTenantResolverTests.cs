@@ -53,6 +53,25 @@ public class ManagedTenantResolverTests
         http.RequestsMatching("openid-configuration").Should().ContainSingle();
     }
 
+    /// <summary>
+    /// The policy may say <c>contoso.com</c> where a published profile says <c>Contoso.com</c>.
+    /// Both must resolve, and the second spelling must not cost a second request.
+    /// </summary>
+    [Fact]
+    public async Task TwoSpellingsOfADomainResolveWithOneRequest()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "fabrikam.com/v2.0/.well-known/openid-configuration", Issuer("11111111-2222-3333-4444-555555555555"));
+        var resolver = new ManagedTenantResolver(http);
+
+        var result = await resolver.ResolveAsync(["fabrikam.com", "Fabrikam.COM"]);
+
+        result.Ids["fabrikam.com"].Should().Be("11111111-2222-3333-4444-555555555555");
+        result.Ids["Fabrikam.COM"].Should().Be("11111111-2222-3333-4444-555555555555");
+        result.Unresolved.Should().BeEmpty();
+        http.RequestsMatching("openid-configuration").Should().ContainSingle();
+    }
+
     [Fact]
     public async Task UnknownDomainLandsInUnresolved()
     {

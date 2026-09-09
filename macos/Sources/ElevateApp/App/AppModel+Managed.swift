@@ -32,16 +32,24 @@ extension AppModel {
     }
 
     static let pinnedTenantNotice = "This tenant is pinned by your organization"
-    static let disallowedTenantMessage = "This tenant is not permitted by your organization"
+
+    /// The one refusal for a tenant off the allow-list, named the way the CLI and the Windows app
+    /// name it (design §6.2), so an administrator reads the same sentence on every platform.
+    static func disallowedTenantMessage(_ name: String) -> String {
+        "Tenant \(name) is not permitted by your organization"
+    }
 
     /// Every managed tenant entry that needs a tenant id, in configured order without duplicates.
     /// One place on purpose: the tenants named by managed profiles join the list here.
     private var managedTenantEntries: [String] {
+        // Case-insensitively, as the C# ports do: `contoso.com` in the policy and `Contoso.com`
+        // in a published profile are one entry and must cost one lookup.
         var seen = Set<String>()
         var entries: [String] = []
         let profileTenants = managedProfileSet.profiles.flatMap { $0.roles.map(\.tenant) }
-        for entry in (managed.allowedTenants ?? []) + managed.pinnedTenants + profileTenants where !seen.contains(entry) {
-            seen.insert(entry)
+        for entry in (managed.allowedTenants ?? []) + managed.pinnedTenants + profileTenants
+        where !seen.contains(entry.lowercased()) {
+            seen.insert(entry.lowercased())
             entries.append(entry)
         }
         return entries

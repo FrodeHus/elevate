@@ -100,6 +100,22 @@ public static class MiscCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            // The organization turned the check off, so nothing reaches github.com — not even
+            // from an explicit command. Both apps refuse a forced check for the same reason.
+            if (context.Session.Settings.UpdateCheckDisabled)
+            {
+                if (context.Output.Json)
+                {
+                    context.Output.WriteJson(new { current = Version, managed = true });
+                }
+                else
+                {
+                    context.Output.Plain("Update checks are managed by your organization.");
+                }
+
+                return ExitCodes.Ok;
+            }
+
             var checker = new UpdateChecker(new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(15) }));
             var latest = await context.Output.StatusAsync("Checking for updates…", () => checker.LatestAsync(ct)).ConfigureAwait(false);
             var current = Version;

@@ -81,6 +81,15 @@ import Foundation
         }
     }
 
+    /// `1.0` is a JSON double, not the integer the format asks for; the C# port rejects it, so
+    /// this one does too — the same document must get the same verdict on both platforms.
+    @Test func rejectsAFractionalVersionEqualToOne() {
+        let json = #"{"version":1.0,"profiles":[]}"#
+        #expect(throws: ManagedProfileError.invalid("version 1.0 is not supported")) {
+            try ManagedProfileSet.parse(json)
+        }
+    }
+
     @Test func rejectsATrailingNewlineInTheSlug() {
         let json = "{\"profiles\":[{\"id\":\"prod-incident\\n\",\"name\":\"P\",\"roles\":[]}]}"
         #expect(throws: ManagedProfileError.invalid("profile 'prod-incident\n': id must match [a-z0-9-]{1,64}")) {

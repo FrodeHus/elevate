@@ -38,7 +38,7 @@ public sealed class JsonFileManagedSource : IManagedConfigurationSource
 
         if (!isTrusted(path))
         {
-            Warning = $"{path}: ignored because it is not owned by root or is writable by others";
+            Warning = $"{path}: ignored because it is writable by others, or its directory is";
             return;
         }
 

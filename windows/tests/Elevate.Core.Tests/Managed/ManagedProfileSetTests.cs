@@ -90,6 +90,12 @@ public class ManagedProfileSetTests
         => Invalid(() => ManagedProfileSet.Parse("""{"version":1.9,"profiles":[]}"""))
             .Should().Be("version 1.9 is not supported");
 
+    /// <summary><c>1.0</c> is a JSON double, not the integer the format asks for; Swift rejects it too.</summary>
+    [Fact]
+    public void RejectsAFractionalVersionEqualToOne()
+        => Invalid(() => ManagedProfileSet.Parse("""{"version":1.0,"profiles":[]}"""))
+            .Should().Be("version 1.0 is not supported");
+
     [Fact]
     public void RejectsATrailingNewlineInTheSlug()
         => Invalid(() => ManagedProfileSet.Parse("{\"profiles\":[{\"id\":\"prod-incident\\n\",\"name\":\"P\",\"roles\":[]}]}"))

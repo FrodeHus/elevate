@@ -60,9 +60,13 @@ public enum ManagedProfileResolver {
     }
 
     /// A GUID entry is its own tenant id; anything else is a domain the resolver had to look up.
+    /// The lookup ignores case: a profile may name `Contoso.com` where the policy said
+    /// `contoso.com`, and the two must resolve to the same tenant on every platform.
     private static func tenantId(for entry: String, tenantIds: [String: String]) -> String? {
         if UUID(uuidString: entry) != nil { return entry.lowercased() }
-        return tenantIds[entry]?.lowercased()
+        if let exact = tenantIds[entry] { return exact.lowercased() }
+        let key = entry.lowercased()
+        return tenantIds.first { $0.key.lowercased() == key }?.value.lowercased()
     }
 
     /// Kind, then the scope constraints, then the role's name or the id the spec named it by.

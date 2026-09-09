@@ -180,7 +180,7 @@ extension AppModel {
         let tenantId = try await discovery.resolveTenantId(domainOrId: domainOrId)
         guard generation == configGeneration else { return }
         guard isTenantAllowed(tenantId) else {
-            throw PIMError.unexpected(status: 0, body: Self.disallowedTenantMessage)
+            throw PIMError.unexpected(status: 0, body: Self.disallowedTenantMessage(domainOrId))
         }
         let key = TenantKey(identityId: identityId, tenantId: tenantId)
         guard tenant(key) == nil else { return }

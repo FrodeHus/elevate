@@ -65,6 +65,25 @@ public class ManagedProfileResolverTests
             .Equal(TimeSpan.FromHours(2), null, null, TimeSpan.FromHours(4));
     }
 
+    /// <summary>
+    /// The policy lower-cases its tenant entries, but a profile's <c>tenant</c> is kept verbatim:
+    /// the lookup must ignore case or the role silently disappears on one platform only.
+    /// </summary>
+    [Fact]
+    public void AMixedCaseProfileTenantResolves()
+    {
+        var set = ManagedProfileSet.Parse("""
+            {"version":1,"profiles":[{"id":"ops","name":"Ops","roles":[
+              {"kind":"entraDirectory","tenant":"Contoso.COM","role":"Security Reader"}]}]}
+            """);
+
+        var result = ManagedProfileResolver.Resolve(set, TenantIds, Tenants, Roles);
+
+        result.Warnings.Should().BeEmpty();
+        result.Profiles.Should().ContainSingle().Subject.Entries.Select(e => e.RoleKey)
+            .Should().Equal(EntraKey("id-1"), EntraKey("id-2"));
+    }
+
     [Fact]
     public void MatchesByRoleDefinitionGuidAndObjectId()
     {

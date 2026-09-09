@@ -22,7 +22,7 @@ public sealed class DiscoveredItem(DiscoveredTenant tenant, bool tracked, bool a
     /// A tenant the organization does not allow cannot be tracked; the row says why instead of
     /// quietly doing nothing when it is ticked.
     /// </summary>
-    public string Caption => Allowed ? Tenant.DefaultDomain ?? Tenant.TenantId : AppModel.DisallowedTenantMessage;
+    public string Caption => Allowed ? Tenant.DefaultDomain ?? Tenant.TenantId : AppModel.DisallowedTenantCaption;
 
     /// <summary>Already tracked tenants show checked and disabled.</summary>
     public bool Tracked { get; } = tracked;

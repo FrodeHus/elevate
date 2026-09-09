@@ -23,13 +23,16 @@ public sealed record ManagedTenantResolution(
 public sealed class ManagedTenantResolver(IHttpClient http)
 {
     private readonly IHttpClient _http = http;
-    private readonly Dictionary<string, string> _cache = [];
+    /// <summary>Lower-cased entry → tenant id, so two spellings of one domain cost a single lookup.</summary>
+    private readonly Dictionary<string, string> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public async Task<ManagedTenantResolution> ResolveAsync(IEnumerable<string> entries, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
+        // Keyed by the entry as given, so every spelling an administrator used resolves; the
+        // cache below is case-insensitive, so the second spelling costs no second request.
         var ids = new Dictionary<string, string>(StringComparer.Ordinal);
         var unresolved = new List<string>();
 

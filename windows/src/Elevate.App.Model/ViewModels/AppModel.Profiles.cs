@@ -57,12 +57,37 @@ public sealed partial class AppModel
 
     private ActivationProfile.Entry NewEntry(RoleKey key) => new(key, Remembered(key)?.LastDuration);
 
-    public ActivationProfile SaveProfile(string name, IEnumerable<RoleKey> keys)
+    /// <summary>The one refusal for a name a published profile already carries, worded as the CLI words it.</summary>
+    public static string ManagedProfileRefusal(string name) =>
+        $"'{name}' is published by your organization and cannot be changed.";
+
+    /// <summary>
+    /// Refuses a name a published profile already carries, so a user profile cannot shadow one —
+    /// the CLI refuses the same name, and a state the app allowed must not error there. Returns
+    /// the notice to show, or null when the name is free.
+    /// </summary>
+    private string? ManagedNameRefusal(string name) =>
+        ManagedProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { } published
+            ? ManagedProfileRefusal(published.Name)
+            : null;
+
+    /// <summary>
+    /// Saves a new profile, or returns null having set <see cref="Notice"/> when the organization
+    /// publishes a profile by that name.
+    /// </summary>
+    public ActivationProfile? SaveProfile(string name, IEnumerable<RoleKey> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
         var entries = OrderedKeys(keys).Select(NewEntry);
         var trimmed = (name ?? string.Empty).Trim();
-        var profile = new ActivationProfile(trimmed.Length == 0 ? "Untitled profile" : trimmed, entries);
+        var final = trimmed.Length == 0 ? "Untitled profile" : trimmed;
+        if (ManagedNameRefusal(final) is { } refusal)
+        {
+            Notice = refusal;
+            return null;
+        }
+
+        var profile = new ActivationProfile(final, entries);
         State.UpsertProfile(profile);
         Persist();
         return profile;
@@ -92,6 +117,12 @@ public sealed partial class AppModel
         var trimmed = (name ?? string.Empty).Trim();
         if (trimmed.Length == 0 || IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
+            return;
+        }
+
+        if (ManagedNameRefusal(trimmed) is { } refusal)
+        {
+            Notice = refusal;
             return;
         }
 

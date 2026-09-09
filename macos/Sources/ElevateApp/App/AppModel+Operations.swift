@@ -85,9 +85,13 @@ extension AppModel {
                                      tenants: tenants,
                                      profiles: state.profiles.map(\.name) + managedProfiles.map { "\($0.name) (managed)" },
                                      hotKey: hotKey,
+                                     // Every managed warning, as the Windows app reports them: the
+                                     // tenant and profile ones are what a rollout actually goes wrong on.
                                      managed: settings.managed.isEmpty ? nil : DiagnosticsManaged(origin: settings.managed.origin ?? "unknown",
                                                                                                   keys: settings.managed.keysInEffect.map(\.rawValue),
-                                                                                                  warnings: settings.managed.warnings),
+                                                                                                  warnings: settings.managed.warnings
+                                                                                                      + managedTenantWarnings
+                                                                                                      + managedProfileWarnings),
                                      errors: errorLog.entries)
         return DiagnosticsReport.render(input)
     }

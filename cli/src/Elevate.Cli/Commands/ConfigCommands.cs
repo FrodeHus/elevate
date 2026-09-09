@@ -236,7 +236,7 @@ public static class ConfigCommands
             if (parse.GetValue(file) is { Length: > 0 } path)
             {
                 // A caveat that changes what the output means, so it is said even with --json.
-                context.Output.Warn($"Dry run: the ownership check is skipped for {Markup.Escape(path)}, so a file the real load would ignore is still read here.");
+                context.Output.Warn($"Dry run: the trust check is skipped for {Markup.Escape(path)}, so a file the real load would ignore is still read here.");
                 var source = new JsonFileManagedSource(path, _ => true);
                 managed = ManagedConfiguration.Load(source);
                 warnings = source.Warning is { } warning ? [.. managed.Warnings, warning] : managed.Warnings;

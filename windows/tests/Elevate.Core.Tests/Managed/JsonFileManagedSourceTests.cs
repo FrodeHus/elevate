@@ -37,7 +37,7 @@ public class JsonFileManagedSourceTests
             source.String(ManagedKey.ClientId).Should().BeNull();
             source.Bool(ManagedKey.DisableUpdateCheck).Should().BeNull();
             source.List(ManagedKey.AllowedTenants).Should().BeNull();
-            source.Warning.Should().Contain("not owned by root or is writable by others");
+            source.Warning.Should().Contain("is writable by others, or its directory is");
         }
         finally
         {

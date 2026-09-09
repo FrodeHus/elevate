@@ -205,18 +205,17 @@ public struct ManagedProfileSet: Hashable, Sendable {
         return value
     }
 
-    /// Accepted only when the value is a whole number equal to `version`: `1.9` is a shape error,
-    /// not a value that truncates to `1`.
+    /// Accepted only when the value is the JSON integer `version`: `1.9` is a shape error, and so
+    /// is `1.0` — a fractional literal is not the integer the format asks for, and the C# port
+    /// rejects it too, so one document gets one verdict on every platform.
     private static func isSupportedVersion(_ value: Any) -> Bool {
-        guard let number = number(value) else { return false }
-        let double = number.doubleValue
-        return double == double.rounded(.towardZero) && number.intValue == Self.version
+        guard let number = number(value), !CFNumberIsFloatType(number as CFNumber) else { return false }
+        return number.intValue == Self.version
     }
 
     private static func describe(_ value: Any) -> String {
         if let number = number(value) {
-            let double = number.doubleValue
-            return double == double.rounded(.towardZero) ? "\(number.intValue)" : "\(double)"
+            return CFNumberIsFloatType(number as CFNumber) ? "\(number.doubleValue)" : "\(number.intValue)"
         }
         return "\(value)"
     }

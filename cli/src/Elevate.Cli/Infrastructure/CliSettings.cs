@@ -109,11 +109,14 @@ public sealed class CliSettings
 
     /// <summary>
     /// When the published profile document was last fetched successfully; null until the first one
-    /// lands. Stored like <c>lastUpdateCheck</c>, as an ISO 8601 string.
+    /// lands. Stored like <c>lastUpdateCheck</c>, as an ISO 8601 string. A hand-edited file holding
+    /// anything else reads as "never fetched" rather than throwing out of the command.
     /// </summary>
     public DateTimeOffset? ManagedProfilesFetchedAt
     {
-        get => _root["managedProfilesFetchedAt"] is { } node && DateTimeOffset.TryParse(node.GetValue<string>(), out var d) ? d : null;
+        get => _root["managedProfilesFetchedAt"] is JsonValue value
+            && value.TryGetValue<string>(out var text)
+            && DateTimeOffset.TryParse(text, out var d) ? d : null;
         set => Set("managedProfilesFetchedAt", value?.ToString("O"));
     }
 

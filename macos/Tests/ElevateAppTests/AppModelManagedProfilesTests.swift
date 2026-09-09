@@ -51,7 +51,7 @@ struct AppModelManagedProfilesTests {
     @Test func inlineProfilesJoinTheUsersOwnAndAreReadOnly() async {
         let model = await loadedModel()
         defer { cleanup(model) }
-        let mine = model.saveProfile(name: "Ops", keys: [Self.entraKey])
+        let mine = model.saveProfile(name: "Ops", keys: [Self.entraKey])!
 
         #expect(model.profiles.map(\.name) == ["Ops", "Prod incident"])
         #expect(model.profiles.map(\.source) == [.user, .managed])
@@ -63,7 +63,7 @@ struct AppModelManagedProfilesTests {
 
         // The managed pin comes first and does not count against the limit.
         for i in 0..<ProfilePins.limit {
-            let p = model.saveProfile(name: "P\(i)", keys: [Self.entraKey])
+            let p = model.saveProfile(name: "P\(i)", keys: [Self.entraKey])!
             #expect(model.setPinned(id: p.id, true))
         }
         #expect(model.pinnedProfiles.map(\.name) == ["Prod incident", "P0", "P1", "P2", "P3"])
@@ -141,6 +141,23 @@ struct AppModelManagedProfilesTests {
         #expect(model.profiles.isEmpty)
         #expect(model.managedProfileWarnings.count == 1)
         #expect(model.managedProfileWarnings.first?.hasPrefix("ManagedProfiles: ") == true)
+        // Diagnostics carries every managed warning, as the Windows report does.
+        #expect(model.diagnosticsText().contains("ManagedProfiles: "))
+    }
+
+    @Test func aUserProfileCannotTakeAPublishedProfilesName() async {
+        let model = await loadedModel()
+        defer { cleanup(model) }
+
+        #expect(model.saveProfile(name: "  prod incident  ", keys: [Self.entraKey]) == nil)
+        #expect(model.notice == "'Prod incident' is published by your organization and cannot be changed.")
+        #expect(model.state.profiles.isEmpty)
+
+        let mine = model.saveProfile(name: "Ops", keys: [Self.entraKey])!
+        model.notice = nil
+        model.renameProfile(id: mine.id, name: "PROD INCIDENT")
+        #expect(model.profile(id: mine.id)?.name == "Ops")
+        #expect(model.notice == "'Prod incident' is published by your organization and cannot be changed.")
     }
 
     @Test func pinnedManagedProfilesDoNotUseUpTheUsersPinSlots() async {
@@ -151,12 +168,12 @@ struct AppModelManagedProfilesTests {
         #expect(model.canPinAnotherProfile)
 
         for i in 0..<(ProfilePins.limit - 1) {
-            let p = model.saveProfile(name: "P\(i)", keys: [Self.entraKey])
+            let p = model.saveProfile(name: "P\(i)", keys: [Self.entraKey])!
             #expect(model.setPinned(id: p.id, true))
             #expect(model.canPinAnotherProfile)
         }
         // The fourth user pin fills the row; the managed pin still doesn't count.
-        let last = model.saveProfile(name: "Last", keys: [Self.entraKey])
+        let last = model.saveProfile(name: "Last", keys: [Self.entraKey])!
         #expect(model.setPinned(id: last.id, true))
         #expect(!model.canPinAnotherProfile)
     }
@@ -215,6 +232,29 @@ struct AppModelManagedProfilesTests {
         #expect(model.profiles.map(\.name) == ["Cached incident"])
         #expect(model.managedProfileWarnings.count == 1)
         #expect(model.managedProfileWarnings.first?.hasPrefix("ManagedProfilesUrl: ") == true)
+        #expect(model.managedProfilesFetchedAt == nil)
+    }
+
+    @Test func aHangingFetchIsBoundedAndLeavesTheCachedDocumentStanding() async {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("elevate-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? Data(Self.document(name: "Cached incident").utf8)
+            .write(to: directory.appendingPathComponent("managed-profiles.json"))
+
+        let http = StubHTTPClient()
+        await http.hang("GET", "profiles.json")
+        let clock = ContinuousClock()
+        let start = clock.now
+        let model = await loadedModel(document: nil, url: "https://example.com/profiles.json",
+                                      http: http, online: true, directory: directory)
+        let elapsed = clock.now - start
+        defer { cleanup(model) }
+
+        // Well under `URLSession`'s own 60 s default, which this deadline exists to pre-empt.
+        #expect(elapsed < .seconds(20))
+        #expect(model.profiles.map(\.name) == ["Cached incident"])
+        #expect(model.managedProfileWarnings == ["ManagedProfilesUrl: timed out after 5 s"])
         #expect(model.managedProfilesFetchedAt == nil)
     }
 }

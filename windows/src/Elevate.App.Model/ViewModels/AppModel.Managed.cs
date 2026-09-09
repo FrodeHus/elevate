@@ -77,8 +77,14 @@ public sealed partial class AppModel
     /// <summary>The notice shown when a pinned tenant is removed.</summary>
     public const string PinnedTenantNotice = "This tenant is pinned by your organization";
 
-    /// <summary>What the discover list and a refused manual add say about a tenant off the allow-list.</summary>
-    public const string DisallowedTenantMessage = "Not permitted by your organization";
+    /// <summary>What the discover list's row says about a tenant off the allow-list; there is no
+    /// room for the tenant's name in that column, so it stays the short form.</summary>
+    public const string DisallowedTenantCaption = "Not permitted by your organization";
+
+    /// <summary>The one refusal for a tenant off the allow-list, worded as the spec (§6.2) and the
+    /// other two implementations word it.</summary>
+    public static string DisallowedTenantMessage(string name) =>
+        $"Tenant {name} is not permitted by your organization";
 
     /// <summary>
     /// Every managed tenant entry that needs a tenant id, in configured order without duplicates.

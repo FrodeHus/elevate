@@ -43,6 +43,22 @@ import Foundation
         #expect(await http.requests(matching: "openid-configuration").count == 1)
     }
 
+    /// The policy may say `contoso.com` where a published profile says `Contoso.com`. Both must
+    /// resolve, and the second spelling must not cost a second request.
+    @Test func twoSpellingsOfADomainResolveWithOneRequest() async {
+        let http = StubHTTPClient()
+        await http.on("GET", "fabrikam.com/v2.0/.well-known/openid-configuration",
+                      body: issuer("11111111-2222-3333-4444-555555555555"))
+        let resolver = ManagedTenantResolver(http: http)
+
+        let result = await resolver.resolve(["fabrikam.com", "Fabrikam.COM"])
+
+        #expect(result.ids["fabrikam.com"] == "11111111-2222-3333-4444-555555555555")
+        #expect(result.ids["Fabrikam.COM"] == "11111111-2222-3333-4444-555555555555")
+        #expect(result.unresolved.isEmpty)
+        #expect(await http.requests(matching: "openid-configuration").count == 1)
+    }
+
     @Test func unknownDomainLandsInUnresolved() async {
         let http = StubHTTPClient()
         await http.on("GET", "openid-configuration", status: 404, body: Data(#"{"error":"invalid_tenant"}"#.utf8))

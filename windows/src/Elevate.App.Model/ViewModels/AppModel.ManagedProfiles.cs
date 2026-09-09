@@ -14,6 +14,13 @@ public sealed partial class AppModel
     /// <summary>The published document is fetched at most once a day; the cached copy stands in between.</summary>
     public static readonly TimeSpan ManagedProfilesInterval = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// The published-profile fetch runs on the bootstrap path, so it cannot be left to the shared
+    /// HTTP client's default timeout: a slow or hanging endpoint would delay the first role
+    /// refresh by minutes. Bounded here instead; the cached set (if any) stands in on timeout.
+    /// </summary>
+    internal static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>The cache file, kept next to <c>state.json</c>.</summary>
     public const string ManagedProfilesCacheFile = "managed-profiles.json";
 
@@ -148,9 +155,11 @@ public sealed partial class AppModel
             return;
         }
 
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(FetchTimeout);
         try
         {
-            _fetchedProfileSet = await _profileFetcher.FetchAsync(url, ct);
+            _fetchedProfileSet = await _profileFetcher.FetchAsync(url, timeoutCts.Token);
             Settings.ManagedProfilesFetchedAt = DateTimeOffset.UtcNow;
             _fetchWarning = null;
 
@@ -161,6 +170,15 @@ public sealed partial class AppModel
                 await ResolveManagedTenantsAsync(ct);
             }
 
+            Touch();
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // The timeout fired, not the caller's own token: this is a fetch failure, not a
+            // cancelled launch, so the cached set stands and a warning is left behind.
+            var message = $"timed out after {FetchTimeout.TotalSeconds:0} s";
+            _fetchWarning = $"ManagedProfilesUrl: {message}";
+            LogError($"Managed profiles: {message}");
             Touch();
         }
         catch (OperationCanceledException)

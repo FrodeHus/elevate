@@ -29,7 +29,10 @@ public actor ManagedTenantResolver {
     public func resolve(_ entries: [String]) async -> ManagedTenantResolution {
         var result = ManagedTenantResolution()
         for entry in entries {
-            if let cached = cache[entry] {
+            // Keyed by the entry as given so every spelling resolves, cached by the lower-cased
+            // one so two spellings of the same domain cost a single lookup.
+            let key = entry.lowercased()
+            if let cached = cache[key] {
                 result.ids[entry] = cached
                 continue
             }
@@ -37,7 +40,7 @@ public actor ManagedTenantResolver {
                 if !result.unresolved.contains(entry) { result.unresolved.append(entry) }
                 continue
             }
-            cache[entry] = id
+            cache[key] = id
             result.ids[entry] = id
         }
         return result

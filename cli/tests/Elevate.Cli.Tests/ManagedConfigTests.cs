@@ -145,11 +145,28 @@ public class ManagedConfigTests
         var root = JsonDocument.Parse(json).RootElement;
         root.GetProperty("origin").GetString().Should().Be(path);
         root.GetProperty("keys").EnumerateArray().Select(e => e.GetString()).Should().Equal("ClientId", "DisableUpdateCheck");
-        error.Should().Contain("ownership check is skipped");
+        error.Should().Contain("trust check is skipped");
 
         var (missingCode, _, missingError) = await RunAsync(session, "config", "managed", "--file", Path.Combine(session.Directory, "absent.json"));
         missingCode.Should().Be(ExitCodes.Ok);
         missingError.Should().Contain("No managed configuration.");
+    }
+
+    /// <summary>
+    /// An organization that turns the check off is stopping egress to github.com; an explicit
+    /// <c>elevate update</c> must not be the one exception, as it is not in either app.
+    /// </summary>
+    [Fact]
+    public async Task UpdateDisabledSaysSoAndContactsNobody()
+    {
+        using var session = new TestSession(Managed(("DisableUpdateCheck", true)));
+
+        var (code, output, _) = await RunAsync(session, "update");
+
+        code.Should().Be(ExitCodes.Ok);
+        output.Should().Contain("Update checks are managed by your organization.");
+        output.Should().NotContain("up to date");
+        session.Settings.LastUpdateCheck.Should().BeNull();
     }
 
     [Fact]

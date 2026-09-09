@@ -50,6 +50,20 @@ import Foundation
         }
     }
 
+    /// The policy lower-cases its tenant entries, but a profile's `tenant` is kept verbatim: the
+    /// lookup must ignore case or the role silently disappears on one platform only.
+    @Test func aMixedCaseProfileTenantResolves() throws {
+        let set = try ManagedProfileSet.parse("""
+        {"version":1,"profiles":[{"id":"ops","name":"Ops","roles":[
+          {"kind":"entraDirectory","tenant":"Contoso.COM","role":"Security Reader"}]}]}
+        """)
+
+        let result = ManagedProfileResolver.resolve(set, tenantIds: tenantIds, tenants: tenants, roles: roles)
+
+        #expect(result.warnings.isEmpty)
+        #expect(result.profiles.first?.entries.map(\.roleKey) == [entraKey("id-1"), entraKey("id-2")])
+    }
+
     @Test func resolvesRolesForEveryIdentityInTheTenant() throws {
         let result = ManagedProfileResolver.resolve(try set, tenantIds: tenantIds, tenants: tenants, roles: roles)
         #expect(result.warnings.isEmpty)

@@ -8,6 +8,11 @@ import ElevateCore
 extension AppModel {
     /// The published document is fetched at most once a day; the cached copy stands in between.
     static let managedProfilesInterval: TimeInterval = 24 * 3600
+    /// The published-profile fetch runs on the bootstrap path, so it cannot be left to
+    /// `URLSession`'s 60 s default: a slow or hanging endpoint would delay the first role refresh
+    /// by a minute. Bounded here instead; the cached set (if any) stands in on timeout. Matches the
+    /// CLI's `ElevateSession.FetchTimeout`.
+    static let managedProfilesFetchTimeout: TimeInterval = 5
     /// The cache file, kept next to `state.json`.
     static let managedProfilesCacheFile = "managed-profiles.json"
 
@@ -80,7 +85,7 @@ extension AppModel {
                abs(Date().timeIntervalSince(fetchedAt)) < Self.managedProfilesInterval { return }
         }
         do {
-            fetchedProfileSet = try await profileFetcher.fetch(from: url)
+            fetchedProfileSet = try await fetchManagedProfiles(from: url)
             settings.managedProfilesFetchedAt = .now
             managedProfileFetchWarning = nil
             // The document just downloaded may name a tenant by a domain nobody has looked up yet;
@@ -92,6 +97,27 @@ extension AppModel {
             let message = Self.message(for: error)
             managedProfileFetchWarning = "ManagedProfilesUrl: \(message)"
             logError("Managed profiles: \(message)")
+        }
+    }
+
+    /// Races the fetch against a deadline and cancels the loser, so a black-holed
+    /// `ManagedProfilesUrl` costs the launch five seconds rather than a minute. The timeout is
+    /// reported as an ordinary fetch failure, so the cached set stands and one warning is left.
+    private func fetchManagedProfiles(from url: URL) async throws -> ManagedProfileSet {
+        let fetcher = profileFetcher
+        let timeout = Self.managedProfilesFetchTimeout
+        return try await withThrowingTaskGroup(of: ManagedProfileSet?.self) { group in
+            group.addTask { try await fetcher.fetch(from: url) }
+            group.addTask {
+                try await Task.sleep(for: .seconds(timeout))
+                return nil
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else { throw CancellationError() }
+            guard let set = first else {
+                throw ManagedProfileError.invalid("timed out after \(Int(timeout)) s")
+            }
+            return set
         }
     }
 
