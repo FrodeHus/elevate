@@ -18,7 +18,7 @@ public static class ApprovalCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             await RoleCommands.RefreshAsync(context, new RoleFilter(), ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
             var requests = session.ApprovalsOrdered;
@@ -54,7 +54,7 @@ public static class ApprovalCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             await RoleCommands.RefreshAsync(context, new RoleFilter(), ct).ConfigureAwait(false);
             var chosen = Resolve(session, parse.GetValue(ids) ?? []);
             var justification = (parse.GetValue(reason) ?? session.Settings.LastApprovalJustification).Trim();

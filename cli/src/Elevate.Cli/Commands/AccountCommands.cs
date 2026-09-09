@@ -69,8 +69,9 @@ public static class AccountCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var identity = context.RequireAccount(parse.GetValue(account));
-            await context.Session.SignOutAsync(identity, ct).ConfigureAwait(false);
+            await session.SignOutAsync(identity, ct).ConfigureAwait(false);
             context.Output.Note($"Signed out {Markup.Escape(identity.Upn)}. Active assignments in Entra were not changed.");
             return ExitCodes.Ok;
         });

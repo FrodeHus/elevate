@@ -38,7 +38,7 @@ public static class PackageCommands
     internal static async Task<int> RunListAsync(CommandContext context, string? account, string? tenant, CancellationToken ct)
     {
         context.RequireSignedIn();
-        var session = context.Session;
+        var session = await context.SessionAsync(ct).ConfigureAwait(false);
         var (reads, failures) = await ReadAsync(context, account, tenant, includePackages: true, ct).ConfigureAwait(false);
         if (context.Output.Json)
         {
@@ -70,7 +70,7 @@ public static class PackageCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var showAll = parse.GetValue(all);
             var (reads, failures) = await ReadAsync(context, parse.GetValue(account), parse.GetValue(tenant), includePackages: false, ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
@@ -113,7 +113,7 @@ public static class PackageCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var (reads, failures) = await ReadAsync(context, parse.GetValue(account), parse.GetValue(tenant), includePackages: false, ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
             var rows = reads
@@ -154,7 +154,7 @@ public static class PackageCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var (reads, _) = await ReadAsync(context, parse.GetValue(account), parse.GetValue(tenant), includePackages: true, ct).ConfigureAwait(false);
             var (key, chosen) = ResolvePackage(session, reads, parse.GetValue(package)!);
 
@@ -204,7 +204,7 @@ public static class PackageCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var (reads, _) = await ReadAsync(context, parse.GetValue(account), parse.GetValue(tenant), includePackages: false, ct).ConfigureAwait(false);
             var failures = 0;
             var attempted = 0;
@@ -238,7 +238,7 @@ public static class PackageCommands
     /// <summary>Reads every candidate tenant; a tenant that refuses is warned about and left out.</summary>
     private static async Task<(IReadOnlyList<TenantPackages> Reads, int Failures)> ReadAsync(CommandContext context, string? account, string? tenant, bool includePackages, CancellationToken ct)
     {
-        var session = context.Session;
+        var session = await context.SessionAsync(ct).ConfigureAwait(false);
         var keys = session.AccessPackageTenants(account, tenant);
         if (keys.Count == 0)
         {

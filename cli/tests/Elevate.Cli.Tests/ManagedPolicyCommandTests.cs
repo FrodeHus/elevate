@@ -106,6 +106,18 @@ public class ManagedPolicyCommandTests
         JsonDocument.Parse(json).RootElement[0].GetProperty("notPermitted").GetBoolean().Should().BeFalse();
     }
 
+    [Fact]
+    public void AConfigurationThatPermitsNoMethodSaysSoInsteadOfListingNothing()
+    {
+        var none = ManagedConfiguration.None with { AllowedSignInMethods = new HashSet<SignInMethodKind>() };
+        ElevateSession.AllowedMethodNames(none).Should().BeEmpty();
+        ElevateSession.DisallowedMethod("own", none).Message.Should()
+            .Be("The sign-in method 'own' is not permitted by your organization. No sign-in method is permitted by your organization.");
+
+        // And a kind with no --method name of its own is still named rather than throwing.
+        ElevateSession.MethodName(SignInMethod.OwnApp).Should().Be("own");
+    }
+
     // MARK: Pinned tenants
 
     [Fact]
@@ -188,6 +200,50 @@ public class ManagedPolicyCommandTests
             "AllowedTenants: could not resolve 'nope.example'",
             "PinnedTenants: could not resolve 'also-nope.example'");
         t.Session.Tenants.Should().Contain(x => x.TenantId == OtherId);
+    }
+
+    [Fact]
+    public async Task APinnedTenantOutsideTheAllowListStaysPutAndIsNotChurned()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "fabrikam.com/v2.0/.well-known/openid-configuration", Issuer(FabrikamId));
+        using var t = new TestSession(Managed(("AllowedTenants", new[] { OtherId }), ("PinnedTenants", new[] { "fabrikam.com" })), http);
+
+        // Twice, as two resolving commands in a row would: the tenant the organization pins but does
+        // not list as allowed must not be dropped by the first pass and re-added by the second.
+        await t.Session.ResolveManagedTenantsAsync();
+        await t.Session.ResolveManagedTenantsAsync();
+
+        t.Session.IsTenantAllowed(FabrikamId).Should().BeTrue();
+        t.Session.Tenants.Where(x => x.TenantId == FabrikamId).Should().ContainSingle();
+        t.Store.Load().Tenants.Where(x => x.TenantId == FabrikamId).Should().ContainSingle();
+        t.Session.ErrorLog.Entries.Select(e => e.Message).Should().NotContain(m => m.StartsWith("Removed tenants", StringComparison.Ordinal));
+
+        // And adding it by hand for another account is not refused either.
+        var second = new Identity("id2", "bo@contoso.com", "Bo", "t1");
+        t.Session.State.Identities.Add(second);
+        var added = await t.Session.AddTenantAsync(second, "fabrikam.com");
+        added.TenantId.Should().Be(FabrikamId);
+    }
+
+    [Fact]
+    public async Task ResolvingCommandsKeepAPinnedTenantOutsideTheAllowList()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "fabrikam.com/v2.0/.well-known/openid-configuration", Issuer(FabrikamId));
+        using var session = new TestSession(Managed(("AllowedTenants", new[] { OtherId }), ("PinnedTenants", new[] { "fabrikam.com" })), http);
+        session.Session.State.UpsertTenant(new TenantContext("id1", FabrikamId, "Fabrikam", TenantSource.Discovered));
+        session.Session.Persist();
+
+        var (first, firstOut, firstError) = await RunAsync(session, "tenants");
+        var (second, secondOut, _) = await RunAsync(session, "tenants");
+
+        first.Should().Be(ExitCodes.Ok);
+        second.Should().Be(ExitCodes.Ok);
+        firstOut.Should().Contain("pinned");
+        secondOut.Should().Contain("pinned");
+        firstError.Should().NotContain("Removed tenants");
+        session.Store.Load().Tenants.Where(x => x.TenantId == FabrikamId).Should().ContainSingle();
     }
 
     [Fact]

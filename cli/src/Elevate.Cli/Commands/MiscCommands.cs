@@ -61,7 +61,7 @@ public static class MiscCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             if (session.Identities.Count > 0)
             {
                 try

@@ -31,6 +31,18 @@ public sealed class CommandContext
         set => Override.Value = value;
     }
 
+    /// <summary>
+    /// Test seam: the HTTP client the session talks to, instead of the real one. Async-local for the
+    /// same reason as the managed override, and never set outside tests.
+    /// </summary>
+    private static readonly AsyncLocal<IHttpClient?> HttpOverrideValue = new();
+
+    internal static IHttpClient? HttpOverride
+    {
+        get => HttpOverrideValue.Value;
+        set => HttpOverrideValue.Value = value;
+    }
+
     private ElevateSession? _session;
     private bool _managedResolved;
 
@@ -69,7 +81,7 @@ public sealed class CommandContext
             var settings = new CliSettings(DataDirectory, ManagedOverride);
             var cache = new TokenCacheStore(DataDirectory, settings.UnprotectedCache);
             var tokens = new CliTokenProvider(cache, () => settings.ClientId, Flow, message => Output.Stderr.MarkupLine($"[blue]{Markup.Escape(message)}[/]"));
-            var http = new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+            var http = HttpOverride ?? new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
             _session = new ElevateSession(store, settings, tokens, http);
             _session.Load();
             if (_session.LoadNotice is { } notice)

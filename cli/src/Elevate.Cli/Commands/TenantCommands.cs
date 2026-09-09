@@ -193,11 +193,12 @@ public static class TenantCommands
         var account = CommonOptions.Account();
 
         var list = new Command("list", "Show the manual roles of a tenant.") { tenantArg, account };
-        list.SetAction((parse, _) =>
+        list.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
-            var roles = context.Session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
+            var roles = session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
             if (context.Output.Json)
             {
                 context.Output.WriteJson(roles.Select(r => new { name = r.DisplayName, kind = Views.KindName(r.Scope.Kind), scope = r.Scope }).ToList());
@@ -214,7 +215,7 @@ public static class TenantCommands
                 }
             }
 
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         var entra = new Option<string[]>("--entra") { Description = "An Entra directory role by catalogue name, e.g. \"Global Reader\". Repeatable." };
@@ -222,10 +223,10 @@ public static class TenantCommands
         var group = new Option<string[]>("--group") { Description = "A PIM for Groups membership as <group id>[=owner]. Repeatable." };
         var replace = new Option<bool>("--replace") { Description = "Replace the tenant's manual roles instead of adding to them." };
         var add = new Command("add", "Add manual roles to a tenant.") { tenantArg, account, entra, azure, group, replace };
-        add.SetAction((parse, _) =>
+        add.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
             var roles = parse.GetValue(replace) ? [] : session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
             foreach (var name in parse.GetValue(entra) ?? [])
@@ -260,17 +261,18 @@ public static class TenantCommands
 
             session.SetManualRoles(t.Key, roles.DistinctBy(r => r.Scope));
             context.Output.Note($"{Markup.Escape(t.DisplayName)} now has {roles.Count} manual role{(roles.Count == 1 ? "" : "s")}.");
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         var clear = new Command("clear", "Remove every manual role of a tenant.") { tenantArg, account };
-        clear.SetAction((parse, _) =>
+        clear.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
-            context.Session.SetManualRoles(t.Key, []);
+            session.SetManualRoles(t.Key, []);
             context.Output.Note($"Cleared the manual roles of {Markup.Escape(t.DisplayName)}.");
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         command.Subcommands.Add(list);

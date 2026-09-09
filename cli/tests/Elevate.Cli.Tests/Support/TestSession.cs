@@ -25,6 +25,7 @@ public sealed class TestSession : IDisposable
     public TestSession(ManagedConfiguration? managed = null, IHttpClient? http = null)
     {
         CommandContext.ManagedOverride = managed;
+        CommandContext.HttpOverride = http;
         Directory = Path.Combine(Path.GetTempPath(), "elevate-cli-tests", Guid.NewGuid().ToString("N"));
         System.IO.Directory.CreateDirectory(Directory);
         Store = new AppStateStore(Directory);
@@ -71,6 +72,7 @@ public sealed class TestSession : IDisposable
     public void Dispose()
     {
         CommandContext.ManagedOverride = null;
+        CommandContext.HttpOverride = null;
         try
         {
             System.IO.Directory.Delete(Directory, recursive: true);

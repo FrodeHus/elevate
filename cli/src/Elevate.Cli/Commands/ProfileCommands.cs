@@ -18,20 +18,20 @@ public static class ProfileCommands
     public static Command Profiles()
     {
         var command = new Command("profiles", "Named sets of roles activated together. Bare 'profiles' lists them.");
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             if (context.Output.Json)
             {
                 context.Output.WriteJson(session.Profiles.Select(p => Views.Profile(session, p)).ToList());
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             if (session.Profiles.Count == 0)
             {
                 context.Output.Plain("No profiles. Save one with 'elevate profiles save <name> <role…>' or copy the desktop app's with 'elevate profiles import'.");
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded);
@@ -44,7 +44,7 @@ public static class ProfileCommands
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         command.Subcommands.Add(Show());
@@ -65,15 +65,15 @@ public static class ProfileCommands
     {
         var name = NameArgument();
         var command = new Command("show", "The roles in a profile.") { name };
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var profile = Require(context, parse.GetValue(name)!);
             if (context.Output.Json)
             {
                 context.Output.WriteJson(Views.Profile(session, profile));
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded).Title(Markup.Escape(profile.Name));
@@ -92,7 +92,7 @@ public static class ProfileCommands
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
         return command;
     }

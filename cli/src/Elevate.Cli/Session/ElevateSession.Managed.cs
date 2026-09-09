@@ -59,17 +59,40 @@ public sealed partial class ElevateSession
 
     /// <summary>The refusal for a method the organization does not permit, naming the ones it does.</summary>
     internal static CliException DisallowedMethod(string name, ManagedConfiguration managed)
-        => new($"The sign-in method '{name}' is not permitted by your organization. "
-            + $"Allowed: {string.Join(", ", AllowedMethodNames(managed))}.", ExitCodes.Usage);
+    {
+        var allowed = AllowedMethodNames(managed);
+        // An empty allow-list permits nothing at all, so there is no list to name.
+        var reason = allowed.Count == 0
+            ? "No sign-in method is permitted by your organization."
+            : $"Allowed: {string.Join(", ", allowed)}.";
+        return new($"The sign-in method '{name}' is not permitted by your organization. {reason}", ExitCodes.Usage);
+    }
 
     /// <summary>The <c>--method</c> name of a stored method, for messages about an account already added.</summary>
     internal static string MethodName(SignInMethod method)
-        => MethodNames.First(m => m.Kind == method.Kind).Name;
+    {
+        foreach (var (name, kind) in MethodNames)
+        {
+            if (kind == method.Kind)
+            {
+                return name;
+            }
+        }
+
+        // A kind the CLI has no --method name for is still worth naming in a message.
+        return method.Kind.ToString();
+    }
 
     // MARK: Tenants
 
-    /// <summary>Whether <paramref name="tenantId"/> may be tracked. Unrestricted while <see cref="AllowedTenantIds"/> is null.</summary>
-    public bool IsTenantAllowed(string tenantId) => ManagedPolicy.IsTenantAllowed(tenantId, AllowedTenantIds);
+    /// <summary>
+    /// Whether <paramref name="tenantId"/> may be tracked. Unrestricted while
+    /// <see cref="AllowedTenantIds"/> is null. A tenant the organization pins counts as allowed
+    /// wherever it is asked — the alternative is a tenant this run drops and the next one re-adds.
+    /// </summary>
+    public bool IsTenantAllowed(string tenantId)
+        => PinnedTenantIds.Any(id => string.Equals(id, tenantId, StringComparison.OrdinalIgnoreCase))
+            || ManagedPolicy.IsTenantAllowed(tenantId, AllowedTenantIds);
 
     /// <summary>Whether the organization pins this tenant, in which case the user cannot remove it.</summary>
     public bool IsPinnedTenant(TenantKey key)
@@ -85,7 +108,7 @@ public sealed partial class ElevateSession
     {
         get
         {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             return [.. (Settings.Managed.AllowedTenants ?? []).Concat(Settings.Managed.PinnedTenants).Where(seen.Add)];
         }
     }
