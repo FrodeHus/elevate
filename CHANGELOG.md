@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-09
+
 ### Added
 
 - macOS, Windows and CLI: organization-managed configuration. Seven keys — `ClientId`,
@@ -402,7 +404,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/FrodeHus/elevate/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FrodeHus/elevate/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/FrodeHus/elevate/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/FrodeHus/elevate/compare/v1.2.9...v1.3.0
