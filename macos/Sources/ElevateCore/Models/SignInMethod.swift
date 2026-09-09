@@ -1,5 +1,12 @@
 import Foundation
 
+/// The case of a `SignInMethod` without its associated data, for contexts that need a
+/// `Hashable`/`Sendable` identifier for the method rather than the method itself — for example
+/// managed configuration's allow-list of permitted sign-in methods.
+public enum SignInMethodKind: String, CaseIterable, Hashable, Sendable {
+    case ownApp, azureCLI, azurePowerShell, custom
+}
+
 /// How an account authenticates. First-party methods need no app registration or admin consent;
 /// `custom` is any other public-client registration (for example a company-wide PIM app that
 /// knows nothing about macOS) used through the same loopback browser flow.
@@ -33,6 +40,17 @@ public enum SignInMethod: Hashable, Sendable {
 
     public var usesMSAL: Bool { self == .ownApp }
     public var isCustom: Bool { if case .custom = self { true } else { false } }
+
+    /// The case of this method without its associated data, for comparisons like managed
+    /// configuration's allow-list that only cares which kind of method was used.
+    public var kind: SignInMethodKind {
+        switch self {
+        case .ownApp: .ownApp
+        case .azureCLI: .azureCLI
+        case .azurePowerShell: .azurePowerShell
+        case .custom: .custom
+        }
+    }
 
     /// Whether the client is known to carry the Graph scope that activates Entra directory roles.
     /// Neither Microsoft first-party app is: they can list PIM schedules but
