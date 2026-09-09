@@ -31,6 +31,13 @@ public struct TenantDiscovery: Sendable {
 
     /// Accepts a tenant GUID or a verified domain; domains are resolved via the OpenID configuration issuer.
     public func resolveTenantId(domainOrId: String) async throws -> String {
+        try await Self.tenantId(domainOrId: domainOrId, http: http)
+    }
+
+    /// The lookup behind `resolveTenantId`, without the token provider an instance needs: a GUID
+    /// passes straight through, a domain costs one unauthenticated request. Shared with
+    /// `ManagedTenantResolver`.
+    static func tenantId(domainOrId: String, http: any HTTPClient) async throws -> String {
         let input = domainOrId.trimmingCharacters(in: .whitespacesAndNewlines)
         if input.wholeMatch(of: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/) != nil {
             return input.lowercased()
