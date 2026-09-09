@@ -2,6 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Elevate.Core.Models;
 
+/// <summary>
+/// Where a profile came from. User profiles live in <c>state.json</c>; managed ones are published
+/// by the organization and resolved at runtime, so they are never persisted.
+/// </summary>
+public enum ProfileSource { User, Managed }
+
 /// <summary>A named set of roles and groups activated together, across accounts and tenants.</summary>
 public sealed record ActivationProfile
 {
@@ -42,11 +48,18 @@ public sealed record ActivationProfile
     public bool Pinned { get; set; }
 
     /// <summary>
+    /// <see cref="ProfileSource.Managed"/> profiles are published by the organization: read-only in
+    /// the UI and never saved. Written only when managed, so a user profile's JSON is unchanged.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ProfileSource Source { get; init; } = ProfileSource.User;
+
+    /// <summary>
     /// A copy with its own <see cref="Entries"/> list, so mutating one profile's entries does not
     /// touch the other's. <see cref="Entry"/> is an immutable record, so the entries are shared.
     /// (Records may not declare a member named <c>Clone</c>, hence the name.)
     /// </summary>
-    public ActivationProfile DeepCopy() => new(Id, Name, [.. Entries], LastJustification, Pinned);
+    public ActivationProfile DeepCopy() => new(Id, Name, [.. Entries], LastJustification, Pinned) { Source = Source };
 
     public bool Equals(ActivationProfile? other) =>
         other is not null
@@ -54,9 +67,10 @@ public sealed record ActivationProfile
         && Name == other.Name
         && LastJustification == other.LastJustification
         && Pinned == other.Pinned
+        && Source == other.Source
         && Entries.SequenceEqual(other.Entries);
 
-    public override int GetHashCode() => HashCode.Combine(Id, Name, Entries.Count, LastJustification, Pinned);
+    public override int GetHashCode() => HashCode.Combine(Id, Name, Entries.Count, LastJustification, Pinned, Source);
 }
 
 public static class ProfilePins
