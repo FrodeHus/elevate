@@ -136,6 +136,25 @@ final class AppModel {
     /// Setter internal: set by `resolveManagedTenants()` in AppModel+Managed.
     var managedTenantsResolved = false
 
+    // MARK: Managed profiles — AppModel+ManagedProfiles
+
+    /// The inline `ManagedProfiles` document, parsed once at init: managed preferences do not
+    /// change under a running app, so parsing it on every read would be wasted work.
+    /// Setter internal: filled in `init` through `AppModel+ManagedProfiles`.
+    var inlineProfileSet: ManagedProfileSet = .empty
+    /// The one warning a rejected inline document produces, kept beside the parsed set.
+    var inlineProfileWarning: String?
+    /// The last document fetched from `ManagedProfilesUrl`, or the cached copy of it. Nil until
+    /// a fetch or a cache read has produced one.
+    /// Setter internal: filled by `refreshManagedProfiles` in AppModel+ManagedProfiles.
+    var fetchedProfileSet: ManagedProfileSet?
+    /// Why the last fetch failed, as a Settings warning; cleared by the next success.
+    /// Setter internal: set by `refreshManagedProfiles` in AppModel+ManagedProfiles.
+    var managedProfileFetchWarning: String?
+    /// Downloads and caches the published profile document next to `state.json`. It needs only
+    /// `http` and the cache location, neither of which changes, so one instance serves the app's life.
+    let profileFetcher: ManagedProfileFetcher     // internal for AppModel+ManagedProfiles
+
     // MARK: Dependencies
 
     let settings: AppSettings
@@ -217,6 +236,8 @@ final class AppModel {
         discovery = TenantDiscovery(http: http, tokens: tokens)
         accessPackageProvider = AccessPackageProvider(http: http, tokens: tokens)
         tenantResolver = ManagedTenantResolver(http: http)
+        profileFetcher = ManagedProfileFetcher(http: http, cacheURL: store.directory.appendingPathComponent(Self.managedProfilesCacheFile))
+        loadInlineProfiles()
     }
 
     private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
@@ -430,6 +451,9 @@ final class AppModel {
         // never throws; offline it resolves nothing and `watchNetwork()` retries it once the
         // path comes back.
         await resolveManagedTenants()
+        // The published profile document, from the cache and then over the network. It restricts
+        // nothing, so a failure here is a warning in Settings and never blocks the refresh.
+        await refreshManagedProfiles()
         if isOnline { await refreshAll() }
         // Fire and forget: an update check must never hold up the first panel open.
         Task { await self.checkForUpdates() }
@@ -442,6 +466,7 @@ final class AppModel {
             guard online, let self else { return }
             Task { @MainActor in
                 if !self.managedTenantsResolved { await self.resolveManagedTenants() }
+                await self.refreshManagedProfiles()
                 await self.refreshAll()
             }
         }
@@ -478,6 +503,9 @@ final class AppModel {
                 try? await Task.sleep(for: .seconds(Self.accessPackageBackgroundInterval))
                 guard let self else { return }
                 guard self.isOnline else { continue }
+                // Both are background reads on the same slow cadence; the profile fetch throttles
+                // itself to once a day, so riding this tick costs nothing extra.
+                await self.refreshManagedProfiles()
                 await self.pollAccessPackagesIfDue()
             }
         }

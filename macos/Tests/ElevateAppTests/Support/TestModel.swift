@@ -32,6 +32,9 @@ func makeSettings(managed: ManagedConfiguration = .none) -> AppSettings {
 /// `simulatePathChange(online:)` and exercise what the app does when the path comes back;
 /// `online` is ignored then, the monitor carries its own state.
 ///
+/// Pass `directory` to put the state file (and the managed profile cache beside it) somewhere the
+/// test chose, e.g. to give a second model the first one's cache.
+///
 /// `ownAppViaLoopback` overrides what `BuildInfo.signingState` would say (it describes the test
 /// host, not a build under test): pass true to model an unsigned build, where the own-app
 /// registration signs in through the loopback flow instead of MSAL.
@@ -40,17 +43,18 @@ func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClie
                online: Bool = false, network: NetworkMonitor? = nil, settings: AppSettings? = nil,
                managed: ManagedConfiguration = .none,
                tokens: FakeTokenProvider = FakeTokenProvider(),
-               ownAppViaLoopback: Bool? = nil, notifier: any ExpiryNotifying = NoopNotifier()) async -> AppModel {
-    let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+               ownAppViaLoopback: Bool? = nil, notifier: any ExpiryNotifying = NoopNotifier(),
+               directory: URL? = nil) async -> AppModel {
+    let stateDirectory = directory ?? URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("elevate-tests-\(UUID().uuidString)", isDirectory: true)
-    let store = AppStateStore(directory: directory)
+    let store = AppStateStore(directory: stateDirectory)
     if state != AppState() { try? await store.save(state) }
     let model = AppModel(tokens: tokens, http: http, store: store, notifier: notifier,
                          network: network ?? NetworkMonitor(forcedOnline: online),
                          settings: settings ?? makeSettings(managed: managed),
                          ownAppViaLoopbackOverride: ownAppViaLoopback)
     await model.bootstrap()
-    modelDirectories[ObjectIdentifier(model)] = directory
+    modelDirectories[ObjectIdentifier(model)] = stateDirectory
     return model
 }
 

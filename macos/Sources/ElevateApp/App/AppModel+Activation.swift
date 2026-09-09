@@ -170,7 +170,7 @@ extension AppModel {
 
     func quickRun(profileId: UUID) async -> Bool {
         guard isOnline else { return true }
-        guard let profile = state.profile(id: profileId) else { return false }
+        guard let profile = profile(id: profileId) else { return false }
         let items = plan(for: profileId)
         guard case .ready(let requests) = QuickActivate.decide(items: items, justification: profile.lastJustification) else { return false }
         guard !requests.contains(where: { inFlight.contains($0.roleKey) }) else { return true }

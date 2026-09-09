@@ -160,13 +160,18 @@ private struct ProfilePopoverRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Button(action: togglePin) {
-                Image(systemName: profile.pinned ? "star.fill" : "star")
-                    .font(.caption).foregroundStyle(profile.pinned ? Color.orange : Color.secondary)
+                Image(systemName: profile.source == .managed ? "building.2" : (profile.pinned ? "star.fill" : "star"))
+                    .font(.caption)
+                    .foregroundStyle(profile.pinned && profile.source != .managed ? Color.orange : Color.secondary)
                     .frame(width: 16, height: 16).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(profile.pinned ? "Unpin from the panel" : "Pin to the panel")
-            .accessibilityLabel(profile.pinned ? "Unpin \(profile.name)" : "Pin \(profile.name)")
+            // A published profile's pin is the organization's choice, so the star is a marker here.
+            .disabled(profile.source == .managed)
+            .help(profile.source == .managed ? "Published by your organization"
+                  : (profile.pinned ? "Unpin from the panel" : "Pin to the panel"))
+            .accessibilityLabel(profile.source == .managed ? "Published by your organization"
+                                : (profile.pinned ? "Unpin \(profile.name)" : "Pin \(profile.name)"))
             Text(profile.name).font(.callout.weight(.medium)).lineLimit(1)
             Text(ProfileSummary.caption(entries: profile.entries)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 4)
@@ -206,16 +211,21 @@ struct ProfileMenuItems: View {
         Button("Run with last reason") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: true) }
             .disabled(profile.lastJustification == nil)
         Divider()
-        Button("Edit…") { model.profileToEdit = profile.id; ProfileActions.open(.manageProfiles, openWindow: openWindow) }
-        if profile.pinned {
-            Button("Unpin from panel") { model.setPinned(id: profile.id, false) }
-        } else {
-            Button("Pin to panel") { model.setPinned(id: profile.id, true) }
-                .disabled(model.pinnedProfiles.count >= ProfilePins.limit)
+        Button(profile.source == .managed ? "Show…" : "Edit…") { model.profileToEdit = profile.id; ProfileActions.open(.manageProfiles, openWindow: openWindow) }
+        // A published profile is the organization's: it cannot be pinned, unpinned or deleted here.
+        if profile.source != .managed {
+            if profile.pinned {
+                Button("Unpin from panel") { model.setPinned(id: profile.id, false) }
+            } else {
+                Button("Pin to panel") { model.setPinned(id: profile.id, true) }
+                    .disabled(model.pinnedProfiles.count >= ProfilePins.limit)
+            }
         }
         Button("Manage profiles…") { ProfileActions.open(.manageProfiles, openWindow: openWindow) }
-        Divider()
-        Button("Delete…", role: .destructive) { model.profileToDelete = profile.id }
+        if profile.source != .managed {
+            Divider()
+            Button("Delete…", role: .destructive) { model.profileToDelete = profile.id }
+        }
     }
 }
 

@@ -1,6 +1,9 @@
 import Foundation
 
 public actor AppStateStore {
+    /// Where `state.json` lives. Nonisolated so callers that need a sibling file — the managed
+    /// profile cache — can name it without awaiting the actor.
+    public nonisolated let directory: URL
     private let fileURL: URL
     /// Generation of the newest state written; out-of-order saves are dropped.
     private var lastAppliedGeneration: UInt64 = 0
@@ -19,6 +22,7 @@ public actor AppStateStore {
 
     public init(directory: URL = AppStateStore.defaultDirectory) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        self.directory = directory
         fileURL = directory.appendingPathComponent("state.json")
     }
 

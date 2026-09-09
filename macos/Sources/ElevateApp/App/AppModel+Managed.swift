@@ -39,11 +39,18 @@ extension AppModel {
     private var managedTenantEntries: [String] {
         var seen = Set<String>()
         var entries: [String] = []
-        for entry in (managed.allowedTenants ?? []) + managed.pinnedTenants where !seen.contains(entry) {
+        let profileTenants = managedProfileSet.profiles.flatMap { $0.roles.map(\.tenant) }
+        for entry in (managed.allowedTenants ?? []) + managed.pinnedTenants + profileTenants where !seen.contains(entry) {
             seen.insert(entry)
             entries.append(entry)
         }
         return entries
+    }
+
+    /// True while a managed tenant entry still needs a lookup — a domain named by a profile that
+    /// arrived with the fetched document, say. GUID entries are their own id and never count.
+    var hasUnresolvedManagedTenantEntries: Bool {
+        managedTenantEntries.contains { UUID(uuidString: $0) == nil && managedTenantIds[$0] == nil }
     }
 
     /// Resolves the managed tenant entries to tenant ids, then applies them: tenants the

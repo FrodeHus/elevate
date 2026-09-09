@@ -22,6 +22,7 @@ final class AppSettings {
     static let lastUpdateCheckKey = "lastUpdateCheck"
     static let dismissedUpdateVersionKey = "dismissedUpdateVersion"
     static let dismissedTokenHintAccountsKey = "dismissedTokenHintAccounts"
+    static let managedProfilesFetchedAtKey = "managedProfilesFetchedAt"
 
     private let defaults: UserDefaults
 
@@ -145,6 +146,18 @@ final class AppSettings {
         }
     }
 
+    /// When the organization's published profile document was last fetched, so the once-a-day
+    /// throttle survives a relaunch. Nil until the first successful fetch.
+    var managedProfilesFetchedAt: Date? {
+        didSet {
+            if let managedProfilesFetchedAt {
+                defaults.set(managedProfilesFetchedAt, forKey: Self.managedProfilesFetchedAtKey)
+            } else {
+                defaults.removeObject(forKey: Self.managedProfilesFetchedAtKey)
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard, managed: ManagedConfiguration? = nil) {
         self.defaults = defaults
         self.managed = managed ?? ManagedConfiguration.load(from: ManagedPreferences(defaults: defaults))
@@ -170,6 +183,7 @@ final class AppSettings {
         lastUpdateCheck = defaults.object(forKey: Self.lastUpdateCheckKey) as? Date
         dismissedUpdateVersion = defaults.string(forKey: Self.dismissedUpdateVersionKey)
         dismissedTokenHintAccounts = Set(defaults.stringArray(forKey: Self.dismissedTokenHintAccountsKey) ?? [])
+        managedProfilesFetchedAt = defaults.object(forKey: Self.managedProfilesFetchedAtKey) as? Date
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }

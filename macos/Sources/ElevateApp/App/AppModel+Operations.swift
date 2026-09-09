@@ -62,7 +62,7 @@ extension AppModel {
                                      mode: tenant.discoveryMode.rawValue, flags: flags)
         }
         let hotKey: String? = settings.hotKey.map { binding in
-            let profile = settings.hotKeyProfileId.flatMap { state.profile(id: $0) }
+            let profile = settings.hotKeyProfileId.flatMap { self.profile(id: $0) }
             return "\(binding.display) → \(profile?.name ?? "no profile")"
         }
         let input = DiagnosticsInput(appVersion: BuildInfo.version,
@@ -71,7 +71,7 @@ extension AppModel {
                                      os: ProcessInfo.processInfo.operatingSystemVersionString,
                                      accounts: accounts,
                                      tenants: tenants,
-                                     profiles: state.profiles.map(\.name),
+                                     profiles: state.profiles.map(\.name) + managedProfiles.map { "\($0.name) (managed)" },
                                      hotKey: hotKey,
                                      managed: settings.managed.isEmpty ? nil : DiagnosticsManaged(origin: settings.managed.origin ?? "unknown",
                                                                                                   keys: settings.managed.keysInEffect.map(\.rawValue),

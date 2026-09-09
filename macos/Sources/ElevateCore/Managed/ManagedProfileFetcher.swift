@@ -7,7 +7,8 @@ public struct ManagedProfileFetcher: Sendable {
     public static let maxBytes = 1_048_576
 
     private let http: any HTTPClient
-    private let cacheURL: URL
+    /// Where the last good body is kept, so the app can tell the user which file it reads.
+    public let cacheURL: URL
 
     public init(http: any HTTPClient, cacheURL: URL) {
         self.http = http

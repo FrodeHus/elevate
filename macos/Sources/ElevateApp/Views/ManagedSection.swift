@@ -46,7 +46,23 @@ struct ManagedListRows: View {
         if !managed.pinnedTenants.isEmpty {
             LabeledContent("Pinned tenants") { tenantList(managed.pinnedTenants) }
         }
+        if managed.managedProfilesDocument != nil {
+            LabeledContent("Managed profiles") { Text("\(model.inlineProfileSet.profiles.count) (inline)") }
+        }
+        if let url = managed.managedProfilesUrl {
+            LabeledContent("Managed profiles URL") {
+                Text("\(url.absoluteString) · fetched \(Self.fetched(model.managedProfilesFetchedAt))")
+                    .font(.caption.monospaced()).textSelection(.enabled)
+            }
+        }
         ForEach(model.managedTenantWarnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
+        ForEach(model.managedProfileWarnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
+    }
+
+    /// "5 minutes ago", or "never" until the first fetch succeeds.
+    private static func fetched(_ date: Date?) -> String {
+        guard let date else { return "never" }
+        return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: .now)
     }
 
     private func tenantList(_ entries: [String]) -> some View {
