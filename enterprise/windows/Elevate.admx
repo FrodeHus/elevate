@@ -55,7 +55,7 @@
       <parentCategory ref="Elevate" />
       <supportedOn ref="SUPPORTED_Elevate_1_6" />
       <elements>
-        <list id="AllowedSignInMethods" key="Software\Policies\Reothor\Elevate\AllowedSignInMethods" additive="false" />
+        <list id="AllowedSignInMethods" key="Software\Policies\Reothor\Elevate\AllowedSignInMethods" additive="false" valuePrefix="" />
       </elements>
     </policy>
 
@@ -65,7 +65,7 @@
       <parentCategory ref="Elevate" />
       <supportedOn ref="SUPPORTED_Elevate_1_6" />
       <elements>
-        <list id="AllowedTenants" key="Software\Policies\Reothor\Elevate\AllowedTenants" additive="false" />
+        <list id="AllowedTenants" key="Software\Policies\Reothor\Elevate\AllowedTenants" additive="false" valuePrefix="" />
       </elements>
     </policy>
 
@@ -75,7 +75,7 @@
       <parentCategory ref="Elevate" />
       <supportedOn ref="SUPPORTED_Elevate_1_6" />
       <elements>
-        <list id="PinnedTenants" key="Software\Policies\Reothor\Elevate\PinnedTenants" additive="false" />
+        <list id="PinnedTenants" key="Software\Policies\Reothor\Elevate\PinnedTenants" additive="false" valuePrefix="" />
       </elements>
     </policy>
 
@@ -95,7 +95,7 @@
       <parentCategory ref="Elevate" />
       <supportedOn ref="SUPPORTED_Elevate_1_6" />
       <elements>
-        <text id="ManagedProfilesUrl" valueName="ManagedProfilesUrl" required="true" />
+        <text id="ManagedProfilesUrl" valueName="ManagedProfilesUrl" />
       </elements>
     </policy>
   </policies>

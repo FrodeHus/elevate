@@ -57,7 +57,7 @@ If you disable or do not configure this policy, only the user's own profiles are
       <string id="ManagedProfilesUrl">Managed profiles URL</string>
       <string id="ManagedProfilesUrl_Help">Publishes the same profile set from a web server, so it can be updated without changing policy.
 
-If you enable this policy, enter an https:// URL serving the JSON document, for example https://example.com/elevate/profiles.json. It is fetched at startup when the cached copy is older than 24 hours and once a day after; the last successful copy is used when a fetch fails. http:// URLs are ignored and reported as a warning. Profiles from the URL and from the inline policy are merged by id, the fetched entry winning.
+If you enable this policy, a URL is required: enter an https:// URL serving the JSON document, for example https://example.com/elevate/profiles.json. It is fetched at startup when the cached copy is older than 24 hours and once a day after; the last successful copy is used when a fetch fails. http:// URLs are ignored and reported as a warning. Profiles from the URL and from the inline policy are merged by id, the fetched entry winning.
 
 If you disable or do not configure this policy, no profile set is fetched.</string>
     </stringTable>

@@ -29,12 +29,37 @@ SIGN_IN_METHODS = {"ownApp", "azureCLI", "azurePowerShell", "custom"}
 ROLE_KINDS = {"entraDirectory", "azureResource", "group"}
 GROUP_ACCESS = {"member", "owner"}
 LIST_KEYS = ("AllowedSignInMethods", "AllowedTenants", "PinnedTenants")
+# The seven managed configuration keys the spec defines (design §2). keys.md is
+# the source of truth for their documentation, but the set itself is fixed.
+EXPECTED_KEYS = {
+    "ClientId",
+    "DisableUpdateCheck",
+    "AllowedSignInMethods",
+    "AllowedTenants",
+    "PinnedTenants",
+    "ManagedProfiles",
+    "ManagedProfilesUrl",
+}
 GUID_RE = re.compile(r"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z")
 SLUG_RE = re.compile(r"\A[a-z0-9-]{1,64}\Z")
 # `PnDTnHnMnS`, the shape ISO8601Duration.parse accepts.
 DURATION_RE = re.compile(r"\AP(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?\Z")
 # A key table row: the first cell is a backticked key name.
 KEY_ROW_RE = re.compile(r"^\|\s*`([A-Za-z][A-Za-z0-9]*)`\s*\|(.*)\|\s*$")
+
+REPO_URL_PREFIX = "https://github.com/FrodeHus/elevate/"
+URL_RE = re.compile(r"https?://[^\s\"'<>)\\]+")
+# Boilerplate structural URIs (XML namespaces, plist/ADMX schema references, the
+# JSON Schema meta-schema) are not links a reader would follow to the repo, so
+# they are not held to the "must point at our repo" rule.
+BOILERPLATE_URL_PREFIXES = (
+    "http://www.w3.org/",
+    "http://schemas.microsoft.com/GroupPolicy/",
+    "http://www.apple.com/DTDs/",
+    "http://json-schema.org/",
+)
+# Placeholder hosts the kit intentionally uses in examples.
+ALLOWED_URL_PREFIXES = ("https://example.com/", "https://login.microsoftonline.com/")
 
 
 class Errors:
@@ -120,6 +145,16 @@ def parse_keys(path: Path, errors: Errors) -> list[str]:
         keys.append(name)
     if not keys:
         errors.add(f"{path}: no key table rows found (expected rows starting with | `Key` |)")
+        return keys
+    if set(keys) != EXPECTED_KEYS:
+        missing = sorted(EXPECTED_KEYS - set(keys))
+        extra = sorted(set(keys) - EXPECTED_KEYS)
+        detail = []
+        if missing:
+            detail.append(f"missing {missing}")
+        if extra:
+            detail.append(f"unexpected {extra}")
+        errors.add(f"{path}: key table does not list exactly the seven managed keys ({', '.join(detail)})")
     return keys
 
 
@@ -133,9 +168,10 @@ def validate_profile_set(document: object, where: str, errors: Errors) -> None:
         return
 
     version = document.get("version")
-    if version is not None:
-        if isinstance(version, bool) or not isinstance(version, (int, float)) or version != 1:
-            errors.add(f"{where}: profile set version {version!r} is not supported (expected 1)")
+    if version is None:
+        errors.add(f"{where}: profile set has no 'version' (ManagedProfileSet.parse requires it)")
+    elif isinstance(version, bool) or not isinstance(version, (int, float)) or version != 1:
+        errors.add(f"{where}: profile set version {version!r} is not supported (expected 1)")
 
     profiles = document.get("profiles", [])
     if not isinstance(profiles, list):
@@ -242,10 +278,11 @@ def check_values(values: dict, where: str, errors: Errors, *, placeholders_allow
     if disable is not None and not isinstance(disable, bool):
         errors.add(f"{where}: DisableUpdateCheck must be a boolean, not {type(disable).__name__}")
 
+    # An absent or empty array is legal — it means no restriction (spec §2).
     methods = values.get("AllowedSignInMethods")
     if methods is not None:
-        if not isinstance(methods, list) or not methods:
-            errors.add(f"{where}: AllowedSignInMethods must be a non-empty array")
+        if not isinstance(methods, list):
+            errors.add(f"{where}: AllowedSignInMethods must be an array")
         else:
             for method in methods:
                 if method not in SIGN_IN_METHODS:
@@ -255,8 +292,8 @@ def check_values(values: dict, where: str, errors: Errors, *, placeholders_allow
         tenants = values.get(key)
         if tenants is None:
             continue
-        if not isinstance(tenants, list) or not tenants:
-            errors.add(f"{where}: {key} must be a non-empty array")
+        if not isinstance(tenants, list):
+            errors.add(f"{where}: {key} must be an array")
             continue
         for tenant in tenants:
             if not isinstance(tenant, str) or not tenant.strip():
@@ -277,6 +314,22 @@ def check_key_set(present: list[str], keys: list[str], where: str, errors: Error
         errors.add(f"{where}: key '{key}' is missing")
     for key in extra:
         errors.add(f"{where}: key '{key}' is not in the key reference")
+
+
+# --------------------------------------------------------------------------- links
+
+
+def check_urls(kit: Path, errors: Errors) -> None:
+    """Every http(s) URL in the kit has to point at our own repository, except
+    the boilerplate schema/namespace URIs and the documented placeholder hosts."""
+    for path in sorted(p for p in kit.rglob("*") if p.is_file()):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for url in URL_RE.findall(text):
+            url = url.rstrip(".,;")
+            if url.startswith(BOILERPLATE_URL_PREFIXES) or url.startswith(ALLOWED_URL_PREFIXES):
+                continue
+            if not url.startswith(REPO_URL_PREFIX):
+                errors.add(f"{path}: URL '{url}' does not point at {REPO_URL_PREFIX}")
 
 
 # --------------------------------------------------------------------------- ADMX/ADML
@@ -335,6 +388,12 @@ def check_admx(admx_path: Path, adml_path: Path, keys: list[str], errors: Errors
                     errors.add(f"{admx_path}: list '{name}' must write the subkey {expected}")
                 if element.get("additive") != "false":
                     errors.add(f"{admx_path}: list '{name}' must be additive=\"false\"")
+                if element.get("valuePrefix") != "":
+                    errors.add(
+                        f"{admx_path}: list '{name}' must have valuePrefix=\"\" "
+                        "(otherwise Group Policy names each value after its data, "
+                        "not 1, 2, ...)"
+                    )
         elif name == "DisableUpdateCheck":
             if policy.get("valueName") != name:
                 errors.add(f"{admx_path}: policy '{name}' must set valueName=\"{name}\"")
@@ -423,7 +482,9 @@ def check_reg(path: Path, keys: list[str], errors: Errors,
             errors.add(f"{path}: value '{key}' is missing")
 
     # The multi-string bytes have to decode to the profile set the example publishes.
-    match = re.search(r'"ManagedProfiles"=hex\(7\):((?:[0-9a-f]{2},?|\\\s*\n\s*)+)', text)
+    # `hex(7):` bytes are conventionally lower-case but the .reg format does not
+    # require it, so match both cases.
+    match = re.search(r'"ManagedProfiles"=hex\(7\):((?:[0-9a-fA-F]{2},?|\\\s*\n\s*)+)', text)
     if match:
         raw = re.sub(r"[\\\s]", "", match.group(1))
         try:
@@ -442,6 +503,11 @@ def check_reg(path: Path, keys: list[str], errors: Errors,
             check_profiles_value(value, f"{path} (ManagedProfiles)", errors)
             if example_profiles is not None:
                 example_profiles.append((path, value))
+        else:
+            errors.add(
+                f"{path}: ManagedProfiles is neither a hex(7) byte value nor a "
+                "quoted REG_SZ string"
+            )
 
 
 # --------------------------------------------------------------------------- the kit
@@ -452,6 +518,7 @@ def validate(kit: Path, keys_path: Path, errors: Errors) -> int:
     # Every ManagedProfiles value found under example/, to compare against example/profiles.json.
     example_profiles: list[tuple[Path, object]] = []
 
+    check_urls(kit, errors)
     check_admx(kit / "windows" / "Elevate.admx", kit / "windows" / "en-US" / "Elevate.adml", keys, errors)
 
     # macOS templates and the worked example's mobileconfig.

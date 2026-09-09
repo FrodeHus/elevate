@@ -10,7 +10,7 @@
   "links": [
     {
       "rel": "Key reference",
-      "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md"
+      "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md"
     }
   ],
   "properties": {
@@ -21,7 +21,7 @@
       "links": [
         {
           "rel": "ClientId",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#clientid"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#clientid"
         }
       ]
     },
@@ -32,7 +32,7 @@
       "links": [
         {
           "rel": "DisableUpdateCheck",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#disableupdatecheck"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#disableupdatecheck"
         }
       ]
     },
@@ -48,7 +48,7 @@
       "links": [
         {
           "rel": "AllowedSignInMethods",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#allowedsigninmethods"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#allowedsigninmethods"
         }
       ]
     },
@@ -63,7 +63,7 @@
       "links": [
         {
           "rel": "AllowedTenants",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#allowedtenants"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#allowedtenants"
         }
       ]
     },
@@ -78,7 +78,7 @@
       "links": [
         {
           "rel": "PinnedTenants",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#pinnedtenants"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#pinnedtenants"
         }
       ]
     },
@@ -89,7 +89,7 @@
       "links": [
         {
           "rel": "ManagedProfiles",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#managedprofiles"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#managedprofiles"
         }
       ]
     },
@@ -100,7 +100,7 @@
       "links": [
         {
           "rel": "ManagedProfilesUrl",
-          "href": "https://github.com/FrodeHus/pimtray/blob/main/docs/enterprise/keys.md#managedprofilesurl"
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#managedprofilesurl"
         }
       ]
     }

@@ -11,8 +11,9 @@ organization" caption, and Diagnostics lists the keys in effect (never the
 values).
 
 The seven keys, their types and their syntax in each format are documented in
-`keys.md` (the copy of `docs/enterprise/keys.md` shipped with this kit). The
-step-by-step how-tos live in `docs/enterprise/` in the repository.
+`docs/enterprise/keys.md` in the repository; a copy named `keys.md` is added
+next to this README at release time. The step-by-step how-tos live in
+`docs/enterprise/` in the repository.
 
 ## What is in here
 
