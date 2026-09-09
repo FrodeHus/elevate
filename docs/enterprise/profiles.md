@@ -86,8 +86,14 @@ PIM policy as usual. The rest depends on the kind:
   { "kind": "group", "tenant": "contoso.com", "group": "SRE on-call", "access": "owner" }
   ```
 
-Shape errors are reported per profile and field as warnings, and the document is otherwise used.
-The full key reference is in [keys.md](keys.md#managedprofiles).
+The document is validated as a whole, not profile by profile: the first shape error rejects the
+entire set — inline or fetched — and leaves one warning naming the profile and field
+(`ManagedProfiles: …` for the inline document, `ManagedProfilesUrl: …` for a fetched one). For the
+inline document that means no published profiles at all until the mistake is fixed; for the fetched
+one, the last successfully fetched copy stays in use. Validate before you publish: run
+`python3 scripts/validate-enterprise-kit.py` against a kit copy of the document, or
+`elevate config managed --file <path>` for a quick dry run of any JSON file. The full key reference
+is in [keys.md](keys.md#managedprofiles).
 
 ## Start from a profile someone already built
 

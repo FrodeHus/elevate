@@ -39,7 +39,7 @@ every key you send is locked.
    - Install command: `msiexec /i "Elevate-<version>-x64.msi" /qn`
    - Uninstall command: `msiexec /x "Elevate-<version>-x64.msi" /qn`
    - **Install behavior: User** (the MSI is a per-user install).
-4. **Requirements**: 64-bit, Windows 11 22H2 or later.
+4. **Requirements**: 64-bit, Windows 11 (build 22000) or later.
 5. **Detection rules**: rule type **File**,
    path `%LOCALAPPDATA%\Programs\Elevate`, file `Elevate.exe`, detection method **File or folder
    exists** — with **Associated with a 32-bit app on 64-bit clients** left off. (A version-based

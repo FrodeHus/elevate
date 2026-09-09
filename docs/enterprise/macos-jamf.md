@@ -104,10 +104,13 @@ directly and relaunch Elevate:
 ```bash
 sudo defaults write /Library/Managed\ Preferences/$USER/no.reothor.elevate \
   ClientId -string "11111111-2222-3333-4444-555555555555"
+sudo killall cfprefsd
 defaults read /Library/Managed\ Preferences/$USER/no.reothor.elevate
 ```
 
-Quit and reopen Elevate; the client-id field is now locked. Undo it with:
+`killall cfprefsd` clears the preferences daemon's cache so it picks up the file you just wrote;
+skip it and Elevate (and `defaults read`) may still see the old, unmanaged value. Quit and reopen
+Elevate; the client-id field is now locked. Undo it with:
 
 ```bash
 sudo defaults delete /Library/Managed\ Preferences/$USER/no.reothor.elevate ClientId

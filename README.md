@@ -41,13 +41,13 @@ macOS deployment.
 ## Repository layout
 
 ```
-macos/     Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
-windows/   .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
-cli/       .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
-shared/    Assets used by both apps: the Entra built-in roles catalogue script
+macos/      Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
+windows/    .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
+cli/        .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
+shared/     Assets used by both apps: the Entra built-in roles catalogue script
 enterprise/ Managed-configuration templates: ADMX/ADML, mobileconfig, Jamf schema, managed.json, an example
 Casks/, Formula/   The Homebrew tap: the macOS app's cask and the CLI's formula
-docs/      Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
+docs/       Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
 ## Getting started

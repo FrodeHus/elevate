@@ -107,7 +107,7 @@ Invalid values are dropped key by key, never the whole payload, and each drop le
 | `PinnedTenants: could not resolve '…'` | The same, for a pinned entry. That entry pins nothing. |
 | `ManagedProfilesUrl: only https URLs are accepted` | An `http://` or other scheme. |
 | `ManagedProfilesUrl: …` (a fetch error) | The document could not be fetched. The last cached copy stands in. |
-| `ManagedProfiles: …` | The inline document failed to parse; the message names the profile and field. |
+| `ManagedProfiles: …` | The inline document failed to parse; the whole set is rejected (not just the offending profile), and the message names the profile and field that failed. |
 | `<profile>: could not resolve tenant <name>` | A domain named by a published profile that could not be looked up; that role waits rather than being dropped. |
 | `<profile>: no account in tenant <name>` | No signed-in account tracks that tenant, so those roles are dropped. |
 
