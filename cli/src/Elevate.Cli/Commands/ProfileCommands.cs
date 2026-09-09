@@ -36,11 +36,13 @@ public static class ProfileCommands
 
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Profile");
+            table.AddColumn("Source");
             table.AddColumn("Contents");
             table.AddColumn("Last reason");
             foreach (var p in session.Profiles)
             {
-                table.AddRow(Markup.Escape(p.Name), Markup.Escape(ProfileSummary.Caption(p.Entries)), Markup.Escape(p.LastJustification ?? "—"));
+                table.AddRow(Markup.Escape(p.Name), Views.ProfileSourceName(p), Markup.Escape(ProfileSummary.Caption(p.Entries)),
+                    Markup.Escape(p.LastJustification ?? "—"));
             }
 
             context.Output.Write(table);
@@ -53,6 +55,7 @@ public static class ProfileCommands
         command.Subcommands.Add(Rename());
         command.Subcommands.Add(Delete());
         command.Subcommands.Add(Import());
+        command.Subcommands.Add(Export());
         return command;
     }
 
@@ -76,6 +79,7 @@ public static class ProfileCommands
                 return ExitCodes.Ok;
             }
 
+            context.Output.Plain($"Source: {Views.ProfileSourceName(profile)}");
             var table = new Table().Border(TableBorder.Rounded).Title(Markup.Escape(profile.Name));
             table.AddColumn("[grey]ID[/]");
             table.AddColumn("Role");
@@ -113,6 +117,8 @@ public static class ProfileCommands
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
+            // Refused before the roles are read: a name the organization publishes is never saved over.
+            session.RefuseIfManagedName(parse.GetValue(name)!);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var terms = parse.GetValue(roles) ?? [];
@@ -357,6 +363,28 @@ public static class ProfileCommands
             context.Session.DeleteProfile(profile.Id);
             context.Output.Note($"Deleted {Markup.Escape(profile.Name)}.");
             return Task.FromResult(ExitCodes.Ok);
+        });
+        return command;
+    }
+
+    private static Command Export()
+    {
+        var name = NameArgument();
+        var command = new Command("export",
+            "Print one of your profiles as a managed profile document (design §7.1), ready for an administrator to publish. JSON on stdout either way.")
+        { name };
+        command.SetAction(async (parse, ct) =>
+        {
+            var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
+            var profile = Require(context, parse.GetValue(name)!);
+            if (session.IsManagedProfile(profile.Id))
+            {
+                throw new CliException($"'{profile.Name}' is published by your organization; export its source instead.", ExitCodes.Usage);
+            }
+
+            context.Output.WriteJson(Views.ExportedSet(session, profile));
+            return ExitCodes.Ok;
         });
         return command;
     }

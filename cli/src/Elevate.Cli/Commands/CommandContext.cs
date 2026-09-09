@@ -102,7 +102,8 @@ public sealed class CommandContext
     /// The session with the organization's managed tenants resolved: the allowed and pinned lists
     /// turned into tenant ids, tenants the organization no longer permits dropped, and the pinned
     /// ones tracked. Every command that lists or changes tenants or accounts goes through here, so
-    /// the policy is in place before anything is shown or written. Resolves once per invocation,
+    /// the policy is in place before anything is shown or written. The organization's published
+    /// profiles are refreshed here too. Resolves once per invocation,
     /// and does nothing at all when no tenants are managed.
     /// </summary>
     public async Task<ElevateSession> SessionAsync(CancellationToken ct = default)
@@ -119,6 +120,10 @@ public sealed class CommandContext
         {
             Output.Warn(Markup.Escape(warning));
         }
+
+        // The published profiles come after the tenants they name have been resolved; the fetch
+        // itself runs at most once a day and does nothing at all without a ManagedProfilesUrl.
+        await session.RefreshManagedProfilesAsync(force: false, ct).ConfigureAwait(false);
 
         return session;
     }

@@ -245,7 +245,8 @@ public static class ConfigCommands
             else
             {
                 managed = context.Session.Settings.Managed;
-                warnings = managed.Warnings;
+                // Whatever the published profile document got wrong belongs here too.
+                warnings = [.. managed.Warnings, .. context.Session.ManagedProfileWarnings];
                 origin = managed.Origin;
             }
 

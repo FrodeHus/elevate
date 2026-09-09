@@ -107,6 +107,16 @@ public sealed class CliSettings
         set => Set("lastUpdateCheck", value?.ToString("O"));
     }
 
+    /// <summary>
+    /// When the published profile document was last fetched successfully; null until the first one
+    /// lands. Stored like <c>lastUpdateCheck</c>, as an ISO 8601 string.
+    /// </summary>
+    public DateTimeOffset? ManagedProfilesFetchedAt
+    {
+        get => _root["managedProfilesFetchedAt"] is { } node && DateTimeOffset.TryParse(node.GetValue<string>(), out var d) ? d : null;
+        set => Set("managedProfilesFetchedAt", value?.ToString("O"));
+    }
+
     public string? LatestKnownVersion
     {
         get => _root["latestKnownVersion"]?.GetValue<string>();

@@ -101,15 +101,21 @@ public sealed partial class ElevateSession
     internal const string PinnedTenantMessage = "This tenant is pinned by your organization.";
 
     /// <summary>
-    /// Every managed tenant entry that needs a tenant id, in configured order without duplicates.
-    /// One place on purpose: the tenants named by managed profiles join the list here.
+    /// Every managed tenant entry that needs a tenant id, in configured order without duplicates:
+    /// the allowed list, the pinned list, and the tenants the published profiles name.
     /// </summary>
     private IReadOnlyList<string> ManagedTenantEntries
     {
         get
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            return [.. (Settings.Managed.AllowedTenants ?? []).Concat(Settings.Managed.PinnedTenants).Where(seen.Add)];
+            return
+            [
+                .. (Settings.Managed.AllowedTenants ?? [])
+                    .Concat(Settings.Managed.PinnedTenants)
+                    .Concat(ManagedProfileTenants)
+                    .Where(seen.Add),
+            ];
         }
     }
 

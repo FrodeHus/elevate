@@ -49,6 +49,7 @@ public sealed partial class ElevateSession
             .DistinctBy(p => p.Kind).ToDictionary(p => p.Kind);
         Discovery = new TenantDiscovery(http, tokens);
         Packages = accessPackages ?? new AccessPackageProvider(http, tokens);
+        LoadInlineProfiles();
     }
 
     public CliSettings Settings { get; }

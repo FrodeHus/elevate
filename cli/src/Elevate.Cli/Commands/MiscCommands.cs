@@ -79,7 +79,7 @@ public static class MiscCommands
                 [.. session.Identities.Select(i => new DiagnosticsAccount(i.Upn, i.SignInMethod.DisplayName, session.Tenants.Count(t => t.IdentityId == i.Id)))],
                 [.. session.Tenants.Select(t => new DiagnosticsTenant(t.DisplayName, t.TenantId,
                     t.DiscoveryMode == DiscoveryMode.Automatic ? "automatic" : "manual roles", Views.TenantFlags(session, t)))],
-                [.. session.Profiles.Select(p => p.Name)],
+                [.. session.Profiles.Select(p => p.Source == ProfileSource.Managed ? $"{p.Name} (managed)" : p.Name)],
                 null,
                 session.ErrorLog.Entries,
                 // Key names only: a managed value (the client id) never belongs in a bug report.
