@@ -115,6 +115,23 @@ final class AppModel {
     /// Managed by `noteTokenHint`/`dismissTokenHint` in AppModel+Activation.
     var tokenHintAccounts: [String] = []
 
+    // MARK: Managed configuration — AppModel+Managed
+
+    /// Tenant ids the organization's `AllowedTenants` permits, nil when the key is not in effect
+    /// or an entry could not be resolved (the restriction is never applied on guesswork; the
+    /// unresolved entry becomes a warning instead).
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var allowedTenantIds: Set<String>?
+    /// Tenant ids the organization's `PinnedTenants` resolved to, in the configured order.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var pinnedTenantIds: [String] = []
+    /// Managed tenant entry, exactly as configured → the tenant id it resolved to.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantIds: [String: String] = [:]
+    /// One line per managed tenant entry that could not be resolved, shown in Settings.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantWarnings: [String] = []
+
     // MARK: Dependencies
 
     let settings: AppSettings
@@ -123,6 +140,10 @@ final class AppModel {
     /// Approval readers/deciders, one per kind, rebuilt with the coordinator when the client id changes.
     private(set) var approvalProviders: [RoleScopeKind: any ApprovalProvider]
     private(set) var discovery: TenantDiscovery
+    /// Turns managed tenant entries (GUIDs or verified domains) into tenant ids, caching what it
+    /// resolves. It needs only `http`, which never changes, so one instance serves the app's life
+    /// — `applyClientId` has nothing to rebuild here.
+    let tenantResolver: ManagedTenantResolver          // internal for AppModel+Managed
     private let store: AppStateStore
     let notifier: any ExpiryNotifying                 // internal for AppModel+Refresh, +Approvals, +Activation
     private let network: NetworkMonitor
@@ -191,6 +212,7 @@ final class AppModel {
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
         accessPackageProvider = AccessPackageProvider(http: http, tokens: tokens)
+        tenantResolver = ManagedTenantResolver(http: http)
     }
 
     private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
@@ -394,6 +416,10 @@ final class AppModel {
             logError("Could not read saved sign-ins from the Keychain")
         }
         persist()
+        // Managed tenants first: it may remove tenants the organization no longer permits and add
+        // pinned ones, and `refreshAll()` should see the final list. It never throws and never
+        // waits on a missing network — an unresolved entry is only a warning.
+        await resolveManagedTenants()
         if isOnline { await refreshAll() }
         startTimer()
         applyHotKey()

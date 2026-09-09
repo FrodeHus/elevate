@@ -5,6 +5,12 @@ public struct DiscoveredTenant: Hashable, Sendable, Identifiable {
     public let displayName: String
     public let defaultDomain: String?
     public var id: String { tenantId }
+
+    public init(tenantId: String, displayName: String, defaultDomain: String?) {
+        self.tenantId = tenantId
+        self.displayName = displayName
+        self.defaultDomain = defaultDomain
+    }
 }
 
 public struct TenantDiscovery: Sendable {
