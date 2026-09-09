@@ -8,7 +8,8 @@ import Foundation
         accounts: [DiagnosticsAccount] = [],
         tenants: [DiagnosticsTenant] = [],
         profiles: [String] = [],
-        hotKey: String? = nil
+        hotKey: String? = nil,
+        managed: DiagnosticsManaged? = nil
     ) -> DiagnosticsInput {
         DiagnosticsInput(
             appVersion: "1.2.3",
@@ -19,6 +20,7 @@ import Foundation
             tenants: tenants,
             profiles: profiles,
             hotKey: hotKey,
+            managed: managed,
             errors: errors
         )
     }
@@ -93,6 +95,28 @@ import Foundation
         let clientIdLooking = "9d3a7e2c-4b1f-4a6e-9c2d-5f8b1c0a7e3d"
         let text = DiagnosticsReport.render(makeInput())
         #expect(!text.contains(clientIdLooking))
+    }
+
+    @Test func rendersManagedSection() {
+        let input = DiagnosticsInput(
+            appVersion: "1", build: "1", signing: "s", os: "o",
+            accounts: [], tenants: [], profiles: [], hotKey: nil,
+            managed: DiagnosticsManaged(
+                origin: "managed preferences",
+                keys: ["ClientId", "PinnedTenants"],
+                warnings: ["PinnedTenants: could not resolve 'nowhere.example'"]
+            ),
+            errors: []
+        )
+        let text = DiagnosticsReport.render(input, now: Date(timeIntervalSince1970: 0))
+        #expect(text.contains("Managed configuration:\n  Source: managed preferences\n  Keys: ClientId, PinnedTenants\n  Warnings:\n    PinnedTenants: could not resolve 'nowhere.example'"))
+        #expect(!text.contains("11111111"))
+    }
+
+    @Test func rendersNoneWithoutManagedConfiguration() {
+        let input = makeInput()
+        let text = DiagnosticsReport.render(input)
+        #expect(text.contains("Managed configuration:\n  None"))
     }
 
     @Test func multipleErrorsRenderedInOrder() {
