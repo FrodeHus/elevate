@@ -8,7 +8,15 @@ namespace Elevate.Cli.Commands;
 /// <summary><c>config</c>: the few settings the CLI has, and where its files live.</summary>
 public static class ConfigCommands
 {
-    private static readonly string[] Keys = ["client-id", "custom-client-id", "unprotected-cache"];
+    private static readonly string[] Keys = ["client-id", "custom-client-id", "unprotected-cache", "token-hint"];
+
+    /// <summary>"shown", or the accounts the stale-token hint is hidden for.</summary>
+    private static string TokenHintState(CommandContext context)
+    {
+        var session = context.Session;
+        var hidden = session.Settings.DismissedTokenHintAccounts;
+        return hidden.Count == 0 ? "shown" : "hidden for " + string.Join(", ", hidden.Select(session.AccountName).Order(StringComparer.Ordinal));
+    }
 
     public static Command Config()
     {
@@ -25,6 +33,7 @@ public static class ConfigCommands
                     clientId = settings.ClientId.Length == 0 ? null : settings.ClientId,
                     customClientId = settings.CustomClientId.Length == 0 ? null : settings.CustomClientId,
                     unprotectedCache = settings.UnprotectedCache,
+                    tokenHintHiddenFor = settings.DismissedTokenHintAccounts.Select(context.Session.AccountName).Order(StringComparer.Ordinal).ToList(),
                 });
                 return Task.FromResult(ExitCodes.Ok);
             }
@@ -36,6 +45,7 @@ public static class ConfigCommands
             table.AddRow("client-id", settings.ClientId.Length == 0 ? "[grey]not set (needed for --method own)[/]" : Markup.Escape(settings.ClientId));
             table.AddRow("custom-client-id", settings.CustomClientId.Length == 0 ? "[grey]not set[/]" : Markup.Escape(settings.CustomClientId));
             table.AddRow("unprotected-cache", settings.UnprotectedCache ? "[yellow]true (Linux: plain-file token cache)[/]" : "false");
+            table.AddRow("token-hint", Markup.Escape(TokenHintState(context)));
             context.Output.Write(table);
             return Task.FromResult(ExitCodes.Ok);
         });
@@ -47,10 +57,11 @@ public static class ConfigCommands
 
     private static Command Set()
     {
-        var key = new Argument<string>("key") { Description = "client-id, custom-client-id or unprotected-cache." };
-        var value = new Argument<string>("value") { Description = "The new value; an empty string clears it." };
+        var key = new Argument<string>("key") { Description = "client-id, custom-client-id, unprotected-cache or token-hint." };
+        var value = new Argument<string>("value") { Description = "The new value; an empty string clears it. token-hint takes on or off." };
         var yes = CommonOptions.Yes();
-        var command = new Command("set", "Change a setting.") { key, value, yes };
+        var account = CommonOptions.Account();
+        var command = new Command("set", "Change a setting.") { key, value, yes, account };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
@@ -60,6 +71,40 @@ public static class ConfigCommands
             var v = parse.GetValue(value)!.Trim();
             switch (k)
             {
+                case "token-hint":
+                {
+                    var show = v.ToLowerInvariant() switch
+                    {
+                        "on" or "true" or "show" => true,
+                        "off" or "false" or "hide" => false,
+                        _ => throw new CliException("token-hint takes on or off.", ExitCodes.Usage),
+                    };
+                    var ids = parse.GetValue(account) is { } a
+                        ? [context.RequireAccount(a).Id]
+                        : session.Identities.Select(i => i.Id).ToList();
+                    if (ids.Count == 0)
+                    {
+                        throw new CliException("No account is signed in. Run 'elevate login' first.", ExitCodes.SignInRequired);
+                    }
+
+                    var hidden = settings.DismissedTokenHintAccounts.ToHashSet(StringComparer.Ordinal);
+                    foreach (var id in ids)
+                    {
+                        if (show)
+                        {
+                            hidden.Remove(id);
+                        }
+                        else
+                        {
+                            hidden.Add(id);
+                        }
+                    }
+
+                    settings.DismissedTokenHintAccounts = hidden;
+                    context.Output.Note($"token-hint {Markup.Escape(TokenHintState(context))}.");
+                    return ExitCodes.Ok;
+                }
+
                 case "client-id":
                 {
                     if (v.Length > 0 && !CliSettings.IsValidClientId(v))
@@ -120,7 +165,7 @@ public static class ConfigCommands
 
     private static Command Get()
     {
-        var key = new Argument<string>("key") { Description = "client-id, custom-client-id or unprotected-cache." };
+        var key = new Argument<string>("key") { Description = "client-id, custom-client-id, unprotected-cache or token-hint." };
         var command = new Command("get", "Print one setting's value.") { key };
         command.SetAction((parse, _) =>
         {
@@ -131,6 +176,7 @@ public static class ConfigCommands
                 "client-id" => settings.ClientId,
                 "custom-client-id" => settings.CustomClientId,
                 "unprotected-cache" => settings.UnprotectedCache ? "true" : "false",
+                "token-hint" => TokenHintState(context),
                 var other => throw new CliException($"Unknown setting '{other}'. Keys: {string.Join(", ", Keys)}.", ExitCodes.Usage),
             };
             context.Output.Plain(text);

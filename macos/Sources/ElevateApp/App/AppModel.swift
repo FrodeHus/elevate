@@ -110,6 +110,10 @@ final class AppModel {
     /// The one-line result of the last check, for the Settings button.
     /// Setter internal: `checkForUpdates` lives in AppModel+Operations.
     var updateCheckMessage: String?
+    /// Accounts whose cached Azure CLI, Azure PowerShell and kubelogin tokens the last Azure or
+    /// group activation left behind, oldest first; the panel shows a hint for the first one.
+    /// Managed by `noteTokenHint`/`dismissTokenHint` in AppModel+Activation.
+    var tokenHintAccounts: [String] = []
 
     // MARK: Dependencies
 

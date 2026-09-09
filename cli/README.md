@@ -95,12 +95,14 @@ roles lists them instead of guessing.
 | `elevate activate <role…>` | Activate. Duration and reason default to what was used last for that role, then to the policy; `--duration 2h`, `--reason`, `--ticket`, `--at 14:30` (or `+2h`) and `--wait` override. A role that is already active is left alone. With no role named, a checklist is offered in a terminal. |
 | `elevate extend <role…>` | Deactivate and re-activate, so the clock starts over. Refused for approval-required roles, which would leave you without the role while the request waits. |
 | `elevate deactivate <role…>` / `elevate cancel <role…>` | Deactivate an active role; withdraw a request that is awaiting approval or scheduled. |
+| `elevate run [--profile NAME] [--role ROLE…] -- <command>` | Activate what is named (roles already active are left alone, pending ones are waited for), wait until every one is active, approvals included, then run the command with the terminal's own stdin and stdout and exit with its code. Activations last 10 minutes by default, just enough for one command (`--duration` overrides; the durations remembered for `activate` and the profile are untouched). `--deactivate-after` deactivates what this call activated once the command exits; `--settle 2m` pauses after a group activation for the claim to propagate (default 30 s for groups); `--timeout 1h` bounds the wait (default 15 m). |
+| `elevate init bash\|zsh\|fish\|pwsh` | A shell hook that wraps `az`, `kubectl`, `terraform` and `helm`: when one fails with an authorization error, a line suggests `elevate run`. `eval "$(elevate init zsh)"` in your profile. |
 | `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles). |
 | `elevate approvals` | Requests awaiting your decision as an approver; `approve <id>` and `deny <id> --reason …`. Extend and renew requests are listed with "decide in the portal", as in the apps. |
 | `elevate packages` | Access packages (entitlement management) for accounts signed in with your own or a custom registration: `list` (with the state of any pending request or delivered assignment), `requests` (open ones; `--all` adds denied, failed and cancelled with dates and the service's status), `assigned` (delivered, with expiry and policy), `request <package> --justification …` (`--policy` when several apply; packages that ask questions are handed to My Access with a link), `cancel <id>`. The first call asks for the `EntitlementMgmt-SubjectAccess.ReadWrite` permission, which needs no admin consent. |
 | `elevate accounts` / `login` / `logout` | The signed-in accounts. |
 | `elevate tenants` | Tracked tenants with their flags; `discover`, `add`, `remove`, `retry` (clears the manual-roles, azure-off and groups-off latches), and `manual add|list|clear` for tenants that refuse discovery. |
-| `elevate config` | The client id, the remembered custom client id and the Linux cache mode; `config path` prints the data directory. |
+| `elevate config` | The client id, the remembered custom client id, the Linux cache mode and the stale-token hint (`config set token-hint off --account alex` hides it for one account); `config path` prints the data directory. |
 | `elevate catalogue [query]` | The built-in Entra roles, for `tenants manual add --entra`. |
 | `elevate diagnostics` | A plain-text report for a bug report. It has no field for a token or client id. |
 | `elevate update` | Checks GitHub for a newer CLI release. `status` also mentions one, at most once a day. |
@@ -116,10 +118,23 @@ progress go to stderr, so `elevate roles --json | jq` is clean. Exit codes:
 | 3 | No account, or an account needs an interactive sign-in this run could not do. |
 | 4 | A role, tenant, account, profile or request did not match, or matched several. |
 | 5 | Some of the requested activations or decisions went through, not all. |
+| 127 | `run` could not find the command. Otherwise `run` exits with the command's own code. |
 
 `activate` is idempotent, so a script can run `elevate activate Reader --tenant prod --reason ci --wait -q`
 before an `az` command and rely on the exit code; `profiles run` does the same for a set. Prompts
 appear only when stdin is a terminal and `--json` is off; otherwise the missing value is an error.
+
+`elevate run --role Reader --tenant prod -- az group list` folds that into one step: it activates,
+waits (through an approval too, with a line saying so), then runs the command. Its progress goes
+to stderr, so the command's stdout can still be piped. Ctrl+C during the wait leaves the activation
+in place; during the command it reaches the command, and `run` exits with the command's code.
+
+**Stale tokens.** After an Azure resource role or a group membership activates, the Azure CLI,
+Azure PowerShell and kubelogin keep using the token they cached before it, which lacks the new
+assignment, so the next command is refused as if nothing had happened. The CLI says so after such
+an activation and names the fix: `az login` again (and `kubelogin remove-tokens` for AKS), or a
+fresh `Connect-AzAccount`. `elevate config set token-hint
+off --account alex` hides the line for one account; `on` brings it back.
 
 Global options: `--json`, `--quiet`, `--no-color` (or `NO_COLOR`), `--device-code`, `--data-dir`.
 

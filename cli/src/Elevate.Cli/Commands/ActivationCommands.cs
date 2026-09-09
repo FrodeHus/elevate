@@ -259,7 +259,7 @@ public static class ActivationCommands
     }
 
     /// <summary>Duration and reason from the options, the remembered values, the policy or a prompt, in that order.</summary>
-    private static ActivationRequest BuildRequest(CommandContext context, EligibleRole role, TimeSpan? wanted, string? reason, TicketInfo? ticket, DateTimeOffset? start)
+    internal static ActivationRequest BuildRequest(CommandContext context, EligibleRole role, TimeSpan? wanted, string? reason, TicketInfo? ticket, DateTimeOffset? start)
     {
         var session = context.Session;
         var memory = session.Remembered(role.Key);
@@ -297,7 +297,7 @@ public static class ActivationCommands
         return new ActivationRequest(role.Key, duration, justification, ticket, policy.AuthenticationContext, start);
     }
 
-    private static TicketInfo? TicketFrom(string? number, string? system) =>
+    internal static TicketInfo? TicketFrom(string? number, string? system) =>
         string.IsNullOrWhiteSpace(number) ? null : new TicketInfo(number.Trim(), (system ?? string.Empty).Trim());
 
     /// <summary>Sends the requests, prints the outcomes, optionally waits for provisioning, and maps them to an exit code.</summary>
@@ -331,35 +331,25 @@ public static class ActivationCommands
             context.Output.Write(Views.OutcomesTable(session, ordered, now));
         }
 
+        TokenHints.Report(context, ordered);
         var failed = ordered.Count(o => o.Result is ActivationResult.Failed);
         return failed == 0 ? ExitCodes.Ok : failed == ordered.Count ? ExitCodes.Failure : ExitCodes.Partial;
     }
 
-    /// <summary>Polls the tenants until every activated role reports Active, up to five minutes.</summary>
-    private static async Task WaitForActiveAsync(CommandContext context, IReadOnlyList<ActivationOutcome> outcomes, CancellationToken ct)
+    /// <summary>
+    /// Polls the tenants until every activated role reports Active, up to five minutes. A request
+    /// that went to an approver is not waited for here: <c>--wait</c> is about provisioning.
+    /// </summary>
+    internal static Task WaitForActiveAsync(CommandContext context, IReadOnlyList<ActivationOutcome> outcomes, CancellationToken ct)
     {
-        var session = context.Session;
         var waiting = outcomes.Where(o => o.Result is ActivationResult.Activated).Select(o => o.RoleKey).ToList();
         if (waiting.Count == 0)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(5);
-        await context.Output.StatusAsync("Waiting for the roles to become active…", async () =>
-        {
-            while (DateTimeOffset.UtcNow < deadline)
-            {
-                await session.RefreshAsync(waiting.Select(k => k.TenantKey), ct).ConfigureAwait(false);
-                if (waiting.All(k => session.Active.GetValueOrDefault(k)?.Status.Kind == AssignmentStatusKind.Active))
-                {
-                    return;
-                }
-
-                await Task.Delay(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-            }
-
-            throw new CliException("The activation was accepted but the roles were not active after five minutes.", ExitCodes.Failure);
-        }).ConfigureAwait(false);
+        var waiter = new ActivationWaiter(context.Session);
+        return context.Output.StatusAsync("Waiting for the roles to become active…",
+            report => waiter.WaitAsync(waiting, ActivationWaiter.ProvisioningTimeout, report, ct));
     }
 }

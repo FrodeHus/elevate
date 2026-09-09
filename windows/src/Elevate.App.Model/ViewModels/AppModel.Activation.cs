@@ -1,6 +1,7 @@
 using Elevate.Core.Auth;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
+using Elevate.Core.Support;
 
 namespace Elevate.App.ViewModels;
 
@@ -233,6 +234,7 @@ public sealed partial class AppModel
         }
 
         Persist();
+        NoteTokenHint(outcomes);
         var changedGroupTenants = outcomes
             .Where(o => o.RoleKey.Scope.Kind == RoleScopeKind.Group && o.Result is ActivationResult.Activated)
             .Select(o => o.RoleKey.TenantKey)
@@ -244,6 +246,46 @@ public sealed partial class AppModel
         // updates cached policy/role data afterwards, never InFlight.
         _ = LearnPoliciesForManualRolesAsync(outcomes);
         return outcomes;
+    }
+
+    // MARK: Stale token hint
+
+    private readonly List<string> _tokenHintAccounts = [];
+
+    /// <summary>
+    /// The account whose cached Azure CLI, Azure PowerShell and kubelogin tokens the last Azure or
+    /// group activation left behind, for the flyout's hint banner; null when there is none or the
+    /// hint was dismissed for that account. One account at a time: dismissing shows the next.
+    /// </summary>
+    public (string IdentityId, string Account)? TokenHint =>
+        _tokenHintAccounts.Count == 0 ? null : (_tokenHintAccounts[0], Identity(_tokenHintAccounts[0])?.Upn ?? _tokenHintAccounts[0]);
+
+    /// <summary>Raises the hint for each account the outcomes affect, unless it was dismissed for that account.</summary>
+    internal void NoteTokenHint(IReadOnlyList<ActivationOutcome> outcomes)
+    {
+        var dismissed = Settings.DismissedTokenHintAccounts;
+        foreach (var id in TokenCacheHint.AffectedAccounts(outcomes))
+        {
+            if (!dismissed.Contains(id) && !_tokenHintAccounts.Contains(id))
+            {
+                _tokenHintAccounts.Add(id);
+            }
+        }
+
+        Touch();
+    }
+
+    /// <summary>Hides the hint for the account it names and remembers not to raise it again for that account.</summary>
+    public void DismissTokenHint()
+    {
+        if (TokenHint is not { } hint)
+        {
+            return;
+        }
+
+        _tokenHintAccounts.Remove(hint.IdentityId);
+        Settings.DismissedTokenHintAccounts = new HashSet<string>(Settings.DismissedTokenHintAccounts, StringComparer.Ordinal) { hint.IdentityId };
+        Touch();
     }
 
     // MARK: Quick activate

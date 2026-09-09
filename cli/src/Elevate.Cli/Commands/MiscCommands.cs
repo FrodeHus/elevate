@@ -163,6 +163,18 @@ public static class MiscCommands
         }
     }
 
+    public static Command Init()
+    {
+        var shell = new Argument<string>("shell") { Description = "bash, zsh, fish or pwsh." };
+        var command = new Command("init", "Print a shell hook that suggests 'elevate run' when az, kubectl, terraform or helm fail with an authorization error. E.g. `eval \"$(elevate init zsh)\"`.") { shell };
+        command.SetAction((parse, _) =>
+        {
+            Console.Out.Write(ShellHooks.Generate(parse.GetValue(shell)!));
+            return Task.FromResult(ExitCodes.Ok);
+        });
+        return command;
+    }
+
     public static Command Completion()
     {
         var shell = new Argument<string>("shell") { Description = "bash, zsh, fish or powershell." };

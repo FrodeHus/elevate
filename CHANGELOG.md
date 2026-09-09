@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CLI: `elevate run [--profile NAME] [--role ROLE…] [--deactivate-after] -- <command>` activates
+  what is named, waits until it is active (approvals and scheduled starts included, with a line
+  saying what it waits for), pauses for a group claim to propagate, then runs the command with the
+  terminal's own stdin and stdout and exits with its code. Activations last 10 minutes by default,
+  just enough for one command; `--duration` overrides without touching the remembered durations.
+- CLI: `elevate init bash|zsh|fish|pwsh` prints a shell hook that wraps az, kubectl, terraform and
+  helm and suggests `elevate run` when one of them fails with an authorization error.
+- macOS, Windows and CLI: after an Azure resource role or a group membership activates, a one-line
+  hint says the Azure CLI, Azure PowerShell and kubelogin caches predate it, with the commands that
+  refresh them (`az login`, `kubelogin remove-tokens`). The apps
+  offer "Copy command"; the hint is dismissable per account, and the CLI hides it with
+  `elevate config set token-hint off --account <name>`.
+
+### Fixed
+
+- macOS: the stale-token hint banner grew no taller than one line, so its caption was drawn over
+  the "Active now" section and the rows below it. It now wraps to the height it needs and pushes
+  the list down, with the message and the advice on separate lines.
+- macOS, Windows and CLI: the stale-token hint named `az account get-access-token --force-refresh`,
+  a flag the Azure CLI does not have. It now says to run `az login` again, which is what actually
+  gets a token carrying the new assignment.
+
 ### Changed
 
 - Core (macOS and Windows): the tenant status glyph now shows an informational icon for mere

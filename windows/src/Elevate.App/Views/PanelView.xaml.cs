@@ -3,6 +3,7 @@ using Elevate.App.Services;
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Models;
+using Elevate.Core.Support;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -181,6 +182,16 @@ public sealed partial class PanelView : UserControl
         else
         {
             UpdateBar.IsOpen = false;
+        }
+
+        if (model.TokenHint is { } hint)
+        {
+            TokenHintBar.Message = $"{TokenCacheHint.Message(hint.Account)} {TokenCacheHint.Advice} Close to hide this for the account.";
+            TokenHintBar.IsOpen = true;
+        }
+        else
+        {
+            TokenHintBar.IsOpen = false;
         }
 
         SyncPivot(model.PanelTab);
@@ -449,6 +460,23 @@ public sealed partial class PanelView : UserControl
     }
 
     private void OnUpdateClosed(InfoBar sender, InfoBarClosedEventArgs args) => _model?.DismissUpdate();
+
+    /// <summary>Only the close button dismisses for the account; Draw closes the bar programmatically when the hint moves on.</summary>
+    private void OnTokenHintClosed(InfoBar sender, InfoBarClosedEventArgs args)
+    {
+        if (args.Reason == InfoBarCloseReason.CloseButton)
+        {
+            _model?.DismissTokenHint();
+        }
+    }
+
+    private void OnTokenHintCopy(object sender, RoutedEventArgs e)
+    {
+        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        package.SetText(TokenCacheHint.AzureCliCommand);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        TokenHintCopy.Content = "Copied";
+    }
 
     private void OnUpdateOpen(object sender, RoutedEventArgs e)
     {
