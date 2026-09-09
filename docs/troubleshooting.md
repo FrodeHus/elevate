@@ -83,6 +83,30 @@ the activation and, for groups, pauses before running the command (`--settle` se
 hint can be hidden per account: close it in the panel, or `elevate config set token-hint off
 --account <name>` in the CLI (`on` brings it back).
 
+## A field says "Managed by your organization"
+
+Your organization pushed that setting through Intune, Jamf or Group Policy, so it is locked: the
+field is greyed out, shows the value your administrator chose, and Elevate refuses changes to it.
+The bottom of Settings has a **Managed by your organization** section listing everything that is
+managed, and **Copy diagnostics** includes the same key names.
+
+You may see the same thing elsewhere:
+
+- **Updates are managed by your organization** — the daily update check is off; your fleet gets new
+  versions from your management system.
+- A sign-in method missing from **Add account…**, or an account captioned **Sign-in method no
+  longer permitted by your organization** — only some methods are permitted. That account keeps
+  working; sign it out and add it again with a permitted method to sign in afresh.
+- A tenant greyed out with **Not permitted by your organization** in Discover tenants, or a tenant
+  whose menu says **Pinned by your organization** instead of offering Remove — your administrator
+  chose which tenants you track.
+- A profile marked **Published by your organization** — you can run it and bind it to the shortcut,
+  but not rename, edit, pin or delete it. It does not use up any of your four profile pins, and a
+  role you are not eligible for shows as "not eligible · skipped" instead of failing the run.
+
+Nothing here is a bug, and there is no way around it from the app — ask whoever manages your
+machines. If you are that person: [docs/enterprise/README.md](enterprise/README.md).
+
 ## Notifications are silent
 
 Allow notifications for Elevate under System Settings → Notifications. Elevate shows a notice in

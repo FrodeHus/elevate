@@ -52,14 +52,18 @@ struct DiscoverTenantsView: View {
             else {
                 List(found) { t in
                     let tracked = model.tenant(TenantKey(identityId: identityId, tenantId: t.tenantId)) != nil
-                    Toggle(isOn: Binding(get: { tracked || chosen.contains(t.tenantId) },
+                    // A tenant the organization does not allow cannot be tracked; the row says why
+                    // instead of quietly doing nothing when it is ticked.
+                    let allowed = model.isTenantAllowed(t.tenantId)
+                    Toggle(isOn: Binding(get: { allowed && (tracked || chosen.contains(t.tenantId)) },
                                          set: { on in if on { chosen.insert(t.tenantId) } else { chosen.remove(t.tenantId) } })) {
                         VStack(alignment: .leading) {
                             Text(t.displayName)
-                            Text(t.defaultDomain ?? t.tenantId).font(.caption).foregroundStyle(.secondary)
+                            Text(allowed ? (t.defaultDomain ?? t.tenantId) : "Not permitted by your organization")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    .disabled(tracked)
+                    .disabled(tracked || !allowed)
                 }
             }
             HStack {

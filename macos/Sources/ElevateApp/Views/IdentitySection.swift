@@ -28,6 +28,9 @@ struct IdentityHeader: View {
     }
 
     private var caption: String {
+        // An account signed in with a method the organization has since withheld keeps its roles
+        // but can never sign in again; the row says so where the tenant line would be.
+        if !model.isMethodAllowed(identity.signInMethod) { return AppModel.disallowedMethodCaption }
         guard let t = soleTenant else { return identity.upn }
         return t.source == .home ? "\(identity.upn) · \(t.displayName) · home" : "\(identity.upn) · \(t.displayName)"
     }
@@ -83,9 +86,11 @@ struct IdentityHeader: View {
                 if signingIn {
                     ProgressView().controlSize(.mini)
                 } else {
+                    let allowed = model.isMethodAllowed(identity.signInMethod)
                     Button("Sign in") { retry() }
                         .controlSize(.small)
-                        .help("Sign in again as \(identity.upn)")
+                        .disabled(!allowed)
+                        .help(allowed ? "Sign in again as \(identity.upn)" : AppModel.disallowedMethodCaption)
                 }
             } else if activeCount > 0 {
                 Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary)
@@ -94,7 +99,8 @@ struct IdentityHeader: View {
                 Text(signInHelp)
                 Divider()
                 if needsSignIn {
-                    Button("Sign in again") { retry() }.disabled(signingIn)
+                    Button("Sign in again") { retry() }
+                        .disabled(signingIn || !model.isMethodAllowed(identity.signInMethod))
                     Divider()
                 }
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }

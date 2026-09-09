@@ -38,6 +38,16 @@ public sealed class ProfileListItem(Guid id) : ObservableObject
         ArgumentNullException.ThrowIfNull(profile);
         Name = profile.Name;
         Caption = ProfileSummary.Caption(profile.Entries);
+        // A published profile's pin is the organization's choice, so its row carries a building
+        // marker instead of a star the user could act on.
+        if (profile.Source == ProfileSource.Managed)
+        {
+            Glyph = "";
+            StarLabel = "Published by your organization";
+            StarBrush = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            return;
+        }
+
         Glyph = profile.Pinned ? "" : "";
         StarLabel = profile.Pinned ? "Pinned" : "Not pinned";
         StarBrush = (Brush)Application.Current.Resources[profile.Pinned ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
@@ -216,6 +226,18 @@ public sealed partial class ManageProfilesWindow : Window
                 NameBox.Text = profile.Name;
             }
 
+            // Everything that would change the organization's document is out: the name, the pin,
+            // the roles, the durations and Delete. Run and the shortcut stay.
+            var managed = profile.Source == ProfileSource.Managed;
+            ManagedCaption.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
+            NameBox.IsEnabled = !managed;
+            PinBlock.Visibility = managed ? Visibility.Collapsed : Visibility.Visible;
+            AddRolesButton.Visibility = managed ? Visibility.Collapsed : Visibility.Visible;
+            DeleteButton.Visibility = managed ? Visibility.Collapsed : Visibility.Visible;
+            SaveHint.Text = managed ? "Managed by your organization" : "Changes save as you go";
+            DurationHint.Text = managed
+                ? "Durations come from your organization; you can still change them on the run."
+                : "Durations are what the next run proposes; you can still change them then.";
             PinSwitch.IsOn = profile.Pinned;
             HotKeySwitch.IsOn = _model.Settings.HotKeyProfileId == profile.Id;
             HotKeyCaption.Text = _model.Settings.HotKey is { } key ? key.Display : "No shortcut recorded.";
@@ -236,6 +258,7 @@ public sealed partial class ManageProfilesWindow : Window
 
     private void BuildRoles(ActivationProfile profile)
     {
+        var managed = profile.Source == ProfileSource.Managed;
         RoleGroups.Children.Clear();
         var resources = Application.Current.Resources;
         var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
@@ -273,7 +296,7 @@ public sealed partial class ManageProfilesWindow : Window
                 first = false;
                 grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key));
 
-                var picker = new DurationPicker { Maximum = policy.MaximumDuration, Duration = Proposed(entry, policy) };
+                var picker = new DurationPicker { Maximum = policy.MaximumDuration, Duration = Proposed(entry, policy), IsEnabled = !managed };
                 picker.VerticalAlignment = VerticalAlignment.Center;
                 picker.HorizontalAlignment = HorizontalAlignment.Stretch;
                 AutomationProperties.SetName(picker, $"Duration for {_model.SummaryName(key)}");
@@ -346,7 +369,7 @@ public sealed partial class ManageProfilesWindow : Window
 
     private void CommitName()
     {
-        if (Selected is not { } profile)
+        if (Selected is not { } profile || profile.Source == ProfileSource.Managed)
         {
             return;
         }

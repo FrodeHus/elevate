@@ -52,7 +52,15 @@ public sealed partial class TenantDiscovery
     }
 
     /// <summary>Accepts a tenant GUID or a verified domain; domains are resolved via the OpenID configuration issuer.</summary>
-    public async Task<string> ResolveTenantIdAsync(string domainOrId, CancellationToken ct = default)
+    public Task<string> ResolveTenantIdAsync(string domainOrId, CancellationToken ct = default)
+        => TenantIdAsync(domainOrId, _http, ct);
+
+    /// <summary>
+    /// The lookup behind <see cref="ResolveTenantIdAsync"/>, without the token provider an instance
+    /// needs: a GUID passes straight through, a domain costs one unauthenticated request. Shared
+    /// with <c>ManagedTenantResolver</c>.
+    /// </summary>
+    internal static async Task<string> TenantIdAsync(string domainOrId, IHttpClient http, CancellationToken ct = default)
     {
         var input = (domainOrId ?? string.Empty).Trim();
         if (TenantGuid().IsMatch(input))
@@ -66,7 +74,7 @@ public sealed partial class TenantDiscovery
             throw new PimException(PimErrorKind.Unexpected, $"Invalid tenant '{input}'");
         }
 
-        var response = await _http.SendAsync(new HttpRequestData("GET", url), ct).ConfigureAwait(false);
+        var response = await http.SendAsync(new HttpRequestData("GET", url), ct).ConfigureAwait(false);
         if (response.Status != 200)
         {
             throw new PimException(PimErrorKind.Unexpected, $"Unknown tenant '{input}'", response.Status);

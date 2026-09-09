@@ -7,7 +7,15 @@ import Observation
 @MainActor
 @Observable
 final class NetworkMonitor {
-    private(set) var isOnline = true
+    private(set) var isOnline = true {
+        didSet {
+            guard oldValue != isOnline else { return }
+            onChange?(isOnline)
+        }
+    }
+    /// Called whenever the path flips, with the new state. `AppModel` uses it to pick up the work
+    /// it holds back while offline; observation alone would not tell it *when* the path returned.
+    var onChange: (@MainActor (Bool) -> Void)?
     private let monitor: NWPathMonitor?
 
     /// - Parameter forcedOnline: nil (the default) watches the real network path. A non-nil value
@@ -25,6 +33,13 @@ final class NetworkMonitor {
         }
         monitor = nil
         isOnline = forcedOnline
+    }
+
+    /// Flips a pinned monitor the way a real path change would, so tests can exercise what the app
+    /// does when the network comes back. Does nothing on a monitor watching the real path.
+    func simulatePathChange(online: Bool) {
+        guard monitor == nil else { return }
+        isOnline = online
     }
 
     deinit { monitor?.cancel() }

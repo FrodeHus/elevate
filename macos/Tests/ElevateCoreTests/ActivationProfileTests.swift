@@ -104,4 +104,23 @@ import Foundation
         #expect(ProfileSummary.caption(entries: [.init(roleKey: key("a"), lastDuration: nil), .init(roleKey: key("g", kind: .group), lastDuration: nil), .init(roleKey: key("h", kind: .group), lastDuration: nil)]) == "1 role · 2 groups")
         #expect(ProfileSummary.caption(entries: []) == "empty")
     }
+
+    @Test func sourceDefaultsToUserAndIsWrittenOnlyWhenManaged() throws {
+        let user = ActivationProfile(name: "Ops", entries: [])
+        #expect(user.source == .user)
+        let userJSON = String(decoding: try JSONEncoder().encode(user), as: UTF8.self)
+        #expect(!userJSON.contains("source"))
+
+        var managed = user
+        managed.source = .managed
+        #expect(managed != user)
+        let managedJSON = String(decoding: try JSONEncoder().encode(managed), as: UTF8.self)
+        #expect(managedJSON.contains("\"source\":\"managed\""))
+        let decoded = try JSONDecoder().decode(ActivationProfile.self, from: Data(managedJSON.utf8))
+        #expect(decoded.source == .managed)
+
+        // A profile written before `source` existed decodes as a user profile.
+        let old = #"{"id":"A1B2C3D4-E5F6-4A5B-8C7D-9E0FABCDEF12","name":"Old","entries":[]}"#
+        #expect(try JSONDecoder().decode(ActivationProfile.self, from: Data(old.utf8)).source == .user)
+    }
 }

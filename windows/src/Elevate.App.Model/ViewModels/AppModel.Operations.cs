@@ -1,4 +1,5 @@
 using Elevate.App.Services;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 
@@ -105,6 +106,15 @@ public sealed partial class AppModel
             return;
         }
 
+        // A policy change can remove the managed profile the shortcut was bound to out from under
+        // it; that is not a reason to open a Run window with nothing to run.
+        if (Profile(id) is null)
+        {
+            LogError("Shortcut profile is no longer available");
+            Notice = "The profile bound to the shortcut is no longer available";
+            return;
+        }
+
         try
         {
             if (await QuickRunAsync(id))
@@ -168,13 +178,21 @@ public sealed partial class AppModel
         string? hotKey = null;
         if (Settings.HotKey is { } binding)
         {
-            var profile = Settings.HotKeyProfileId is { } id ? State.Profile(id) : null;
+            var profile = Settings.HotKeyProfileId is { } id ? Profile(id) : null;
             hotKey = $"{binding.Display} → {profile?.Name ?? "no profile"}";
         }
 
         var input = new DiagnosticsInput(
             CurrentVersion, BuildInfo.Build, BuildInfo.SigningDescription, BuildInfo.OsDescription,
-            accounts, tenants, [.. State.Profiles.Select(p => p.Name)], hotKey, ErrorLog.Entries);
+            accounts, tenants,
+            [.. State.Profiles.Select(p => p.Name), .. ManagedProfiles.Select(p => $"{p.Name} (managed)")],
+            hotKey, ErrorLog.Entries,
+            Managed.IsEmpty
+                ? null
+                : new DiagnosticsManaged(
+                    Managed.Origin ?? "unknown",
+                    [.. Managed.KeysInEffect.Select(k => k.Name())],
+                    [.. Managed.Warnings, .. ManagedTenantWarnings, .. ManagedProfileWarnings]));
         return DiagnosticsReport.Render(input);
     }
 
@@ -188,6 +206,12 @@ public sealed partial class AppModel
     /// </summary>
     public async Task CheckForUpdatesAsync(bool force = false, CancellationToken ct = default)
     {
+        // The organization turned the check off: the app never calls GitHub at all, forced or not.
+        if (Settings.UpdateCheckDisabled)
+        {
+            return;
+        }
+
         if (!force)
         {
             if (Settings.LastUpdateCheck is { } last && (DateTimeOffset.UtcNow - last).Duration() < TimeSpan.FromHours(24))

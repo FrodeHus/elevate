@@ -10,20 +10,30 @@ using Microsoft.UI.Xaml.Controls;
 namespace Elevate.App.Views;
 
 /// <summary>One tenant found by Azure Resource Manager, in the discovery checklist.</summary>
-public sealed class DiscoveredItem(DiscoveredTenant tenant, bool tracked) : ObservableObject
+public sealed class DiscoveredItem(DiscoveredTenant tenant, bool tracked, bool allowed = true) : ObservableObject
 {
-    private bool _chosen = tracked;
+    private bool _chosen = tracked && allowed;
 
     public DiscoveredTenant Tenant { get; } = tenant;
 
     public string DisplayName => Tenant.DisplayName;
 
-    public string Caption => Tenant.DefaultDomain ?? Tenant.TenantId;
+    /// <summary>
+    /// A tenant the organization does not allow cannot be tracked; the row says why instead of
+    /// quietly doing nothing when it is ticked.
+    /// </summary>
+    public string Caption => Allowed ? Tenant.DefaultDomain ?? Tenant.TenantId : AppModel.DisallowedTenantCaption;
 
     /// <summary>Already tracked tenants show checked and disabled.</summary>
     public bool Tracked { get; } = tracked;
 
-    public bool Enabled => !Tracked;
+    /// <summary>Whether the managed configuration permits this tenant at all.</summary>
+    public bool Allowed { get; } = allowed;
+
+    public bool Enabled => !Tracked && Allowed;
+
+    /// <summary>Disallowed rows are greyed out; everything else reads normally.</summary>
+    public double RowOpacity => Allowed ? 1.0 : 0.5;
 
     public bool Chosen
     {
@@ -83,7 +93,7 @@ public sealed partial class TenantWindow : Window
     {
         PrimaryButton.IsEnabled = !_working && (_mode == TenantWindowMode.Add
             ? Input.Text.Trim().Length > 0
-            : _found.Any(i => i.Chosen && !i.Tracked));
+            : _found.Any(i => i.Chosen && i.Enabled));
         CancelButton.IsEnabled = !_working;
         Working.IsActive = _working;
         Working.Visibility = _working ? Visibility.Visible : Visibility.Collapsed;
@@ -111,7 +121,7 @@ public sealed partial class TenantWindow : Window
             }
             else
             {
-                await _model.TrackTenantsAsync(_identityId, _found.Where(i => i.Chosen && !i.Tracked).Select(i => i.Tenant));
+                await _model.TrackTenantsAsync(_identityId, _found.Where(i => i.Chosen && i.Enabled).Select(i => i.Tenant));
             }
 
             Close();
@@ -135,7 +145,7 @@ public sealed partial class TenantWindow : Window
             foreach (var t in tenants)
             {
                 var tracked = _model.Tenant(new TenantKey(_identityId, t.TenantId)) is not null;
-                var item = new DiscoveredItem(t, tracked);
+                var item = new DiscoveredItem(t, tracked, _model.IsTenantAllowed(t.TenantId));
                 item.PropertyChanged += (_, _) => Update();
                 _found.Add(item);
             }

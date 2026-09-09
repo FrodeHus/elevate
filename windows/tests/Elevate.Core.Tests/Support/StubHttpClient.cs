@@ -9,7 +9,7 @@ namespace Elevate.Core.Tests.Support;
 /// </summary>
 public sealed class StubHttpClient : IHttpClient
 {
-    private sealed record Route(string Method, string UrlContains, Func<HttpRequestData, HttpResponseData> Respond);
+    private sealed record Route(string Method, string UrlContains, Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> Respond);
 
     private readonly List<Route> _routes = [];
     private readonly List<HttpRequestData> _requests = [];
@@ -42,11 +42,31 @@ public sealed class StubHttpClient : IHttpClient
 
     public void On(string method, string urlContains, Func<HttpRequestData, HttpResponseData> respond)
     {
+        ArgumentNullException.ThrowIfNull(respond);
+        On(method, urlContains, (request, _) => Task.FromResult(respond(request)));
+    }
+
+    public void On(
+        string method,
+        string urlContains,
+        Func<HttpRequestData, CancellationToken, Task<HttpResponseData>> respond)
+    {
         lock (_gate)
         {
             _routes.Add(new Route(method, urlContains, respond));
         }
     }
+
+    /// <summary>
+    /// Registers a route that never answers: the request ends only when the caller's own deadline
+    /// cancels it. Used to prove a bounded fetch is bounded.
+    /// </summary>
+    public void Hang(string method, string urlContains) =>
+        On(method, urlContains, async (_, ct) =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+            throw new OperationCanceledException(ct); // unreachable: Task.Delay throws first
+        });
 
     public Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken ct)
     {
@@ -67,7 +87,7 @@ public sealed class StubHttpClient : IHttpClient
             return Task.FromResult(new HttpResponseData(599, new Dictionary<string, string>(), body));
         }
 
-        return Task.FromResult(route.Respond(request));
+        return route.Respond(request, ct);
     }
 
     public IReadOnlyList<HttpRequestData> RequestsMatching(string substring)

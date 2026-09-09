@@ -61,9 +61,15 @@ struct ManageProfilesView: View {
             List(selection: $selected) {
                 ForEach(filtered) { p in
                     HStack(spacing: 7) {
-                        Image(systemName: p.pinned ? "star.fill" : "star")
-                            .font(.caption).foregroundStyle(p.pinned ? Color.orange : Color.secondary)
-                            .accessibilityLabel(p.pinned ? "Pinned" : "Not pinned")
+                        if p.source == .managed {
+                            Image(systemName: "building.2")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .accessibilityLabel("Published by your organization")
+                        } else {
+                            Image(systemName: p.pinned ? "star.fill" : "star")
+                                .font(.caption).foregroundStyle(p.pinned ? Color.orange : Color.secondary)
+                                .accessibilityLabel(p.pinned ? "Pinned" : "Not pinned")
+                        }
                         VStack(alignment: .leading, spacing: 1) {
                             Text(p.name).lineLimit(1)
                             Text(ProfileSummary.caption(entries: p.entries)).font(.caption2).foregroundStyle(.secondary)
@@ -103,6 +109,9 @@ private struct ProfileEditor: View {
         _name = State(initialValue: profile.name)
     }
 
+    /// A profile the organization published: read-only here, run like any other.
+    private var isManaged: Bool { profile.source == .managed }
+
     private var tenantKeys: [TenantKey] {
         var seen: [TenantKey] = []
         for e in profile.entries where !seen.contains(e.roleKey.tenantKey) { seen.append(e.roleKey.tenantKey) }
@@ -112,18 +121,28 @@ private struct ProfileEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                TextField("Profile name", text: $name)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($nameFocused)
-                    .onSubmit(commitName)
-                    .onChange(of: nameFocused) { _, focused in if !focused { commitName() } }
+                if isManaged {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(profile.name).font(.headline)
+                        Text("Published by your organization").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                } else {
+                    TextField("Profile name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($nameFocused)
+                        .onSubmit(commitName)
+                        .onChange(of: nameFocused) { _, focused in if !focused { commitName() } }
+                }
                 Button("Run…") { commitName(); ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false) }
                     .disabled(profile.entries.isEmpty)
             }
             HStack(alignment: .firstTextBaseline, spacing: 18) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Toggle("Pinned in panel", isOn: pinnedBinding).toggleStyle(.switch).controlSize(.small)
-                    if let pinHint { Text(pinHint).font(.caption2).foregroundStyle(.orange) }
+                if !isManaged {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Toggle("Pinned in panel", isOn: pinnedBinding).toggleStyle(.switch).controlSize(.small)
+                        if let pinHint { Text(pinHint).font(.caption2).foregroundStyle(.orange) }
+                    }
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle("Runs with the global shortcut", isOn: hotKeyBinding).toggleStyle(.switch).controlSize(.small)
@@ -139,9 +158,12 @@ private struct ProfileEditor: View {
             }
             roles
             HStack {
-                Button("Delete…", role: .destructive) { model.profileToDelete = profile.id }
+                if !isManaged {
+                    Button("Delete…", role: .destructive) { model.profileToDelete = profile.id }
+                }
                 Spacer()
-                Text("Changes save as you go").font(.caption2).foregroundStyle(.secondary)
+                Text(isManaged ? "Managed by your organization" : "Changes save as you go")
+                    .font(.caption2).foregroundStyle(.secondary)
                 Button("Done") { commitName(); dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
@@ -154,7 +176,9 @@ private struct ProfileEditor: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if profile.entries.isEmpty {
-                        Text("No roles yet. \"Add roles…\" picks from every account and tenant.")
+                        Text(isManaged
+                             ? "No roles resolved yet. They appear once the tenants they name have loaded."
+                             : "No roles yet. \"Add roles…\" picks from every account and tenant.")
                             .font(.caption).foregroundStyle(.secondary).padding(10)
                     }
                     ForEach(tenantKeys, id: \.self) { tk in
@@ -169,14 +193,18 @@ private struct ProfileEditor: View {
             }
             Divider()
             HStack(spacing: 8) {
-                Button("Add roles…") { showPicker = true }
-                    .popover(isPresented: $showPicker, arrowEdge: .top) {
-                        AddRolesPicker(profile: profile) { keys in
-                            model.addProfileEntries(id: profile.id, keys: keys)
-                            showPicker = false
+                if !isManaged {
+                    Button("Add roles…") { showPicker = true }
+                        .popover(isPresented: $showPicker, arrowEdge: .top) {
+                            AddRolesPicker(profile: profile) { keys in
+                                model.addProfileEntries(id: profile.id, keys: keys)
+                                showPicker = false
+                            }
                         }
-                    }
-                Text("Durations are what the next run proposes; you can still change them then.")
+                }
+                Text(isManaged
+                     ? "Durations come from your organization; you can still change them on the run."
+                     : "Durations are what the next run proposes; you can still change them then.")
                     .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
             }
             .padding(8)
@@ -203,10 +231,12 @@ private struct ProfileEditor: View {
             }
             Spacer()
             DurationPicker(duration: durationBinding(entry, policy: policy), maximum: policy.maximumDuration)
-                .labelsHidden().frame(width: 110)
-            Button { model.removeProfileEntry(id: profile.id, key: key) } label: { Image(systemName: "minus.circle") }
-                .buttonStyle(.borderless).help("Remove from profile")
-                .accessibilityLabel("Remove \(model.summaryName(for: key))")
+                .labelsHidden().frame(width: 110).disabled(isManaged)
+            if !isManaged {
+                Button { model.removeProfileEntry(id: profile.id, key: key) } label: { Image(systemName: "minus.circle") }
+                    .buttonStyle(.borderless).help("Remove from profile")
+                    .accessibilityLabel("Remove \(model.summaryName(for: key))")
+            }
         }
     }
 
@@ -233,6 +263,7 @@ private struct ProfileEditor: View {
     }
 
     private func commitName() {
+        guard !isManaged else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { name = profile.name } else if trimmed != profile.name { model.renameProfile(id: profile.id, name: trimmed) }
     }

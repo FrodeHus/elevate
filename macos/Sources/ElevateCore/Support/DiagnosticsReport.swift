@@ -29,6 +29,20 @@ public struct DiagnosticsTenant: Sendable {
     }
 }
 
+/// The MDM-managed configuration in effect, as shown in a diagnostics report.
+/// Lists key names only — never the values behind them.
+public struct DiagnosticsManaged: Sendable {
+    public let origin: String
+    public let keys: [String]
+    public let warnings: [String]
+
+    public init(origin: String, keys: [String], warnings: [String]) {
+        self.origin = origin
+        self.keys = keys
+        self.warnings = warnings
+    }
+}
+
 /// The input to `DiagnosticsReport.render`. Deliberately has no field for a
 /// client id, token, or other secret, so none can appear in the rendered
 /// text — callers must not pass secrets in `errors` either, since error
@@ -42,6 +56,7 @@ public struct DiagnosticsInput: Sendable {
     public let tenants: [DiagnosticsTenant]
     public let profiles: [String]
     public let hotKey: String?
+    public let managed: DiagnosticsManaged?
     public let errors: [DiagnosticsError]
 
     public init(
@@ -53,6 +68,7 @@ public struct DiagnosticsInput: Sendable {
         tenants: [DiagnosticsTenant],
         profiles: [String],
         hotKey: String?,
+        managed: DiagnosticsManaged? = nil,
         errors: [DiagnosticsError]
     ) {
         self.appVersion = appVersion
@@ -63,6 +79,7 @@ public struct DiagnosticsInput: Sendable {
         self.tenants = tenants
         self.profiles = profiles
         self.hotKey = hotKey
+        self.managed = managed
         self.errors = errors
     }
 }
@@ -114,6 +131,21 @@ public enum DiagnosticsReport {
         lines.append("")
 
         lines.append("Hot key: \(input.hotKey ?? "None")")
+        lines.append("")
+
+        lines.append("Managed configuration:")
+        if let managed = input.managed {
+            lines.append("  Source: \(managed.origin)")
+            lines.append("  Keys: \(managed.keys.joined(separator: ", "))")
+            if !managed.warnings.isEmpty {
+                lines.append("  Warnings:")
+                for warning in managed.warnings {
+                    lines.append("    \(warning)")
+                }
+            }
+        } else {
+            lines.append("  None")
+        }
         lines.append("")
 
         lines.append("Recent errors:")

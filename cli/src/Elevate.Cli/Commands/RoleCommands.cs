@@ -27,7 +27,7 @@ public static class RoleCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var roleFilter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RefreshAsync(context, roleFilter, ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
@@ -71,7 +71,7 @@ public static class RoleCommands
     public static async Task<int> RunStatusAsync(CommandContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(context);
-        var session = context.Session;
+        var session = await context.SessionAsync(ct).ConfigureAwait(false);
         if (session.Identities.Count == 0)
         {
             if (context.Output.Json)
@@ -132,7 +132,7 @@ public static class RoleCommands
                 throw new CliException("watch has no JSON form; use 'elevate status --json' in a loop instead.", ExitCodes.Usage);
             }
 
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var every = TimeSpan.FromSeconds(Math.Max(10, parse.GetValue(interval)));
             await RefreshAsync(context, new RoleFilter(), ct).ConfigureAwait(false);
             var lastRead = DateTimeOffset.UtcNow;
@@ -175,9 +175,10 @@ public static class RoleCommands
     }
 
     /// <summary>Reads the tenants the filter touches, under a spinner.</summary>
-    internal static Task RefreshAsync(CommandContext context, RoleFilter filter, CancellationToken ct)
+    internal static async Task RefreshAsync(CommandContext context, RoleFilter filter, CancellationToken ct)
     {
-        var session = context.Session;
+        ArgumentNullException.ThrowIfNull(context);
+        var session = await context.SessionAsync(ct).ConfigureAwait(false);
         var keys = RoleSelector.TenantsFor(session, filter);
         if (keys.Count == 0)
         {
@@ -186,11 +187,11 @@ public static class RoleCommands
                 throw new CliException("No tracked tenant matches those filters. Run 'elevate tenants' to list them.", ExitCodes.NotFound);
             }
 
-            return Task.CompletedTask;
+            return;
         }
 
         var title = keys.Count == 1 ? $"Reading {session.TenantName(keys[0])}…" : $"Reading {keys.Count} tenants…";
-        return context.Output.StatusAsync(title, () => session.RefreshAsync(keys, ct));
+        await context.Output.StatusAsync(title, () => session.RefreshAsync(keys, ct)).ConfigureAwait(false);
     }
 
     internal static void ReportTenantErrors(CommandContext context, RoleFilter filter)

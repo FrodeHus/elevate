@@ -130,6 +130,18 @@ it under System Settings → Privacy & Security. Accounts added through the own-
 unsigned build sign in once more after upgrading, because signed builds use MSAL instead of the
 loopback flow. How the release is signed: [docs/releasing.md](../docs/releasing.md).
 
+## Managed configuration
+
+An organization can push Elevate's settings to a fleet instead of telling everyone a client id.
+The app reads managed preferences for the domain `no.reothor.elevate` — only values a Jamf or
+Intune configuration profile *forces* — and locks each one it finds: the setting renders disabled
+with a "Managed by your organization" caption, and Settings and Diagnostics list the keys in
+effect. The client id, the update check, the permitted sign-in methods, the allowed and pinned
+tenants and a published set of profiles can all be managed. Administrators start at
+[docs/enterprise/README.md](../docs/enterprise/README.md); the keys are in
+[docs/enterprise/keys.md](../docs/enterprise/keys.md) and the templates in
+[enterprise/](../enterprise/).
+
 ## Prerequisites
 
 Only the own-app method needs an app registration; the first-party methods need none of this, but

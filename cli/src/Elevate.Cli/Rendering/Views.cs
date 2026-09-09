@@ -1,6 +1,7 @@
 using Elevate.Cli.Selection;
 using Elevate.Cli.Session;
 using Elevate.Core.Coordination;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 using Spectre.Console;
@@ -10,7 +11,7 @@ namespace Elevate.Cli.Rendering;
 /// <summary>The JSON shapes the read commands print. Stable field names; add, never rename.</summary>
 public static class Dto
 {
-    public sealed record Account(string Id, string Upn, string DisplayName, string HomeTenantId, string SignInMethod, int Tenants);
+    public sealed record Account(string Id, string Upn, string DisplayName, string HomeTenantId, string SignInMethod, int Tenants, bool NotPermitted);
 
     public sealed record Tenant(
         string AccountId, string Account, string TenantId, string DisplayName, string Source, string DiscoveryMode,
@@ -26,9 +27,17 @@ public static class Dto
 
     public sealed record Outcome(string Id, string Name, string Tenant, string Account, string Result, string? Message, Assignment? Assignment);
 
-    public sealed record Profile(string Id, string Name, int Roles, string? LastJustification, IReadOnlyList<ProfileEntry> Entries);
+    public sealed record Profile(string Id, string Name, string Source, int Roles, string? LastJustification, IReadOnlyList<ProfileEntry> Entries);
 
     public sealed record ProfileEntry(string RoleId, string Name, string Kind, string Tenant, string Account, string? LastDuration, RoleKey Key);
+
+    /// <summary>The design §7.1 document <c>profiles export</c> prints; field names are the format's.</summary>
+    public sealed record ExportedProfileSet(int Version, IReadOnlyList<ExportedProfile> Profiles);
+
+    public sealed record ExportedProfile(string Id, string Name, string? Reason, bool Pinned, IReadOnlyList<ExportedRole> Roles);
+
+    public sealed record ExportedRole(
+        string Kind, string Tenant, string? Role, string? Scope, string? DirectoryScope, string? Group, string? Access, string? Duration);
 
     public sealed record PlanItem(string RoleId, string Name, string Tenant, string Account, string Disposition, string Duration);
 
@@ -107,7 +116,7 @@ public static class Views
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(identity);
         return new Dto.Account(identity.Id, identity.Upn, identity.DisplayName, identity.HomeTenantId, identity.SignInMethod.StorageKey,
-            session.Tenants.Count(t => t.IdentityId == identity.Id));
+            session.Tenants.Count(t => t.IdentityId == identity.Id), !session.IsMethodAllowed(identity.SignInMethod));
     }
 
     public static IReadOnlyList<string> TenantFlags(ElevateSession session, TenantContext tenant)
@@ -140,6 +149,11 @@ public static class Views
             flags.Add("entra view-only");
         }
 
+        if (session.IsPinnedTenant(tenant.Key))
+        {
+            flags.Add("pinned");
+        }
+
         return flags;
     }
 
@@ -157,11 +171,65 @@ public static class Views
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(profile);
-        return new Dto.Profile(profile.Id.ToString("D"), profile.Name, profile.Entries.Count, profile.LastJustification,
+        return new Dto.Profile(
+            profile.Id.ToString("D"), profile.Name, ProfileSourceName(profile), profile.Entries.Count, profile.LastJustification,
             [.. profile.Entries.Select(e => new Dto.ProfileEntry(
                 ShortId.For(e.RoleKey), session.RoleName(e.RoleKey), KindName(e.RoleKey.Scope.Kind),
                 session.TenantName(e.RoleKey.TenantKey), session.AccountName(e.RoleKey.IdentityId),
                 e.LastDuration is { } d ? Iso(d) : null, e.RoleKey))]);
+    }
+
+    /// <summary>Where a profile came from, as <c>profiles list</c> and <c>--json</c> name it.</summary>
+    public static string ProfileSourceName(ActivationProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return profile.Source == ProfileSource.Managed ? "managed" : "user";
+    }
+
+    /// <summary>
+    /// One user profile as the document an administrator publishes (design §7.1): roles named from
+    /// what is loaded, falling back to the ids in the key, and tenants as tenant ids.
+    /// </summary>
+    public static Dto.ExportedProfileSet ExportedSet(ElevateSession session, ActivationProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(profile);
+        return new Dto.ExportedProfileSet(ManagedProfileSet.Version,
+        [
+            new Dto.ExportedProfile(Slug(profile.Name), profile.Name, profile.LastJustification, profile.Pinned,
+                [.. profile.Entries.Select(e => ExportedRole(session, e))]),
+        ]);
+    }
+
+    private static Dto.ExportedRole ExportedRole(ElevateSession session, ActivationProfile.Entry entry)
+    {
+        var key = entry.RoleKey;
+        var name = session.LoadedRoleName(key);
+        var duration = entry.LastDuration is { } d ? Iso(d) : null;
+        return key.Scope switch
+        {
+            EntraDirectoryScope entra => new("entraDirectory", key.TenantId, name ?? entra.RoleDefinitionId, null,
+                entra.DirectoryScopeId == "/" ? null : entra.DirectoryScopeId, null, null, duration),
+            AzureResourceScope azure => new("azureResource", key.TenantId, name ?? azure.RoleDefinitionId, azure.Scope,
+                null, null, null, duration),
+            GroupScope group => new("group", key.TenantId, null, null, null, name ?? group.GroupId,
+                group.AccessId == GroupAccess.Owner ? "owner" : "member", duration),
+            _ => throw new ArgumentOutOfRangeException(nameof(entry), key.Scope, "unknown role scope kind"),
+        };
+    }
+
+    /// <summary>The profile's name as a document id: lower case, runs of anything else a dash.</summary>
+    public static string Slug(string name)
+    {
+        var slug = new string([.. (name ?? string.Empty).ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) ? c : '-')]);
+        while (slug.Contains("--", StringComparison.Ordinal))
+        {
+            slug = slug.Replace("--", "-", StringComparison.Ordinal);
+        }
+
+        slug = slug.Trim('-');
+        slug = slug.Length > 64 ? slug[..64].TrimEnd('-') : slug;
+        return slug.Length == 0 ? "profile" : slug;
     }
 
     public static Dto.Approval Approval(ElevateSession session, ApprovalRequest r)

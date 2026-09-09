@@ -8,7 +8,8 @@
         <Grid.Resources>
             <!-- One tenant found by Azure Resource Manager in the Discover tenants checklist. -->
             <DataTemplate x:Key="DiscoveredTemplate" x:DataType="views:DiscoveredItem">
-                <Grid ColumnSpacing="10" Padding="0,2">
+                <!-- A tenant the organization does not permit is greyed, with its reason as the caption. -->
+                <Grid ColumnSpacing="10" Padding="0,2" Opacity="{x:Bind RowOpacity}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />

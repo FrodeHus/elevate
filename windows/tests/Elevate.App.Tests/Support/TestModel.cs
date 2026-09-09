@@ -3,6 +3,7 @@ using Elevate.App.Notifications;
 using Elevate.App.Services;
 using Elevate.App.ViewModels;
 using Elevate.Core.Auth;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
 using Elevate.Core.Tests.Support;
@@ -84,7 +85,8 @@ public sealed class TestModel : IDisposable
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null,
-        RecordingNotifier? notifier = null)
+        RecordingNotifier? notifier = null,
+        ManagedConfiguration? managed = null)
     {
         Directory = Path.Combine(Path.GetTempPath(), "elevate-tests-" + Guid.NewGuid().ToString("N"));
         Store = new AppStateStore(Directory);
@@ -93,7 +95,8 @@ public sealed class TestModel : IDisposable
             Store.Save(state);
         }
 
-        Settings = new AppSettings(Directory);
+        // Never the machine's real policy: an empty configuration unless a test pushes one.
+        Settings = new AppSettings(Directory, managed ?? ManagedConfiguration.None);
         if (clientId is not null)
         {
             Settings.ClientId = clientId;
@@ -135,9 +138,10 @@ public sealed class TestModel : IDisposable
         FakeOwnAppProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null,
-        RecordingNotifier? notifier = null)
+        RecordingNotifier? notifier = null,
+        ManagedConfiguration? managed = null)
     {
-        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId, notifier);
+        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId, notifier, managed);
         await test.Model.BootstrapAsync();
         return test;
     }

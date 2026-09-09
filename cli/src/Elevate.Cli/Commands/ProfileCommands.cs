@@ -18,33 +18,35 @@ public static class ProfileCommands
     public static Command Profiles()
     {
         var command = new Command("profiles", "Named sets of roles activated together. Bare 'profiles' lists them.");
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             if (context.Output.Json)
             {
                 context.Output.WriteJson(session.Profiles.Select(p => Views.Profile(session, p)).ToList());
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             if (session.Profiles.Count == 0)
             {
                 context.Output.Plain("No profiles. Save one with 'elevate profiles save <name> <role…>' or copy the desktop app's with 'elevate profiles import'.");
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Profile");
+            table.AddColumn("Source");
             table.AddColumn("Contents");
             table.AddColumn("Last reason");
             foreach (var p in session.Profiles)
             {
-                table.AddRow(Markup.Escape(p.Name), Markup.Escape(ProfileSummary.Caption(p.Entries)), Markup.Escape(p.LastJustification ?? "—"));
+                table.AddRow(Markup.Escape(p.Name), Views.ProfileSourceName(p), Markup.Escape(ProfileSummary.Caption(p.Entries)),
+                    Markup.Escape(p.LastJustification ?? "—"));
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         command.Subcommands.Add(Show());
@@ -53,6 +55,7 @@ public static class ProfileCommands
         command.Subcommands.Add(Rename());
         command.Subcommands.Add(Delete());
         command.Subcommands.Add(Import());
+        command.Subcommands.Add(Export());
         return command;
     }
 
@@ -65,17 +68,18 @@ public static class ProfileCommands
     {
         var name = NameArgument();
         var command = new Command("show", "The roles in a profile.") { name };
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var profile = Require(context, parse.GetValue(name)!);
             if (context.Output.Json)
             {
                 context.Output.WriteJson(Views.Profile(session, profile));
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
+            context.Output.Plain($"Source: {Views.ProfileSourceName(profile)}");
             var table = new Table().Border(TableBorder.Rounded).Title(Markup.Escape(profile.Name));
             table.AddColumn("[grey]ID[/]");
             table.AddColumn("Role");
@@ -92,7 +96,7 @@ public static class ProfileCommands
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
         return command;
     }
@@ -112,7 +116,9 @@ public static class ProfileCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
+            // Refused before the roles are read: a name the organization publishes is never saved over.
+            session.RefuseIfManagedName(parse.GetValue(name)!);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var terms = parse.GetValue(roles) ?? [];
@@ -181,7 +187,7 @@ public static class ProfileCommands
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var profile = Require(context, parse.GetValue(name)!);
             var tenants = profile.Entries.Select(e => e.RoleKey.TenantKey).Distinct().Where(k => session.Tenant(k) is not null).ToList();
             if (tenants.Count > 0)
@@ -357,6 +363,28 @@ public static class ProfileCommands
             context.Session.DeleteProfile(profile.Id);
             context.Output.Note($"Deleted {Markup.Escape(profile.Name)}.");
             return Task.FromResult(ExitCodes.Ok);
+        });
+        return command;
+    }
+
+    private static Command Export()
+    {
+        var name = NameArgument();
+        var command = new Command("export",
+            "Print one of your profiles as a managed profile document (design §7.1), ready for an administrator to publish. JSON on stdout either way.")
+        { name };
+        command.SetAction(async (parse, ct) =>
+        {
+            var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
+            var profile = Require(context, parse.GetValue(name)!);
+            if (session.IsManagedProfile(profile.Id))
+            {
+                throw new CliException($"'{profile.Name}' is published by your organization; export its source instead.", ExitCodes.Usage);
+            }
+
+            context.Output.WriteJson(Views.ExportedSet(session, profile));
+            return ExitCodes.Ok;
         });
         return command;
     }

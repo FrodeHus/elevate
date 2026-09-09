@@ -230,6 +230,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         ApprovalProviders = MakeApprovalProviders(http, tokens);
         Packages = MakeAccessPackageProvider(http, tokens);
         Discovery = new TenantDiscovery(http, tokens);
+        LoadInlineProfiles();
         _network.Changed += OnNetworkChanged;
     }
 
@@ -241,9 +242,17 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     /// Saves a new client id. The own-app token cache is per client, so every own-app account is
     /// signed out and cleared; first-party accounts keep their own caches and stay.
     /// </summary>
+    /// <exception cref="InvalidOperationException">The organization manages the client id.</exception>
     /// <exception cref="PimException">The id is not a GUID, or this build cannot sign in with an own app.</exception>
     public void ApplyClientId(string raw)
     {
+        // Settings disables the field when the id is managed, so this is the belt to that braces:
+        // a refusal with a reason rather than an edit that silently does nothing.
+        if (Settings.IsClientIdManaged)
+        {
+            throw new InvalidOperationException("The client ID is managed by your organization");
+        }
+
         var id = (raw ?? string.Empty).Trim();
         if (!AppSettings.IsValidClientId(id))
         {
@@ -467,13 +476,23 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         }
 
         Persist();
+        // Neither the timers nor the hot key needs the network, and both are started first so a
+        // slow tenant lookup cannot delay the shortcut the user may already be pressing.
+        StartTimers();
+        ApplyHotKey();
+        // Managed tenants before the refresh: resolving may remove tenants the organization no
+        // longer permits and add pinned ones, and RefreshAllAsync should see the final list. It
+        // never throws; offline it resolves nothing and OnNetworkChanged retries it once the path
+        // comes back.
+        await ResolveManagedTenantsAsync();
+        // The published profile document, from the cache and then over the network. It restricts
+        // nothing, so a failure here is a warning in Settings and never blocks the refresh.
+        await RefreshManagedProfilesAsync();
         if (IsOnline)
         {
             await RefreshAllAsync();
         }
 
-        StartTimers();
-        ApplyHotKey();
         // Fire and forget: an update check must never hold up the first flyout open.
         _ = CheckForUpdatesAsync();
         Touch();
@@ -532,11 +551,28 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(IsOnline));
         Touch();
-        if (IsOnline && Bootstrapped && Identities.Count > 0)
+        if (IsOnline && Bootstrapped)
         {
-            _ = RefreshAllAsync();
+            // The managed tenants first, if they never resolved, so the refresh sees the final
+            // tenant list.
+            _ = ResumeAfterReconnectAsync();
         }
     });
+
+    /// <summary>Picks up the work held back while the machine had no network path, once it comes back.</summary>
+    private async Task ResumeAfterReconnectAsync()
+    {
+        if (!ManagedTenantsResolved)
+        {
+            await ResolveManagedTenantsAsync();
+        }
+
+        await RefreshManagedProfilesAsync();
+        if (Identities.Count > 0)
+        {
+            await RefreshAllAsync();
+        }
+    }
 
     public void Dispose()
     {

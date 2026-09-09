@@ -30,7 +30,7 @@ public class AppModelProfileTests
         var model = test.Model;
         model.State.Remember(Sample.GroupKey, "x", TimeSpan.FromMinutes(30));
 
-        var profile = model.SaveProfile("  Ops  ", [Sample.GroupKey, Sample.AzureKey, Sample.EntraKey]);
+        var profile = model.SaveProfile("  Ops  ", [Sample.GroupKey, Sample.AzureKey, Sample.EntraKey])!;
 
         profile.Name.Should().Be("Ops");
         // Same account and tenant: ordered by kind (Entra, Azure, Group).
@@ -38,7 +38,7 @@ public class AppModelProfileTests
         profile.Entries[2].LastDuration.Should().Be(TimeSpan.FromMinutes(30));
         profile.Entries[0].LastDuration.Should().BeNull();
         model.Profiles.Should().ContainSingle(p => p.Id == profile.Id);
-        model.SaveProfile("   ", [Sample.EntraKey]).Name.Should().Be("Untitled profile");
+        model.SaveProfile("   ", [Sample.EntraKey])!.Name.Should().Be("Untitled profile");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class AppModelProfileTests
     {
         using var test = await ModelAsync();
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey])!;
         profile.Entries[0] = profile.Entries[0] with { LastDuration = TimeSpan.FromHours(2) };
         model.State.UpsertProfile(profile);
 
@@ -62,8 +62,8 @@ public class AppModelProfileTests
     {
         using var test = await ModelAsync();
         var model = test.Model;
-        var a = model.SaveProfile("A", [Sample.EntraKey]);
-        var b = model.SaveProfile("B", [Sample.AzureKey]);
+        var a = model.SaveProfile("A", [Sample.EntraKey])!;
+        var b = model.SaveProfile("B", [Sample.AzureKey])!;
 
         model.RenameProfile(a.Id, "  ");
         model.Profile(a.Id)!.Name.Should().Be("A");
@@ -90,7 +90,7 @@ public class AppModelProfileTests
     {
         using var test = await ModelAsync();
         var model = test.Model;
-        var profiles = Enumerable.Range(0, ProfilePins.Limit + 1).Select(i => model.SaveProfile($"P{i}", [Sample.EntraKey])).ToList();
+        var profiles = Enumerable.Range(0, ProfilePins.Limit + 1).Select(i => model.SaveProfile($"P{i}", [Sample.EntraKey])!).ToList();
 
         foreach (var p in profiles.Take(ProfilePins.Limit))
         {
@@ -109,7 +109,7 @@ public class AppModelProfileTests
     {
         using var test = await ModelAsync();
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey])!;
 
         model.AddProfileEntries(profile.Id, [Sample.GroupKey, Sample.EntraKey]);
 
@@ -159,7 +159,7 @@ public class AppModelProfileTests
         using var test = await ModelAsync();
         var model = test.Model;
         var gone = Sample.Key(new EntraDirectoryScope("gone", "/"));
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey, gone]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey, gone])!;
         model.Active[Sample.AzureKey] = Sample.Assignment(Sample.AzureKey);
 
         // The unknown role has no display name, so it sorts first among the Entra entries.
@@ -183,7 +183,7 @@ public class AppModelProfileTests
         http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
         using var test = await ModelAsync(http);
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey, Sample.AzureKey])!;
         model.Active[Sample.AzureKey] = Sample.Assignment(Sample.AzureKey);
         var items = model.Plan(profile.Id);
         items = [.. items.Select(i => i.RoleKey == Sample.EntraKey ? i with { Duration = TimeSpan.FromMinutes(90) } : i)];
@@ -212,7 +212,7 @@ public class AppModelProfileTests
         using var test = await TestModel.BootstrappedAsync(state, http: http, online: true);
         var model = test.Model;
         model.Roles[Sample.TenantKey] = [Sample.Role(Sample.EntraKey, "Global Reader")];
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey])!;
 
         (await model.QuickRunAsync(profile.Id)).Should().BeFalse();
         (await model.QuickRunAsync(Guid.NewGuid())).Should().BeFalse();

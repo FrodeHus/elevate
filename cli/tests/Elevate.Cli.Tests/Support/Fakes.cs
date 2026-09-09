@@ -188,3 +188,66 @@ public sealed class FakeAccessPackageProvider : IAccessPackageProvider
         return Task.CompletedTask;
     }
 }
+
+/// <summary>
+/// Routes requests by HTTP method plus a substring of the URL; the last matching registration
+/// wins, and every request is recorded. Port of the Core tests' stub, for the CLI tests that need
+/// an unauthenticated lookup (tenant resolution) to answer.
+/// </summary>
+public sealed class StubHttpClient : IHttpClient
+{
+    private sealed record Route(string Method, string UrlContains, HttpResponseData Response);
+
+    private readonly List<Route> _routes = [];
+    private readonly List<HttpRequestData> _requests = [];
+    private readonly Lock _gate = new();
+
+    public IReadOnlyList<HttpRequestData> Requests
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _requests];
+            }
+        }
+    }
+
+    public void On(string method, string urlContains, string body, int status = 200)
+    {
+        lock (_gate)
+        {
+            _routes.Add(new Route(method, urlContains, new HttpResponseData(status, new Dictionary<string, string>(), System.Text.Encoding.UTF8.GetBytes(body))));
+        }
+    }
+
+    public Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ct.ThrowIfCancellationRequested();
+
+        Route? route;
+        lock (_gate)
+        {
+            _requests.Add(request);
+            route = _routes.FindLast(r => r.Method == request.Method && request.Url.AbsoluteUri.Contains(r.UrlContains, StringComparison.Ordinal));
+        }
+
+        return Task.FromResult(route?.Response
+            ?? new HttpResponseData(599, new Dictionary<string, string>(), System.Text.Encoding.UTF8.GetBytes($"no stub for {request.Method} {request.Url.AbsoluteUri}")));
+    }
+}
+
+/// <summary>
+/// An HTTP client that never answers until <paramref name="ct"/> is cancelled — for proving a
+/// deadline actually bounds a fetch rather than trusting whatever timeout the caller's own token
+/// carries. Honours cancellation properly, unlike a client that just sleeps past a fixed delay.
+/// </summary>
+public sealed class HangingHttpClient : IHttpClient
+{
+    public async Task<HttpResponseData> SendAsync(HttpRequestData request, CancellationToken ct)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+        throw new OperationCanceledException(ct); // unreachable: Task.Delay throws first
+    }
+}

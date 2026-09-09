@@ -136,6 +136,7 @@ jobs:
       TAG: ${{ github.ref_name }}
     outputs:
       signed: ${{ steps.signing.outputs.signed }}
+      pkg_signed: ${{ steps.installer.outputs.pkg_signed }}
     steps:
       - uses: actions/checkout@v7
 
@@ -161,6 +162,23 @@ jobs:
           else
             echo "Developer ID secrets not configured; building an ad-hoc signed release."
             echo "signed=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A Developer ID *Installer* certificate is a different certificate from the Developer ID
+      # Application one above, and optional on its own: without it the pkg is still built, just
+      # unsigned. Detected here for the same reason as the other one — the `secrets` context is
+      # not available in an `if:` expression, and the value stays out of every expression.
+      - name: Detect installer signing secrets
+        id: installer
+        env:
+          INSTALLER_P12: ${{ secrets.MACOS_INSTALLER_CERT_P12 }}
+        run: |
+          if [ -n "$INSTALLER_P12" ]; then
+            echo "HAVE_INSTALLER_CERT=1" >> "$GITHUB_ENV"
+            echo "pkg_signed=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "Developer ID Installer secrets not configured; publishing an unsigned pkg."
+            echo "pkg_signed=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Generate project
@@ -272,13 +290,70 @@ jobs:
       - name: Checksum DMG
         run: shasum -a 256 "dist/Elevate-$VERSION.dmg" | tee "dist/Elevate-$VERSION.dmg.sha256"
 
-      - name: Upload DMG
+      # `pkgbuild` itself needs no keychain, so the installer certificate is imported on its own,
+      # into the same temporary build.keychain the application certificate uses — created here
+      # when the unsigned build path skipped that step.
+      - name: Import Developer ID Installer certificate
+        if: env.HAVE_INSTALLER_CERT == '1'
+        env:
+          INSTALLER_P12: ${{ secrets.MACOS_INSTALLER_CERT_P12 }}
+          INSTALLER_P12_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+        run: |
+          echo "$INSTALLER_P12" | base64 --decode > installer.p12
+          if ! security list-keychains -d user | grep -q build.keychain; then
+            security create-keychain -p ci build.keychain
+            security set-keychain-settings -lut 21600 build.keychain
+            security default-keychain -s build.keychain
+            security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          fi
+          security unlock-keychain -p ci build.keychain
+          security import installer.p12 -k build.keychain -P "$INSTALLER_P12_PASSWORD" -T /usr/bin/productsign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm -f installer.p12
+          echo "PKG_SIGNED=1" >> "$GITHUB_ENV"
+
+      # The pkg is what Jamf and Intune deploy; `installer -pkg` takes it too. Intune only accepts
+      # a signed one, which is why the unsigned path says so in the release notes.
+      - name: Package pkg
+        run: |
+          pkgbuild --component build/Build/Products/Release/Elevate.app --install-location /Applications \
+            --identifier no.reothor.elevate --version "$VERSION" "dist/Elevate-$VERSION-unsigned.pkg"
+          if [ "$PKG_SIGNED" = "1" ]; then
+            productsign --sign "Developer ID Installer" --timestamp \
+              "dist/Elevate-$VERSION-unsigned.pkg" "dist/Elevate-$VERSION.pkg"
+            pkgutil --check-signature "dist/Elevate-$VERSION.pkg"
+          else
+            cp "dist/Elevate-$VERSION-unsigned.pkg" "dist/Elevate-$VERSION.pkg"
+          fi
+          rm -f "dist/Elevate-$VERSION-unsigned.pkg"
+
+      - name: Notarize pkg
+        if: env.PKG_SIGNED == '1'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_PASSWORD" ]; then
+            echo "::warning::Notarization secrets are not set; shipping a signed but un-notarized pkg."
+            exit 0
+          fi
+          xcrun notarytool submit "dist/Elevate-$VERSION.pkg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "dist/Elevate-$VERSION.pkg"
+
+      # After stapling, like the DMG: the ticket changes the file's bytes.
+      - name: Checksum pkg
+        run: shasum -a 256 "dist/Elevate-$VERSION.pkg" | tee "dist/Elevate-$VERSION.pkg.sha256"
+
+      - name: Upload DMG and pkg
         uses: actions/upload-artifact@v7
         with:
           name: macos
           path: |
             macos/dist/Elevate-*.dmg
             macos/dist/Elevate-*.dmg.sha256
+            macos/dist/Elevate-*.pkg
+            macos/dist/Elevate-*.pkg.sha256
           if-no-files-found: error
 
   windows:
@@ -529,6 +604,7 @@ jobs:
     env:
       TAG: ${{ github.ref_name }}
       MAC_SIGNED: ${{ needs.macos.outputs.signed }}
+      MAC_PKG_SIGNED: ${{ needs.macos.outputs.pkg_signed }}
       WIN_SIGNED: ${{ needs.windows.outputs.signed }}
     steps:
       - uses: actions/checkout@v7
@@ -555,11 +631,26 @@ jobs:
         run: |
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
           echo "DMG_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}.dmg.sha256")" >> "$GITHUB_ENV"
+          echo "PKG_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}.pkg.sha256")" >> "$GITHUB_ENV"
           echo "X64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-x64.msi.sha256")" >> "$GITHUB_ENV"
           echo "ARM64_SHA256=$(cut -d' ' -f1 "dist/Elevate-${TAG#v}-arm64.msi.sha256")" >> "$GITHUB_ENV"
           # One checksums file for the six CLI archives, the usual shape for `sha256sum -c`.
           (cd dist && for f in elevate-cli-*.sha256; do printf '%s  %s\n' "$(cut -d' ' -f1 "$f")" "${f%.sha256}"; done) > "dist/elevate-cli-${TAG#v}-checksums.txt"
           cat "dist/elevate-cli-${TAG#v}-checksums.txt"
+
+      # The kit is text from the checkout, not a build artifact; the release only stamps the
+      # version into its README. The validator runs first so a kit that drifted from
+      # docs/enterprise/keys.md fails the release instead of shipping.
+      - name: Enterprise kit
+        run: |
+          python3 scripts/validate-enterprise-kit.py
+          KIT=Elevate-enterprise-kit-$VERSION
+          mkdir -p "dist/$KIT"
+          cp -R enterprise/. "dist/$KIT/"
+          cp docs/enterprise/keys.md "dist/$KIT/keys.md"
+          sed -i "s/{{VERSION}}/$VERSION/g" "dist/$KIT/README.md"
+          (cd dist && zip -r "$KIT.zip" "$KIT" && shasum -a 256 "$KIT.zip" > "$KIT.zip.sha256")
+          echo "KIT_SHA256=$(cut -d' ' -f1 "dist/$KIT.zip.sha256")" >> "$GITHUB_ENV"
 
       - name: Release notes
         run: |
@@ -618,6 +709,18 @@ jobs:
               echo
               echo 'The macOS binary is not signed; if Gatekeeper blocks a browser download, run `xattr -d com.apple.quarantine elevate`. Homebrew downloads carry no quarantine flag.'
             fi
+            echo
+            echo "## Enterprise"
+            echo
+            if [ "$MAC_PKG_SIGNED" = "1" ]; then
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, signed with Developer ID Installer and notarized, for Jamf, Intune and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\`. SHA-256: \`$PKG_SHA256\`"
+            else
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package. It is **unsigned**: Jamf and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\` accept it, Intune requires a signed pkg. SHA-256: \`$PKG_SHA256\`"
+            fi
+            echo
+            echo "\`Elevate-enterprise-kit-$VERSION.zip\` holds the managed configuration templates: the \`Elevate.admx\`/\`Elevate.adml\` policy definitions and a \`.reg\` file for Windows, a mobileconfig, an Intune preference file and a Jamf manifest for macOS, a \`managed.json\` template for the CLI, the worked example and \`keys.md\`, the key reference. SHA-256: \`$KIT_SHA256\`"
+            echo
+            echo 'Deploying Elevate to a fleet starts at [docs/enterprise/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/enterprise/README.md).'
           } > notes.md
           cat notes.md
 
@@ -628,6 +731,8 @@ jobs:
           gh release create "$TAG"
           "dist/Elevate-$VERSION.dmg"
           "dist/Elevate-$VERSION.dmg.sha256"
+          "dist/Elevate-$VERSION.pkg"
+          "dist/Elevate-$VERSION.pkg.sha256"
           "dist/Elevate-$VERSION-x64.msi"
           "dist/Elevate-$VERSION-x64.msi.sha256"
           "dist/Elevate-$VERSION-arm64.msi"
@@ -636,6 +741,8 @@ jobs:
           dist/elevate-cli-$VERSION-*.zip
           dist/elevate-cli-$VERSION-*.sha256
           "dist/elevate-cli-$VERSION-checksums.txt"
+          "dist/Elevate-enterprise-kit-$VERSION.zip"
+          "dist/Elevate-enterprise-kit-$VERSION.zip.sha256"
           --title "Elevate $VERSION" --notes-file notes.md
 
       - name: Configure the deploy key

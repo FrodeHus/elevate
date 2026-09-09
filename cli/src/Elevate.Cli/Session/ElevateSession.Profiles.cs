@@ -1,3 +1,4 @@
+using Elevate.Cli.Infrastructure;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
@@ -7,7 +8,8 @@ namespace Elevate.Cli.Session;
 /// <summary>Activation profiles. Port of <c>AppModel.Profiles</c>.</summary>
 public sealed partial class ElevateSession
 {
-    public IReadOnlyList<ActivationProfile> Profiles => State.Profiles;
+    /// <summary>The user's profiles followed by the ones the organization publishes.</summary>
+    public IReadOnlyList<ActivationProfile> Profiles => [.. State.Profiles, .. ManagedProfiles];
 
     /// <summary>A profile by exact name (case-insensitive), then by unique prefix, then by id prefix.</summary>
     public ActivationProfile? FindProfile(string nameOrId)
@@ -18,20 +20,49 @@ public sealed partial class ElevateSession
             return null;
         }
 
-        var exact = State.Profiles.Where(p => string.Equals(p.Name, s, StringComparison.OrdinalIgnoreCase)).ToList();
+        // Published profiles are searched with the user's own, so 'profiles show' finds them too.
+        var all = Profiles;
+        var exact = all.Where(p => string.Equals(p.Name, s, StringComparison.OrdinalIgnoreCase)).ToList();
         if (exact.Count == 1)
         {
             return exact[0];
         }
 
-        var prefix = State.Profiles.Where(p => p.Name.StartsWith(s, StringComparison.OrdinalIgnoreCase)).ToList();
+        // A user profile and a published one sharing a name is otherwise refused before it can
+        // happen (RefuseIfManagedName on save/rename), but an exact tie should still resolve
+        // rather than vanish: the user's own profile wins.
+        if (exact.Count > 1)
+        {
+            var userExact = exact.Where(p => !IsManagedProfile(p.Id)).ToList();
+            if (userExact.Count == 1)
+            {
+                return userExact[0];
+            }
+        }
+
+        var prefix = all.Where(p => p.Name.StartsWith(s, StringComparison.OrdinalIgnoreCase)).ToList();
         if (prefix.Count == 1)
         {
             return prefix[0];
         }
 
-        var byId = State.Profiles.Where(p => p.Id.ToString("D").StartsWith(s, StringComparison.OrdinalIgnoreCase)).ToList();
+        var byId = all.Where(p => p.Id.ToString("D").StartsWith(s, StringComparison.OrdinalIgnoreCase)).ToList();
         return byId.Count == 1 ? byId[0] : null;
+    }
+
+    /// <summary>
+    /// The display name a role key has been given, or null when nothing names it: the role read
+    /// this run, else a manual entry. Used by <c>profiles export</c>, which falls back to the ids
+    /// in the key rather than to a made-up label.
+    /// </summary>
+    public string? LoadedRoleName(RoleKey key)
+    {
+        if (Role(key) is { } role)
+        {
+            return role.DisplayName;
+        }
+
+        return State.ManualRoles.FirstOrDefault(m => m.TenantKey == key.TenantKey && m.Scope == key.Scope)?.DisplayName;
     }
 
     private List<RoleKey> OrderedKeys(IEnumerable<RoleKey> keys) =>
@@ -47,6 +78,7 @@ public sealed partial class ElevateSession
     {
         ArgumentNullException.ThrowIfNull(keys);
         var trimmed = (name ?? string.Empty).Trim();
+        RefuseIfManagedName(trimmed);
         var profile = new ActivationProfile(trimmed.Length == 0 ? "Untitled profile" : trimmed, OrderedKeys(keys).Select(NewEntry));
         Mutate(() => State.UpsertProfile(profile));
         Persist();
@@ -57,6 +89,7 @@ public sealed partial class ElevateSession
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(keys);
+        RefuseIfManaged(profile);
         var old = profile.Entries.ToDictionary(e => e.RoleKey);
         profile.Entries = [.. OrderedKeys(keys).Select(k => old.GetValueOrDefault(k) ?? NewEntry(k))];
         Mutate(() => State.UpsertProfile(profile));
@@ -66,6 +99,7 @@ public sealed partial class ElevateSession
     public void RenameProfile(ActivationProfile profile, string name)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        RefuseIfManaged(profile);
         var trimmed = (name ?? string.Empty).Trim();
         if (trimmed.Length == 0)
         {
@@ -79,6 +113,7 @@ public sealed partial class ElevateSession
 
     public void DeleteProfile(Guid id)
     {
+        RefuseIfManagedId(id);
         Mutate(() => State.RemoveProfile(id));
         Persist();
     }
@@ -92,7 +127,8 @@ public sealed partial class ElevateSession
         {
             foreach (var profile in other.Profiles)
             {
-                if (State.Profiles.Any(p => p.Id != profile.Id && string.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase)))
+                if (State.Profiles.Any(p => p.Id != profile.Id && string.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase))
+                    || PublishedProfileSet.Profiles.Any(p => string.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
@@ -148,6 +184,13 @@ public sealed partial class ElevateSession
         var outcomes = requests.Count == 0
             ? []
             : await ActivateAsync(requests, deactivateFirst: false, onProgress, ct, rememberDuration: durationOverride is null).ConfigureAwait(false);
+        // A published profile has nothing to remember on: it is never written to state.json. The
+        // per-role memory is still updated, by ActivateAsync above.
+        if (IsManagedProfile(profile.Id))
+        {
+            return outcomes;
+        }
+
         lock (_sync)
         {
             if (State.Profile(profile.Id) is not { } p)

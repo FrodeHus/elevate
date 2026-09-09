@@ -16,19 +16,31 @@ extension AppModel {
             return
         }
         hotKeys.onFire = { [weak self] in
-            Task { @MainActor in
-                guard let self, let id = self.settings.hotKeyProfileId else { return }
-                if await self.quickRun(profileId: id) { return }
-                // Needs a justification, ticket or duration: open the Run sheet instead.
-                self.requestRun(id)
-                self.pendingProfileRun = id
-            }
+            Task { @MainActor in await self?.runShortcutProfile() }
         }
         do {
             try hotKeys.register(binding)
         } catch {
             hotKeyError = error.localizedDescription
         }
+    }
+
+    /// What the global shortcut fires: runs the bound profile, or opens the Run sheet when it
+    /// needs a justification, ticket or duration. A policy change can remove the managed profile
+    /// the shortcut was bound to out from under it; that is not a reason to pop a Run sheet with
+    /// nothing to run, so this bails out quietly (beyond the log and the notice) when the bound id
+    /// no longer resolves to anything.
+    func runShortcutProfile() async {
+        guard let id = settings.hotKeyProfileId else { return }
+        guard profile(id: id) != nil else {
+            logError("Shortcut profile is no longer available")
+            notice = "The profile bound to the shortcut is no longer available"
+            return
+        }
+        if await quickRun(profileId: id) { return }
+        // Needs a justification, ticket or duration: open the Run sheet instead.
+        requestRun(id)
+        pendingProfileRun = id
     }
 
     // MARK: Diagnostics
@@ -62,7 +74,7 @@ extension AppModel {
                                      mode: tenant.discoveryMode.rawValue, flags: flags)
         }
         let hotKey: String? = settings.hotKey.map { binding in
-            let profile = settings.hotKeyProfileId.flatMap { state.profile(id: $0) }
+            let profile = settings.hotKeyProfileId.flatMap { self.profile(id: $0) }
             return "\(binding.display) → \(profile?.name ?? "no profile")"
         }
         let input = DiagnosticsInput(appVersion: BuildInfo.version,
@@ -71,8 +83,15 @@ extension AppModel {
                                      os: ProcessInfo.processInfo.operatingSystemVersionString,
                                      accounts: accounts,
                                      tenants: tenants,
-                                     profiles: state.profiles.map(\.name),
+                                     profiles: state.profiles.map(\.name) + managedProfiles.map { "\($0.name) (managed)" },
                                      hotKey: hotKey,
+                                     // Every managed warning, as the Windows app reports them: the
+                                     // tenant and profile ones are what a rollout actually goes wrong on.
+                                     managed: settings.managed.isEmpty ? nil : DiagnosticsManaged(origin: settings.managed.origin ?? "unknown",
+                                                                                                  keys: settings.managed.keysInEffect.map(\.rawValue),
+                                                                                                  warnings: settings.managed.warnings
+                                                                                                      + managedTenantWarnings
+                                                                                                      + managedProfileWarnings),
                                      errors: errorLog.entries)
         return DiagnosticsReport.render(input)
     }
@@ -109,6 +128,9 @@ extension AppModel {
     /// check. A release the user dismissed is never offered again, but a forced check still
     /// reports it, so "Check for updates" is never silent.
     func checkForUpdates(force: Bool = false) async {
+        // An organization can turn the check off entirely; then GitHub is never contacted, not
+        // even by an explicit "Check for updates" (the button is replaced by a caption anyway).
+        guard !settings.updateCheckDisabled else { return }
         if !force {
             if let last = settings.lastUpdateCheck, abs(Date().timeIntervalSince(last)) < 24 * 60 * 60 { return }
             guard isOnline else { return }

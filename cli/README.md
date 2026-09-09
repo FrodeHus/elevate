@@ -97,7 +97,7 @@ roles lists them instead of guessing.
 | `elevate deactivate <role…>` / `elevate cancel <role…>` | Deactivate an active role; withdraw a request that is awaiting approval or scheduled. |
 | `elevate run [--profile NAME] [--role ROLE…] -- <command>` | Activate what is named (roles already active are left alone, pending ones are waited for), wait until every one is active, approvals included, then run the command with the terminal's own stdin and stdout and exit with its code. Activations last 10 minutes by default, just enough for one command (`--duration` overrides; the durations remembered for `activate` and the profile are untouched). `--deactivate-after` deactivates what this call activated once the command exits; `--settle 2m` pauses after a group activation for the claim to propagate (default 30 s for groups); `--timeout 1h` bounds the wait (default 15 m). |
 | `elevate init bash\|zsh\|fish\|pwsh` | A shell hook that wraps `az`, `kubectl`, `terraform` and `helm`: when one fails with an authorization error, a line suggests `elevate run`. `eval "$(elevate init zsh)"` in your profile. |
-| `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles). |
+| `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles), `export <name>` (prints one of your profiles as a managed profile document). Profiles your organization publishes are listed with source `managed` and cannot be renamed, deleted or saved over. |
 | `elevate approvals` | Requests awaiting your decision as an approver; `approve <id>` and `deny <id> --reason …`. Extend and renew requests are listed with "decide in the portal", as in the apps. |
 | `elevate packages` | Access packages (entitlement management) for accounts signed in with your own or a custom registration: `list` (with the state of any pending request or delivered assignment), `requests` (open ones; `--all` adds denied, failed and cancelled with dates and the service's status), `assigned` (delivered, with expiry and policy), `request <package> --justification …` (`--policy` when several apply; packages that ask questions are handed to My Access with a link), `cancel <id>`. The first call asks for the `EntitlementMgmt-SubjectAccess.ReadWrite` permission, which needs no admin consent. |
 | `elevate accounts` / `login` / `logout` | The signed-in accounts. |
@@ -159,6 +159,17 @@ keeps the cache in a plain file under the data directory, readable by anyone wit
 access; sign in again after changing it. Profiles from the desktop app come across with
 `elevate profiles import`; entries for accounts not signed in here plan as "tenant not loaded" until
 you sign those accounts in.
+
+## Managed configuration
+
+An organization can push the CLI's settings to a fleet: `/etc/elevate/managed.json` on macOS and
+Linux (neither the file nor its directory writable by others, or it is ignored with a warning), and
+`HKLM\SOFTWARE\Policies\Reothor\Elevate` then `HKCU\...` on Windows. A managed value wins over
+yours, and `elevate config` marks it `managed` in the `Source` column; `elevate config managed`
+prints the origin, the keys in effect and any warnings, and `--file <path>` checks a file as a dry
+run before you deploy it. Administrators start at
+[docs/enterprise/README.md](../docs/enterprise/README.md), with the CLI's own page at
+[docs/enterprise/cli.md](../docs/enterprise/cli.md).
 
 ## Build and test
 

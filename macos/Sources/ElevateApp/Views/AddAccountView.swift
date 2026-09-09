@@ -16,7 +16,9 @@ struct AddAccountView: View {
 
     private var methods: [SignInMethod] { model.availableMethods }
     private var selectedChoice: Choice {
-        choice ?? methods.first { model.isAvailable($0) }.map(Choice.fixed) ?? .fixed(.azureCLI)
+        // With every fixed method withheld by the organization, "Custom app" is all that is left
+        // — and it may be withheld too, in which case the dialog has nothing to offer.
+        choice ?? methods.first { model.isAvailable($0) }.map(Choice.fixed) ?? methods.first.map(Choice.fixed) ?? .custom
     }
     private var selection: SignInMethod {
         switch selectedChoice {
@@ -37,12 +39,14 @@ struct AddAccountView: View {
                     .tag(Choice.fixed(m))
                     .disabled(!model.isAvailable(m))
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Custom app")
-                    Text("An Entra app registration without a macOS platform, e.g. your company's PIM app; signs in through the browser with the standard http://localhost loopback redirect")
-                        .font(.caption).foregroundStyle(.secondary)
+                if model.isCustomMethodAllowed {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Custom app")
+                        Text("An Entra app registration without a macOS platform, e.g. your company's PIM app; signs in through the browser with the standard http://localhost loopback redirect")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .tag(Choice.custom)
                 }
-                .tag(Choice.custom)
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()

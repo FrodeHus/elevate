@@ -11,9 +11,13 @@ public sealed partial class AppModel
 
     // MARK: Profiles
 
-    public IReadOnlyList<ActivationProfile> Profiles => State.Profiles;
+    /// <summary>
+    /// The user's own profiles, then the ones the organization publishes. Managed profiles live
+    /// only in memory: they are resolved on every read and never reach <c>state.json</c>.
+    /// </summary>
+    public IReadOnlyList<ActivationProfile> Profiles => [.. State.Profiles, .. ManagedProfiles];
 
-    public ActivationProfile? Profile(Guid id) => State.Profile(id);
+    public ActivationProfile? Profile(Guid id) => State.Profile(id) ?? ManagedProfiles.FirstOrDefault(p => p.Id == id);
 
     /// <summary>
     /// The profile "Edit…" asked the Profiles window to select. The window reads and clears it, on
@@ -53,12 +57,37 @@ public sealed partial class AppModel
 
     private ActivationProfile.Entry NewEntry(RoleKey key) => new(key, Remembered(key)?.LastDuration);
 
-    public ActivationProfile SaveProfile(string name, IEnumerable<RoleKey> keys)
+    /// <summary>The one refusal for a name a published profile already carries, worded as the CLI words it.</summary>
+    public static string ManagedProfileRefusal(string name) =>
+        $"'{name}' is published by your organization and cannot be changed.";
+
+    /// <summary>
+    /// Refuses a name a published profile already carries, so a user profile cannot shadow one —
+    /// the CLI refuses the same name, and a state the app allowed must not error there. Returns
+    /// the notice to show, or null when the name is free.
+    /// </summary>
+    private string? ManagedNameRefusal(string name) =>
+        ManagedProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { } published
+            ? ManagedProfileRefusal(published.Name)
+            : null;
+
+    /// <summary>
+    /// Saves a new profile, or returns null having set <see cref="Notice"/> when the organization
+    /// publishes a profile by that name.
+    /// </summary>
+    public ActivationProfile? SaveProfile(string name, IEnumerable<RoleKey> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
         var entries = OrderedKeys(keys).Select(NewEntry);
         var trimmed = (name ?? string.Empty).Trim();
-        var profile = new ActivationProfile(trimmed.Length == 0 ? "Untitled profile" : trimmed, entries);
+        var final = trimmed.Length == 0 ? "Untitled profile" : trimmed;
+        if (ManagedNameRefusal(final) is { } refusal)
+        {
+            Notice = refusal;
+            return null;
+        }
+
+        var profile = new ActivationProfile(final, entries);
         State.UpsertProfile(profile);
         Persist();
         return profile;
@@ -67,7 +96,7 @@ public sealed partial class AppModel
     public void UpdateProfile(Guid id, IEnumerable<RoleKey> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        if (State.Profile(id) is not { } p)
+        if (IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
             return;
         }
@@ -86,8 +115,14 @@ public sealed partial class AppModel
     public void RenameProfile(Guid id, string name)
     {
         var trimmed = (name ?? string.Empty).Trim();
-        if (trimmed.Length == 0 || State.Profile(id) is not { } p)
+        if (trimmed.Length == 0 || IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
+            return;
+        }
+
+        if (ManagedNameRefusal(trimmed) is { } refusal)
+        {
+            Notice = refusal;
             return;
         }
 
@@ -98,6 +133,11 @@ public sealed partial class AppModel
 
     public void DeleteProfile(Guid id)
     {
+        if (IsManagedProfile(id))
+        {
+            return;
+        }
+
         State.RemoveProfile(id);
         Persist();
         // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
@@ -108,8 +148,18 @@ public sealed partial class AppModel
         }
     }
 
-    /// <summary>Profiles shown as chips in the panel, in list order.</summary>
-    public IReadOnlyList<ActivationProfile> PinnedProfiles => State.PinnedProfiles;
+    /// <summary>
+    /// Profiles shown as chips in the flyout, in list order. Pinned managed profiles come first
+    /// and do not count against <see cref="ProfilePins.Limit"/>: the organization asked for them,
+    /// so they never cost the user a pin of their own.
+    /// </summary>
+    public IReadOnlyList<ActivationProfile> PinnedProfiles => [.. ManagedProfiles.Where(p => p.Pinned), .. State.PinnedProfiles];
+
+    /// <summary>
+    /// Whether the user still has a pin slot free. Only the user's own pins count against
+    /// <see cref="ProfilePins.Limit"/>; pinned managed profiles must not cost the user a slot here.
+    /// </summary>
+    public bool CanPinAnotherProfile => State.PinnedProfiles.Count < ProfilePins.Limit;
 
     /// <summary>
     /// Pins or unpins a profile. Returns false, changing nothing, when the pinned row is full
@@ -117,7 +167,7 @@ public sealed partial class AppModel
     /// </summary>
     public bool SetPinned(Guid id, bool pinned)
     {
-        if (!State.SetPinned(id, pinned))
+        if (IsManagedProfile(id) || !State.SetPinned(id, pinned))
         {
             return false;
         }
@@ -126,9 +176,21 @@ public sealed partial class AppModel
         return true;
     }
 
+    /// <summary>
+    /// Reorders the user's profiles. The managed ones are listed after them and cannot be moved,
+    /// so offsets that reach into that tail are ignored rather than applied to the wrong profile.
+    /// </summary>
     public void MoveProfiles(IEnumerable<int> fromOffsets, int toOffset)
     {
-        State.MoveProfiles(fromOffsets, toOffset);
+        ArgumentNullException.ThrowIfNull(fromOffsets);
+        var count = State.Profiles.Count;
+        var offsets = fromOffsets.ToList();
+        if (offsets.Any(o => o >= count) || toOffset > count)
+        {
+            return;
+        }
+
+        State.MoveProfiles(offsets, toOffset);
         Persist();
     }
 
@@ -151,7 +213,7 @@ public sealed partial class AppModel
     public void AddProfileEntries(Guid id, IEnumerable<RoleKey> keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
-        if (State.Profile(id) is not { } p)
+        if (IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
             return;
         }
@@ -169,7 +231,7 @@ public sealed partial class AppModel
 
     public void RemoveProfileEntry(Guid id, RoleKey key)
     {
-        if (State.Profile(id) is not { } p)
+        if (IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
             return;
         }
@@ -183,7 +245,7 @@ public sealed partial class AppModel
     /// <summary>The duration the next run proposes for one entry; null falls back to memory or the policy.</summary>
     public void SetProfileEntryDuration(Guid id, RoleKey key, TimeSpan? duration)
     {
-        if (State.Profile(id) is not { } p)
+        if (IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
             return;
         }
@@ -209,7 +271,7 @@ public sealed partial class AppModel
 
     public IReadOnlyList<ProfilePlanItem> Plan(Guid profileId)
     {
-        if (State.Profile(profileId) is not { } p)
+        if (Profile(profileId) is not { } p)
         {
             return [];
         }
@@ -249,7 +311,9 @@ public sealed partial class AppModel
             .Select(i => new ActivationRequest(i.RoleKey, i.Duration, justification, ticket, i.Role?.Policy.AuthenticationContext, startDateTime))
             .ToList();
         var outcomes = requests.Count == 0 ? [] : await ActivateAsync(requests, ct);
-        if (State.Profile(id) is not { } p)
+        // A managed profile is the organization's document; nothing is remembered onto it. The
+        // per-role memory the activation writes is unaffected.
+        if (IsManagedProfile(id) || State.Profile(id) is not { } p)
         {
             return outcomes;
         }

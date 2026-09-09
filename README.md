@@ -27,15 +27,27 @@ cannot read or activate Entra directory roles or PIM for Groups memberships, bec
 grants those apps no Graph PIM permissions. Each app checks the GitHub releases API for a newer
 version once a day and offers it in the panel; the CLI mentions one after `elevate status`.
 
+## Enterprise-ready
+
+Organizations roll Elevate out with Intune, Jamf Pro or Group Policy and push their own values —
+the app registration's client id, whether the update check runs, which sign-in methods and tenants
+people may use, and the role-set profiles everyone should have. A managed value wins over the
+user's, locks the setting with a "Managed by your organization" caption, and needs no company
+build. Start at [docs/enterprise/README.md](docs/enterprise/README.md); the templates (ADMX,
+mobileconfig, Jamf schema, `managed.json`) are in [enterprise/](enterprise/) and ship with each
+release as `Elevate-enterprise-kit-<version>.zip`, alongside a `Elevate-<version>.pkg` for silent
+macOS deployment.
+
 ## Repository layout
 
 ```
-macos/     Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
-windows/   .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
-cli/       .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
-shared/    Assets used by both apps: the Entra built-in roles catalogue script
+macos/      Swift package (ElevateCore) + XcodeGen app target (ElevateApp) + tests
+windows/    .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, winget manifest)
+cli/        .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
+shared/     Assets used by both apps: the Entra built-in roles catalogue script
+enterprise/ Managed-configuration templates: ADMX/ADML, mobileconfig, Jamf schema, managed.json, an example
 Casks/, Formula/   The Homebrew tap: the macOS app's cask and the CLI's formula
-docs/      Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
+docs/       Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
 ## Getting started
@@ -81,6 +93,7 @@ methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
 | Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
+| Rolling out to a fleet: Intune, Jamf, Group Policy, the CLI, managed profiles, the key reference | [docs/enterprise/README.md](docs/enterprise/README.md) |
 | Windows app: build, install, installer and winget manifest, release | [windows/README.md](windows/README.md) |
 | CLI: install, sign-in, commands, JSON and exit codes, data directory, build, release | [cli/README.md](cli/README.md) |
 | Design specs | [docs/superpowers/specs/](docs/superpowers/specs/) |

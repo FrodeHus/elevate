@@ -1,6 +1,8 @@
 using System.CommandLine;
 using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Rendering;
+using Elevate.Cli.Session;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Spectre.Console;
 
@@ -11,10 +13,9 @@ public static class AccountCommands
 {
     public static Command Login()
     {
-        var method = new Option<string>("--method", "-m")
+        var method = new Option<string?>("--method", "-m")
         {
-            Description = "own (your app registration, the default), cli (Azure CLI app), pwsh (Azure PowerShell app) or custom.",
-            DefaultValueFactory = _ => "own",
+            Description = "own (your app registration), cli (Azure CLI app), pwsh (Azure PowerShell app) or custom; the first one your organization permits is the default.",
         };
         var clientId = new Option<string?>("--client-id") { Description = "With --method custom: the application (client) id of the registration. Remembered for next time." };
         var command = new Command("login", "Sign in and add an account. Opens the browser, or shows a device code with --device-code.")
@@ -24,8 +25,8 @@ public static class AccountCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
-            var chosen = ParseMethod(parse.GetValue(method)!, parse.GetValue(clientId), session.Settings);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
+            var chosen = ParseMethod(parse.GetValue(method) ?? ElevateSession.DefaultMethodName(session.Settings.Managed), parse.GetValue(clientId), session.Settings);
             if (chosen.UsesMsal && !session.Settings.IsConfigured)
             {
                 throw new CliException(
@@ -68,8 +69,9 @@ public static class AccountCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var identity = context.RequireAccount(parse.GetValue(account));
-            await context.Session.SignOutAsync(identity, ct).ConfigureAwait(false);
+            await session.SignOutAsync(identity, ct).ConfigureAwait(false);
             context.Output.Note($"Signed out {Markup.Escape(identity.Upn)}. Active assignments in Entra were not changed.");
             return ExitCodes.Ok;
         });
@@ -79,20 +81,20 @@ public static class AccountCommands
     public static Command Accounts()
     {
         var command = new Command("accounts", "List the signed-in accounts.");
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             if (context.Output.Json)
             {
                 context.Output.WriteJson(session.Identities.Select(i => Views.Account(session, i)).ToList());
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             if (session.Identities.Count == 0)
             {
                 context.Output.Plain("No accounts. Run 'elevate login' to add one.");
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded);
@@ -101,6 +103,7 @@ public static class AccountCommands
             table.AddColumn("Sign-in method");
             table.AddColumn("Home tenant");
             table.AddColumn("Tenants");
+            table.AddColumn("Flags");
             foreach (var i in session.Identities)
             {
                 var method = Markup.Escape(i.SignInMethod.DisplayName);
@@ -112,25 +115,27 @@ public static class AccountCommands
                 table.AddRow(
                     Markup.Escape(i.Upn), Markup.Escape(i.DisplayName), method,
                     Markup.Escape(session.TenantName(new TenantKey(i.Id, i.HomeTenantId))),
-                    session.Tenants.Count(t => t.IdentityId == i.Id).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    session.Tenants.Count(t => t.IdentityId == i.Id).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    session.IsMethodAllowed(i.SignInMethod) ? "[grey]—[/]" : "[yellow]not permitted[/]");
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
         return command;
     }
 
     internal static SignInMethod ParseMethod(string method, string? clientId, CliSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         switch (method.Trim().ToLowerInvariant())
         {
             case "own" or "ownapp" or "own-app":
-                return SignInMethod.OwnApp;
+                return Permitted(SignInMethod.OwnApp, "own", settings);
             case "cli" or "az" or "azurecli" or "azure-cli":
-                return SignInMethod.AzureCLI;
+                return Permitted(SignInMethod.AzureCLI, "cli", settings);
             case "pwsh" or "powershell" or "azurepowershell" or "azure-powershell":
-                return SignInMethod.AzurePowerShell;
+                return Permitted(SignInMethod.AzurePowerShell, "pwsh", settings);
             case "custom":
             {
                 var id = string.IsNullOrWhiteSpace(clientId) ? settings.CustomClientId : clientId;
@@ -139,11 +144,15 @@ public static class AccountCommands
                     throw new CliException("--method custom needs --client-id <application id> (a GUID); the last one used is remembered.", ExitCodes.Usage);
                 }
 
-                return SignInMethod.Custom(id.Trim());
+                return Permitted(SignInMethod.Custom(id.Trim()), "custom", settings);
             }
 
             default:
                 throw new CliException($"Unknown sign-in method '{method}'. Use own, cli, pwsh or custom.", ExitCodes.Usage);
         }
     }
+
+    /// <summary>The method itself, or the refusal naming the ones the organization does permit.</summary>
+    private static SignInMethod Permitted(SignInMethod method, string name, CliSettings settings) =>
+        ManagedPolicy.IsAllowed(method, settings.Managed) ? method : throw ElevateSession.DisallowedMethod(name, settings.Managed);
 }

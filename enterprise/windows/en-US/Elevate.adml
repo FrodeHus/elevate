@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                           revision="1.0" schemaVersion="1.0"
+                           xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <displayName>Elevate</displayName>
+  <description>Administrative template for Elevate, the Privileged Identity Management activation app.</description>
+  <resources>
+    <stringTable>
+      <string id="SUPPORTED_Elevate_1_6">Elevate 1.6 or later</string>
+      <string id="Reothor">Reothor</string>
+      <string id="Elevate">Elevate</string>
+      <string id="Elevate_Help">Organization-managed settings for Elevate. A policy you leave Not configured leaves the choice to the user; a policy you enable is locked, and Elevate shows the setting disabled with a "Managed by your organization" caption.</string>
+
+      <string id="ClientId">Application (client) id</string>
+      <string id="ClientId_Help">Sets the Entra application (client) id Elevate signs in with, so users never enter one.
+
+Enter the Application (client) id of your app registration as a GUID, for example 11111111-2222-3333-4444-555555555555. A value that is not a GUID, or the all-zero GUID, is ignored and reported as a warning in Elevate's diagnostics.
+
+If you disable or do not configure this policy, the user supplies the client id during setup.</string>
+
+      <string id="DisableUpdateCheck">Disable the update check</string>
+      <string id="DisableUpdateCheck_Help">Stops Elevate's daily check for new releases on GitHub and removes the update user interface, for fleets updated by Intune or Configuration Manager.
+
+If you enable this policy, the check never runs, "Check for updates" is replaced by a caption and no update banner appears.
+
+If you disable or do not configure this policy, the daily check runs.</string>
+
+      <string id="AllowedSignInMethods">Allowed sign-in methods</string>
+      <string id="AllowedSignInMethods_Help">Limits which sign-in methods users may add accounts with.
+
+If you enable this policy, add one entry per allowed method, using the names ownApp, azureCLI, azurePowerShell and custom. An unrecognized name is ignored and reported as a warning. Accounts added earlier with a method that is no longer allowed keep working and are shown with a caption.
+
+If you disable or do not configure this policy, every sign-in method is available.</string>
+
+      <string id="AllowedTenants">Allowed tenants</string>
+      <string id="AllowedTenants_Help">Limits which Entra tenants users may add or discover.
+
+If you enable this policy, add one entry per tenant, as a tenant id or a verified domain such as contoso.com. Domains are resolved to tenant ids at startup; an entry that cannot be resolved blocks nothing and is reported as a warning. An account's own home tenant is always allowed.
+
+If you disable or do not configure this policy, users may add any tenant they can reach.</string>
+
+      <string id="PinnedTenants">Pinned tenants</string>
+      <string id="PinnedTenants_Help">Tenants that Elevate tracks automatically for every account that can reach them, so a new user sees the company's tenants without adding them by hand.
+
+If you enable this policy, add one entry per tenant, as a tenant id or a verified domain such as contoso.com.
+
+If you disable or do not configure this policy, users track the tenants they choose.</string>
+
+      <string id="ManagedProfiles">Managed profiles (inline)</string>
+      <string id="ManagedProfiles_Help">Publishes a set of activation profiles to every machine. Managed profiles are listed, can be run and can be bound to the hot key, but users cannot edit, rename, pin or delete them.
+
+If you enable this policy, paste the profile set as a JSON document, one line per row. The format is documented in docs/enterprise/keys.md; roles are named by tenant and role rather than by account, and roles the signed-in account is not eligible for are planned as skipped.
+
+If you disable or do not configure this policy, only the user's own profiles are shown.</string>
+
+      <string id="ManagedProfilesUrl">Managed profiles URL</string>
+      <string id="ManagedProfilesUrl_Help">Publishes the same profile set from a web server, so it can be updated without changing policy.
+
+If you enable this policy, a URL is required: enter an https:// URL serving the JSON document, for example https://example.com/elevate/profiles.json. It is fetched at startup when the cached copy is older than 24 hours and once a day after; the last successful copy is used when a fetch fails. http:// URLs are ignored and reported as a warning. Profiles from the URL and from the inline policy are merged by id, the fetched entry winning.
+
+If you disable or do not configure this policy, no profile set is fetched.</string>
+    </stringTable>
+    <presentationTable>
+      <presentation id="ClientId">
+        <textBox refId="ClientId">
+          <label>Application (client) id (GUID):</label>
+        </textBox>
+      </presentation>
+      <presentation id="DisableUpdateCheck" />
+      <presentation id="AllowedSignInMethods">
+        <listBox refId="AllowedSignInMethods">Allowed methods (ownApp, azureCLI, azurePowerShell, custom):</listBox>
+      </presentation>
+      <presentation id="AllowedTenants">
+        <listBox refId="AllowedTenants">Tenant ids or verified domains:</listBox>
+      </presentation>
+      <presentation id="PinnedTenants">
+        <listBox refId="PinnedTenants">Tenant ids or verified domains:</listBox>
+      </presentation>
+      <presentation id="ManagedProfiles">
+        <multiTextBox refId="ManagedProfiles">Profile set (JSON):</multiTextBox>
+      </presentation>
+      <presentation id="ManagedProfilesUrl">
+        <textBox refId="ManagedProfilesUrl">
+          <label>https:// URL of the profile set:</label>
+        </textBox>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>

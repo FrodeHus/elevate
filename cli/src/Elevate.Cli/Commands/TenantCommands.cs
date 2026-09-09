@@ -14,23 +14,23 @@ public static class TenantCommands
     {
         var account = CommonOptions.Account();
         var command = new Command("tenants", "List the tenants each account is tracked in, with their flags.") { account };
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var tenants = string.IsNullOrWhiteSpace(parse.GetValue(account))
                 ? session.Tenants
                 : [.. session.Tenants.Where(t => t.IdentityId == context.RequireAccount(parse.GetValue(account)).Id)];
             if (context.Output.Json)
             {
                 context.Output.WriteJson(tenants.Select(t => Views.Tenant(session, t)).ToList());
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             if (tenants.Count == 0)
             {
                 context.Output.Plain("No tenants. Run 'elevate login' first.");
-                return Task.FromResult(ExitCodes.Ok);
+                return ExitCodes.Ok;
             }
 
             var table = new Table().Border(TableBorder.Rounded);
@@ -53,7 +53,7 @@ public static class TenantCommands
             }
 
             context.Output.Write(table);
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         command.Subcommands.Add(Discover());
@@ -72,8 +72,8 @@ public static class TenantCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var identity = context.RequireAccount(parse.GetValue(account));
-            var session = context.Session;
             var found = await context.Output.StatusAsync($"Discovering tenants for {identity.Upn}…", () => session.DiscoverTenantsAsync(identity, ct)).ConfigureAwait(false);
             var added = parse.GetValue(add) ? session.TrackTenants(identity, found) : [];
             if (context.Output.Json)
@@ -83,6 +83,7 @@ public static class TenantCommands
                     tenantId = t.TenantId, displayName = t.DisplayName, defaultDomain = t.DefaultDomain,
                     tracked = session.Tenant(new TenantKey(identity.Id, t.TenantId)) is not null,
                     added = added.Any(a => a.TenantId == t.TenantId),
+                    notPermitted = !session.IsTenantAllowed(t.TenantId),
                 }).ToList());
                 return ExitCodes.Ok;
             }
@@ -92,11 +93,13 @@ public static class TenantCommands
             table.AddColumn("Tenant id");
             table.AddColumn("Domain");
             table.AddColumn("Tracked");
+            table.AddColumn("Flags");
             foreach (var t in found.OrderBy(t => t.DisplayName, StringComparer.Ordinal))
             {
                 var tracked = session.Tenant(new TenantKey(identity.Id, t.TenantId)) is not null;
                 table.AddRow(Markup.Escape(t.DisplayName), Markup.Escape(t.TenantId), Markup.Escape(t.DefaultDomain ?? "—"),
-                    added.Any(a => a.TenantId == t.TenantId) ? "[green]added[/]" : tracked ? "yes" : "[grey]no[/]");
+                    added.Any(a => a.TenantId == t.TenantId) ? "[green]added[/]" : tracked ? "yes" : "[grey]no[/]",
+                    session.IsTenantAllowed(t.TenantId) ? "[grey]—[/]" : "[yellow]not permitted[/]");
             }
 
             context.Output.Write(table);
@@ -118,8 +121,8 @@ public static class TenantCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var identity = context.RequireAccount(parse.GetValue(account));
-            var session = context.Session;
             var added = await context.Output.StatusAsync("Resolving the tenant…", () => session.AddTenantAsync(identity, parse.GetValue(tenant)!, ct)).ConfigureAwait(false);
             await context.Output.StatusAsync($"Reading roles in {added.DisplayName}…", () => session.RefreshTenantAsync(added.Key, ct)).ConfigureAwait(false);
             if (context.Output.Json)
@@ -145,13 +148,14 @@ public static class TenantCommands
         var tenant = new Argument<string>("tenant") { Description = "Part of the tenant name, or the id." };
         var account = CommonOptions.Account();
         var command = new Command("remove", "Stop tracking a tenant. Its manual roles, remembered reasons and profile entries go with it.") { tenant, account };
-        command.SetAction((parse, _) =>
+        command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenant)!, parse.GetValue(account));
-            context.Session.RemoveTenant(t.Key);
+            session.RemoveTenant(t.Key);
             context.Output.Note($"Removed {Markup.Escape(t.DisplayName)}. Active assignments in Entra were not changed.");
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
         return command;
     }
@@ -164,7 +168,7 @@ public static class TenantCommands
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenant)!, parse.GetValue(account));
             session.ResetTenant(t.Key);
             await context.Output.StatusAsync($"Reading {t.DisplayName}…", () => session.RefreshTenantAsync(t.Key, ct)).ConfigureAwait(false);
@@ -189,11 +193,12 @@ public static class TenantCommands
         var account = CommonOptions.Account();
 
         var list = new Command("list", "Show the manual roles of a tenant.") { tenantArg, account };
-        list.SetAction((parse, _) =>
+        list.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
-            var roles = context.Session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
+            var roles = session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
             if (context.Output.Json)
             {
                 context.Output.WriteJson(roles.Select(r => new { name = r.DisplayName, kind = Views.KindName(r.Scope.Kind), scope = r.Scope }).ToList());
@@ -210,7 +215,7 @@ public static class TenantCommands
                 }
             }
 
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         var entra = new Option<string[]>("--entra") { Description = "An Entra directory role by catalogue name, e.g. \"Global Reader\". Repeatable." };
@@ -218,10 +223,10 @@ public static class TenantCommands
         var group = new Option<string[]>("--group") { Description = "A PIM for Groups membership as <group id>[=owner]. Repeatable." };
         var replace = new Option<bool>("--replace") { Description = "Replace the tenant's manual roles instead of adding to them." };
         var add = new Command("add", "Add manual roles to a tenant.") { tenantArg, account, entra, azure, group, replace };
-        add.SetAction((parse, _) =>
+        add.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
-            var session = context.Session;
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
             var roles = parse.GetValue(replace) ? [] : session.State.ManualRoles.Where(r => r.TenantKey == t.Key).ToList();
             foreach (var name in parse.GetValue(entra) ?? [])
@@ -256,17 +261,18 @@ public static class TenantCommands
 
             session.SetManualRoles(t.Key, roles.DistinctBy(r => r.Scope));
             context.Output.Note($"{Markup.Escape(t.DisplayName)} now has {roles.Count} manual role{(roles.Count == 1 ? "" : "s")}.");
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         var clear = new Command("clear", "Remove every manual role of a tenant.") { tenantArg, account };
-        clear.SetAction((parse, _) =>
+        clear.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
+            var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var t = context.RequireTenant(parse.GetValue(tenantArg)!, parse.GetValue(account));
-            context.Session.SetManualRoles(t.Key, []);
+            session.SetManualRoles(t.Key, []);
             context.Output.Note($"Cleared the manual roles of {Markup.Escape(t.DisplayName)}.");
-            return Task.FromResult(ExitCodes.Ok);
+            return ExitCodes.Ok;
         });
 
         command.Subcommands.Add(list);

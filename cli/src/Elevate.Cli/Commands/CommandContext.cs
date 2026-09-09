@@ -3,6 +3,7 @@ using Spectre.Console;
 using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Session;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Networking;
 using Elevate.Core.Storage;
@@ -18,7 +19,32 @@ public sealed class CommandContext
     public static readonly Option<bool> DeviceCodeOption = new("--device-code") { Description = "Sign in with a device code instead of the browser; for SSH sessions and containers.", Recursive = true };
     public static readonly Option<string?> DataDirOption = new("--data-dir") { Description = "Where state, settings and the token cache live (also ELEVATE_CLI_HOME).", Recursive = true };
 
+    /// <summary>
+    /// Test seam: the managed configuration commands see, instead of the platform source. Async-local
+    /// so tests that run side by side do not see each other's policy.
+    /// </summary>
+    private static readonly AsyncLocal<ManagedConfiguration?> Override = new();
+
+    internal static ManagedConfiguration? ManagedOverride
+    {
+        get => Override.Value;
+        set => Override.Value = value;
+    }
+
+    /// <summary>
+    /// Test seam: the HTTP client the session talks to, instead of the real one. Async-local for the
+    /// same reason as the managed override, and never set outside tests.
+    /// </summary>
+    private static readonly AsyncLocal<IHttpClient?> HttpOverrideValue = new();
+
+    internal static IHttpClient? HttpOverride
+    {
+        get => HttpOverrideValue.Value;
+        set => HttpOverrideValue.Value = value;
+    }
+
     private ElevateSession? _session;
+    private bool _managedResolved;
 
     private CommandContext(Output output, string dataDirectory, InteractiveFlow flow)
     {
@@ -52,10 +78,10 @@ public sealed class CommandContext
             }
 
             var store = new AppStateStore(DataDirectory);
-            var settings = new CliSettings(DataDirectory);
+            var settings = new CliSettings(DataDirectory, ManagedOverride);
             var cache = new TokenCacheStore(DataDirectory, settings.UnprotectedCache);
             var tokens = new CliTokenProvider(cache, () => settings.ClientId, Flow, message => Output.Stderr.MarkupLine($"[blue]{Markup.Escape(message)}[/]"));
-            var http = new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
+            var http = HttpOverride ?? new HttpClientAdapter(new HttpClient { Timeout = TimeSpan.FromSeconds(60) });
             _session = new ElevateSession(store, settings, tokens, http);
             _session.Load();
             if (_session.LoadNotice is { } notice)
@@ -70,6 +96,36 @@ public sealed class CommandContext
 
             return _session;
         }
+    }
+
+    /// <summary>
+    /// The session with the organization's managed tenants resolved: the allowed and pinned lists
+    /// turned into tenant ids, tenants the organization no longer permits dropped, and the pinned
+    /// ones tracked. Every command that lists or changes tenants or accounts goes through here, so
+    /// the policy is in place before anything is shown or written. The organization's published
+    /// profiles are refreshed here too. Resolves once per invocation,
+    /// and does nothing at all when no tenants are managed.
+    /// </summary>
+    public async Task<ElevateSession> SessionAsync(CancellationToken ct = default)
+    {
+        var session = Session;
+        if (_managedResolved)
+        {
+            return session;
+        }
+
+        _managedResolved = true;
+        await session.ResolveManagedTenantsAsync(ct).ConfigureAwait(false);
+        foreach (var warning in session.ManagedTenantWarnings)
+        {
+            Output.Warn(Markup.Escape(warning));
+        }
+
+        // The published profiles come after the tenants they name have been resolved; the fetch
+        // itself runs at most once a day and does nothing at all without a ManagedProfilesUrl.
+        await session.RefreshManagedProfilesAsync(force: false, ct).ConfigureAwait(false);
+
+        return session;
     }
 
     /// <summary>The account for <c>--account</c>, or the only one, or an error naming the choices.</summary>

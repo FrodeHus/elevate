@@ -1,0 +1,37 @@
+name: Enterprise kit
+
+# The kit's templates and docs/enterprise/keys.md have to agree: keys.md is the source of truth
+# the validator parses, so a key added or renamed in one place fails here until every template
+# follows. `paths` filters both events, so no `changes` job is needed.
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "enterprise/**"
+      - "docs/enterprise/**"
+      - "scripts/validate-enterprise-kit.py"
+      - ".github/workflows/enterprise-kit.yml"
+  pull_request:
+    paths:
+      - "enterprise/**"
+      - "docs/enterprise/**"
+      - "scripts/validate-enterprise-kit.py"
+      - ".github/workflows/enterprise-kit.yml"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate the kit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Standard library only, so the runner's python3 is all this needs.
+      - name: Validate
+        run: python3 scripts/validate-enterprise-kit.py

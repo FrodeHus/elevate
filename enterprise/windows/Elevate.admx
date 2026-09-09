@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Elevate administrative template.
+
+  Copy this file to the central store (\\<domain>\SYSVOL\<domain>\Policies\PolicyDefinitions\)
+  or to C:\Windows\PolicyDefinitions\ on the machine running the Group Policy editor, and
+  en-US\Elevate.adml next to it. For Intune, import both files under
+  Devices > Configuration > Import ADMX.
+
+  Every policy writes under Software\Policies\Reothor\Elevate in HKLM (Computer
+  Configuration) or HKCU (User Configuration); the machine value wins per key.
+-->
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   revision="1.0" schemaVersion="1.0"
+                   xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <policyNamespaces>
+    <target prefix="elevate" namespace="Reothor.Elevate" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <supportedOn>
+    <definitions>
+      <definition name="SUPPORTED_Elevate_1_6" displayName="$(string.SUPPORTED_Elevate_1_6)" />
+    </definitions>
+  </supportedOn>
+  <categories>
+    <category name="Reothor" displayName="$(string.Reothor)" />
+    <category name="Elevate" displayName="$(string.Elevate)" explainText="$(string.Elevate_Help)">
+      <parentCategory ref="Reothor" />
+    </category>
+  </categories>
+  <policies>
+    <policy name="ClientId" class="Both" displayName="$(string.ClientId)" explainText="$(string.ClientId_Help)"
+            presentation="$(presentation.ClientId)" key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <text id="ClientId" valueName="ClientId" required="true" />
+      </elements>
+    </policy>
+
+    <policy name="DisableUpdateCheck" class="Both" displayName="$(string.DisableUpdateCheck)"
+            explainText="$(string.DisableUpdateCheck_Help)" presentation="$(presentation.DisableUpdateCheck)"
+            key="Software\Policies\Reothor\Elevate" valueName="DisableUpdateCheck">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <enabledValue><decimal value="1" /></enabledValue>
+      <disabledValue><decimal value="0" /></disabledValue>
+    </policy>
+
+    <policy name="AllowedSignInMethods" class="Both" displayName="$(string.AllowedSignInMethods)"
+            explainText="$(string.AllowedSignInMethods_Help)" presentation="$(presentation.AllowedSignInMethods)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <list id="AllowedSignInMethods" key="Software\Policies\Reothor\Elevate\AllowedSignInMethods" additive="false" valuePrefix="" />
+      </elements>
+    </policy>
+
+    <policy name="AllowedTenants" class="Both" displayName="$(string.AllowedTenants)"
+            explainText="$(string.AllowedTenants_Help)" presentation="$(presentation.AllowedTenants)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <list id="AllowedTenants" key="Software\Policies\Reothor\Elevate\AllowedTenants" additive="false" valuePrefix="" />
+      </elements>
+    </policy>
+
+    <policy name="PinnedTenants" class="Both" displayName="$(string.PinnedTenants)"
+            explainText="$(string.PinnedTenants_Help)" presentation="$(presentation.PinnedTenants)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <list id="PinnedTenants" key="Software\Policies\Reothor\Elevate\PinnedTenants" additive="false" valuePrefix="" />
+      </elements>
+    </policy>
+
+    <policy name="ManagedProfiles" class="Both" displayName="$(string.ManagedProfiles)"
+            explainText="$(string.ManagedProfiles_Help)" presentation="$(presentation.ManagedProfiles)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <multiText id="ManagedProfiles" valueName="ManagedProfiles" />
+      </elements>
+    </policy>
+
+    <policy name="ManagedProfilesUrl" class="Both" displayName="$(string.ManagedProfilesUrl)"
+            explainText="$(string.ManagedProfilesUrl_Help)" presentation="$(presentation.ManagedProfilesUrl)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <text id="ManagedProfilesUrl" valueName="ManagedProfilesUrl" />
+      </elements>
+    </policy>
+  </policies>
+</policyDefinitions>

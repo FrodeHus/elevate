@@ -120,7 +120,7 @@ public class AppModelOperationsTests
     {
         using var test = await TestModel.BootstrappedAsync(online: true);
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [Sample.EntraKey]);
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey])!;
 
         test.Settings.HotKey = new HotKeyBinding(HotKeyBinding.ModControl, 0x45, "Ctrl+E");
         model.ApplyHotKey();

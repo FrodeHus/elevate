@@ -150,4 +150,22 @@ public class ActivationProfileTests
         ]).Should().Be("1 role · 2 groups");
         ProfileSummary.Caption([]).Should().Be("empty");
     }
+
+    [Fact]
+    public void SourceDefaultsToUserAndIsWrittenOnlyWhenManaged()
+    {
+        var user = new ActivationProfile("Ops", []);
+        user.Source.Should().Be(ProfileSource.User);
+        Json.Serialize(user).Should().NotContain("source");
+
+        var managed = user.DeepCopy() with { Source = ProfileSource.Managed };
+        managed.Should().NotBe(user);   // source takes part in equality
+        var json = Json.Serialize(managed);
+        json.Should().Contain("\"source\":\"managed\"");
+        Json.Deserialize<ActivationProfile>(json)!.Source.Should().Be(ProfileSource.Managed);
+
+        // A profile written before `source` existed decodes as a user profile.
+        const string Old = """{"id":"A1B2C3D4-E5F6-4A5B-8C7D-9E0FABCDEF12","name":"Old","entries":[]}""";
+        Json.Deserialize<ActivationProfile>(Old)!.Source.Should().Be(ProfileSource.User);
+    }
 }

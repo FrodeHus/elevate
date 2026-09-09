@@ -39,10 +39,14 @@ struct SettingsView: View {
                         .textSelection(.enabled)
                 }
                 LabeledContent("Updates") {
-                    HStack {
-                        Button("Check for updates") { checkForUpdates() }
-                            .disabled(checkingUpdates)
-                        if checkingUpdates { ProgressView().controlSize(.small) }
+                    if model.settings.updateCheckDisabled {
+                        Text("Updates are managed by your organization").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        HStack {
+                            Button("Check for updates") { checkForUpdates() }
+                                .disabled(checkingUpdates)
+                            if checkingUpdates { ProgressView().controlSize(.small) }
+                        }
                     }
                 }
                 if let message = model.updateCheckMessage {
@@ -60,10 +64,17 @@ struct SettingsView: View {
             Section("Entra app registration") {
                 // Applies on Return or when focus leaves the field, like every other row here;
                 // a Save button made this the one setting that did not take effect on its own.
-                TextField("Application (client) ID", text: $draft, prompt: Text("00000000-0000-0000-0000-000000000000"))
-                    .focused($clientIdFocused)
-                    .onSubmit { if isSaveable { save() } }
-                    .onChange(of: clientIdFocused) { _, focused in if !focused, isSaveable { save() } }
+                if model.settings.isClientIdManaged {
+                    TextField("Application (client) ID", text: .constant(model.settings.clientId))
+                        .disabled(true)
+                    Label("Managed by your organization", systemImage: "building.2")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    TextField("Application (client) ID", text: $draft, prompt: Text("00000000-0000-0000-0000-000000000000"))
+                        .focused($clientIdFocused)
+                        .onSubmit { if isSaveable { save() } }
+                        .onChange(of: clientIdFocused) { _, focused in if !focused, isSaveable { save() } }
+                }
                 LabeledContent("Redirect URI") {
                     HStack {
                         Text(model.ownAppViaLoopback ? "http://localhost" : AppSettings.redirectUri)
@@ -83,9 +94,11 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 DocsLinksRow()
-                if let error { Text(error).font(.caption).foregroundStyle(.red) }
-                else if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }
-                else if isSaveable { Text("Press Return to apply.").font(.caption).foregroundStyle(.secondary) }
+                if !model.settings.isClientIdManaged {
+                    if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                    else if saved { Text("Saved. Add your accounts from the Elevate menu.").font(.caption).foregroundStyle(.secondary) }
+                    else if isSaveable { Text("Press Return to apply.").font(.caption).foregroundStyle(.secondary) }
+                }
             }
             Section("Global shortcut") {
                 LabeledContent("Shortcut") {
@@ -108,6 +121,7 @@ struct SettingsView: View {
                     Text(hotKeyError).font(.caption).foregroundStyle(.red)
                 }
             }
+            ManagedSection()
         }
         .formStyle(.grouped)
         .frame(width: 480)

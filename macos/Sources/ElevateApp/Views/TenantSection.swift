@@ -191,8 +191,14 @@ struct TenantMenuItems: View {
             Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
         }
         Divider()
-        Button("Remove tenant…", role: .destructive) { confirmRemove = true }
-            .disabled(tenant.source == .home)
+        if model.isPinnedTenant(tenant.id) {
+            // A pinned tenant would only come back on the next launch; the menu says so rather
+            // than offering a removal that does nothing.
+            Text("Pinned by your organization").disabled(true)
+        } else {
+            Button("Remove tenant…", role: .destructive) { confirmRemove = true }
+                .disabled(tenant.source == .home)
+        }
     }
 }
 

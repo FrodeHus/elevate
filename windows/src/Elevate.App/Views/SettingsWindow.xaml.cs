@@ -35,6 +35,7 @@ public sealed partial class SettingsWindow : Window
         UpdateUris();
         UpdateHint();
         UpdateOperations();
+        ApplyManaged();
         _model.Changed += OnModelChanged;
         Closed += (_, _) => _model.Changed -= OnModelChanged;
     }
@@ -153,6 +154,155 @@ public sealed partial class SettingsWindow : Window
         CopyDiagnostics.Content = "Copy diagnostics";
     }
 
+    // MARK: Managed configuration
+
+    /// <summary>
+    /// Applies what the organization pushed: the client id is shown but not editable, the update
+    /// button is replaced by a line saying why, and the managed group lists the keys in effect.
+    /// </summary>
+    private void ApplyManaged()
+    {
+        var settings = _model.Settings;
+        if (settings.IsClientIdManaged)
+        {
+            ClientId.Text = settings.ClientId;
+            ClientId.IsEnabled = false;
+            ClientIdManaged.Visibility = Visibility.Visible;
+            ApplyHint.Visibility = Visibility.Collapsed;
+        }
+
+        if (settings.UpdateCheckDisabled)
+        {
+            CheckUpdates.Visibility = Visibility.Collapsed;
+            UpdatesManaged.Visibility = Visibility.Visible;
+        }
+
+        var managed = _model.Managed;
+        if (managed.IsEmpty)
+        {
+            return;
+        }
+
+        ManagedGroup.Visibility = Visibility.Visible;
+        if (managed.ClientId is { } id)
+        {
+            AddManagedRow("Client ID", id, monospace: true);
+        }
+
+        if (managed.DisableUpdateCheck)
+        {
+            AddManagedRow("Update check", "Disabled");
+        }
+
+        if (managed.AllowedSignInMethods is { Count: > 0 } methods)
+        {
+            AddManagedRow("Allowed sign-in methods", MethodNames(methods));
+        }
+
+        if (managed.AllowedTenants is { Count: > 0 } allowed)
+        {
+            AddManagedRow("Allowed tenants", TenantList(allowed), monospace: true);
+        }
+
+        if (managed.PinnedTenants.Count > 0)
+        {
+            AddManagedRow("Pinned tenants", TenantList(managed.PinnedTenants), monospace: true);
+        }
+
+        if (managed.ManagedProfilesDocument is not null)
+        {
+            AddManagedRow("Managed profiles", $"{_model.InlineProfileSet.Profiles.Count} (inline)");
+        }
+
+        if (managed.ManagedProfilesUrl is { } url)
+        {
+            AddManagedRow("Managed profiles URL", $"{url.AbsoluteUri} · fetched {Fetched(_model.ManagedProfilesFetchedAt)}", monospace: true);
+        }
+
+        foreach (var warning in managed.Warnings.Concat(_model.ManagedTenantWarnings).Concat(_model.ManagedProfileWarnings))
+        {
+            ManagedRows.Children.Add(new TextBlock
+            {
+                Text = warning,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"],
+            });
+        }
+
+        if (managed.Origin is { } origin)
+        {
+            ManagedRows.Children.Add(new TextBlock
+            {
+                Text = $"Source: {origin}",
+                FontSize = 11,
+                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+            });
+        }
+    }
+
+    private void AddManagedRow(string label, string value, bool monospace = false)
+    {
+        var row = new Grid { ColumnSpacing = 14 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var name = new TextBlock { Text = label, FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        var text = new TextBlock
+        {
+            Text = value,
+            FontSize = 12,
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        };
+        if (monospace)
+        {
+            text.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+        }
+
+        Grid.SetColumn(text, 1);
+        row.Children.Add(name);
+        row.Children.Add(text);
+        ManagedRows.Children.Add(row);
+    }
+
+    /// <summary>The entries as configured, one per line; a domain also shows the id it resolved to.</summary>
+    private string TenantList(IEnumerable<string> entries) => string.Join(
+        Environment.NewLine,
+        entries.Select(entry => _model.ManagedTenantIds.GetValueOrDefault(entry) is { } resolved
+            && !string.Equals(resolved, entry, StringComparison.OrdinalIgnoreCase)
+            ? $"{entry} → {resolved}"
+            : entry));
+
+    /// <summary>Display names in <see cref="SignInMethodKind"/> order, so the row reads the same every launch.</summary>
+    private static string MethodNames(IReadOnlySet<SignInMethodKind> kinds) => string.Join(
+        ", ",
+        Enum.GetValues<SignInMethodKind>().Where(kinds.Contains).Select(kind => kind switch
+        {
+            SignInMethodKind.OwnApp => SignInMethod.OwnApp.DisplayName,
+            SignInMethodKind.AzureCLI => SignInMethod.AzureCLI.DisplayName,
+            SignInMethodKind.AzurePowerShell => SignInMethod.AzurePowerShell.DisplayName,
+            _ => SignInMethod.Custom("-").DisplayName,
+        }));
+
+    /// <summary>"5 minutes ago", or "never" until the first fetch succeeds.</summary>
+    private static string Fetched(DateTimeOffset? date)
+    {
+        if (date is not { } when)
+        {
+            return "never";
+        }
+
+        var ago = DateTimeOffset.UtcNow - when;
+        return ago switch
+        {
+            { TotalMinutes: < 1 } => "just now",
+            { TotalHours: < 1 } => $"{(int)ago.TotalMinutes} minute(s) ago",
+            { TotalDays: < 1 } => $"{(int)ago.TotalHours} hour(s) ago",
+            _ => $"{(int)ago.TotalDays} day(s) ago",
+        };
+    }
+
     private void SyncStartup()
     {
         _syncingToggle = true;
@@ -166,9 +316,10 @@ public sealed partial class SettingsWindow : Window
         BrokerUri.Text = AppSettings.BrokerRedirectUri(AppSettings.IsValidClientId(id) ? id : "{client id}");
     }
 
-    /// <summary>The field differs from the stored id, or nothing usable is stored yet.</summary>
+    /// <summary>The field differs from the stored id, or nothing usable is stored yet. Never while it is managed.</summary>
     private bool IsDirty =>
-        !string.Equals(ClientId.Text.Trim(), _model.Settings.ClientId, StringComparison.OrdinalIgnoreCase) || !_model.IsConfigured;
+        !_model.Settings.IsClientIdManaged
+        && (!string.Equals(ClientId.Text.Trim(), _model.Settings.ClientId, StringComparison.OrdinalIgnoreCase) || !_model.IsConfigured);
 
     /// <summary>"Press Enter to apply." while the field differs from the stored value.</summary>
     private void UpdateHint() => ApplyHint.Visibility = IsDirty && ClientId.Text.Trim().Length > 0 ? Visibility.Visible : Visibility.Collapsed;

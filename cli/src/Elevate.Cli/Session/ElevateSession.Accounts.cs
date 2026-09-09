@@ -12,6 +12,11 @@ public sealed partial class ElevateSession
     /// <summary>Signs in and adds the account with its home tenant. Returns the identity, or throws with the reason.</summary>
     public async Task<Identity> AddAccountAsync(SignInMethod method, CancellationToken ct = default)
     {
+        if (!IsMethodAllowed(method))
+        {
+            throw DisallowedMethod(MethodName(method), Settings.Managed);
+        }
+
         if (method.IsCustom)
         {
             Settings.CustomClientId = method.CustomClientId!;
@@ -60,6 +65,7 @@ public sealed partial class ElevateSession
         }
 
         Persist();
+        await TrackPinnedTenantsAsync(identity, ct).ConfigureAwait(false);
         return identity;
     }
 
@@ -108,6 +114,11 @@ public sealed partial class ElevateSession
     {
         ArgumentNullException.ThrowIfNull(identity);
         var tenantId = await Discovery.ResolveTenantIdAsync(domainOrId, ct).ConfigureAwait(false);
+        if (!IsTenantAllowed(tenantId))
+        {
+            throw new CliException($"Tenant {domainOrId} is not permitted by your organization", ExitCodes.Usage);
+        }
+
         var key = new TenantKey(identity.Id, tenantId);
         if (Tenant(key) is { } already)
         {
@@ -151,7 +162,7 @@ public sealed partial class ElevateSession
             foreach (var t in tenants)
             {
                 var key = new TenantKey(identity.Id, t.TenantId);
-                if (Tenant(key) is not null)
+                if (!IsTenantAllowed(t.TenantId) || Tenant(key) is not null)
                 {
                     continue;
                 }
@@ -168,6 +179,21 @@ public sealed partial class ElevateSession
 
     public void RemoveTenant(TenantKey key)
     {
+        if (IsPinnedTenant(key))
+        {
+            throw new CliException(PinnedTenantMessage, ExitCodes.Usage);
+        }
+
+        ForgetTenant(key);
+        Persist();
+    }
+
+    /// <summary>
+    /// Drops one tenant and everything derived from it, without saving: the callers that remove
+    /// several at once persist the result themselves.
+    /// </summary>
+    internal void ForgetTenant(TenantKey key)
+    {
         lock (_sync)
         {
             State.RemoveTenant(key);
@@ -179,8 +205,6 @@ public sealed partial class ElevateSession
 
             Approvals.Remove(key);
         }
-
-        Persist();
     }
 
     /// <summary>Clears every latch on a tenant so the next refresh tries discovery again.</summary>

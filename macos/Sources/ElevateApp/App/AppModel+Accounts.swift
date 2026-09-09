@@ -6,8 +6,13 @@ extension AppModel {
     // MARK: Sign-in methods
 
     /// Fixed sign-in methods offered by "Add account…" (a custom client id is typed there).
-    /// `.ownApp` is listed even when unconfigured; the view disables it and explains why.
-    var availableMethods: [SignInMethod] { SignInMethod.builtIn }
+    /// `.ownApp` is listed even when unconfigured; the view disables it and explains why. A method
+    /// the organization does not permit is not listed at all.
+    var availableMethods: [SignInMethod] { SignInMethod.builtIn.filter { isMethodAllowed($0) } }
+
+    /// Whether the "Custom app" row is offered; the client id typed into it does not change the
+    /// answer, since the managed allow-list names kinds of method, not registrations.
+    var isCustomMethodAllowed: Bool { isMethodAllowed(.custom(clientId: "")) }
 
     /// The custom client id used last time, for prefilling the add-account dialog.
     var rememberedCustomClientId: String { settings.customClientId }
@@ -19,7 +24,8 @@ extension AppModel {
     /// keychain group (`errSecMissingEntitlement`, -34018) — the loopback flow over the same
     /// client id. `isConfigured` already covers both.
     func isAvailable(_ method: SignInMethod) -> Bool {
-        switch method {
+        guard isMethodAllowed(method) else { return false }
+        return switch method {
         case .ownApp: isConfigured
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
@@ -42,6 +48,11 @@ extension AppModel {
     /// account was actually added (a saved-refresh-token warning still counts as success).
     @discardableResult
     func addAccount(method: SignInMethod = .ownApp) async -> Bool {
+        guard isMethodAllowed(method) else {
+            notice = Self.disallowedMethodNotice
+            logError("Add account (\(method.displayName)): \(Self.disallowedMethodNotice)")
+            return false
+        }
         guard isAvailable(method) else {
             switch method {
             case .ownApp: notice = "Complete initial setup first"
@@ -86,6 +97,7 @@ extension AppModel {
             }
             persist()
             await refresh(homeKey)
+            await trackPinnedTenants(identityId: identity.id)
             return true
         } catch {
             let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
@@ -104,6 +116,11 @@ extension AppModel {
     @discardableResult
     func retrySignIn(_ identity: Identity) async -> Bool {
         let method = identity.signInMethod
+        guard isMethodAllowed(method) else {
+            notice = Self.disallowedMethodNotice
+            logError("Sign in again (\(method.displayName)): \(Self.disallowedMethodNotice)")
+            return false
+        }
         guard isAvailable(method) else {
             notice = method == .ownApp ? "Complete initial setup first" : "That sign-in method is unavailable"
             logError("Sign in again (\(method.displayName)): \(notice ?? "unavailable")")
@@ -162,6 +179,9 @@ extension AppModel {
         guard let identity = self.identity(identityId) else { throw PIMError.unexpected(status: 0, body: "Unknown identity") }
         let tenantId = try await discovery.resolveTenantId(domainOrId: domainOrId)
         guard generation == configGeneration else { return }
+        guard isTenantAllowed(tenantId) else {
+            throw PIMError.unexpected(status: 0, body: Self.disallowedTenantMessage(domainOrId))
+        }
         let key = TenantKey(identityId: identityId, tenantId: tenantId)
         guard tenant(key) == nil else { return }
         let name = (try? await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: tenantId, scopes: [GraphScopes.userRead]) { @Sendable in
@@ -182,6 +202,7 @@ extension AppModel {
 
     func trackTenants(identityId: String, tenants: [DiscoveredTenant]) async {
         let generation = configGeneration
+        let tenants = tenants.filter { isTenantAllowed($0.tenantId) }
         for t in tenants {
             let key = TenantKey(identityId: identityId, tenantId: t.tenantId)
             guard tenant(key) == nil else { continue }
@@ -200,13 +221,24 @@ extension AppModel {
     }
 
     func removeTenant(_ key: TenantKey) {
+        guard !isPinnedTenant(key) else {
+            notice = Self.pinnedTenantNotice
+            return
+        }
+        forgetTenant(key)
+        persist()
+    }
+
+    /// Drops one tenant and everything derived from it, without saving: the callers that remove
+    /// several at once persist the result themselves.
+    // internal for AppModel+Managed
+    func forgetTenant(_ key: TenantKey) {
         declinedTenants.remove(key)
         state.removeTenant(key)
         roles[key] = nil
         active = active.filter { $0.key.tenantKey != key }
         dropApprovals { $0 == key }
         dropPolicies { $0.tenantKey == key }
-        persist()
     }
 
     func retryDiscovery(_ key: TenantKey) async {

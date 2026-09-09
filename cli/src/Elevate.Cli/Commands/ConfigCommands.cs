@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
+using Elevate.Core.Managed;
 using Spectre.Console;
 
 namespace Elevate.Cli.Commands;
@@ -9,6 +10,16 @@ namespace Elevate.Cli.Commands;
 public static class ConfigCommands
 {
     private static readonly string[] Keys = ["client-id", "custom-client-id", "unprotected-cache", "token-hint"];
+
+    private static string Label(SettingSource source) => source switch
+    {
+        SettingSource.Managed => "managed",
+        SettingSource.User => "user",
+        _ => "default",
+    };
+
+    /// <summary>Everything but client-id is the user's when it has a value, the built-in default otherwise.</summary>
+    private static SettingSource StoredSource(bool isSet) => isSet ? SettingSource.User : SettingSource.Default;
 
     /// <summary>"shown", or the accounts the stale-token hint is hidden for.</summary>
     private static string TokenHintState(CommandContext context)
@@ -34,24 +45,38 @@ public static class ConfigCommands
                     customClientId = settings.CustomClientId.Length == 0 ? null : settings.CustomClientId,
                     unprotectedCache = settings.UnprotectedCache,
                     tokenHintHiddenFor = settings.DismissedTokenHintAccounts.Select(context.Session.AccountName).Order(StringComparer.Ordinal).ToList(),
+                    sources = new
+                    {
+                        clientId = Label(settings.ClientIdSource),
+                        customClientId = Label(StoredSource(settings.CustomClientId.Length > 0)),
+                        unprotectedCache = Label(StoredSource(settings.UnprotectedCache)),
+                        tokenHint = Label(StoredSource(settings.DismissedTokenHintAccounts.Count > 0)),
+                    },
                 });
                 return Task.FromResult(ExitCodes.Ok);
             }
 
-            var table = new Table().Border(TableBorder.Rounded).HideHeaders();
+            var table = new Table().Border(TableBorder.Rounded);
             table.AddColumn("Key");
             table.AddColumn("Value");
-            table.AddRow("data directory", Markup.Escape(context.DataDirectory));
-            table.AddRow("client-id", settings.ClientId.Length == 0 ? "[grey]not set (needed for --method own)[/]" : Markup.Escape(settings.ClientId));
-            table.AddRow("custom-client-id", settings.CustomClientId.Length == 0 ? "[grey]not set[/]" : Markup.Escape(settings.CustomClientId));
-            table.AddRow("unprotected-cache", settings.UnprotectedCache ? "[yellow]true (Linux: plain-file token cache)[/]" : "false");
-            table.AddRow("token-hint", Markup.Escape(TokenHintState(context)));
+            table.AddColumn("Source");
+            table.AddRow("data directory", Markup.Escape(context.DataDirectory), string.Empty);
+            table.AddRow("client-id", settings.ClientId.Length == 0 ? "[grey]not set (needed for --method own)[/]" : Markup.Escape(settings.ClientId), Label(settings.ClientIdSource));
+            table.AddRow("custom-client-id", settings.CustomClientId.Length == 0 ? "[grey]not set[/]" : Markup.Escape(settings.CustomClientId), Label(StoredSource(settings.CustomClientId.Length > 0)));
+            table.AddRow("unprotected-cache", settings.UnprotectedCache ? "[yellow]true (Linux: plain-file token cache)[/]" : "false", Label(StoredSource(settings.UnprotectedCache)));
+            table.AddRow("token-hint", Markup.Escape(TokenHintState(context)), Label(StoredSource(settings.DismissedTokenHintAccounts.Count > 0)));
             context.Output.Write(table);
+            if (settings.IsClientIdManaged)
+            {
+                context.Output.Note($"client-id: managed by your organization ({Markup.Escape(settings.Managed.Origin ?? "policy")}).");
+            }
+
             return Task.FromResult(ExitCodes.Ok);
         });
         command.Subcommands.Add(Set());
         command.Subcommands.Add(Get());
         command.Subcommands.Add(PathCommand());
+        command.Subcommands.Add(ManagedCommand());
         return command;
     }
 
@@ -107,6 +132,12 @@ public static class ConfigCommands
 
                 case "client-id":
                 {
+                    // Refused before any prompt or sign-out: a managed client id cannot change here.
+                    if (settings.IsClientIdManaged)
+                    {
+                        throw new CliException(CliSettings.ManagedClientIdMessage, ExitCodes.Usage);
+                    }
+
                     if (v.Length > 0 && !CliSettings.IsValidClientId(v))
                     {
                         throw new CliException("The application (client) ID must be a GUID.", ExitCodes.Usage);
@@ -171,7 +202,8 @@ public static class ConfigCommands
         {
             var context = CommandContext.From(parse);
             var settings = context.Session.Settings;
-            var text = parse.GetValue(key)!.Trim().ToLowerInvariant() switch
+            var k = parse.GetValue(key)!.Trim().ToLowerInvariant();
+            var text = k switch
             {
                 "client-id" => settings.ClientId,
                 "custom-client-id" => settings.CustomClientId,
@@ -180,7 +212,77 @@ public static class ConfigCommands
                 var other => throw new CliException($"Unknown setting '{other}'. Keys: {string.Join(", ", Keys)}.", ExitCodes.Usage),
             };
             context.Output.Plain(text);
+            if (k == "client-id" && settings.IsClientIdManaged)
+            {
+                context.Output.Note($"client-id: managed by your organization ({Markup.Escape(settings.Managed.Origin ?? "policy")})");
+            }
+
             return Task.FromResult(ExitCodes.Ok);
+        });
+        return command;
+    }
+
+    /// <summary><c>config managed</c>: the policy in effect, by key name only — never a value.</summary>
+    private static Command ManagedCommand()
+    {
+        var file = new Option<string?>("--file") { Description = "Read a managed.json from this path instead of the platform source; a dry run for testing a policy file." };
+        var command = new Command("managed", "Show the managed (MDM/GPO) configuration in effect: where it comes from, which keys it sets, and anything it got wrong.") { file };
+        command.SetAction(async (parse, ct) =>
+        {
+            var context = CommandContext.From(parse);
+            ManagedConfiguration managed;
+            IReadOnlyList<string> warnings;
+            string? origin;
+            if (parse.GetValue(file) is { Length: > 0 } path)
+            {
+                // A caveat that changes what the output means, so it is said even with --json.
+                context.Output.Warn($"Dry run: the trust check is skipped for {Markup.Escape(path)}, so a file the real load would ignore is still read here.");
+                var source = new JsonFileManagedSource(path, _ => true);
+                managed = ManagedConfiguration.Load(source);
+                warnings = source.Warning is { } warning ? [.. managed.Warnings, warning] : managed.Warnings;
+                origin = managed.Origin ?? (warnings.Count > 0 ? source.Origin : null);
+            }
+            else
+            {
+                // The session must resolve (managed tenants, then the published profiles) before
+                // ManagedProfileWarnings has anything in it: without this the ManagedProfilesUrl
+                // warning is unreachable and every domain-named profile tenant looks unresolved.
+                var session = await context.SessionAsync(ct).ConfigureAwait(false);
+                managed = session.Settings.Managed;
+                // Whatever the published profile document got wrong belongs here too.
+                warnings = [.. managed.Warnings, .. session.ManagedProfileWarnings];
+                origin = managed.Origin;
+            }
+
+            var keys = managed.KeysInEffect.Select(k => k.Name()).ToList();
+            if (context.Output.Json)
+            {
+                context.Output.WriteJson(new { origin, keys, warnings });
+                return ExitCodes.Ok;
+            }
+
+            if (keys.Count == 0 && warnings.Count == 0)
+            {
+                context.Output.Note("No managed configuration.");
+                return ExitCodes.Ok;
+            }
+
+            var table = new Table().Border(TableBorder.Rounded).HideHeaders();
+            table.AddColumn("What");
+            table.AddColumn("Value");
+            table.AddRow("origin", Markup.Escape(origin ?? "none"));
+            foreach (var key in keys)
+            {
+                table.AddRow("key", Markup.Escape(key));
+            }
+
+            foreach (var warning in warnings)
+            {
+                table.AddRow("[yellow]warning[/]", Markup.Escape(warning));
+            }
+
+            context.Output.Write(table);
+            return ExitCodes.Ok;
         });
         return command;
     }

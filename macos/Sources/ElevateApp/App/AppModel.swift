@@ -115,6 +115,46 @@ final class AppModel {
     /// Managed by `noteTokenHint`/`dismissTokenHint` in AppModel+Activation.
     var tokenHintAccounts: [String] = []
 
+    // MARK: Managed configuration — AppModel+Managed
+
+    /// Tenant ids the organization's `AllowedTenants` permits, nil when the key is not in effect
+    /// or an entry could not be resolved (the restriction is never applied on guesswork; the
+    /// unresolved entry becomes a warning instead).
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var allowedTenantIds: Set<String>?
+    /// Tenant ids the organization's `PinnedTenants` resolved to, in the configured order.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var pinnedTenantIds: [String] = []
+    /// Managed tenant entry, exactly as configured → the tenant id it resolved to.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantIds: [String: String] = [:]
+    /// One line per managed tenant entry that could not be resolved, shown in Settings.
+    /// Setter internal: filled by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantWarnings: [String] = []
+    /// False while the managed tenants still need resolving — there was no network path when
+    /// `bootstrap()` tried. The reconnect handler runs the resolution once when the path returns.
+    /// Setter internal: set by `resolveManagedTenants()` in AppModel+Managed.
+    var managedTenantsResolved = false
+
+    // MARK: Managed profiles — AppModel+ManagedProfiles
+
+    /// The inline `ManagedProfiles` document, parsed once at init: managed preferences do not
+    /// change under a running app, so parsing it on every read would be wasted work.
+    /// Setter internal: filled in `init` through `AppModel+ManagedProfiles`.
+    var inlineProfileSet: ManagedProfileSet = .empty
+    /// The one warning a rejected inline document produces, kept beside the parsed set.
+    var inlineProfileWarning: String?
+    /// The last document fetched from `ManagedProfilesUrl`, or the cached copy of it. Nil until
+    /// a fetch or a cache read has produced one.
+    /// Setter internal: filled by `refreshManagedProfiles` in AppModel+ManagedProfiles.
+    var fetchedProfileSet: ManagedProfileSet?
+    /// Why the last fetch failed, as a Settings warning; cleared by the next success.
+    /// Setter internal: set by `refreshManagedProfiles` in AppModel+ManagedProfiles.
+    var managedProfileFetchWarning: String?
+    /// Downloads and caches the published profile document next to `state.json`. It needs only
+    /// `http` and the cache location, neither of which changes, so one instance serves the app's life.
+    let profileFetcher: ManagedProfileFetcher     // internal for AppModel+ManagedProfiles
+
     // MARK: Dependencies
 
     let settings: AppSettings
@@ -123,6 +163,10 @@ final class AppModel {
     /// Approval readers/deciders, one per kind, rebuilt with the coordinator when the client id changes.
     private(set) var approvalProviders: [RoleScopeKind: any ApprovalProvider]
     private(set) var discovery: TenantDiscovery
+    /// Turns managed tenant entries (GUIDs or verified domains) into tenant ids, caching what it
+    /// resolves. It needs only `http`, which never changes, so one instance serves the app's life
+    /// — `applyClientId` has nothing to rebuild here.
+    let tenantResolver: ManagedTenantResolver          // internal for AppModel+Managed
     private let store: AppStateStore
     let notifier: any ExpiryNotifying                 // internal for AppModel+Refresh, +Approvals, +Activation
     private let network: NetworkMonitor
@@ -169,6 +213,9 @@ final class AppModel {
     /// build, the loopback flow on an unsigned one. The first-party methods work without it.
     var isConfigured: Bool { settings.isConfigured && (msal != nil || ownAppViaLoopback) }
 
+    /// The settings an organization pushed through MDM, for the views that show what is managed.
+    var managed: ManagedConfiguration { settings.managed }
+
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
          msal: MSALTokenProvider? = nil, loopback: LoopbackProviderRegistry? = nil,
@@ -188,6 +235,9 @@ final class AppModel {
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
         accessPackageProvider = AccessPackageProvider(http: http, tokens: tokens)
+        tenantResolver = ManagedTenantResolver(http: http)
+        profileFetcher = ManagedProfileFetcher(http: http, cacheURL: store.directory.appendingPathComponent(Self.managedProfilesCacheFile))
+        loadInlineProfiles()
     }
 
     private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
@@ -241,6 +291,7 @@ final class AppModel {
     /// loopback keychain store on an unsigned one — so every *own-app* account is signed out and
     /// cleared; first-party accounts keep their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
+        guard !settings.isClientIdManaged else { throw PIMError.unexpected(status: 0, body: "The client ID is managed by your organization") }
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
         // Construct the new provider before mutating anything, so a throwing init leaves the
@@ -390,11 +441,35 @@ final class AppModel {
             logError("Could not read saved sign-ins from the Keychain")
         }
         persist()
-        if isOnline { await refreshAll() }
+        // Neither the timer nor the hot key needs the network, and both are started first so a
+        // slow tenant lookup cannot delay the shortcut the user may already be pressing.
         startTimer()
         applyHotKey()
+        watchNetwork()
+        // Managed tenants before the refresh: resolving may remove tenants the organization no
+        // longer permits and add pinned ones, and `refreshAll()` should see the final list. It
+        // never throws; offline it resolves nothing and `watchNetwork()` retries it once the
+        // path comes back.
+        await resolveManagedTenants()
+        // The published profile document, from the cache and then over the network. It restricts
+        // nothing, so a failure here is a warning in Settings and never blocks the refresh.
+        await refreshManagedProfiles()
+        if isOnline { await refreshAll() }
         // Fire and forget: an update check must never hold up the first panel open.
         Task { await self.checkForUpdates() }
+    }
+
+    /// Picks up the work held back while the machine had no network path, once it comes back:
+    /// the managed tenants first, if they never resolved, so the refresh sees the final tenant list.
+    private func watchNetwork() {
+        network.onChange = { [weak self] online in
+            guard online, let self else { return }
+            Task { @MainActor in
+                if !self.managedTenantsResolved { await self.resolveManagedTenants() }
+                await self.refreshManagedProfiles()
+                await self.refreshAll()
+            }
+        }
     }
 
     // MARK: Timers
@@ -428,6 +503,9 @@ final class AppModel {
                 try? await Task.sleep(for: .seconds(Self.accessPackageBackgroundInterval))
                 guard let self else { return }
                 guard self.isOnline else { continue }
+                // Both are background reads on the same slow cadence; the profile fetch throttles
+                // itself to once a day, so riding this tick costs nothing extra.
+                await self.refreshManagedProfiles()
                 await self.pollAccessPackagesIfDue()
             }
         }

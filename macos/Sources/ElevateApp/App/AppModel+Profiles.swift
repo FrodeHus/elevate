@@ -5,8 +5,12 @@ import ElevateCore
 extension AppModel {
     // MARK: Profiles
 
-    var profiles: [ActivationProfile] { state.profiles }
-    func profile(id: UUID) -> ActivationProfile? { state.profile(id: id) }
+    /// The user's own profiles, then the ones the organization publishes. Managed profiles live
+    /// only in memory: they are resolved on every read and never reach `state.json`.
+    var profiles: [ActivationProfile] { state.profiles + managedProfiles }
+    func profile(id: UUID) -> ActivationProfile? {
+        state.profile(id: id) ?? managedProfiles.first { $0.id == id }
+    }
 
     func requestRun(_ id: UUID) { runRequests[id, default: 0] += 1 }
 
@@ -22,30 +26,56 @@ extension AppModel {
         }
     }
 
+    /// The one refusal for a name a published profile already carries, worded as the CLI words it.
+    static func managedProfileRefusal(_ name: String) -> String {
+        "'\(name)' is published by your organization and cannot be changed."
+    }
+
+    /// Refuses a name a published profile already carries, so a user profile cannot shadow one —
+    /// the CLI refuses the same name, and a state the app allowed must not error there.
+    /// Returns the notice to show, or nil when the name is free.
+    private func managedNameRefusal(_ name: String) -> String? {
+        guard let published = managedProfiles.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })
+        else { return nil }
+        return Self.managedProfileRefusal(published.name)
+    }
+
+    /// Saves a new profile, or returns nil having set `notice` when the organization publishes a
+    /// profile by that name.
     @discardableResult
-    func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile {
+    func saveProfile(name: String, keys: [RoleKey]) -> ActivationProfile? {
         let entries = orderedKeys(keys).map { ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let profile = ActivationProfile(name: trimmed.isEmpty ? "Untitled profile" : trimmed, entries: entries)
+        let final = trimmed.isEmpty ? "Untitled profile" : trimmed
+        if let refusal = managedNameRefusal(final) {
+            notice = refusal
+            return nil
+        }
+        let profile = ActivationProfile(name: final, entries: entries)
         state.upsertProfile(profile); persist()
         return profile
     }
 
     func updateProfile(id: UUID, keys: [RoleKey]) {
-        guard var p = state.profile(id: id) else { return }
+        guard !isManagedProfile(id), var p = state.profile(id: id) else { return }
         let old = Dictionary(p.entries.map { ($0.roleKey, $0) }, uniquingKeysWith: { _, b in b })
         p.entries = orderedKeys(keys).map { old[$0] ?? ActivationProfile.Entry(roleKey: $0, lastDuration: remembered(for: $0)?.lastDuration) }
         state.upsertProfile(p); persist()
     }
 
     func renameProfile(id: UUID, name: String) {
-        guard var p = state.profile(id: id) else { return }
+        guard !isManagedProfile(id), var p = state.profile(id: id) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        if let refusal = managedNameRefusal(trimmed) {
+            notice = refusal
+            return
+        }
         p.name = trimmed; state.upsertProfile(p); persist()
     }
 
     func deleteProfile(id: UUID) {
+        guard !isManagedProfile(id) else { return }
         state.removeProfile(id: id)
         persist()
         // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
@@ -54,16 +84,28 @@ extension AppModel {
             applyHotKey()
         }
     }
-    func moveProfile(fromOffsets: IndexSet, toOffset: Int) { state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist() }
+    /// Reorders the user's profiles. The managed ones are listed after them and cannot be moved,
+    /// so offsets that reach into that tail are ignored rather than applied to the wrong profile.
+    func moveProfile(fromOffsets: IndexSet, toOffset: Int) {
+        let count = state.profiles.count
+        guard fromOffsets.allSatisfy({ $0 < count }), toOffset <= count else { return }
+        state.moveProfile(fromOffsets: fromOffsets, toOffset: toOffset); persist()
+    }
 
-    /// Profiles shown as chips in the panel, in list order.
-    var pinnedProfiles: [ActivationProfile] { state.pinnedProfiles }
+    /// Profiles shown as chips in the panel, in list order. Pinned managed profiles come first and
+    /// do not count against `ProfilePins.limit`: the organization asked for them, so they never
+    /// cost the user a pin of their own.
+    var pinnedProfiles: [ActivationProfile] { managedProfiles.filter(\.pinned) + state.pinnedProfiles }
+
+    /// Whether the user still has a pin slot free. Only the user's own pins count against
+    /// `ProfilePins.limit`; pinned managed profiles must not cost the user a slot here either.
+    var canPinAnotherProfile: Bool { state.pinnedProfiles.count < ProfilePins.limit }
 
     /// Pins or unpins a profile. Returns false, changing nothing, when the pinned row is full
     /// (`ProfilePins.limit`); the caller says so instead of silently ignoring the click.
     @discardableResult
     func setPinned(id: UUID, _ pinned: Bool) -> Bool {
-        guard state.setPinned(id: id, pinned) else { return false }
+        guard !isManagedProfile(id), state.setPinned(id: id, pinned) else { return false }
         persist()
         return true
     }
@@ -81,7 +123,7 @@ extension AppModel {
     /// Adds roles to a profile, keeping the entries it already has (and their durations) and the
     /// stable order `saveProfile` uses. Keys already present are ignored.
     func addProfileEntries(id: UUID, keys: [RoleKey]) {
-        guard let p = state.profile(id: id) else { return }
+        guard !isManagedProfile(id), let p = state.profile(id: id) else { return }
         let existing = Set(p.entries.map(\.roleKey))
         let added = keys.filter { !existing.contains($0) }
         guard !added.isEmpty else { return }
@@ -89,14 +131,14 @@ extension AppModel {
     }
 
     func removeProfileEntry(id: UUID, key: RoleKey) {
-        guard var p = state.profile(id: id) else { return }
+        guard !isManagedProfile(id), var p = state.profile(id: id) else { return }
         p.entries.removeAll { $0.roleKey == key }
         state.upsertProfile(p); persist()
     }
 
     /// The duration the next run proposes for one entry; nil falls back to memory or the policy.
     func setProfileEntryDuration(id: UUID, key: RoleKey, duration: Duration?) {
-        guard var p = state.profile(id: id), let i = p.entries.firstIndex(where: { $0.roleKey == key }) else { return }
+        guard !isManagedProfile(id), var p = state.profile(id: id), let i = p.entries.firstIndex(where: { $0.roleKey == key }) else { return }
         p.entries[i].lastDuration = duration
         state.upsertProfile(p); persist()
     }
@@ -108,7 +150,7 @@ extension AppModel {
     }
 
     func plan(for profileId: UUID) -> [ProfilePlanItem] {
-        guard let p = state.profile(id: profileId) else { return [] }
+        guard let p = profile(id: profileId) else { return [] }
         var rolesByKey: [RoleKey: EligibleRole] = [:]
         for list in roles.values { for r in list { rolesByKey[r.key] = r } }
         let memoryByKey = Dictionary(state.memory.map { ($0.roleKey, $0) }, uniquingKeysWith: { _, b in b })
@@ -130,7 +172,9 @@ extension AppModel {
                               startDateTime: startDateTime)
         }
         let outcomes = requests.isEmpty ? [] : await activate(requests)
-        guard var p = state.profile(id: id) else { return outcomes }
+        // A managed profile is the organization's document; nothing is remembered onto it. The
+        // per-role memory `activate` writes is unaffected.
+        guard !isManagedProfile(id), var p = state.profile(id: id) else { return outcomes }
         p.lastJustification = justification
         for item in items where item.disposition != .notEligible && item.disposition != .notLoaded {
             // `rekey` may have moved a manual Azure entry onto the key the provider resolved, so the
