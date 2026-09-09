@@ -3,9 +3,10 @@
 Releases are cut by one workflow run. `.github/workflows/release.yml` moves the
 Unreleased changelog entries under the new version, tags `main`, builds the
 macOS app, the Windows app and the CLI from that commit, publishes a single
-GitHub Release "Elevate x.y.z" with the DMG, the x64 and arm64 MSIs, the six CLI
-archives, their SHA-256 files and a CLI checksums file, and commits the Homebrew
-cask and formula to `main`. All three carry the same version number; a platform
+GitHub Release "Elevate x.y.z" with the DMG, the macOS installer package, the
+x64 and arm64 MSIs, the six CLI archives, the enterprise kit, their SHA-256
+files and a CLI checksums file, and commits the Homebrew cask and formula to
+`main`. All three carry the same version number; a platform
 without code changes since the last release is simply rebuilt.
 
 ## Cutting a release
@@ -87,7 +88,17 @@ first, then `macos`, `windows` and the three `cli` matrix legs in parallel, and
    writes `dist/Elevate-$VERSION.dmg.sha256`. On the signed path the DMG
    itself is then notarized and stapled too, so the downloaded disk image opens
    without a Gatekeeper prompt even before the user drags the app out.
-5. Uploads the DMG and its hash as the `macos` artifact.
+5. Packages `dist/Elevate-$VERSION.pkg` with `pkgbuild` (the app into
+   `/Applications`, identifier `no.reothor.elevate`) — the installer package
+   Jamf and Intune deploy. With `MACOS_INSTALLER_CERT_P12` and
+   `MACOS_INSTALLER_CERT_PASSWORD` set it is signed with `productsign --sign
+   "Developer ID Installer" --timestamp` and, with the notarization secrets,
+   notarized and stapled like the DMG; without them it ships unsigned, which
+   Jamf and `installer -pkg` accept but Intune does not. The
+   `dist/Elevate-$VERSION.pkg.sha256` is written after stapling, and the job
+   output `pkg_signed` (`1` or `0`) tells the publish job which wording the
+   release notes get.
+6. Uploads the DMG, the pkg and their hashes as the `macos` artifact.
 
 **windows** (`windows-latest`):
 
@@ -126,13 +137,20 @@ for `osx-arm64` and `osx-x64`, `windows-latest` for `win-x64` and `win-arm64`):
 
 1. Downloads every artifact, reads the app hashes and writes one
    `elevate-cli-<version>-checksums.txt` from the six CLI `.sha256` files.
-2. Writes the notes: the changelog section for the version, then a macOS
+2. Builds the enterprise kit from the checkout: `scripts/validate-enterprise-kit.py`
+   first, so a kit that drifted from `docs/enterprise/keys.md` fails the release
+   instead of shipping, then `enterprise/` plus `docs/enterprise/keys.md` into
+   `Elevate-enterprise-kit-<version>/`, with `{{VERSION}}` in the kit's
+   `README.md` replaced by the version, zipped as
+   `dist/Elevate-enterprise-kit-<version>.zip` with a `.sha256`.
+3. Writes the notes: the changelog section for the version, then a macOS
    section (notarized or the Open Anyway steps, the Homebrew sequence, the DMG
    hash), a Windows section (signed or the SmartScreen step, the MSI hashes)
    and a CLI section (the Homebrew formula, winget, the archives and the
-   checksums file).
-3. Creates the GitHub Release with every asset attached.
-4. Runs `scripts/update-cask.sh` and `scripts/update-formula.sh` on a checkout
+   checksums file) and an Enterprise section (the pkg, signed and notarized or
+   unsigned, the kit and its contents, and a link to `docs/enterprise/README.md`).
+4. Creates the GitHub Release with every asset attached.
+5. Runs `scripts/update-cask.sh` and `scripts/update-formula.sh` on a checkout
    of `main`, which rewrite `Casks/elevate.rb` and `Formula/elevate-cli.rb`
    with the new version, SHA-256 values and download URLs, and commits both to
    `main` as `github-actions[bot]` over the deploy key in one commit, retrying
@@ -149,7 +167,8 @@ and run `wingetcreate submit` on them.
 The workflow works with no secrets at all and produces an ad-hoc signed build; since 1.2.2 the secrets are set and every release is signed and notarized.
 Adding all six repository secrets (Settings → Secrets and variables →
 Actions) switches it to Developer ID signing and notarization. They require an
-Apple Developer Program membership.
+Apple Developer Program membership. Two further secrets, listed after the table,
+sign the installer package; they are independent of the six.
 
 | Secret | What it is |
 |---|---|
@@ -159,6 +178,18 @@ Apple Developer Program membership.
 | `APPLE_TEAM_ID` | The 10-character Developer Team ID |
 | `APPLE_APP_PASSWORD` | An app-specific password for that Apple ID |
 | `MACOS_PROVISIONING_PROFILE` | Base64 of a "Developer ID Application" provisioning profile for `no.reothor.elevate` (a `.provisionprofile`; needed because the keychain-sharing entitlement is restricted and macOS refuses to launch a Developer ID app that carries it without a profile) |
+| `MACOS_INSTALLER_CERT_P12` | Base64 of a "Developer ID **Installer**" certificate exported as a `.p12` (with its private key) — a different certificate from `MACOS_CERT_P12`, created the same way and exported from Keychain Access the same way |
+| `MACOS_INSTALLER_CERT_PASSWORD` | The password set when exporting that `.p12` |
+
+The two installer secrets are optional on their own: without them the pkg is
+still built, just unsigned, and the release notes say so. The workflow imports
+that certificate into the same temporary `build.keychain` as the application
+one — creating the keychain first if the unsigned build path skipped it, since
+`pkgbuild` itself needs no keychain — signs with `productsign --sign "Developer
+ID Installer" --timestamp`, and, when the notarization secrets are set too,
+notarizes and staples the pkg before the checksum is taken. Intune refuses an
+unsigned pkg; Jamf and `sudo installer -pkg Elevate-x.y.z.pkg -target /` accept
+one.
 
 Creating them:
 
