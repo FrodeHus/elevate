@@ -16,6 +16,8 @@ public class RunCommandSupportTests
         try
         {
             File.WriteAllText(Path.Combine(dir, "az.cmd"), "@echo off");
+            // The Azure CLI ships this extensionless bash script next to az.cmd; with PATHEXT in force it must be skipped.
+            File.WriteAllText(Path.Combine(dir, "az"), "#!/bin/bash");
             File.WriteAllText(Path.Combine(dir, "kubectl"), "#!/bin/sh");
             var path = "/nowhere" + Path.PathSeparator + dir;
 

@@ -26,7 +26,13 @@ public static class CommandLauncher
 
         IEnumerable<string> Candidates(string basePath)
         {
-            yield return basePath;
+            // With a PATHEXT list only those extensions run: the Azure CLI ships an extensionless
+            // `az` (a bash script) next to `az.cmd`, and CreateProcess cannot start the former.
+            if (extensions.Length == 0 || extensions.Any(e => basePath.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return basePath;
+            }
+
             foreach (var extension in extensions)
             {
                 if (!basePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -67,8 +73,20 @@ public static class CommandLauncher
             info.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(info) ?? throw new CliException($"Could not start {executable}.", ExitCodes.Failure);
-        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-        return process.ExitCode;
+        Process process;
+        try
+        {
+            process = Process.Start(info) ?? throw new CliException($"Could not start {executable}.", ExitCodes.Failure);
+        }
+        catch (System.ComponentModel.Win32Exception e)
+        {
+            throw new CliException($"Could not start {executable}: {e.Message}", ExitCodes.CommandNotFound);
+        }
+
+        using (process)
+        {
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            return process.ExitCode;
+        }
     }
 }
