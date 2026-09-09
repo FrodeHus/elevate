@@ -68,6 +68,17 @@ Files live in `%LOCALAPPDATA%\Elevate`: `state.json` (accounts, tenants, manual 
 reasons; the same schema as the macOS app), `settings.json`, the DPAPI-protected MSAL token cache
 `msal.cache`, and `elevate.log` for failures of the shell itself.
 
+## Managed configuration
+
+An organization can push Elevate's settings with Group Policy or Intune instead of telling
+everyone a client id. The app reads `HKLM\SOFTWARE\Policies\Reothor\Elevate`, then the same key
+under `HKCU` (the machine value wins per key), and locks each value it finds: the setting renders
+disabled with a "Managed by your organization" caption, and Settings and Diagnostics list the keys
+in effect. An ADMX template ships with each release. Administrators start at
+[docs/enterprise/README.md](../docs/enterprise/README.md); the keys are in
+[docs/enterprise/keys.md](../docs/enterprise/keys.md) and the templates in
+[enterprise/](../enterprise/).
+
 ## Build and test
 
 ```powershell

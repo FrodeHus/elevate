@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- macOS, Windows and CLI: organization-managed configuration. Seven keys — `ClientId`,
+  `DisableUpdateCheck`, `AllowedSignInMethods`, `AllowedTenants`, `PinnedTenants`,
+  `ManagedProfiles` and `ManagedProfilesUrl` — arrive from macOS managed preferences
+  (`no.reothor.elevate`), `HKLM`/`HKCU\SOFTWARE\Policies\Reothor\Elevate` on Windows, or
+  `/etc/elevate/managed.json` for the CLI on macOS and Linux. A managed value wins over the user's
+  and over the default; the setting renders disabled with a "Managed by your organization" caption
+  and writes to it are refused. Locking is per key: a key you do not push leaves the choice to the
+  user, and an invalid value is ignored on its own with a warning.
+- macOS, Windows and CLI: with `ClientId` pushed, a fresh install skips setup entirely;
+  `DisableUpdateCheck` stops the daily GitHub check and replaces the update button with a caption.
+  Settings gains a "Managed by your organization" section listing the keys in effect and any
+  warnings, and Diagnostics a "Managed configuration:" section with the source, the key names and
+  the warnings — never the values.
+- macOS, Windows and CLI: `AllowedSignInMethods` hides the other methods from Add account and
+  refuses them in `elevate login --method`; an account added earlier with a method that is no
+  longer permitted keeps working, with a caption. `AllowedTenants` limits tenant discovery and
+  manual adds (an account's home tenant is always allowed, and tenants that are no longer permitted
+  are dropped at launch); `PinnedTenants` are tracked automatically for every account that can
+  reach them and cannot be removed.
+- macOS, Windows and CLI: an organization can publish activation profiles, inline with
+  `ManagedProfiles` or from an https URL with `ManagedProfilesUrl` (fetched once a day, the last
+  copy kept when a fetch fails, the two merged by id with the fetched one winning). Published
+  profiles are listed, runnable and bindable to the shortcut, but cannot be renamed, edited, pinned
+  or deleted; a role the account is not eligible for plans as "not eligible · skipped". New
+  `elevate profiles export <name>` prints one of your own profiles in the published format.
+- CLI: `elevate config` gains a `Source` column (`managed`, `user`, `default`) and
+  `elevate config managed [--file <path>]` prints the origin, the keys in effect and the warnings,
+  with `--file` as a dry run for a `managed.json` before you deploy it.
+- Releases carry `Elevate-<version>.pkg` for silent macOS deployment through Jamf or Intune
+  (signed and notarized when the installer signing secrets are set, unsigned otherwise) and
+  `Elevate-enterprise-kit-<version>.zip` with the ADMX/ADML, a mobileconfig, an Intune preference
+  plist, a Jamf custom schema, a `managed.json` template, the key reference and a worked example.
+- Docs: `docs/enterprise/` — the model and the kit, the key reference, and rollout guides for Jamf
+  Pro, Intune on macOS, Intune on Windows, Group Policy, the CLI (with an Ansible task and a Jamf
+  script), publishing profiles, and troubleshooting.
 - CLI: `elevate run [--profile NAME] [--role ROLE…] [--deactivate-after] -- <command>` activates
   what is named, waits until it is active (approvals and scheduled starts included, with a line
   saying what it waits for), pauses for a group claim to propagate, then runs the command with the

@@ -23,6 +23,23 @@ Reference:
 - [Requesting access packages](access-packages.md) — finding, requesting and following
   entitlement management access packages per tenant; notifications and the new-role marker.
 
+Enterprise — for the administrator rolling Elevate out to a fleet:
+
+- [Managed configuration](enterprise/README.md) — the model, what the enterprise kit contains,
+  which how-to to read, and how to verify a rollout.
+- [Managed configuration keys](enterprise/keys.md) — every key with its type, allowed values and
+  syntax in plist, registry and JSON form.
+- [Jamf Pro](enterprise/macos-jamf.md) and [Intune for macOS](enterprise/macos-intune.md) — the pkg
+  and the configuration profile.
+- [Intune for Windows](enterprise/windows-intune.md) and
+  [Group Policy](enterprise/windows-group-policy.md) — the MSI, the ADMX and the policy keys.
+- [The CLI](enterprise/cli.md) — `/etc/elevate/managed.json` with an Ansible task and a Jamf
+  script, the registry on Windows, and `elevate config managed`.
+- [Publishing profiles](enterprise/profiles.md) — the profile-set format, inline or by URL, and
+  what users see.
+- [Enterprise troubleshooting](enterprise/troubleshooting.md) — why a value did not arrive, and
+  every warning with its cause.
+
 ## Design documents
 
 - [Phase 1: core app](superpowers/specs/2026-09-04-pimtray-design.md)
@@ -38,6 +55,7 @@ Reference:
 - [Windows app, phase 3: parity and release hardening](superpowers/specs/2026-09-06-elevate-windows-phase3-design.md)
 - [CLI](superpowers/specs/2026-09-07-elevate-cli-design.md)
 - [Access packages](superpowers/specs/2026-09-08-elevate-access-packages-design.md)
+- [Managed configuration through Intune and Jamf](superpowers/specs/2026-09-09-elevate-managed-configuration-design.md)
 - [Design canvases (macOS and Windows)](design/README.md) — HTML mockups saved from Claude Design
 
 Implementation plans live next to them in [superpowers/plans/](superpowers/plans/).
