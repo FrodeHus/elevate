@@ -12,6 +12,12 @@ public sealed record DiagnosticsAccount(string Upn, string Method, int TenantCou
 public sealed record DiagnosticsTenant(string Name, string Id, string Mode, IReadOnlyList<string> Flags);
 
 /// <summary>
+/// The MDM-managed configuration in effect, as shown in a diagnostics report. Lists key names only,
+/// never the values behind them.
+/// </summary>
+public sealed record DiagnosticsManaged(string Origin, IReadOnlyList<string> Keys, IReadOnlyList<string> Warnings);
+
+/// <summary>
 /// The input to <see cref="DiagnosticsReport.Render"/>. Deliberately has no field for a client id,
 /// token, or other secret, so none can appear in the rendered text; callers must not pass secrets
 /// in <see cref="Errors"/> either, since error messages are rendered verbatim.
@@ -25,7 +31,8 @@ public sealed record DiagnosticsInput(
     IReadOnlyList<DiagnosticsTenant> Tenants,
     IReadOnlyList<string> Profiles,
     string? HotKey,
-    IReadOnlyList<DiagnosticsError> Errors);
+    IReadOnlyList<DiagnosticsError> Errors,
+    DiagnosticsManaged? Managed = null);
 
 /// <summary>
 /// Renders a plain-text diagnostics report for "Copy diagnostics" in Settings. Pure formatting: it
@@ -89,6 +96,23 @@ public static class DiagnosticsReport
 
         lines.Add("");
         lines.Add($"Hot key: {input.HotKey ?? "None"}");
+        lines.Add("");
+        lines.Add("Managed configuration:");
+        if (input.Managed is { } managed)
+        {
+            lines.Add($"  Source: {managed.Origin}");
+            lines.Add($"  Keys: {string.Join(", ", managed.Keys)}");
+            if (managed.Warnings.Count > 0)
+            {
+                lines.Add("  Warnings:");
+                lines.AddRange(managed.Warnings.Select(w => $"    {w}"));
+            }
+        }
+        else
+        {
+            lines.Add("  None");
+        }
+
         lines.Add("");
         lines.Add("Recent errors:");
         if (input.Errors.Count == 0)

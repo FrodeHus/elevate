@@ -11,8 +11,9 @@ public class DiagnosticsReportTests
         IReadOnlyList<DiagnosticsAccount>? accounts = null,
         IReadOnlyList<DiagnosticsTenant>? tenants = null,
         IReadOnlyList<string>? profiles = null,
-        string? hotKey = null) =>
-        new("1.2.3", "45", "Unsigned", "Windows 11 26200", accounts ?? [], tenants ?? [], profiles ?? [], hotKey, errors ?? []);
+        string? hotKey = null,
+        DiagnosticsManaged? managed = null) =>
+        new("1.2.3", "45", "Unsigned", "Windows 11 26200", accounts ?? [], tenants ?? [], profiles ?? [], hotKey, errors ?? [], managed);
 
     [Fact]
     public void HeaderLinesPresent()
@@ -75,6 +76,28 @@ public class DiagnosticsReportTests
         ]));
         text.IndexOf("first error", StringComparison.Ordinal).Should().BePositive()
             .And.BeLessThan(text.IndexOf("second error", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RendersManagedSection()
+    {
+        var input = new DiagnosticsInput(
+            "1", "1", "s", "o", [], [], [], null, [],
+            new DiagnosticsManaged(
+                "managed preferences",
+                ["ClientId", "PinnedTenants"],
+                ["PinnedTenants: could not resolve 'nowhere.example'"]));
+        var text = DiagnosticsReport.Render(input, DateTimeOffset.FromUnixTimeSeconds(0));
+        text.Should().Contain(
+            "Managed configuration:\n  Source: managed preferences\n  Keys: ClientId, PinnedTenants\n  Warnings:\n    PinnedTenants: could not resolve 'nowhere.example'");
+        text.Should().NotContain("11111111");
+    }
+
+    [Fact]
+    public void RendersNoneWithoutManagedConfiguration()
+    {
+        var text = DiagnosticsReport.Render(MakeInput());
+        text.Should().Contain("Managed configuration:\n  None");
     }
 
     [Fact]
