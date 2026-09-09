@@ -19,8 +19,10 @@ Where the values come from:
   forced values are read; a key the user could have written is ignored.
 - **Windows app and CLI on Windows** — `HKLM\SOFTWARE\Policies\Reothor\Elevate`,
   then `HKCU\SOFTWARE\Policies\Reothor\Elevate`; the machine value wins per key.
-- **CLI on macOS and Linux** — `/etc/elevate/managed.json`, owned by root and
-  not world-writable, otherwise ignored with a warning.
+- **CLI on macOS and Linux** — `/etc/elevate/managed.json`. The file is trusted
+  only when neither it nor its directory is writable by others; otherwise it is
+  ignored with a warning. (Advice, not a checked rule: deploy it root-owned with
+  mode `0644` in a `0755` directory.)
 
 ## The keys
 

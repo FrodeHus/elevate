@@ -85,9 +85,12 @@ Where each platform reads them:
   same name is accepted for a list too, for scripts.
 - **CLI on macOS and Linux**: `/etc/elevate/managed.json`, a JSON object with
   the keys above. `ManagedProfiles` may be the JSON object itself or a string
-  holding it. The file must be owned by root and not world-writable; otherwise
-  it is ignored with a warning, so a user cannot grant themselves a policy
-  file that Diagnostics then reports as managed.
+  holding it. The file is trusted only when neither it nor its directory is
+  writable by others; otherwise it is ignored with a warning, so a user cannot
+  grant themselves a policy file that Diagnostics then reports as managed.
+  (Ownership is not checked — there is no portable managed API for it, and the
+  directory rule already keeps a non-root user from creating one under `/etc`.
+  Deploying it root-owned 0644 stays the documented advice.)
 
 Invalid values are ignored key by key, never the whole payload: a malformed
 `ClientId` leaves the client id to the user, an unknown sign-in method name is
@@ -183,8 +186,8 @@ unresolved names are listed as warnings).
 Diagnostics: `DiagnosticsInput` gains `managed: DiagnosticsManaged?` with
 `origin`, `keys: [String]` and `warnings: [String]`; the report renders a
 "Managed configuration:" section after "Hot key:" — `None` when nil, else
-the origin line, the key names one per line (never the values), then the
-warnings. Both Cores.
+the origin line, the key names joined on one `Keys:` line (never the values),
+then the warnings. Both Cores.
 
 ## 4. Stage 1: client id and update check
 

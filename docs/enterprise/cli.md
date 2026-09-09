@@ -46,17 +46,19 @@ to the user.
 `ManagedProfiles` may be the profile-set object itself or a string holding the same JSON; see
 [profiles.md](profiles.md).
 
-### Ownership rules
+### Trust rules
 
 The file is trusted only when a user cannot rewrite it: **the file must not be writable by others,
-and its directory must not be world-writable.** Otherwise it is ignored entirely and
+and its directory must not be writable by others.** That is the whole rule Elevate checks —
+ownership is not inspected. Otherwise the file is ignored entirely and
 `elevate config managed` reports a warning like
 
 ```
-/etc/elevate/managed.json: ignored because it is not owned by root or is writable by others
+/etc/elevate/managed.json: ignored because it is writable by others, or its directory is
 ```
 
-Deploy it as root with mode `0644` in a `0755` directory:
+As good practice (advice, not a checked rule), deploy it as root with mode `0644` in a `0755`
+directory:
 
 ```bash
 sudo install -d -m 0755 /etc/elevate
@@ -177,7 +179,7 @@ Elevate would take from a draft on your laptop:
 elevate config managed --file ./managed.json
 ```
 
-It is a dry run: the ownership check is skipped (the command says so), so a file that the real load
+It is a dry run: the trust check is skipped (the command says so), so a file that the real load
 would ignore is still parsed here. That is the point — you get the parse errors and the per-key
 warnings before the file reaches a fleet. Deploy it, then run `elevate config managed` without
 `--file` on a real machine to confirm the ownership rules are satisfied too.

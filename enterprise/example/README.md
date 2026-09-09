@@ -7,7 +7,7 @@ how you manage the machine.
 - `no.reothor.elevate.mobileconfig` — macOS, uploaded to Jamf Pro or as an
   Intune custom profile.
 - `managed.json` — `/etc/elevate/managed.json` for the CLI on macOS and Linux
-  (owned by root, not world-writable).
+  (not writable by others, in a directory that is not writable by others).
 - `example.reg` — the HKLM policy key on Windows, for a script or a local test;
   the same values are what the ADMX template writes.
 - `profiles.json` — the profile set on its own, as a web server would serve it

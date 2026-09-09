@@ -71,16 +71,17 @@ The Settings section is missing, Diagnostics says `None`, `elevate config manage
 `elevate config managed` says:
 
 ```
-/etc/elevate/managed.json: ignored because it is not owned by root or is writable by others
+/etc/elevate/managed.json: ignored because it is writable by others, or its directory is
 ```
 
 The file is trusted only when a user cannot rewrite it — otherwise someone could grant themselves a
-policy and have Diagnostics report it as your organization's. Fix the modes:
+policy and have Diagnostics report it as your organization's. Elevate checks exactly two things:
+that the file is not writable by others, and that its directory is not either. Fix the modes:
 
 ```bash
-sudo chown root /etc/elevate/managed.json
 sudo chmod 644 /etc/elevate/managed.json
-sudo chmod 755 /etc/elevate            # the directory must not be world-writable either
+sudo chmod 755 /etc/elevate            # the directory must not be writable by others either
+sudo chown root /etc/elevate/managed.json   # advice, not a checked rule
 ```
 
 Two related messages: `ignored because it could not be parsed as JSON` (a trailing comma, a

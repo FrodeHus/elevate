@@ -163,7 +163,7 @@ you sign those accounts in.
 ## Managed configuration
 
 An organization can push the CLI's settings to a fleet: `/etc/elevate/managed.json` on macOS and
-Linux (owned by root and not writable by others, or it is ignored with a warning), and
+Linux (neither the file nor its directory writable by others, or it is ignored with a warning), and
 `HKLM\SOFTWARE\Policies\Reothor\Elevate` then `HKCU\...` on Windows. A managed value wins over
 yours, and `elevate config` marks it `managed` in the `Source` column; `elevate config managed`
 prints the origin, the keys in effect and any warnings, and `--file <path>` checks a file as a dry

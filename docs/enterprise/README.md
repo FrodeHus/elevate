@@ -32,7 +32,7 @@ their types, allowed values and syntax in every format, in [keys.md](keys.md).
 |---|---|
 | macOS app | Managed preferences for the domain `no.reothor.elevate`. Only *forced* values are read: a value the user writes into the same domain is ignored. |
 | Windows app, and the CLI on Windows | `HKLM\SOFTWARE\Policies\Reothor\Elevate`, then `HKCU\SOFTWARE\Policies\Reothor\Elevate`; per key, the machine value wins. |
-| CLI on macOS and Linux | `/etc/elevate/managed.json`, which must not be writable by others and must sit in a directory that is not world-writable. |
+| CLI on macOS and Linux | `/etc/elevate/managed.json`, which must not be writable by others and must sit in a directory that is not writable by others. |
 
 ## Which page to read
 

@@ -38,8 +38,9 @@ next to this README at release time. The step-by-step how-tos live in
   Custom Settings, so the same keys can be filled in through Jamf's form
   instead of an uploaded profile.
 - `cli/managed.json` — the template for `/etc/elevate/managed.json`, which the
-  CLI reads on macOS and Linux. The file must be owned by root and not
-  world-writable, otherwise it is ignored with a warning.
+  CLI reads on macOS and Linux. The file must not be writable by others, and
+  its directory must not be writable by others, otherwise it is ignored with a
+  warning. Deploying it root-owned with mode 0644 is the recommended practice.
 - `example/` — one company's finished configuration in every format
   (mobileconfig, `managed.json`, `profiles.json` and `example.reg`), with a
   README explaining what it pins.
