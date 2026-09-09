@@ -169,6 +169,9 @@ final class AppModel {
     /// build, the loopback flow on an unsigned one. The first-party methods work without it.
     var isConfigured: Bool { settings.isConfigured && (msal != nil || ownAppViaLoopback) }
 
+    /// The settings an organization pushed through MDM, for the views that show what is managed.
+    var managed: ManagedConfiguration { settings.managed }
+
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
          msal: MSALTokenProvider? = nil, loopback: LoopbackProviderRegistry? = nil,
@@ -241,6 +244,7 @@ final class AppModel {
     /// loopback keychain store on an unsigned one — so every *own-app* account is signed out and
     /// cleared; first-party accounts keep their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
+        guard !settings.isClientIdManaged else { throw PIMError.unexpected(status: 0, body: "The client ID is managed by your organization") }
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard AppSettings.isValidClientId(id) else { throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID") }
         // Construct the new provider before mutating anything, so a throwing init leaves the

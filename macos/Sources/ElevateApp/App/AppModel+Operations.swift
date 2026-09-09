@@ -73,6 +73,9 @@ extension AppModel {
                                      tenants: tenants,
                                      profiles: state.profiles.map(\.name),
                                      hotKey: hotKey,
+                                     managed: settings.managed.isEmpty ? nil : DiagnosticsManaged(origin: settings.managed.origin ?? "unknown",
+                                                                                                  keys: settings.managed.keysInEffect.map(\.rawValue),
+                                                                                                  warnings: settings.managed.warnings),
                                      errors: errorLog.entries)
         return DiagnosticsReport.render(input)
     }
@@ -109,6 +112,9 @@ extension AppModel {
     /// check. A release the user dismissed is never offered again, but a forced check still
     /// reports it, so "Check for updates" is never silent.
     func checkForUpdates(force: Bool = false) async {
+        // An organization can turn the check off entirely; then GitHub is never contacted, not
+        // even by an explicit "Check for updates" (the button is replaced by a caption anyway).
+        guard !settings.updateCheckDisabled else { return }
         if !force {
             if let last = settings.lastUpdateCheck, abs(Date().timeIntervalSince(last)) < 24 * 60 * 60 { return }
             guard isOnline else { return }

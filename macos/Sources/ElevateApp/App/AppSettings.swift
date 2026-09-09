@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import ElevateCore
 
 /// User-editable configuration. The client id is the only required value; it lives in UserDefaults, not in a bundled plist.
 @MainActor
@@ -24,9 +25,30 @@ final class AppSettings {
 
     private let defaults: UserDefaults
 
-    var clientId: String {
-        didSet { defaults.set(clientId, forKey: Self.clientIdKey) }
+    /// The settings an organization pushes through MDM. Read once at launch: managed preferences
+    /// do not change under a running app in any way we need to follow live.
+    let managed: ManagedConfiguration
+
+    /// The user's own client id, as typed in Settings. Managed configuration overrides what
+    /// `clientId` reports but never touches this value, so removing the MDM payload brings the
+    /// user's own id back.
+    var storedClientId: String {
+        didSet { defaults.set(storedClientId, forKey: Self.clientIdKey) }
     }
+
+    /// The client id in effect: the managed one when an administrator pushed one, otherwise the
+    /// user's. Writes are ignored while it is managed — `AppModel.applyClientId` throws instead,
+    /// so the user gets a reason rather than a silently discarded edit.
+    var clientId: String {
+        get { managed.clientId ?? storedClientId }
+        set { if !isClientIdManaged { storedClientId = newValue } }
+    }
+
+    /// True when the client id comes from managed configuration and cannot be edited here.
+    var isClientIdManaged: Bool { managed.clientId != nil }
+
+    /// True when the organization turned the update check off; the app then never calls GitHub.
+    var updateCheckDisabled: Bool { managed.disableUpdateCheck }
 
     /// Last client id typed into "Custom app" in Add account, so the next account
     /// from the same company app needs no retyping. Not a configuration value in its own right.
@@ -123,8 +145,9 @@ final class AppSettings {
         }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, managed: ManagedConfiguration? = nil) {
         self.defaults = defaults
+        self.managed = managed ?? ManagedConfiguration.load(from: ManagedPreferences(defaults: defaults))
         var stored = defaults.string(forKey: Self.clientIdKey) ?? ""
         if stored.isEmpty {
             for legacyId in Self.legacyBundleIds {
@@ -135,7 +158,7 @@ final class AppSettings {
                 }
             }
         }
-        clientId = stored
+        storedClientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)

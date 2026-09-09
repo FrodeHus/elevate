@@ -16,9 +16,9 @@ private var modelDirectories: [ObjectIdentifier: URL] = [:]
 /// or into the host app's own defaults. Its suite is removed by `cleanup(_:)` once the
 /// `AppModel` it ends up attached to is done with it.
 @MainActor
-func makeSettings() -> AppSettings {
+func makeSettings(managed: ManagedConfiguration = .none) -> AppSettings {
     let suiteName = "elevate-tests-\(UUID().uuidString)"
-    let settings = AppSettings(defaults: UserDefaults(suiteName: suiteName)!)
+    let settings = AppSettings(defaults: UserDefaults(suiteName: suiteName)!, managed: managed)
     settingsSuites[ObjectIdentifier(settings)] = suiteName
     return settings
 }
@@ -34,6 +34,7 @@ func makeSettings() -> AppSettings {
 @MainActor
 func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClient(),
                online: Bool = false, settings: AppSettings? = nil,
+               managed: ManagedConfiguration = .none,
                tokens: FakeTokenProvider = FakeTokenProvider(),
                ownAppViaLoopback: Bool? = nil, notifier: any ExpiryNotifying = NoopNotifier()) async -> AppModel {
     let directory = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -42,7 +43,7 @@ func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClie
     if state != AppState() { try? await store.save(state) }
     let model = AppModel(tokens: tokens, http: http, store: store, notifier: notifier,
                          network: NetworkMonitor(forcedOnline: online),
-                         settings: settings ?? makeSettings(),
+                         settings: settings ?? makeSettings(managed: managed),
                          ownAppViaLoopbackOverride: ownAppViaLoopback)
     await model.bootstrap()
     modelDirectories[ObjectIdentifier(model)] = directory
