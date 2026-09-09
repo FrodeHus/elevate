@@ -440,10 +440,10 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public Visibility IssuesVisibility => Issues.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
-    /// <summary>A filled warning triangle for a failure, an exclamation circle for limitations.</summary>
-    public string IssuesGlyph => HasError ? "" : "";
+    /// <summary>A filled warning triangle for a failure, an info glyph for mere limitations.</summary>
+    public string IssuesGlyph => HasError ? "" : "";
 
-    public Brush IssuesBrush => (Brush)Application.Current.Resources[HasError ? "SystemFillColorCriticalBrush" : "SystemFillColorCautionBrush"];
+    public Brush IssuesBrush => (Brush)Application.Current.Resources[HasError ? "SystemFillColorCriticalBrush" : "TextFillColorSecondaryBrush"];
 
     public string IssuesTooltip => string.Join("\n", Issues.Select(i => i.Title));
 
