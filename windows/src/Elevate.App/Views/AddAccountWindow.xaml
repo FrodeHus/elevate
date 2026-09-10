@@ -23,7 +23,7 @@
             </RadioButton>
             <RadioButton x:Name="CustomChoice" GroupName="method" Checked="OnChoiceChanged">
                 <StackPanel>
-                    <TextBlock Text="Custom client ID" FontWeight="SemiBold" />
+                    <TextBlock Text="Company app (client ID)" FontWeight="SemiBold" />
                     <TextBlock Text="A company multi-tenant registration without the WAM redirect; signs in through the system browser on http://localhost."
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 </StackPanel>

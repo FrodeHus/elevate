@@ -10,7 +10,7 @@ extension AppModel {
     /// the organization does not permit is not listed at all.
     var availableMethods: [SignInMethod] { SignInMethod.builtIn.filter { isMethodAllowed($0) } }
 
-    /// Whether the "Custom app" row is offered; the client id typed into it does not change the
+    /// Whether the "Company app (client ID)" row is offered; the client id typed into it does not change the
     /// answer, since the managed allow-list names kinds of method, not registrations.
     var isCustomMethodAllowed: Bool { isMethodAllowed(.custom(clientId: "")) }
 

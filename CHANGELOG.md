@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the Entra app registration method, not only after discovery fell back to manual roles or
   groups became unavailable, so an administrator can re-consent after a scope is added before
   anything fails.
+- macOS and Windows: the "Custom app" sign-in method is now "Company app (client ID)", with a
+  caption naming the two cases it is for: a registration that lists only `http://localhost`, or a
+  second registration alongside the one in Settings.
 
 ### Fixed
 
