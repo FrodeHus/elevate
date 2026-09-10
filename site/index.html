@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <meta
+      name="description"
+      content="Microsoft Entra and Azure PIM, within reach. Activate roles across tenants, run profiles and manage just-in-time access from your menu bar, system tray or terminal."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Elevate — PIM without the pilgrimage" />
+    <meta
+      property="og:description"
+      content="Just-in-time access. A little less clicking around. For macOS, Windows and your terminal."
+    />
+    <meta property="og:url" content="https://frodehus.github.io/elevate/" />
+    <meta
+      property="og:image"
+      content="https://frodehus.github.io/elevate/assets/social-preview.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://frodehus.github.io/elevate/" />
+    <link rel="icon" type="image/png" href="assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="script.js" defer></script>
+    <title>Elevate — PIM without the pilgrimage</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav-glass" aria-label="Main navigation">
+        <a class="brand" href="#" aria-label="Elevate home"
+          ><img src="assets/icon.png" width="32" height="32" alt="" /><span
+            >Elevate</span
+          ></a
+        >
+        <div class="nav-links">
+          <a href="#features">Features</a><a href="#security">Security</a
+          ><a href="#enterprise">For IT</a><a href="#guides">Guides</a>
+        </div>
+        <a class="button button-small" href="#download"
+          >Get Elevate <span aria-hidden="true">↓</span></a
+        >
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy wrap">
+          <p class="hero-intro">Entra and Azure access, closer to your work.</p>
+          <h1 id="hero-title">PIM without<br />the pilgrimage.</h1>
+          <p class="hero-description">
+            Just-in-time access. A little less clicking around.<br
+              class="desktop-break"
+            />
+            Your roles, accounts and tenants, right where you work.
+          </p>
+          <div class="actions">
+            <a class="button" href="#download"
+              >Get Elevate <span aria-hidden="true">↓</span></a
+            ><a class="text-link" href="https://github.com/FrodeHus/elevate"
+              >Explore on GitHub <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <p class="platform-note">
+            macOS 26+ <span>·</span> Windows 11 <span>·</span> CLI for Linux,
+            macOS &amp; Windows
+          </p>
+        </div>
+        <div class="product-stage wrap">
+          <div class="stage-orbit orbit-one" aria-hidden="true"></div>
+          <div class="stage-orbit orbit-two" aria-hidden="true"></div>
+          <div class="stage-message">
+            <span class="tiny-status"
+              ><span></span> A lighter way to elevate</span
+            >
+            <p>Your access.<br />Within reach.</p>
+            <span class="stage-caption"
+              >One small app.<br />A little more room to focus.</span
+            >
+          </div>
+          <div class="hero-mascot">
+            <img
+              src="assets/lift-roles.png"
+              width="1254"
+              height="1254"
+              alt="Lift, the friendly blue Elevate shield mascot, presenting the app."
+            />
+          </div>
+          <figure class="app-preview">
+            <div class="preview-menubar" aria-hidden="true">
+              <span>Elevate</span><span>⌃ &nbsp; ◷ &nbsp; ▰</span>
+            </div>
+            <img
+              src="assets/panel-entra.png"
+              width="380"
+              height="650"
+              fetchpriority="high"
+              alt="Elevate panel showing profiles, pending approvals and active Entra roles across accounts and tenants."
+            />
+            <figcaption>macOS panel · Sample data</figcaption>
+          </figure>
+          <div class="stage-badge">
+            <span class="status-dot"></span>
+            <div>
+              <strong>Just enough access.</strong
+              ><span>Just when you need it.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-section wrap" aria-labelledby="intro-title">
+        <p class="section-label">Less friction. Better habits.</p>
+        <h2 id="intro-title">
+          “I’ll activate it for longer.<br />Just in case.”
+        </h2>
+        <p>
+          When activation feels like a chore, extra access can feel convenient.
+          Elevate makes just-in-time easier to practise, with the roles you need
+          a click away.
+        </p>
+        <div class="coverage" aria-label="Supported access types">
+          <span
+            ><svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m12 3 9 9-9 9-9-9zM8 12l4 4 4-4-4-4z" /></svg
+            >Entra directory roles</span
+          ><span
+            ><svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m10 3-7 18h6l4-10 4 7h-5l-1 3h10L13 3z" /></svg
+            >Azure resource roles</span
+          ><span
+            ><svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="9" cy="8" r="3" />
+              <path
+                d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4v3"
+              /></svg
+            >PIM for Groups</span
+          >
+        </div>
+      </section>
+
+      <section
+        id="features"
+        class="features-section section-space"
+        aria-labelledby="features-title"
+      >
+        <div class="wrap">
+          <div class="section-heading">
+            <div>
+              <p class="section-label">Made for the way you work</p>
+              <h2 id="features-title">Less clicking.<br />More doing.</h2>
+            </div>
+            <p>
+              From your first activation to your everyday routine. All in one
+              familiar place.
+            </p>
+          </div>
+          <div class="feature-picker" aria-label="Explore features" hidden>
+            <button type="button" id="tab-roles" data-feature="roles">
+              Your roles</button
+            ><button type="button" id="tab-bulk" data-feature="bulk">
+              Across tenants</button
+            ><button type="button" id="tab-profiles" data-feature="profiles">
+              Profiles</button
+            ><button type="button" id="tab-packages" data-feature="packages">
+              Access packages
+            </button>
+          </div>
+          <div class="feature-panels">
+            <article
+              id="feature-roles"
+              class="feature-panel"
+              data-panel="roles"
+            >
+              <div class="feature-copy">
+                <span class="feature-index" aria-hidden="true">01 / 04</span>
+                <h3>Your roles,<br />within reach.</h3>
+                <p>
+                  Entra roles, Azure roles and PIM for Groups across your
+                  accounts and tenants. Find what you need from your menu bar,
+                  system tray or terminal.
+                </p>
+                <p class="feature-detail">
+                  See active roles and pending approvals together. Search by
+                  role, tenant or account.
+                </p>
+                <a
+                  class="text-link"
+                  href="https://github.com/FrodeHus/elevate/blob/main/docs/getting-started.md"
+                  >Find your way around <span aria-hidden="true">↗</span></a
+                >
+              </div>
+              <figure class="feature-art panel-art">
+                <img
+                  src="assets/panel-entra.png"
+                  width="380"
+                  height="650"
+                  loading="lazy"
+                  alt="Elevate’s Entra tab with pinned profiles, approvals and roles grouped by account and tenant."
+                />
+                <figcaption>Documentation preview with sample data</figcaption>
+              </figure>
+            </article>
+            <article id="feature-bulk" class="feature-panel" data-panel="bulk">
+              <div class="feature-copy">
+                <span class="feature-index" aria-hidden="true">02 / 04</span>
+                <h3>Several tenants.<br />One activation flow.</h3>
+                <p>
+                  Select the roles you need across tenants and submit them
+                  together. Set durations, add a reason, and get back to the
+                  task at hand.
+                </p>
+                <p class="feature-detail">
+                  Each role keeps its own policy requirements, including MFA and
+                  approval.
+                </p>
+                <a
+                  class="text-link"
+                  href="https://github.com/FrodeHus/elevate/blob/main/docs/activating-roles.md"
+                  >Explore role activation <span aria-hidden="true">↗</span></a
+                >
+              </div>
+              <figure class="feature-art wide-art">
+                <img
+                  src="assets/activate-bulk.png"
+                  width="560"
+                  height="294"
+                  loading="lazy"
+                  alt="Bulk activation for Contoso and Fabrikam, with a duration for each role and a shared justification."
+                />
+                <figcaption>Documentation preview with sample data</figcaption>
+              </figure>
+            </article>
+            <article
+              id="feature-profiles"
+              class="feature-panel"
+              data-panel="profiles"
+            >
+              <div class="feature-copy">
+                <span class="feature-index" aria-hidden="true">03 / 04</span>
+                <h3>Same task tomorrow?<br />There’s a profile for that.</h3>
+                <p>
+                  Save a role selection and reuse it. Elevate remembers reasons
+                  and durations, so your everyday setup is ready when you are.
+                </p>
+                <p class="feature-detail">
+                  Already active roles are skipped. Pin your favourites or run a
+                  profile with a global shortcut.
+                </p>
+                <a
+                  class="text-link"
+                  href="https://github.com/FrodeHus/elevate/blob/main/docs/profiles-and-shortcuts.md"
+                  >Meet profiles and shortcuts
+                  <span aria-hidden="true">↗</span></a
+                >
+              </div>
+              <figure class="feature-art wide-art">
+                <img
+                  src="assets/manage-profiles.png"
+                  width="1496"
+                  height="1056"
+                  loading="lazy"
+                  alt="Profiles window with Morning ops selected, showing saved Entra and Azure roles and their durations."
+                />
+                <figcaption>Documentation preview with sample data</figcaption>
+              </figure>
+            </article>
+            <article
+              id="feature-packages"
+              class="feature-panel"
+              data-panel="packages"
+            >
+              <div class="feature-copy">
+                <span class="feature-index" aria-hidden="true">04 / 04</span>
+                <h3>Access packages,<br />too.</h3>
+                <p>
+                  Find available packages, submit a request and follow its
+                  status from Elevate. Your self-service access stays close to
+                  the rest of your work.
+                </p>
+                <p class="feature-detail">
+                  Packages with extra questions open in My Access so you can
+                  complete the request there.
+                </p>
+                <a
+                  class="text-link"
+                  href="https://github.com/FrodeHus/elevate/blob/main/docs/access-packages.md"
+                  >Explore access packages <span aria-hidden="true">↗</span></a
+                >
+              </div>
+              <figure class="feature-art package-art">
+                <img
+                  src="assets/access-packages.png"
+                  width="640"
+                  height="640"
+                  loading="lazy"
+                  alt="Requesting the Azure Sandbox Contributor access package with a policy and justification."
+                />
+                <figcaption>Documentation preview with sample data</figcaption>
+              </figure>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="expiry-section" aria-labelledby="expiry-title">
+        <div class="wrap expiry-layout">
+          <div class="expiry-copy">
+            <p class="section-label">On your terms. On your time.</p>
+            <h2 id="expiry-title">Access has<br />an off switch.</h2>
+            <p>
+              Live countdowns and expiry reminders help you keep track of active
+              roles. Done early? Deactivate. Extend when the work actually needs
+              it.
+            </p>
+            <a
+              class="text-link"
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/activating-roles.md"
+              >Stay on top of active access
+              <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <div class="expiry-visual">
+            <div class="time-ring" aria-hidden="true">
+              <svg viewBox="0 0 300 300">
+                <circle class="ring-track" cx="150" cy="150" r="137" />
+                <circle class="ring-progress" cx="150" cy="150" r="137" />
+              </svg>
+              <div>
+                <span>Time remaining</span><strong>07:51</strong
+                ><span>Access for the task at hand.</span>
+              </div>
+            </div>
+            <div class="expiry-mascot" aria-hidden="true">
+              <img
+                src="assets/lift-expiry.png"
+                width="1254"
+                height="1254"
+                loading="lazy"
+                alt=""
+              />
+            </div>
+            <p class="expiry-note">
+              <span class="status-dot"></span> Active now <span>·</span> You’re
+              in control
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="security"
+        class="security-section wrap section-space"
+        aria-labelledby="security-title"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Convenience, with policy still in place</p>
+            <h2 id="security-title">Your access.<br />Your tenant’s rules.</h2>
+          </div>
+          <p>
+            Elevate works with your eligible access and your tenant’s activation
+            requirements. Required approvals and MFA still apply.
+          </p>
+        </div>
+        <div class="trust-row">
+          <div>
+            <svg aria-hidden="true" viewBox="0 0 32 32">
+              <path
+                d="m16 3 11 4v9c0 7-11 13-11 13S5 23 5 16V7zM11 16l4 4 7-8"
+              />
+            </svg>
+            <h3>Delegated access</h3>
+            <p>
+              Acts with your access. No app-only permissions or client secret.
+            </p>
+          </div>
+          <div>
+            <svg aria-hidden="true" viewBox="0 0 32 32">
+              <path d="m11 8-8 8 8 8m10-16 8 8-8 8M19 4l-6 24" />
+            </svg>
+            <h3>Open source</h3>
+            <p>Read the source. Understand the app. Make it better.</p>
+          </div>
+          <div>
+            <svg aria-hidden="true" viewBox="0 0 32 32">
+              <rect x="7" y="14" width="18" height="14" rx="4" />
+              <path d="M11 14V9a5 5 0 0 1 10 0v5M16 19v4" />
+            </svg>
+            <h3>No telemetry</h3>
+            <p>No analytics, crash reporting or usage tracking.</p>
+          </div>
+        </div>
+        <div class="permissions">
+          <div class="permissions-heading">
+            <h3>Permissions, in plain English.</h3>
+            <a
+              class="text-link"
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/entra-app-registration.md#4-permission-table"
+              >Full scopes &amp; consent details
+              <span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <table>
+            <caption class="sr-only">
+              Permission groups and how Elevate uses them
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Permission group</th>
+                <th scope="col">What Elevate uses it for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Read access <span>5 Graph scopes</span></th>
+                <td>Show your profile, eligible roles and PIM requirements.</td>
+              </tr>
+              <tr>
+                <th scope="row">
+                  PIM write access <span>2 Graph scopes</span>
+                </th>
+                <td>
+                  Activate and deactivate Entra roles and PIM group access.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Azure access <span>1 Azure scope</span></th>
+                <td>Find Azure resources and manage your role activations.</td>
+              </tr>
+              <tr>
+                <th scope="row">Access packages <span>1 Graph scope</span></th>
+                <td>Find, request and cancel self-service access.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="consent-note">
+            Consent does not make you an admin. PIM activation requirements
+            still apply.
+          </p>
+          <details class="risk-details">
+            <summary>The risk to manage</summary>
+            <p>
+              Write scopes are powerful. A compromised app or token could misuse
+              your access, with greater impact for admins. Use trusted builds, a
+              protected device and minimal access.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section
+        id="enterprise"
+        class="enterprise-section section-space"
+        aria-labelledby="enterprise-title"
+      >
+        <div class="wrap">
+          <div class="enterprise-top">
+            <div>
+              <p class="section-label">For the whole team</p>
+              <h2 id="enterprise-title">Elevate, ready<br />for your fleet.</h2>
+              <p>
+                Less setup for people.<br />Consistent configuration for IT.
+              </p>
+            </div>
+            <div class="enterprise-mascot" aria-hidden="true">
+              <img
+                src="assets/lift-corporate.png"
+                width="1254"
+                height="1254"
+                loading="lazy"
+                alt=""
+              />
+            </div>
+          </div>
+          <div class="enterprise-grid">
+            <article>
+              <h3>Deploy with your tools.</h3>
+              <p>
+                Intune, Jamf, Group Policy and managed CLI configuration. One
+                standard app per platform, without a company-specific build.
+              </p>
+            </article>
+            <article>
+              <h3>Set the essentials centrally.</h3>
+              <p>
+                Push the client ID, sign-in options and tenant settings. Lock
+                managed settings and control update checks.
+              </p>
+            </article>
+            <article>
+              <h3>A shared starting point.</h3>
+              <p>
+                Publish ready-to-run role profiles through policy or HTTPS.
+                Existing eligibility and PIM requirements still apply.
+              </p>
+            </article>
+            <article>
+              <h3>See what reached each device.</h3>
+              <p>
+                Settings, Diagnostics and the CLI show applied configuration and
+                warnings. Validate templates before rollout.
+              </p>
+            </article>
+          </div>
+          <a
+            class="text-link"
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/README.md"
+            >Read the enterprise deployment guide
+            <span aria-hidden="true">↗</span></a
+          >
+          <div class="enterprise-tools" aria-label="Deployment guides">
+            <a
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/macos-intune.md"
+              >Intune for macOS</a
+            ><a
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/windows-intune.md"
+              >Intune for Windows</a
+            ><a
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/macos-jamf.md"
+              >Jamf Pro</a
+            ><a
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/windows-group-policy.md"
+              >Group Policy</a
+            ><a
+              href="https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/cli.md"
+              >Managed CLI</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="download"
+        class="download-section wrap section-space"
+        aria-labelledby="download-title"
+      >
+        <div class="download-heading">
+          <img
+            src="assets/icon.png"
+            width="72"
+            height="72"
+            alt=""
+            loading="lazy"
+          />
+          <h2 id="download-title">Just-in-time,<br />with less fuss.</h2>
+          <p>
+            A native app for your desktop. A CLI for your terminal.<br />Free
+            and open source.
+          </p>
+        </div>
+        <div class="download-grid">
+          <article>
+            <span class="platform-symbol" aria-hidden="true">⌘</span>
+            <h3>macOS</h3>
+            <p>At home in your menu bar.</p>
+            <span class="system-requirement">macOS 26 or later</span
+            ><a
+              class="button"
+              href="https://github.com/FrodeHus/elevate/blob/main/macos/README.md#install"
+              >Install for macOS <span aria-hidden="true">↗</span></a
+            ><a
+              class="quiet-link"
+              href="https://github.com/FrodeHus/elevate/releases/latest"
+              >Download a DMG</a
+            >
+          </article>
+          <article>
+            <svg class="platform-symbol" aria-hidden="true" viewBox="0 0 32 32">
+              <path
+                d="M2 4h12v11H2zm15 0h13v11H17zM2 18h12v11H2zm15 0h13v11H17z"
+              />
+            </svg>
+            <h3>Windows</h3>
+            <p>One click from your system tray.</p>
+            <span class="system-requirement">Windows 11 · .NET 10 runtime</span
+            ><a
+              class="button"
+              href="https://github.com/FrodeHus/elevate/blob/main/windows/README.md#install"
+              >Install for Windows <span aria-hidden="true">↗</span></a
+            ><a
+              class="quiet-link"
+              href="https://github.com/FrodeHus/elevate/releases/latest"
+              >Download an MSI</a
+            >
+            <p class="download-note">
+              Current installers are unsigned. See the install guide for
+              checksum verification.
+            </p>
+          </article>
+          <article>
+            <span class="platform-symbol terminal-symbol" aria-hidden="true"
+              >&gt;_</span
+            >
+            <h3>Command line</h3>
+            <p>Your workflow. Your terminal.</p>
+            <span class="system-requirement">Linux, macOS &amp; Windows</span
+            ><a
+              class="button"
+              href="https://github.com/FrodeHus/elevate/blob/main/cli/README.md#install"
+              >Install the CLI <span aria-hidden="true">↗</span></a
+            ><a
+              class="quiet-link"
+              href="https://github.com/FrodeHus/elevate/blob/main/cli/README.md"
+              >Explore CLI commands</a
+            >
+          </article>
+        </div>
+        <div class="terminal-example">
+          <div>
+            <span class="terminal-prompt" aria-hidden="true">$</span>
+            <!-- prettier-ignore -->
+            <code id="cli-command">elevate activate "Global Reader" --duration 2h --reason "Support ticket 4211"</code>
+          </div>
+          <button
+            type="button"
+            class="copy-button"
+            data-copy="cli-command"
+            hidden
+          >
+            Copy command
+          </button>
+        </div>
+        <p
+          class="sr-only"
+          id="copy-status"
+          role="status"
+          aria-live="polite"
+        ></p>
+        <div class="setup-note">
+          <strong>Before your first activation</strong>
+          <p>
+            Use your own or your company’s app registration for Entra roles,
+            groups and access packages. Azure CLI or Azure PowerShell sign-in
+            supports Azure resource roles only.
+          </p>
+          <a
+            class="text-link"
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/entra-app-registration.md"
+            >Set up your app registration <span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+
+      <section
+        id="guides"
+        class="guides-section wrap"
+        aria-labelledby="guides-title"
+      >
+        <div>
+          <p class="section-label">A little guidance goes a long way</p>
+          <h2 id="guides-title">Get up to speed.</h2>
+          <a
+            class="text-link"
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/README.md"
+            >All documentation on GitHub <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="guide-links">
+          <a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/getting-started.md"
+            ><span>Getting started</span><span aria-hidden="true">↗</span></a
+          ><a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/activating-roles.md"
+            ><span>Activating, scheduling &amp; extending roles</span
+            ><span aria-hidden="true">↗</span></a
+          ><a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/profiles-and-shortcuts.md"
+            ><span>Profiles &amp; shortcuts</span
+            ><span aria-hidden="true">↗</span></a
+          ><a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/approvals.md"
+            ><span>Approving requests</span
+            ><span aria-hidden="true">↗</span></a
+          ><a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/access-packages.md"
+            ><span>Requesting access packages</span
+            ><span aria-hidden="true">↗</span></a
+          ><a
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/troubleshooting.md"
+            ><span>Troubleshooting</span><span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer wrap">
+      <div class="footer-top">
+        <a class="brand" href="#"
+          ><img src="assets/icon.png" width="28" height="28" alt="" /><span
+            >Elevate</span
+          ></a
+        >
+        <p>Entra and Azure access, closer to your work.</p>
+        <a class="text-link" href="https://github.com/FrodeHus/elevate"
+          >Give Elevate a star <span aria-hidden="true">↗</span></a
+        >
+      </div>
+      <div class="footer-bottom">
+        <span
+          >Made by <a href="https://github.com/FrodeHus">Frode Hus</a>. Open
+          source under the
+          <a href="https://github.com/FrodeHus/elevate/blob/main/LICENSE"
+            >MIT license</a
+          >.</span
+        >
+        <div>
+          <a href="https://github.com/FrodeHus/elevate/issues">Feedback</a
+          ><a href="https://github.com/FrodeHus/elevate/blob/main/CHANGELOG.md"
+            >What’s new</a
+          ><a href="https://github.com/FrodeHus/elevate/blob/main/SECURITY.md"
+            >Report a vulnerability</a
+          >
+        </div>
+      </div>
+      <p class="independence-note">
+        Elevate is an independent project, not affiliated with Microsoft or
+        Apple.
+      </p>
+    </footer>
+  </body>
+</html>

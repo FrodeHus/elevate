@@ -1,0 +1,60 @@
+name: Product page
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/check-site.py", ".github/workflows/pages.yml"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate product page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check assets and documentation links
+        run: python3 scripts/check-site.py
+      - name: Check JavaScript syntax
+        run: node --check site/script.js
+
+  package:
+    name: Package product page
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Stage only public website files
+        run: |
+          mkdir -p _site
+          cp site/index.html site/styles.css site/script.js _site/
+          cp -R site/assets _site/assets
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

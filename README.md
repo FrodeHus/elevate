@@ -87,6 +87,10 @@ methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README
 
 ## Documentation
 
+The GitHub Pages product page lives in [site/](site/README.md). See that guide for local preview,
+validation, and the one-time Pages setup; `.github/workflows/pages.yml` publishes site changes
+from `main`.
+
 | Topic | Where |
 |---|---|
 | Documentation index | [docs/README.md](docs/README.md) |
