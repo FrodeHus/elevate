@@ -2,7 +2,7 @@
 
 ## Guides
 
-User guides for the macOS app, with screenshots:
+User guides for the macOS and Windows apps, with screenshots of the macOS app:
 
 - [Getting started](getting-started.md) — install, choose a sign-in method, add accounts and
   tenants, find your way around the panel and Settings.
