@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Entra app registration", since the registration in effect may be your own, your company's, or
   the shared Elevate app. The documentation follows the new name.
 
+### Fixed
+
+- macOS: background refreshes no longer open the browser or an auth sheet. The refresh timer,
+  wake, launch, the network coming back, panel opens and the access package poll now acquire
+  tokens silently only; a tenant whose sign-in cannot be renewed silently keeps its last rows and
+  shows a "Sign-in needed to refresh" limitation until you press Refresh or open its access
+  packages, which still prompt as before. Previously an Azure CLI, Azure PowerShell or custom
+  client-id account in a tenant that demands fresh MFA could pop a browser tab every minute while a
+  role was active.
+
 ## [1.6.0] - 2026-09-09
 
 ### Added
