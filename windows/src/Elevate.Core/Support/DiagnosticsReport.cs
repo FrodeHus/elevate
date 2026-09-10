@@ -21,6 +21,8 @@ public sealed record DiagnosticsManaged(string Origin, IReadOnlyList<string> Key
 /// The input to <see cref="DiagnosticsReport.Render"/>. Deliberately has no field for a client id,
 /// token, or other secret, so none can appear in the rendered text; callers must not pass secrets
 /// in <see cref="Errors"/> either, since error messages are rendered verbatim.
+/// <see cref="UsesSharedClientId"/> and <see cref="IsConfigured"/> name which kind of client id is
+/// in effect (shared Elevate app, own registration, or none) without carrying the id.
 /// </summary>
 public sealed record DiagnosticsInput(
     string AppVersion,
@@ -32,7 +34,9 @@ public sealed record DiagnosticsInput(
     IReadOnlyList<string> Profiles,
     string? HotKey,
     IReadOnlyList<DiagnosticsError> Errors,
-    DiagnosticsManaged? Managed = null);
+    DiagnosticsManaged? Managed = null,
+    bool UsesSharedClientId = false,
+    bool IsConfigured = false);
 
 /// <summary>
 /// Renders a plain-text diagnostics report for "Copy diagnostics" in Settings. Pure formatting: it
@@ -51,6 +55,9 @@ public static class DiagnosticsReport
             $"App version: {input.AppVersion} ({input.Build})",
             $"Signing: {input.Signing}",
             $"Windows: {input.Os}",
+            input.UsesSharedClientId ? "Client id: shared Elevate app"
+                : input.IsConfigured ? "Client id: own registration"
+                : "Client id: not set",
             "",
             "Accounts:",
         };

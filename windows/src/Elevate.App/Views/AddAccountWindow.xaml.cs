@@ -25,9 +25,11 @@ public sealed partial class AddAccountWindow : Window
         CustomClientId.Text = model.RememberedCustomClientId;
         var ownAppAvailable = model.IsAvailable(SignInMethod.OwnApp);
         OwnAppChoice.IsEnabled = ownAppAvailable;
-        OwnAppCaption.Text = ownAppAvailable
-            ? "Signs in with Windows (WAM) using the client ID from Settings; needs admin consent in each tenant. Supports Entra roles, Azure roles and PIM for Groups."
-            : "Unavailable — configure a client ID in Settings.";
+        OwnAppCaption.Text = !ownAppAvailable
+            ? "Unavailable — configure a client ID in Settings."
+            : model.UsesSharedApp
+                ? "Signs in with Windows (WAM) using the shared Elevate app (no SLA) configured in Settings; an administrator must grant consent once per tenant. Supports Entra roles, Azure roles and PIM for Groups."
+                : "Signs in with Windows (WAM) using the client ID from Settings; needs admin consent in each tenant. Supports Entra roles, Azure roles and PIM for Groups.";
         // A method the organization does not permit is not offered at all: its row goes, and so
         // does the client-id box under "Custom client ID" when custom registrations are withheld.
         var offered = model.AvailableMethods;

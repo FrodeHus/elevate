@@ -396,17 +396,21 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             return null;
         }
 
-        var scopes = string.Join(' ', Scopes.GraphAll.Concat(Scopes.GroupAll).Concat(Scopes.EntitlementAll));
-        var query = new Dictionary<string, string>
-        {
-            ["client_id"] = Settings.ClientId.Trim(),
-            ["scope"] = scopes,
-            ["redirect_uri"] = "https://login.microsoftonline.com/common/oauth2/nativeclient",
-        };
-        var text = "https://login.microsoftonline.com/" + Uri.EscapeDataString(tenantId) + "/v2.0/adminconsent?"
-            + string.Join('&', query.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}"));
-        return new Uri(text);
+        // The shared registration redirects to its consent result page; own registrations keep
+        // the loopback-friendly nativeclient URI. SharedApp.AdminConsentUri picks by client id.
+        return SharedApp.AdminConsentUri(Settings.ClientId, tenantId);
     }
+
+    /// <summary>True when the configured client id is the project-provided shared Elevate app registration.</summary>
+    public bool UsesSharedApp => Settings.UsesSharedClientId;
+
+    /// <summary>
+    /// Admin consent for the shared Elevate app registration, under the <c>organizations</c>
+    /// segment rather than one tenant, since the shared app is not scoped to a tenant here. Null
+    /// unless the shared id is configured and usable.
+    /// </summary>
+    public Uri? SharedAppAdminConsentUrl() =>
+        IsConfigured && UsesSharedApp ? SharedApp.AdminConsentUri(Settings.ClientId, "organizations") : null;
 
     // MARK: Lifecycle
 

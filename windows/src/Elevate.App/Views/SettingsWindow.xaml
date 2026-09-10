@@ -19,7 +19,7 @@
 
         <!-- App registration -->
         <StackPanel Grid.Row="1" Spacing="8">
-            <TextBlock Text="APP REGISTRATION" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <TextBlock Text="ENTRA APP REGISTRATION" FontSize="11" FontWeight="SemiBold" CharacterSpacing="80" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
             <StackPanel Spacing="6">
                 <TextBlock Text="Application (client) ID" FontSize="13" />
                 <!-- Applies on Enter or focus loss like the other settings; no Save button. -->
@@ -30,6 +30,16 @@
                 <StackPanel x:Name="ClientIdManaged" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
                     <FontIcon Glyph="&#xE825;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="Managed by your organization" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <!-- The quick-start route is offered only where the id can actually be changed. -->
+                <Button x:Name="QuickStartShared" Click="OnQuickStartShared" HorizontalAlignment="Left" />
+                <!-- While the shared id is in effect: name it, and offer the once-per-tenant consent link. -->
+                <StackPanel x:Name="SharedAppRow" Spacing="6" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE716;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="Shared Elevate app — no SLA" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <Button Content="Grant admin consent…" Click="OnGrantSharedConsent" HorizontalAlignment="Left" />
                 </StackPanel>
             </StackPanel>
             <Grid Padding="14,12" CornerRadius="4" ColumnSpacing="14" Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
@@ -42,7 +52,7 @@
                     <TextBlock Text="Redirect URIs" FontWeight="SemiBold" />
                     <TextBlock x:Name="BrokerUri" FontSize="12" FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
                     <TextBlock x:Name="LoopbackUri" FontSize="12" FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IsTextSelectionEnabled="True" />
-                    <TextBlock Text="Register both under the Mobile and desktop applications platform, and add the Graph PIM permissions listed in the app registration guide."
+                    <TextBlock x:Name="RedirectCaption" Text="Register both under the Mobile and desktop applications platform, and add the Graph PIM permissions listed in the app registration guide."
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     <views:DocsLinksRow Margin="0,2,0,0" />
                 </StackPanel>
