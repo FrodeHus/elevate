@@ -39,43 +39,51 @@ class Page(HTMLParser):
                     errors.append(f'Image missing {required}: {attrs.get("src")}')
 
 
-page = Page()
-index = SITE / "index.html"
-if not index.is_file():
+pages = {}
+for document in sorted(SITE.glob("*.html")):
+    page = Page()
+    page.feed(document.read_text())
+    pages[document.resolve()] = page
+    if page.h1_count != 1:
+        errors.append(f"{document.name}: must have exactly one h1")
+if (SITE / "index.html").resolve() not in pages:
     sys.exit("Missing site/index.html")
-page.feed(index.read_text())
-if page.h1_count != 1:
-    errors.append("Page must have exactly one h1")
 
-for asset in page.assets:
-    parsed = urlsplit(asset)
-    target = (SITE / unquote(parsed.path)).resolve()
-    if parsed.scheme or asset.startswith("/") or not target.is_relative_to(SITE):
-        errors.append(f"Asset must be self-contained and relative for project Pages: {asset}")
-    elif not target.is_file():
-        errors.append(f"Missing asset: {asset}")
+for document, page in pages.items():
+    for asset in page.assets:
+        parsed = urlsplit(asset)
+        target = (document.parent / unquote(parsed.path)).resolve()
+        if parsed.scheme or asset.startswith("/") or not target.is_relative_to(SITE):
+            errors.append(f"Asset must be self-contained and relative for project Pages: {asset}")
+        elif not target.is_file():
+            errors.append(f"Missing asset: {asset}")
 
-for link in page.links:
-    parsed = urlsplit(link)
-    if not link:
-        errors.append("Empty link")
-    elif link.startswith("#"):
-        if parsed.fragment and unquote(parsed.fragment) not in page.ids:
-            errors.append(f"Missing section: {link}")
-    elif parsed.netloc.lower() == "github.com":
-        prefix = "/frodehus/elevate/blob/main/"
-        if parsed.path.lower().startswith(prefix):
-            path = unquote(parsed.path[len(prefix):])
-            target = (ROOT / path).resolve()
-            if not target.is_relative_to(ROOT) or not target.is_file():
-                errors.append(f"Missing GitHub documentation target: {path}")
-            elif parsed.fragment:
-                headings = re.findall(r"^#{1,6}\s+(.+?)\s*#*\s*$", target.read_text(), re.M)
-                slugs = {re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-") for title in headings}
-                if unquote(parsed.fragment) not in slugs:
-                    errors.append(f"Missing documentation heading: {link}")
-    elif parsed.scheme != "https":
-        errors.append(f"Unexpected link destination: {link}")
+    for link in page.links:
+        parsed = urlsplit(link)
+        if not link:
+            errors.append(f"{document.name}: empty link")
+        elif not parsed.scheme and not parsed.netloc:
+            target = (document.parent / unquote(parsed.path)).resolve() if parsed.path else document
+            if target.is_dir():
+                target /= "index.html"
+            if link.startswith("/") or target not in pages:
+                errors.append(f"{document.name}: missing or non-relative page: {link}")
+            elif parsed.fragment and unquote(parsed.fragment) not in pages[target].ids:
+                errors.append(f"{document.name}: missing section: {link}")
+        elif parsed.netloc.lower() == "github.com":
+            prefix = "/frodehus/elevate/blob/main/"
+            if parsed.path.lower().startswith(prefix):
+                path = unquote(parsed.path[len(prefix):])
+                target = (ROOT / path).resolve()
+                if not target.is_relative_to(ROOT) or not target.is_file():
+                    errors.append(f"Missing GitHub documentation target: {path}")
+                elif parsed.fragment:
+                    headings = re.findall(r"^#{1,6}\s+(.+?)\s*#*\s*$", target.read_text(), re.M)
+                    slugs = {re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-") for title in headings}
+                    if unquote(parsed.fragment) not in slugs:
+                        errors.append(f"Missing documentation heading: {link}")
+        elif parsed.scheme != "https":
+            errors.append(f"Unexpected link destination: {link}")
 
 # All CSS assets must also survive deployment under /elevate/.
 css = (SITE / "styles.css").read_text()
@@ -93,4 +101,5 @@ for path in SITE.rglob("*"):
 if errors:
     print("\n".join(f"ERROR: {error}" for error in errors))
     sys.exit(1)
-print(f"Site valid: {len(page.links)} links, {len(page.assets)} asset references, {len(page.ids)} unique IDs.")
+print(f"Site valid: {len(pages)} pages, {sum(len(p.links) for p in pages.values())} links, "
+      f"{sum(len(p.assets) for p in pages.values())} asset references.")

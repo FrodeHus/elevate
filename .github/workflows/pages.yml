@@ -35,7 +35,7 @@ jobs:
       - name: Stage only public website files
         run: |
           mkdir -p _site
-          cp site/index.html site/styles.css site/script.js _site/
+          cp site/*.html site/styles.css site/script.js _site/
           cp -R site/assets _site/assets
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

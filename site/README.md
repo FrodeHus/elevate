@@ -40,7 +40,7 @@ always work without JavaScript. The countdown is an illustration, not a live rol
 
 Pull requests validate without deployment permissions. Pushes that change the site, its validator
 or workflow publish automatically from `main`; manual runs on other branches cannot deploy.
-Only `index.html`, `styles.css`, `script.js` and `assets/` enter the published artifact. GitHub
+Only the HTML pages, `styles.css`, `script.js` and `assets/` enter the published artifact. GitHub
 creates the `github-pages` environment if it does not already exist. No custom token is needed.
 See [GitHub's custom Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
@@ -72,3 +72,11 @@ Design references: [Apple materials](https://developer.apple.com/design/human-in
 and the [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/). The page uses glass
 selectively, visible keyboard focus, semantic landmarks, responsive layouts and user-controlled
 feature switching. It does not auto-rotate panels or gate content behind animation.
+
+## Legal pages
+
+`terms.html` and `privacy.html` are standalone pages linked from the main footer and from each
+other. They share the stylesheet and do not load JavaScript. The validator checks all HTML pages
+and their cross-page links before deployment. Update each page's revision date when its substance
+changes. The privacy contact route is GitHub; never ask users to put private request details in
+public issues. The MIT license remains the governing software license.
