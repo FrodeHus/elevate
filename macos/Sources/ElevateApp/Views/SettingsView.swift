@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var draft = ""
     @State private var error: String?
     @State private var confirmReplace = false
+    @State private var confirmSharedApp = false
     @State private var saved = false
     @State private var hotKey: HotKeyBinding?
     @State private var hotKeyProfileId: UUID?
@@ -74,6 +75,15 @@ struct SettingsView: View {
                         .focused($clientIdFocused)
                         .onSubmit { if isSaveable { save() } }
                         .onChange(of: clientIdFocused) { _, focused in if !focused, isSaveable { save() } }
+                    // The quick-start route is offered only where the id can actually be changed.
+                    Button(SharedAppConsent.quickStartLabel) { confirmSharedApp = true }
+                }
+                if model.usesSharedApp {
+                    Label("Shared Elevate app — no SLA", systemImage: "person.2")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let consent = model.sharedAppAdminConsentURL() {
+                        Button("Grant admin consent…") { NSWorkspace.shared.open(consent) }
+                    }
                 }
                 LabeledContent("Redirect URI") {
                     HStack {
@@ -86,7 +96,10 @@ struct SettingsView: View {
                             .buttonStyle(.borderless).accessibilityLabel("Copy redirect URI")
                     }
                 }
-                if model.ownAppViaLoopback {
+                if model.usesSharedApp {
+                    Text("The shared registration already lists this redirect URI.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if model.ownAppViaLoopback {
                     Text("This unsigned build signs in through the browser (loopback), so register http://localhost under the Mobile and desktop applications platform instead of the msauth.… URI, and add the Graph PIM permissions listed in the app registration guide. A signed build uses the msauth.\(AppSettings.bundleId)://auth redirect under the iOS/macOS platform; registering both is harmless.")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -138,7 +151,9 @@ struct SettingsView: View {
                 NSApp.windows.first { $0.isVisible && $0.contentView?.subviews.isEmpty == false && $0.title.localizedCaseInsensitiveContains("settings") }?.makeKeyAndOrderFront(nil)
             }
         }
-        .onChange(of: draft) { saved = false }
+        // A programmatic fill (the shared-app quick start) applies the value itself, so only
+        // an edit that diverges from the stored id clears the "Saved." confirmation.
+        .onChange(of: draft) { if draft.trimmingCharacters(in: .whitespacesAndNewlines) != model.settings.clientId { saved = false } }
         .onChange(of: hotKey) { applyHotKey() }
         .onChange(of: hotKeyProfileId) { applyHotKey() }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
@@ -148,6 +163,7 @@ struct SettingsView: View {
         } message: {
             Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it; you will add them again. Azure CLI and Azure PowerShell accounts are unaffected.")
         }
+        .sharedAppConsentDialog(isPresented: $confirmSharedApp) { applySharedApp() }
     }
 
     /// Registers or unregisters the login item, putting the toggle back if the system refuses.
@@ -196,6 +212,12 @@ struct SettingsView: View {
 
     private func save() {
         if model.identities.isEmpty { apply() } else { confirmReplace = true }
+    }
+
+    /// Fills the field with the shared registration and applies it, so the row reads like a save.
+    private func applySharedApp() {
+        draft = AppSettings.sharedClientId
+        apply()
     }
 
     private func apply() {
