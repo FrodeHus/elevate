@@ -90,11 +90,16 @@ public sealed partial class AppModel
             .Where(t => force || AccessPackagesPolledAt(t.Key) is not { } at || now - at > AccessPackagePanelThrottle)
             .Select(t => t.Key)
             .ToList();
-        await Task.WhenAll(due.Select(PollAccessPackagesAsync));
+        // Background polling: never prompt for a sign-in from a timer or a panel open.
+        await Task.WhenAll(due.Select(key => PollAccessPackagesAsync(key, interactive: false)));
     }
 
-    /// <summary>Reads requests and assignments for one tenant, notifies about what changed, persists.</summary>
-    public async Task PollAccessPackagesAsync(TenantKey key)
+    /// <summary>
+    /// Reads requests and assignments for one tenant, notifies about what changed, persists.
+    /// <paramref name="interactive"/> allows a sign-in prompt when silent acquisition fails; the
+    /// default suits the access packages window, which the user opened. Background polls pass false.
+    /// </summary>
+    public async Task PollAccessPackagesAsync(TenantKey key, bool interactive = true)
     {
         if (Identity(key.IdentityId) is not { } identity || Tenant(key) is not { } tenant || DeclinedTenants.Contains(key))
         {
@@ -111,8 +116,11 @@ public sealed partial class AppModel
         try
         {
             var provider = Packages;
-            var requests = await AcquireAsync(key, identity, provider.Scopes, () => provider.MyRequestsAsync(identity, key.TenantId));
-            var assignments = await AcquireAsync(key, identity, provider.Scopes, () => provider.MyAssignmentsAsync(identity, key.TenantId));
+            Task<T> Acquire<T>(Func<Task<T>> operation) => interactive
+                ? AcquireAsync(key, identity, provider.Scopes, operation)
+                : AcquireSilentlyAsync(key, operation);
+            var requests = await Acquire(() => provider.MyRequestsAsync(identity, key.TenantId));
+            var assignments = await Acquire(() => provider.MyAssignmentsAsync(identity, key.TenantId));
             if (generation != ConfigGeneration || Tenant(key) is null)
             {
                 return;

@@ -257,6 +257,7 @@ public sealed partial class AppModel
     internal void ForgetTenant(TenantKey key)
     {
         DeclinedTenants.Remove(key);
+        TenantsAwaitingSignIn.Remove(key);
         State.RemoveTenant(key);
         Roles.Remove(key);
         foreach (var roleKey in Active.Keys.Where(k => k.TenantKey == key).ToList())
