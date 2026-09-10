@@ -130,6 +130,14 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     /// <summary>Tenants whose interactive sign-in the user dismissed this session; refreshes stay silent for them until Refresh or Retry discovery.</summary>
     internal HashSet<TenantKey> DeclinedTenants { get; } = [];
 
+    /// <summary>
+    /// Tenants whose last background refresh needed a sign-in that a silent read could not provide.
+    /// Session only. No browser or broker dialog was opened for them; the rows shown are from the
+    /// last successful read, and the tenant pill says so. Cleared by a user refresh that signs in,
+    /// by a later silent refresh that succeeds on its own, and when the identity is removed.
+    /// </summary>
+    public HashSet<TenantKey> TenantsAwaitingSignIn { get; } = [];
+
     internal bool Bootstrapped { get; private set; }
 
     internal DateTimeOffset LastRefresh { get; set; } = DateTimeOffset.MinValue;
@@ -327,6 +335,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         RemoveWhere(Progress, k => k.IdentityId == identityId);
         RemoveWhere(TenantErrors, k => k.IdentityId == identityId);
         RemoveWhere(AccessPackageErrors, k => k.IdentityId == identityId);
+        TenantsAwaitingSignIn.RemoveWhere(k => k.IdentityId == identityId);
         DropApprovals(k => k.IdentityId == identityId);
         DropPolicies(k => k.IdentityId == identityId);
     }
