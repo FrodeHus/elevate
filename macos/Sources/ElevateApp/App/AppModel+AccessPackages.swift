@@ -24,23 +24,31 @@ extension AppModel {
             return Date().timeIntervalSince(at) > Self.accessPackagePanelThrottle
         }
         await withTaskGroup(of: Void.self) { group in
-            for tenant in due { group.addTask { await self.pollAccessPackages(tenant.id) } }
+            // Background polling: never prompt for a sign-in from a timer or a panel open.
+            for tenant in due { group.addTask { await self.pollAccessPackages(tenant.id, interactive: false) } }
         }
     }
 
     /// Reads requests and assignments for one tenant, notifies about what changed, persists.
-    func pollAccessPackages(_ key: TenantKey) async {
+    /// `interactive` allows a sign-in prompt when silent acquisition fails; the default suits the
+    /// access package window, which the user opened. Background polls pass false.
+    func pollAccessPackages(_ key: TenantKey, interactive: Bool = true) async {
         guard let identity = identity(key.identityId), let tenant = tenant(key), !accessPackagesPolling.contains(key) else { return }
         guard !signInNeeded.contains(identity.id), !declinedTenants.contains(key) else { return }
         let generation = configGeneration
         accessPackagesPolling.insert(key)
         defer { accessPackagesPolling.remove(key) }
         let provider = accessPackageProvider
+        let tokens = tokens
+        func acquire<T: Sendable>(_ op: @Sendable @escaping () async throws -> T) async throws -> T {
+            guard interactive else { return try await op() }
+            return try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes, operation: op)
+        }
         do {
-            let requests = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+            let requests = try await acquire { @Sendable in
                 try await provider.myRequests(identity: identity, tenantId: key.tenantId)
             }
-            let assignments = try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: provider.scopes) { @Sendable in
+            let assignments = try await acquire { @Sendable in
                 try await provider.myAssignments(identity: identity, tenantId: key.tenantId)
             }
             guard generation == configGeneration, self.tenant(key) != nil else { return }

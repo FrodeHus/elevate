@@ -65,6 +65,11 @@ final class AppModel {
     /// skip them until "Sign in again" succeeds or the user signs them out. Session only:
     /// `bootstrap()` recomputes it from the token stores on every launch.
     var signInNeeded: Set<String> = []                // internal for AppModel+Accounts, AppModel+Refresh
+    /// Tenants whose silent token acquisition failed during a background refresh. Background
+    /// work (timer, wake, launch, panel open) never prompts, so nothing opened a browser; the
+    /// tenant keeps the rows it had and is flagged in the panel until a user-initiated refresh
+    /// signs it in, or a later silent refresh succeeds on its own. Session only.
+    var tenantsAwaitingSignIn: Set<TenantKey> = []   // internal for AppModel+Refresh
     var bootstrapped = false                          // internal for AppModel+Refresh
     var lastRefresh: Date = .distantPast              // internal for AppModel+Refresh
     /// Policies are stable per role; fetching them again on every refresh is wasted quota.
@@ -340,6 +345,7 @@ final class AppModel {
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
+        tenantsAwaitingSignIn = tenantsAwaitingSignIn.filter { $0.identityId != identityId }
         dropApprovals { $0.identityId == identityId }
         dropPolicies { $0.identityId == identityId }
     }
