@@ -23,7 +23,8 @@ Reference:
   known risks, the no-SLA caveat, how an administrator consents, and when to register your own
   instead.
 - [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS, Windows
-  and the CLI), the optional signing secrets, the Homebrew cask and formula.
+  and the CLI), the optional signing secrets, the Homebrew cask (which installs the pkg) and the
+  deprecated CLI formula.
 - [Requesting access packages](access-packages.md) — finding, requesting and following
   entitlement management access packages per tenant; notifications and the new-role marker.
 

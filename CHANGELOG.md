@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Site: `consent.html`, the admin consent result page the shared registration redirects to, and a
   privacy-page paragraph stating that using the shared registration sends nothing to the
   maintainer.
+- macOS: `Elevate-<version>.pkg` now carries the `elevate` CLI inside the app
+  (`Elevate.app/Contents/Helpers/elevate`, Apple Silicon) and links `/usr/local/bin/elevate` to
+  it, so a Jamf or Intune rollout — or `sudo installer -pkg` — installs the app and the CLI at the
+  same version. The helper is signed with the hardened runtime and notarized with the app.
+- Windows: the MSI installs `elevate.exe` in a `cli` folder under the app and adds it to the
+  user's PATH; uninstalling removes both.
+- CLI: `elevate update` tells you how to upgrade for the way this copy was installed (with the
+  app, the formula, winget or an archive).
 
 ### Changed
 
@@ -42,6 +50,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS and Windows: the "Custom app" sign-in method is now "Company app (client ID)", with a
   caption naming the two cases it is for: a registration that lists only `http://localhost`, or a
   second registration alongside the one in Settings.
+- Homebrew: the `elevate` cask installs the pkg instead of the DMG, so `brew install --cask
+  frodehus/elevate/elevate` now yields the app and the CLI (and asks for your password, as pkg
+  casks do). The DMG is unchanged: the app alone.
+
+### Deprecated
+
+- Homebrew: the `elevate-cli` formula. The cask and the pkg install the CLI on Apple Silicon Macs;
+  the formula stays one more release for Linux and Intel Macs, which keep the
+  `elevate-cli-<version>-<rid>` archives afterwards.
 
 ### Fixed
 

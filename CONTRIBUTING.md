@@ -145,6 +145,7 @@ Commit the regenerated JSON together with a note of when it was refreshed.
 ## Releases
 
 Releases are tag-driven: pushing a `v*` tag builds both apps and the CLI from that commit,
-publishes one GitHub Release with the DMG, the MSIs and the CLI archives, and updates the
-Homebrew cask and formula. All three share the version number. Maintainers only — the full
-procedure, including the optional signing secrets, is in [docs/releasing.md](docs/releasing.md).
+publishes one GitHub Release with the DMG, the pkg and MSIs (which carry the CLI), the standalone
+CLI archives, and updates the Homebrew cask and the deprecated formula. All three share the
+version number. Maintainers only — the full procedure, including the optional signing secrets, is
+in [docs/releasing.md](docs/releasing.md).
