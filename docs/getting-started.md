@@ -9,7 +9,7 @@ tenant you use. This guide takes you from a fresh install to a panel full of rol
 
 Other guides: [Activating roles](activating-roles.md), [Profiles and shortcuts](profiles-and-shortcuts.md),
 [Approving requests](approvals.md), [Requesting access packages](access-packages.md),
-[Troubleshooting](troubleshooting.md).
+[Troubleshooting](troubleshooting.md), [The shared Elevate app](shared-app-registration.md).
 
 ## 1. Install
 
@@ -20,14 +20,22 @@ icon (a double chevron) sits in the menu bar. Click it to open the panel.
 ## 2. Choose how to sign in
 
 Elevate signs in with an Entra app registration. On first launch the panel asks you to complete
-setup, and links to this guide and to the app registration guide on GitHub:
+setup, and links to this guide and to the app registration guide on GitHub. The setup panel now
+offers three buttons: **Open Settings…**, **Quick start with the shared Elevate app…** and
+**Continue with the Azure CLI app**.
 
 ![The panel on first launch, linking to the guides and offering Open Settings and Continue with the Azure CLI app](images/tutorials/panel-setup.png)
 
-You have two routes:
+You have three routes:
 
-- **Your organization's Elevate registration (recommended).** Someone in your organization
-  creates one app registration once, following
+- **The shared Elevate app (quickest).** The Elevate project publishes a multi-tenant
+  registration you can use without creating one. Click **Quick start with the shared Elevate
+  app…**, confirm, then have an administrator use **Grant admin consent…** once per tenant. It
+  covers everything, but it is **optional and has no SLA**: it may change or be withdrawn, and
+  anyone who needs control over the registration should register their own. Read
+  [shared-app-registration.md](shared-app-registration.md) before you consent.
+- **Your organization's Elevate registration (recommended for real use).** Someone in your
+  organization creates one app registration once, following
   [entra-app-registration.md](entra-app-registration.md), and gives you its application
   (client) ID. Click **Open Settings…**, paste the ID into the **Entra app registration** field and
   press Return. This route supports everything: Entra roles, Azure roles, groups and access
@@ -42,8 +50,9 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
 
 ![The Add account dialog with the four sign-in methods and a note about what each supports](images/tutorials/add-account.png)
 
-- **Own app registration** uses the client ID from Settings. Each tenant needs an administrator
-  to consent once; the panel offers a consent link when that has not happened yet. The caption
+- **Entra app registration** uses the client ID from Settings — your own, your company's, or the
+  shared Elevate app. Each tenant needs an administrator to consent once; the panel offers a
+  consent link when that has not happened yet. The caption
   under the option describes how this build signs in: through Microsoft's sign-in window on a
   signed build, through your browser on an unsigned one.
 - **Azure CLI app** and **Azure PowerShell app** are Microsoft's own apps. No consent, Azure
@@ -105,7 +114,9 @@ Open **Settings…** from the panel.
 - **Copy diagnostics** puts a plain-text report on the clipboard for bug reports: accounts,
   tenants, profiles and recent errors, never tokens or secrets.
 - **Entra app registration** is where the client ID lives. Changing it signs out the accounts
-  that use it, so Elevate asks before applying.
+  that use it, so Elevate asks before applying. It also has **Quick start with the shared Elevate
+  app…**, and shows **Shared Elevate app — no SLA** with a **Grant admin consent…** button while
+  the shared id is in effect; see [shared-app-registration.md](shared-app-registration.md).
 - **Global shortcut** runs a profile from anywhere; see
   [Profiles and shortcuts](profiles-and-shortcuts.md).
 

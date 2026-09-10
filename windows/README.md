@@ -43,6 +43,9 @@ Sign in from the flyout's **Add account…** with one of:
   there under the *Mobile and desktop applications* platform:
   `ms-appx-web://microsoft.aad.brokerplugin/{client id}` for the broker and `http://localhost` for
   the browser fallback. See [docs/entra-app-registration.md](../docs/entra-app-registration.md).
+  Or use the project's shared registration, `c9011cc5-7422-4630-a432-73ff4df5834e`, which already
+  lists both redirects — optional, no SLA, and an administrator must consent once per tenant; see
+  [docs/shared-app-registration.md](../docs/shared-app-registration.md).
 - **A custom client ID**: any public-client registration, through the system browser on `http://localhost`.
 - **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed, but
   Azure resource roles only — Entra directory roles and PIM for Groups are neither read nor

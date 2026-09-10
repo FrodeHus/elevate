@@ -49,7 +49,7 @@ next to this README at release time. The step-by-step how-tos live in
 
 | Placeholder | Meaning |
 |---|---|
-| `00000000-0000-0000-0000-000000000000` | The Application (client) id of your Entra app registration |
+| `00000000-0000-0000-0000-000000000000` | The Application (client) id of your Entra app registration. `c9011cc5-7422-4630-a432-73ff4df5834e` is the project's optional shared registration — usable, but it has no SLA and you do not control it; see `docs/shared-app-registration.md` |
 | `contoso.com` | Your tenant's verified domain, or its tenant id |
 | `https://example.com/elevate/profiles.json` | Where you host the managed profile set, if you host one |
 | `Contoso` / `com.contoso.…` | Your organization's name and payload identifiers |

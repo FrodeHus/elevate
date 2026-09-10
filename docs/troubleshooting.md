@@ -14,7 +14,12 @@ not yet consented to the Elevate app registration there. Two ways forward:
 
 - **Get consent.** Open the tenant menu (the circled dots on the tenant row) and choose **Open
   admin consent link…**. Send the link to a tenant administrator, or open it yourself if you are
-  one. After consent, choose **Retry discovery** from the same menu.
+  one. After consent, choose **Retry discovery** from the same menu. If you are using the shared
+  Elevate app, Settings › Entra app registration also has a **Grant admin consent…** button; that
+  link uses the `organizations` segment rather than a tenant id, so an administrator can grant
+  consent before any account exists. The administrator sees Microsoft's "This app may be risky"
+  warning first, because the shared registration has no verified publisher — see
+  [The shared Elevate app](shared-app-registration.md).
 - **Configure the roles you know you hold.** Choose **Configure known PIM roles…** in the tenant
   menu:
 
@@ -30,7 +35,7 @@ The account was added with the Azure CLI or Azure PowerShell app. Microsoft gran
 Graph PIM permissions, so Elevate never reads or activates Entra roles or group memberships for
 it and never shows permission errors for them either. Azure resource roles work normally.
 
-To get Entra roles for that account, sign it out and add it again with **Own app registration**
+To get Entra roles for that account, sign it out and add it again with **Entra app registration**
 or a **Custom app**.
 
 ## Azure is off in a tenant
@@ -121,5 +126,6 @@ approve Elevate under System Settings → General → Login Items.
 
 Open **Settings…** and click **Copy diagnostics**. The clipboard now holds the app version and
 signing state, your accounts and tenants with their modes and limits, profile names, and the last
-errors with timestamps. It never contains tokens, client secrets or role justifications. Paste it
-into a GitHub issue at https://github.com/FrodeHus/elevate/issues.
+errors with timestamps. It never contains tokens, client secrets or role justifications; the
+client id appears only as `Client id: shared Elevate app`, `own registration` or `not set`.
+Paste it into a GitHub issue at https://github.com/FrodeHus/elevate/issues.

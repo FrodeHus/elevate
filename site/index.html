@@ -632,14 +632,25 @@
         <div class="setup-note">
           <strong>Before your first activation</strong>
           <p>
-            Use your own or your company’s app registration for Entra roles,
-            groups and access packages. Azure CLI or Azure PowerShell sign-in
-            supports Azure resource roles only.
+            Quickest: the shared Elevate app, an optional multi-tenant
+            registration the project provides so you can try Elevate without
+            creating one. It has no SLA and may change or be withdrawn, and an
+            administrator grants consent once per tenant.
+          </p>
+          <p>
+            For control over scopes, redirect URIs and lifetime, use your own or
+            your company’s app registration. Azure CLI or Azure PowerShell
+            sign-in needs neither, but supports Azure resource roles only.
           </p>
           <a
             class="text-link"
+            href="https://github.com/FrodeHus/elevate/blob/main/docs/shared-app-registration.md"
+            >About the shared Elevate app <span aria-hidden="true">↗</span></a
+          >
+          <a
+            class="text-link"
             href="https://github.com/FrodeHus/elevate/blob/main/docs/entra-app-registration.md"
-            >Set up your app registration <span aria-hidden="true">↗</span></a
+            >Set up your own app registration <span aria-hidden="true">↗</span></a
           >
         </div>
       </section>
