@@ -58,6 +58,7 @@ The CLI signs in the same ways the apps do, chosen per account with `--method`:
 | Method | Command | What it can do |
 |---|---|---|
 | Your own app registration | `elevate config set client-id <application id>` then `elevate login` | Entra directory roles, Azure resource roles, PIM for Groups, approvals, access packages |
+| The shared Elevate app | `elevate config set client-id c9011cc5-7422-4630-a432-73ff4df5834e` then `elevate login` | The same, once an administrator has consented — optional, no SLA, see [docs/shared-app-registration.md](../docs/shared-app-registration.md) |
 | A custom (company) registration | `elevate login --method custom --client-id <application id>` | The same, given the same permissions; the id is remembered |
 | The Azure CLI app | `elevate login --method cli` | Azure resource roles only, no registration or consent needed |
 | The Azure PowerShell app | `elevate login --method pwsh` | Same, for tenants that block the Azure CLI app |
@@ -65,7 +66,8 @@ The CLI signs in the same ways the apps do, chosen per account with `--method`:
 Sign-in opens the system browser and returns to `http://localhost`, which the registration must
 list as a redirect URI under *Mobile and desktop applications* (the setup script and guide in
 [docs/entra-app-registration.md](../docs/entra-app-registration.md) already add it; the
-first-party apps accept it without registration). Over SSH or in a container, pass
+first-party apps accept it without registration; the shared Elevate app lists it too). Over SSH
+or in a container, pass
 `--device-code` (or run without a display on Linux, which selects it automatically): the CLI
 prints a code to enter at microsoft.com/devicelogin from any device. The device code flow
 requires *Allow public client flows* on your own registration.

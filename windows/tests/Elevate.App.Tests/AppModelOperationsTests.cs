@@ -107,7 +107,7 @@ public class AppModelOperationsTests
 
         var text = model.DiagnosticsText();
 
-        text.Should().Contain("id-1@example.com — Own app registration — 1 tenant(s)");
+        text.Should().Contain("id-1@example.com — Entra app registration — 1 tenant(s)");
         text.Should().Contain("Contoso (tenant-1) — mode: manualRoles — flags: manual roles, Azure off");
         text.Should().Contain("  Ops");
         text.Should().Contain("Hot key: Ctrl+Shift+E → Ops");

@@ -107,9 +107,9 @@ struct AddAccountView: View {
         switch method {
         case .ownApp:
             if available && viaLoopback {
-                "Uses the client ID from Settings through the browser (loopback) on this unsigned build; the registration needs http://localhost under Mobile and desktop applications"
+                "Uses the registration configured in Settings — your own, your company's, or the shared Elevate app — through the browser (loopback) on this unsigned build; the registration needs http://localhost under Mobile and desktop applications"
             } else if available {
-                "Uses the client ID from Settings; needs admin consent in each tenant"
+                "Uses the registration configured in Settings — your own, your company's, or the shared Elevate app; needs admin consent in each tenant"
             } else {
                 "Unavailable — configure a client ID in Settings"
             }

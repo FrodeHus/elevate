@@ -51,7 +51,7 @@ public readonly record struct SignInMethod
 
     public string DisplayName => Kind switch
     {
-        SignInMethodKind.OwnApp => "Own app registration",
+        SignInMethodKind.OwnApp => "Entra app registration",
         SignInMethodKind.AzureCLI => "Azure CLI app",
         SignInMethodKind.AzurePowerShell => "Azure PowerShell app",
         _ => "Custom app",

@@ -6,7 +6,7 @@ Just-in-time Microsoft Entra and Azure PIM role activation from your menu bar, s
 
 ![Elevate panel](docs/images/social-preview.png)
 
-Elevate lists every account you have signed in with, each tenant that account can reach, and everything you are eligible for in it: Entra directory roles, Azure resource roles and PIM for Groups memberships. Activate with the policy's default duration and a reason Elevate remembers, select several across tenants and activate them together, or save a selection as a profile and run it with one click. Active roles show a live countdown, can be extended or deactivated, and raise notifications before and at expiry. Sign in with your own app registration, a company app registration, or the Azure CLI / Azure PowerShell app for Azure resource roles.
+Elevate lists every account you have signed in with, each tenant that account can reach, and everything you are eligible for in it: Entra directory roles, Azure resource roles and PIM for Groups memberships. Activate with the policy's default duration and a reason Elevate remembers, select several across tenants and activate them together, or save a selection as a profile and run it with one click. Active roles show a live countdown, can be extended or deactivated, and raise notifications before and at expiry. Sign in with your own app registration, a company app registration, the project's optional shared registration, or the Azure CLI / Azure PowerShell app for Azure resource roles.
 
 | App | Status | Docs |
 |---|---|---|
@@ -21,7 +21,8 @@ Elevate lists every account you have signed in with, each tenant that account ca
 - **CLI** (Linux, macOS, Windows): Homebrew formula, winget, or a single binary from the release,
   see [cli/README.md](cli/README.md#install).
 
-All three sign in with an Entra app registration, either your own or a company one; the Microsoft
+All three sign in with an Entra app registration — your own, a company one, or the project's
+optional [shared Elevate app](docs/shared-app-registration.md), which has no SLA; the Microsoft
 Azure CLI or Azure PowerShell app needs no registration but covers Azure resource roles only — it
 cannot read or activate Entra directory roles or PIM for Groups memberships, because Microsoft
 grants those apps no Graph PIM permissions. Each app checks the GitHub releases API for a newer
@@ -52,17 +53,27 @@ docs/       Design specs and implementation plans (docs/superpowers/specs, docs/
 
 ## Getting started
 
-1. **Create the Entra app registration** that Elevate signs in with. The step-by-step guide covers
-   both the Azure CLI route (a script and a permissions manifest are included) and the portal:
-   [docs/entra-app-registration.md](docs/entra-app-registration.md).
-   - Script: [docs/entra-app/create-app-registration.sh](docs/entra-app/create-app-registration.sh)
-   - Permissions manifest for `az ad app create`: [docs/entra-app/required-resource-access.json](docs/entra-app/required-resource-access.json)
+1. **Get an Entra app registration** for Elevate to sign in with. Two ways:
+   - **Quick start with the shared Elevate app.** The project publishes an optional multi-tenant
+     registration (`c9011cc5-7422-4630-a432-73ff4df5834e`) so you can try Elevate without
+     creating one — pick it from the setup panel or Settings. It is **completely optional and has
+     no SLA**: it may change or be withdrawn at any time, and anyone who needs control over the
+     registration should register their own. Read
+     [docs/shared-app-registration.md](docs/shared-app-registration.md) first — it covers the
+     security model, the known risks and the admin consent link.
+   - **Register your own**, the route to take when you want control. The step-by-step guide covers
+     both the Azure CLI route (a script and a permissions manifest are included) and the portal:
+     [docs/entra-app-registration.md](docs/entra-app-registration.md).
+     - Script: [docs/entra-app/create-app-registration.sh](docs/entra-app/create-app-registration.sh)
+     - Permissions manifest for `az ad app create`: [docs/entra-app/required-resource-access.json](docs/entra-app/required-resource-access.json)
 2. **Install or build the app** for your platform: [macos/README.md](macos/README.md),
    [windows/README.md](windows/README.md) or [cli/README.md](cli/README.md) — prerequisites,
    build steps, sign-in methods, and what each account type can and cannot activate.
 3. **Consent per tenant**: an admin grants the delegated permissions once per tenant, either with
    `az ad app permission admin-consent` or through the consent link Elevate offers from each
-   tenant's menu. Details in the guide's "Consent" section.
+   tenant's menu. Details in the guide's "Consent" section. For the shared Elevate app the CLI
+   command does not apply — it is registered in another tenant — so use the link;
+   see [docs/shared-app-registration.md](docs/shared-app-registration.md).
 
 Accounts that cannot use your registration can be added with the Azure CLI or Azure PowerShell
 app (Azure resource roles only, no Entra roles or groups) or with another company app
@@ -82,7 +93,8 @@ methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README
   else.
 - **No telemetry.** No analytics, no crash reporting, no phone-home of any kind.
 - **Diagnostics are safe to paste.** The report behind Settings → Copy diagnostics has no field for
-  a token or a client id, so neither can appear in it.
+  a token or a client id, so neither can appear in it; it says only whether the client id in
+  effect is the shared Elevate app, an own registration, or not set.
 - **Reporting a vulnerability:** see [SECURITY.md](SECURITY.md).
 
 ## Documentation
@@ -95,6 +107,7 @@ from `main`.
 |---|---|
 | Documentation index | [docs/README.md](docs/README.md) |
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
+| The shared Elevate app: what it is, its risks, no SLA, admin consent | [docs/shared-app-registration.md](docs/shared-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
 | Cutting a release: tagging, the workflow, signing secrets, the cask | [docs/releasing.md](docs/releasing.md) |
 | Rolling out to a fleet: Intune, Jamf, Group Policy, the CLI, managed profiles, the key reference | [docs/enterprise/README.md](docs/enterprise/README.md) |

@@ -44,6 +44,17 @@ The application (client) id of the app registration Elevate signs in with. It
 must be a GUID and must not be the all-zero GUID; anything else is rejected
 with a warning and the user keeps the choice.
 
+This is normally your own registration, created with
+[the app registration guide](../entra-app-registration.md). You *may* push the
+project's shared registration, `c9011cc5-7422-4630-a432-73ff4df5834e`, but
+weigh the caveat first: it is optional, has **no SLA**, and its scopes,
+redirect URIs and continued existence are the maintainer's to change — pushing
+it locks your fleet to an app you do not control. See
+[The shared Elevate app](../shared-app-registration.md), especially its known
+risks. The app reports which one is in effect as
+`Client id: shared Elevate app` or `own registration` in Diagnostics, never the
+id itself.
+
 Plist (macOS):
 
 ```xml

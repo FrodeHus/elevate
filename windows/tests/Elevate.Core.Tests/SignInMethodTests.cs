@@ -26,7 +26,7 @@ public class SignInMethodTests
     [Fact]
     public void DisplayNamesMatchTheMacApp()
     {
-        SignInMethod.OwnApp.DisplayName.Should().Be("Own app registration");
+        SignInMethod.OwnApp.DisplayName.Should().Be("Entra app registration");
         SignInMethod.AzureCLI.DisplayName.Should().Be("Azure CLI app");
         SignInMethod.AzurePowerShell.DisplayName.Should().Be("Azure PowerShell app");
         // The flow is an implementation detail; the caption names the method only.

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS: an optional shared Elevate app registration. The Elevate project publishes one
+  multi-tenant, public-client registration (`c9011cc5-7422-4630-a432-73ff4df5834e`, no secret, no
+  app-only permissions, the same delegated scopes as the guide's permission table) that any tenant
+  can consent to, so trying Elevate no longer requires creating a registration first. The setup
+  panel gains "Quick start with the shared Elevate app…" between "Open Settings…" and "Continue
+  with the Azure CLI app", behind a confirmation dialog stating the caveat; the "No accounts" state
+  and Settings › Entra app registration gain "Grant admin consent…", which opens the
+  `organizations` admin consent link. Settings shows "Shared Elevate app — no SLA" while the shared
+  id is in effect, and Diagnostics reports `Client id: shared Elevate app`, `own registration` or
+  `not set` — never the id.
+- Docs: [docs/shared-app-registration.md](docs/shared-app-registration.md) — what the shared app
+  is, its security model, what the maintainer can and cannot do, a "Known risks of a shared
+  multi-tenant registration" section, the no-SLA statement, when to register your own instead, the
+  admin consent link and what an administrator sees (including Microsoft's unverified-publisher
+  warning), and the tenant-side controls. The app registration guide gains a "Do you need your
+  own?" section, and the getting-started guide, troubleshooting, the READMEs, the managed
+  `ClientId` key reference and the product page point at it.
+- Site: `consent.html`, the admin consent result page the shared registration redirects to, and a
+  privacy-page paragraph stating that using the shared registration sends nothing to the
+  maintainer.
+
+### Changed
+
+- macOS and Windows: the sign-in method previously shown as "Own app registration" is now called
+  "Entra app registration", since the registration in effect may be your own, your company's, or
+  the shared Elevate app. The documentation follows the new name.
+- macOS: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails.
+
 ### Fixed
 
 - macOS: background refreshes no longer open the browser or an auth sheet. The refresh timer,

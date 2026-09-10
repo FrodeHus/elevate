@@ -11,6 +11,14 @@ final class AppSettings {
     static let legacyBundleIds = ["no.frodehus.elevate", "no.frodehus.pimtray"]
     static var redirectUri: String { "msauth.\(bundleId)://auth" }
     static let clientIdKey = "clientId"
+    /// The client id of the Elevate app registration the project provides, for organizations that
+    /// would rather use it than register their own. Public knowledge — not a secret — but still
+    /// never printed in diagnostics, where only "shared Elevate app" appears.
+    static let sharedClientId = "c9011cc5-7422-4630-a432-73ff4df5834e"
+    /// Admin consent `redirect_uri` for the shared Elevate app registration: a Web redirect
+    /// registered on the shared app, so the admin lands on a page that explains what just
+    /// happened instead of Microsoft's "this is not the right page" screen for `nativeclient`.
+    static let sharedConsentRedirectURI = "https://elevate.reothor.no/consent.html"
     static let customClientIdKey = "customLoopbackClientId"
     static let panelTabKey = "panelTab"
     static let collapsedActiveKey = "collapsedActive"
@@ -187,6 +195,12 @@ final class AppSettings {
     }
 
     var isConfigured: Bool { Self.isValidClientId(clientId) }
+
+    /// True when the client id in effect is the project-provided shared Elevate app registration,
+    /// regardless of case or surrounding whitespace.
+    var usesSharedClientId: Bool {
+        clientId.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(Self.sharedClientId) == .orderedSame
+    }
 
     static func isValidClientId(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)

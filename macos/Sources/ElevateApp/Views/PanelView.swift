@@ -113,9 +113,25 @@ struct PanelView: View {
                 ContentUnavailableView("Elevate cannot start", systemImage: "exclamationmark.triangle", description: Text(fatal))
                     .frame(height: 200)
             } else if model.identities.isEmpty {
-                ContentUnavailableView("No accounts", systemImage: "person.crop.circle.badge.plus",
-                                       description: Text("Add an account to see your PIM roles."))
-                    .frame(height: 160)
+                ContentUnavailableView {
+                    Label("No accounts", systemImage: "person.crop.circle.badge.plus")
+                } description: {
+                    Text(model.usesSharedApp
+                         ? "Configured with the shared Elevate app. Ask an administrator to grant consent once per tenant, then add an account."
+                         : "Add an account to see your PIM roles.")
+                } actions: {
+                    if model.usesSharedApp {
+                        Button {
+                            openWindow(value: PanelRoute.addAccount)
+                            NSApp.activate(ignoringOtherApps: true)
+                        } label: { Text("Add account…") }
+                            .buttonStyle(.borderedProminent)
+                        if let consent = model.sharedAppAdminConsentURL() {
+                            Button("Grant admin consent…") { NSWorkspace.shared.open(consent) }
+                        }
+                    }
+                }
+                .frame(height: model.usesSharedApp ? 220 : 160)
             } else {
                 // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
                 // to zero; size it from the measured content instead, capped so long lists scroll.

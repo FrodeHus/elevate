@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <meta
+      name="description"
+      content="Result of granting admin consent to the shared Elevate app registration."
+    />
+    <link rel="canonical" href="https://elevate.reothor.no/consent.html" />
+    <link rel="icon" type="image/png" href="assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Consent result — Elevate</title>
+  </head>
+  <body class="legal-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav-glass" aria-label="Main navigation">
+        <a class="brand" href="index.html"
+          ><img src="assets/icon.png" width="32" height="32" alt="" /><span
+            >Elevate</span
+          ></a
+        ><a class="text-link" href="index.html">Back to Elevate</a>
+      </nav>
+    </header>
+    <main id="main" class="legal-content wrap">
+      <header class="legal-heading">
+        <p class="section-label">Elevate</p>
+        <h1>Consent result</h1>
+        <p>
+          This page only reads the address bar to show you what Microsoft
+          reported. Nothing on this page is sent anywhere — there is no
+          analytics, no server call and no account access.
+        </p>
+      </header>
+      <article aria-label="Consent result">
+        <section id="result">
+          <h2 id="result-heading">Reading the result…</h2>
+          <div id="result-body">
+            <p>
+              If this text does not change, JavaScript is disabled in your
+              browser; see below for what this page is for.
+            </p>
+          </div>
+        </section>
+        <section id="about">
+          <h2>What this page is</h2>
+          <p>
+            Elevate directs your browser here after you grant (or decline)
+            admin consent for the shared Elevate app registration in your
+            Microsoft tenant. Microsoft appends the result to this page’s
+            address as query parameters, which the script on this page reads and
+            displays — nothing is uploaded, logged or stored, on this site or
+            anywhere else. You can close this tab and return to Elevate.
+          </p>
+        </section>
+      </article>
+    </main>
+    <footer class="site-footer wrap">
+      <div class="footer-top">
+        <a class="brand" href="index.html"
+          ><img src="assets/icon.png" width="28" height="28" alt="" /><span
+            >Elevate</span
+          ></a
+        ><a class="text-link" href="index.html">Back to the product page</a>
+      </div>
+      <div class="footer-bottom">
+        <span
+          >Made by <a href="https://github.com/FrodeHus">Frode Hus</a>. Open
+          source under the
+          <a href="https://github.com/FrodeHus/elevate/blob/main/LICENSE"
+            >MIT license</a
+          >.</span
+        >
+        <div>
+          <a href="terms.html">Terms of Service</a
+          ><a href="privacy.html">Privacy Statement</a>
+        </div>
+      </div>
+    </footer>
+    <script>
+      (function () {
+        // Reads only location.search. Never fetches, never navigates, never
+        // sends the values anywhere — everything below is DOM-only.
+        var params = new URLSearchParams(window.location.search);
+        var heading = document.getElementById("result-heading");
+        var body = document.getElementById("result-body");
+
+        function clear(el) {
+          while (el.firstChild) el.removeChild(el.firstChild);
+        }
+
+        function paragraph(text) {
+          var p = document.createElement("p");
+          p.textContent = text;
+          return p;
+        }
+
+        var adminConsent = params.get("admin_consent");
+        var error = params.get("error");
+        var tenant = params.get("tenant");
+        var scope = params.get("scope");
+        var errorDescription = params.get("error_description");
+
+        clear(body);
+
+        if (adminConsent && adminConsent.toLowerCase() === "true") {
+          heading.textContent = "Consent granted";
+          body.appendChild(
+            paragraph(
+              "Consent granted for tenant " +
+                (tenant || "(unknown)") +
+                ". Users in this tenant can now add their account in Elevate."
+            )
+          );
+          if (scope) {
+            body.appendChild(paragraph("Granted scopes:"));
+            var list = document.createElement("ul");
+            scope.split(" ").forEach(function (s) {
+              if (!s) return;
+              var li = document.createElement("li");
+              li.textContent = s;
+              list.appendChild(li);
+            });
+            body.appendChild(list);
+          }
+        } else if (error) {
+          heading.textContent = "Consent not granted";
+          body.appendChild(
+            paragraph("Microsoft reported an error: " + error)
+          );
+          if (errorDescription) {
+            body.appendChild(paragraph(errorDescription));
+          }
+        } else {
+          heading.textContent = "About this page";
+          body.appendChild(
+            paragraph(
+              "This page shows the result of granting admin consent to the " +
+                "shared Elevate app registration. It has no result to show " +
+                "right now because it was opened without the parameters " +
+                "Microsoft normally adds after consent."
+            )
+          );
+        }
+      })();
+    </script>
+  </body>
+</html>

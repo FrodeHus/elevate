@@ -218,6 +218,9 @@ final class AppModel {
     /// build, the loopback flow on an unsigned one. The first-party methods work without it.
     var isConfigured: Bool { settings.isConfigured && (msal != nil || ownAppViaLoopback) }
 
+    /// True when the configured client id is the project-provided shared Elevate app registration.
+    var usesSharedApp: Bool { settings.usesSharedClientId }
+
     /// The settings an organization pushed through MDM, for the views that show what is managed.
     var managed: ManagedConfiguration { settings.managed }
 
@@ -379,14 +382,30 @@ final class AppModel {
     /// already consented tenant-wide, and are not ours to request consent for.
     func adminConsentURL(identityId: String, tenantId: String) -> URL? {
         guard isConfigured, identity(identityId)?.signInMethod == .ownApp else { return nil }
+        return adminConsentURL(tenantSegment: tenantId)
+    }
+
+    /// Admin consent for the shared Elevate app registration. Uses the `/organizations` segment
+    /// rather than a specific tenant id since the shared app is not scoped to one tenant here.
+    func sharedAppAdminConsentURL() -> URL? {
+        guard isConfigured, usesSharedApp else { return nil }
+        return adminConsentURL(tenantSegment: "organizations")
+    }
+
+    private func adminConsentURL(tenantSegment: String) -> URL? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
-        components.path = "/\(tenantId)/v2.0/adminconsent"
+        components.path = "/\(tenantSegment)/v2.0/adminconsent"
+        // The shared app registration has a Web redirect URI on the product site that explains
+        // the consent result; own registrations keep the loopback-friendly `nativeclient` URI.
+        let redirectURI = usesSharedApp
+            ? AppSettings.sharedConsentRedirectURI
+            : "https://login.microsoftonline.com/common/oauth2/nativeclient"
         components.queryItems = [
             URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
             URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all + EntitlementScopes.all).joined(separator: " ")),
-            URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
         ]
         return components.url
     }

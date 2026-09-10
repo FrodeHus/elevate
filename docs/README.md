@@ -18,6 +18,10 @@ Reference:
 
 - [Setting up the Entra app registration](entra-app-registration.md) — permissions, consent,
   the Azure CLI script and the portal walkthrough, and troubleshooting sign-in errors.
+- [The shared Elevate app registration](shared-app-registration.md) — the optional multi-tenant
+  app the project provides for quick starts and testing: what it is, its security model, its
+  known risks, the no-SLA caveat, how an administrator consents, and when to register your own
+  instead.
 - [Releasing Elevate](releasing.md) — tagging, what the release workflows do (macOS, Windows
   and the CLI), the optional signing secrets, the Homebrew cask and formula.
 - [Requesting access packages](access-packages.md) — finding, requesting and following
