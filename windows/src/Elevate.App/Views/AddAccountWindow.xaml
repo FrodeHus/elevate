@@ -17,7 +17,7 @@
         <StackPanel Grid.Row="1" x:Name="Choices" Spacing="8">
             <RadioButton x:Name="OwnAppChoice" GroupName="method" Checked="OnChoiceChanged">
                 <StackPanel>
-                    <TextBlock Text="Your app registration" FontWeight="SemiBold" />
+                    <TextBlock Text="Entra app registration" FontWeight="SemiBold" />
                     <TextBlock x:Name="OwnAppCaption" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>

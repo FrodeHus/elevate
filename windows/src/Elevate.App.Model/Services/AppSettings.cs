@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Elevate.Core.Auth;
 using Elevate.Core.Managed;
 using Elevate.Core.Storage;
 
@@ -21,6 +22,15 @@ public enum PanelTab
 public sealed class AppSettings : ObservableObject
 {
     public const string LoopbackRedirectUri = "http://localhost";
+
+    /// <summary>
+    /// The project-provided shared Elevate app registration, for quick starts and testing; see
+    /// <see cref="SharedApp"/>. Never printed in diagnostics, where only "shared Elevate app" appears.
+    /// </summary>
+    public const string SharedClientId = SharedApp.ClientId;
+
+    /// <summary>Admin consent <c>redirect_uri</c> for the shared registration: its consent result page.</summary>
+    public const string SharedConsentRedirectUri = SharedApp.ConsentRedirectUri;
 
     private static readonly JsonSerializerOptions FileOptions = new()
     {
@@ -287,6 +297,12 @@ public sealed class AppSettings : ObservableObject
     }
 
     public bool IsConfigured => IsValidClientId(ClientId);
+
+    /// <summary>
+    /// True when the client id in effect (managed or stored) is the shared Elevate app registration,
+    /// ignoring case and surrounding whitespace.
+    /// </summary>
+    public bool UsesSharedClientId => SharedApp.IsSharedClientId(ClientId);
 
     /// <summary>The redirect URI the Windows broker (WAM) expects the registration to list for a client id.</summary>
     public static string BrokerRedirectUri(string clientId) =>

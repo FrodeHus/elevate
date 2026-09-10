@@ -284,15 +284,18 @@
             <StackPanel x:Name="SetupView" Visibility="Collapsed" Padding="22,18,22,24" Spacing="10" HorizontalAlignment="Stretch">
                 <views:ChevronGlyph Width="40" Height="40" HorizontalAlignment="Center" />
                 <TextBlock Text="Complete initial setup" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                <TextBlock Text="Enter your app registration's client ID in Settings, or start with the Azure CLI app for Azure resource roles only."
+                <TextBlock Text="Elevate can sign in with your own Entra app registration, which covers every role type and stays under your control. The Elevate project also offers a shared multi-tenant app for quick starts, with no SLA and an administrator consent step. Microsoft's Azure CLI app needs no registration but covers Azure resource roles only (no Entra roles or groups)."
                            FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <!-- Point first-time users at the guides on GitHub before they pick a route. -->
                 <views:DocsLinksRow HorizontalAlignment="Center" />
-                <!-- One width for the stacked pair; the accent on the primary path only. -->
+                <!-- One width for the stacked buttons; the accent on the primary path only. -->
                 <StackPanel Spacing="8" HorizontalAlignment="Center" Width="264" Margin="0,4,0,0">
                     <Button Content="Open Settings…" Style="{StaticResource AccentButtonStyle}" Click="OnSettings" HorizontalAlignment="Stretch" />
+                    <Button x:Name="QuickStartShared" Click="OnQuickStartShared" HorizontalAlignment="Stretch" />
                     <Button Content="Continue with the Azure CLI app" Click="OnContinueWithCli" HorizontalAlignment="Stretch" />
                 </StackPanel>
+                <TextBlock x:Name="SetupError" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"
+                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
             </StackPanel>
 
             <!-- Configured, but nothing added yet -->
@@ -301,6 +304,11 @@
                 <TextBlock Text="No accounts" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
                 <TextBlock Text="Add an account to see your PIM roles." FontSize="13" TextAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <!-- With the shared app in effect, an administrator has to consent once per tenant first. -->
+                <StackPanel x:Name="NoAccountsActions" Spacing="8" HorizontalAlignment="Center" Width="264" Margin="0,4,0,0" Visibility="Collapsed">
+                    <Button Content="Add account…" Style="{StaticResource AccentButtonStyle}" Click="OnAddAccount" HorizontalAlignment="Stretch" />
+                    <Button Content="Grant admin consent…" Click="OnGrantSharedConsent" HorizontalAlignment="Stretch" />
+                </StackPanel>
             </StackPanel>
 
             <ListView x:Name="List" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False"
