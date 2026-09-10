@@ -34,7 +34,7 @@ always work without JavaScript. The countdown is an illustration, not a live rol
 1. In the repository, open **Settings → Pages → Build and deployment** and select **GitHub Actions**.
 2. Merge the page and `.github/workflows/pages.yml` to `main`.
 3. The **Product page** workflow validates, packages and deploys to
-   <https://frodehus.github.io/elevate/>. It also supports **Run workflow** on `main`.
+   <https://elevate.reothor.no/>. It also supports **Run workflow** on `main`.
 4. If the `github-pages` environment has protection rules, allow deployments from `main` and
    approve the deployment when GitHub requests it.
 
@@ -43,6 +43,15 @@ or workflow publish automatically from `main`; manual runs on other branches can
 Only `index.html`, `styles.css`, `script.js` and `assets/` enter the published artifact. GitHub
 creates the `github-pages` environment if it does not already exist. No custom token is needed.
 See [GitHub's custom Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+### Custom domain
+
+The primary address is `https://elevate.reothor.no/`. The original
+`https://frodehus.github.io/elevate/` address redirects to it.
+GitHub Pages settings hold the custom domain; this Actions-based deployment does not need a
+`CNAME` file. In the Azure DNS zone `reothor.no` (resource group `common`), the `elevate` CNAME
+points to `frodehus.github.io`, without the repository path. Keep HTTPS enforcement enabled
+once GitHub has issued the domain certificate.
 
 ## Content and assets
 
