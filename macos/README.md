@@ -111,7 +111,10 @@ named repository, so the fully qualified `frodehus/elevate/elevate` name is requ
 The cask installs `Elevate-<version>.pkg`, so Homebrew asks for your password. The package puts
 Elevate in `/Applications` and, on Apple Silicon, links `/usr/local/bin/elevate` to the
 command-line tool bundled inside the app (`Elevate.app/Contents/Helpers/elevate`);
-`brew uninstall --cask frodehus/elevate/elevate` removes both.
+`brew uninstall --cask frodehus/elevate/elevate` removes both. If you previously installed the
+`elevate-cli` formula, run `brew uninstall frodehus/elevate/elevate-cli` — its
+`/opt/homebrew/bin/elevate` comes before `/usr/local/bin` on the PATH and would keep running the
+old binary.
 
 Or download the DMG from the [latest release](https://github.com/FrodeHus/elevate/releases/latest) —
 the asset is named `Elevate-<version>.dmg`, with `Elevate-<version>.dmg.sha256` next to it — open it

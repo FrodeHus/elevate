@@ -26,6 +26,9 @@ package put the CLI on your PATH as `/usr/local/bin/elevate` (it lives inside
 `Elevate.app/Contents/Helpers`); the Windows MSI installs `elevate.exe` in the `cli` folder under
 the app and adds that folder to your user PATH. Install the app and you have the CLI at the same
 version: [macos/README.md](../macos/README.md#install), [windows/README.md](../windows/README.md#install).
+If you previously installed the `elevate-cli` formula, run `brew uninstall frodehus/elevate/elevate-cli`
+— its `/opt/homebrew/bin/elevate` comes before `/usr/local/bin` on the PATH and would keep running
+the old binary.
 
 **Homebrew formula (Linux, Intel Macs).** The formula lives in this repository, which doubles as a
 tap. It is **deprecated**: the cask now carries the CLI, and the formula will be removed in a later

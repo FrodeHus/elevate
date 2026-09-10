@@ -36,7 +36,7 @@ cask "elevate" do
 
   url "https://github.com/$REPO/releases/download/v#{version}/Elevate-#{version}.pkg"
   name "Elevate"
-  desc "Just-in-time Entra, Azure and PIM for Groups activation from the menu bar and the terminal"
+  desc "Just-in-time Entra, Azure and PIM for Groups activation, menu bar and terminal"
   homepage "https://github.com/$REPO"
 
   depends_on macos: :tahoe
@@ -46,9 +46,17 @@ cask "elevate" do
   # elevate-cli archive). A pkg needs sudo, which is why Homebrew asks for a password.
   pkg "Elevate-#{version}.pkg"
 
-  uninstall quit:    "no.reothor.elevate",
-            pkgutil: "no.reothor.elevate",
-            delete:  "/usr/local/bin/elevate"
+  # /usr/local/bin/elevate is the pkg's link on Apple Silicon; on Intel it belongs to the
+  # elevate-cli formula (Homebrew's prefix is /usr/local there), so it is not ours to delete.
+  on_arm do
+    uninstall quit:    "no.reothor.elevate",
+              pkgutil: "no.reothor.elevate",
+              delete:  "/usr/local/bin/elevate"
+  end
+  on_intel do
+    uninstall quit:    "no.reothor.elevate",
+              pkgutil: "no.reothor.elevate"
+  end
 
   zap trash: [
     "~/Library/Application Support/Elevate",

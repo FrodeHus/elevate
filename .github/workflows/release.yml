@@ -305,15 +305,24 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          set -o pipefail
           for app in "$APP" "$PKG_APP"; do
             rm -f notarize.zip
             ditto -c -k --keepParent "$app" notarize.zip
             xcrun notarytool submit notarize.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait | tee submit.txt
             id=$(awk '/^ *id:/ { print $2; exit }' submit.txt)
+            test -n "$id" || { echo "::error::no submission id in notarytool output"; exit 1; }
             # The log lists every file the notary service examined; with the helper inside the
             # pkg copy it must come back Accepted with no issues.
-            xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" | tee "notarization-$(basename "$(dirname "$app")").json"
-            grep -q '"status": "Accepted"' "notarization-$(basename "$(dirname "$app")").json"
+            log="notarization-$(basename "$(dirname "$app")").json"
+            # The log endpoint can lag the --wait result by a few seconds; retry before giving up.
+            for attempt in 1 2 3 4 5; do
+              if xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" > "$log"; then break; fi
+              [ "$attempt" -lt 5 ] || { echo "::error::could not fetch the notarization log for $id"; exit 1; }
+              sleep 10
+            done
+            cat "$log"
+            grep -q '"status": "Accepted"' "$log"
             xcrun stapler staple "$app"
           done
 
@@ -369,8 +378,8 @@ jobs:
       # /usr/local/bin/elevate.
       - name: Package pkg
         run: |
-          pkgbuild --component "$PKG_APP" --install-location /Applications --scripts pkg/scripts \
-            --identifier no.reothor.elevate --version "$VERSION" "dist/Elevate-$VERSION-unsigned.pkg"
+          pkgbuild --root build/pkgroot --component-plist pkg/component.plist --install-location /Applications \
+            --scripts pkg/scripts --identifier no.reothor.elevate --version "$VERSION" "dist/Elevate-$VERSION-unsigned.pkg"
           pkgutil --expand "dist/Elevate-$VERSION-unsigned.pkg" build/pkg-expanded
           test -x build/pkg-expanded/Scripts/postinstall
           rm -rf build/pkg-expanded
@@ -757,7 +766,7 @@ jobs:
             echo
             echo '    brew install frodehus/elevate/elevate-cli'
             echo
-            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` next to the app and adds the folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
             if [ "$MAC_SIGNED" != "1" ]; then

@@ -20,7 +20,7 @@ public class UpgradeHintTests
     }
 
     [Fact]
-    public void Exe_next_to_the_windows_app_points_at_the_msi()
+    public void Exe_in_the_cli_folder_under_the_windows_app_points_at_the_msi()
     {
         var dir = Path.Combine(Path.GetTempPath(), "elevate-cli-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "cli"));

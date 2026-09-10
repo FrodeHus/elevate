@@ -28,12 +28,12 @@ without code changes since the last release is simply rebuilt.
    are workflow artifacts named `winget-manifest` (the app) and
    `winget-cli-manifest` (the CLI).
 4. Manual checklist after the run finishes: toggle Launch at login on the DMG
-   build and confirm it registers; run one MSI on a Windows machine and
-   confirm SmartScreen's "Run anyway" opens the app; `brew upgrade --cask
-   frodehus/elevate/elevate && elevate --version` on a Mac or Linux box;
+   build and confirm it registers; `brew upgrade --cask
+   frodehus/elevate/elevate && elevate --version` on a Mac;
    `sudo installer -pkg Elevate-x.y.z.pkg -target /` on a Mac, then `which
-   elevate` shows `/usr/local/bin/elevate`; run one MSI and `elevate
-   --version` in a new terminal.
+   elevate` shows `/usr/local/bin/elevate`; run one MSI on a Windows machine,
+   confirm SmartScreen's "Run anyway" opens the app, and `elevate --version`
+   in a new terminal.
 
 Pushing a `v*` tag by hand still works and skips step 2, as long as the tag
 points at a commit on `main` whose `CHANGELOG.md` already has the `## [x.y.z]`
@@ -111,8 +111,10 @@ first, then `macos`, `windows` and the three `cli` matrix legs in parallel, and
    then notarized and stapled too, so the downloaded disk image opens without
    a Gatekeeper prompt even before the user drags the app out.
 7. Packages `dist/Elevate-$VERSION.pkg` with `pkgbuild` from the helper copy
-   (into `/Applications`, identifier `no.reothor.elevate`, `--scripts
-   macos/pkg/scripts`) — the installer package Jamf and Intune deploy. The
+   (`--root build/pkgroot --component-plist macos/pkg/component.plist` so the
+   bundle is not relocatable, into `/Applications`, identifier
+   `no.reothor.elevate`, `--scripts macos/pkg/scripts`) — the installer
+   package Jamf and Intune deploy. The
    `postinstall` script links `/usr/local/bin/elevate` to the bundled helper on
    Apple Silicon Macs (Intel Macs use the standalone CLI archive instead). With
    `MACOS_INSTALLER_CERT_P12` and `MACOS_INSTALLER_CERT_PASSWORD` set it is

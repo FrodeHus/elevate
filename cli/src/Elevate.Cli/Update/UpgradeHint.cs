@@ -1,7 +1,7 @@
 namespace Elevate.Cli.Update;
 
 /// <summary>
-/// The one-line "how to upgrade" note under an available update. The CLI is installed four ways
+/// The one-line "how to upgrade" note under an available update. The CLI is installed five ways
 /// (inside Elevate.app by the pkg or the cask, in the cli folder under Elevate.exe by the MSI, the Homebrew
 /// formula, a bare archive or winget) and the right instruction depends on which one this
 /// executable came from.
