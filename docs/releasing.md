@@ -29,8 +29,11 @@ without code changes since the last release is simply rebuilt.
    `winget-cli-manifest` (the CLI).
 4. Manual checklist after the run finishes: toggle Launch at login on the DMG
    build and confirm it registers; run one MSI on a Windows machine and
-   confirm SmartScreen's "Run anyway" opens the app; `brew upgrade
-   frodehus/elevate/elevate-cli && elevate --version` on a Mac or Linux box.
+   confirm SmartScreen's "Run anyway" opens the app; `brew upgrade --cask
+   frodehus/elevate/elevate && elevate --version` on a Mac or Linux box;
+   `sudo installer -pkg Elevate-x.y.z.pkg -target /` on a Mac, then `which
+   elevate` shows `/usr/local/bin/elevate`; run one MSI and `elevate
+   --version` in a new terminal.
 
 Pushing a `v*` tag by hand still works and skips step 2, as long as the tag
 points at a commit on `main` whose `CHANGELOG.md` already has the `## [x.y.z]`
@@ -79,26 +82,47 @@ first, then `macos`, `windows` and the three `cli` matrix legs in parallel, and
    passes them to `xcodebuild` as `MARKETING_VERSION` and
    `CURRENT_PROJECT_VERSION` on the command line, so no file is edited for a
    release.
-3. Builds the `ElevateApp` scheme in Release. Without signing secrets it builds
-   with code signing disabled and then applies an ad-hoc signature
-   (`codesign --force --deep -s -`). With secrets it signs with Developer ID
-   and hardened runtime, then notarizes and staples the app (see below).
-4. Packages `dist/Elevate-$VERSION.dmg` with `hdiutil create` — the app plus an
-   `/Applications` symlink so the DMG window supports drag-to-install — and
-   writes `dist/Elevate-$VERSION.dmg.sha256`. On the signed path the DMG
-   itself is then notarized and stapled too, so the downloaded disk image opens
-   without a Gatekeeper prompt even before the user drags the app out.
-5. Packages `dist/Elevate-$VERSION.pkg` with `pkgbuild` (the app into
-   `/Applications`, identifier `no.reothor.elevate`) — the installer package
-   Jamf and Intune deploy. With `MACOS_INSTALLER_CERT_P12` and
-   `MACOS_INSTALLER_CERT_PASSWORD` set it is signed with `productsign --sign
-   "Developer ID Installer" --timestamp` and, with the notarization secrets,
-   notarized and stapled like the DMG; without them it ships unsigned, which
-   Jamf and `installer -pkg` accept but Intune does not. The
-   `dist/Elevate-$VERSION.pkg.sha256` is written after stapling, and the job
-   output `pkg_signed` (`1` or `0`) tells the publish job which wording the
-   release notes get.
-6. Uploads the DMG, the pkg and their hashes as the `macos` artifact.
+3. Builds the `ElevateApp` scheme in Release once, with code signing disabled
+   (`CODE_SIGNING_ALLOWED=NO`). Restores the .NET 10 SDK from `cli/global.json`
+   and runs `cli/package.sh publish <version> osx-arm64` to build the CLI
+   helper (published here, in parallel with the `cli` job, rather than pulled
+   from it), then makes a second copy of the app under `build/pkgroot` with
+   the helper copied to `Contents/Helpers/elevate` — the DMG copy
+   (`build/Build/Products/Release/Elevate.app`) never gets the helper, because
+   a code signature seals nested code and the helper cannot be added or
+   removed afterwards.
+4. Signs both copies. Without signing secrets each gets an ad-hoc signature
+   (`codesign --force --deep -s -`). With secrets, each is signed inside-out
+   and never with `--deep`: the frameworks first, then (on the pkg copy) the
+   helper with `cli/elevate.entitlements` — the hardened-runtime entitlements
+   the .NET host needs (JIT, RW/X pages, no library validation) — then the app
+   bundle itself with its own entitlements and the embedded provisioning
+   profile. A `Check versions` step then asserts `elevate --version` from the
+   helper, `CFBundleShortVersionString` from the app, and the tag all match,
+   before either copy is notarized.
+5. Notarizes both copies (signed path only): each is zipped, submitted to the
+   notary service, and its notarization log is fetched and required to contain
+   `"status": "Accepted"` — with the helper inside the pkg copy, the log is
+   what confirms the notary service accepted it too — before both are stapled.
+6. Packages `dist/Elevate-$VERSION.dmg` with `hdiutil create` from the plain
+   copy (app only, unchanged) — the app plus an `/Applications` symlink so the
+   DMG window supports drag-to-install — and writes
+   `dist/Elevate-$VERSION.dmg.sha256`. On the signed path the DMG itself is
+   then notarized and stapled too, so the downloaded disk image opens without
+   a Gatekeeper prompt even before the user drags the app out.
+7. Packages `dist/Elevate-$VERSION.pkg` with `pkgbuild` from the helper copy
+   (into `/Applications`, identifier `no.reothor.elevate`, `--scripts
+   macos/pkg/scripts`) — the installer package Jamf and Intune deploy. The
+   `postinstall` script links `/usr/local/bin/elevate` to the bundled helper on
+   Apple Silicon Macs (Intel Macs use the standalone CLI archive instead). With
+   `MACOS_INSTALLER_CERT_P12` and `MACOS_INSTALLER_CERT_PASSWORD` set it is
+   signed with `productsign --sign "Developer ID Installer" --timestamp` and,
+   with the notarization secrets, notarized and stapled like the DMG; without
+   them it ships unsigned, which Jamf and `installer -pkg` accept but Intune
+   does not. The `dist/Elevate-$VERSION.pkg.sha256` is written after stapling,
+   and the job output `pkg_signed` (`1` or `0`) tells the publish job which
+   wording the release notes get.
+8. Uploads the DMG, the pkg and their hashes as the `macos` artifact.
 
 **windows** (`windows-latest`):
 
@@ -120,8 +144,10 @@ for `osx-arm64` and `osx-x64`, `windows-latest` for `win-x64` and `win-arm64`):
    itself could cross-compile every RID on one machine; the matrix exists so
    each platform's binary can be signed on its own runner.
 3. macOS: with the Developer ID secrets below, signs each binary with hardened
-   runtime and a timestamp and submits it to the notary service (a bare binary
-   cannot be stapled; Gatekeeper checks the ticket online). Windows: with the
+   runtime, a timestamp and the entitlements in `cli/elevate.entitlements` (the
+   same ones applied to the helper bundled in the macOS pkg), then submits it
+   to the notary service (a bare binary cannot be stapled; Gatekeeper checks
+   the ticket online). Windows: with the
    Azure Artifact Signing secrets, signs each `elevate.exe` with `signtool`.
    Without secrets the binaries ship unsigned; Homebrew and winget downloads
    carry no quarantine flag, so only a browser download meets Gatekeeper or
