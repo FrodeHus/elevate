@@ -24,7 +24,7 @@ setup, and links to this guide and to the app registration guide on GitHub. The 
 offers three buttons: **Open Settings…**, **Quick start with the shared Elevate app…** and
 **Continue with the Azure CLI app**.
 
-![The panel on first launch, linking to the guides and offering Open Settings and Continue with the Azure CLI app](images/tutorials/panel-setup.png)
+![The panel on first launch, linking to the guides and offering Open Settings, Quick start with the shared Elevate app and Continue with the Azure CLI app](images/tutorials/panel-setup.png)
 
 You have three routes:
 
