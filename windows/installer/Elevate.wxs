@@ -9,6 +9,11 @@
     Version     the product version, e.g. 1.0.0
     PublishDir  the `dotnet publish` output for this architecture
     CliDir      the dotnet publish output of the CLI for this architecture (holds elevate.exe)
+
+  The CLI is installed into a `cli` subfolder of the install folder (and that subfolder, not
+  the install folder itself, is put on the user's PATH: %LOCALAPPDATA%\Programs\Elevate\cli):
+  elevate.exe and the app's Elevate.exe are the same name on a case-insensitive file system and
+  cannot share a directory.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Elevate"
@@ -34,7 +39,11 @@
     <!-- %LOCALAPPDATA%\Programs\Elevate -->
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="Elevate" />
+        <Directory Id="INSTALLFOLDER" Name="Elevate">
+          <!-- The CLI lives one level down: elevate.exe and the app's Elevate.exe are the same
+               name on a case-insensitive file system and cannot share a directory. -->
+          <Directory Id="CLIFOLDER" Name="cli" />
+        </Directory>
       </Directory>
     </StandardDirectory>
 
@@ -49,12 +58,14 @@
       <Files Include="$(var.PublishDir)\**" />
     </ComponentGroup>
 
-    <!-- The elevate CLI next to the app, and the install folder appended to the user's PATH so
-         `elevate` resolves in any new terminal. A per-user package can only write HKCU, hence
-         System="no"; the entry is removed on uninstall (Permanent="no"). -->
-    <Component Id="Cli" Directory="INSTALLFOLDER" Guid="3E7A9C15-2B4D-4F86-A1C3-8D5E6F7A9B02">
+    <!-- The elevate CLI in its own `cli` subfolder (it cannot share INSTALLFOLDER with the app's
+         Elevate.exe on a case-insensitive file system), with that subfolder appended to the
+         user's PATH so `elevate` resolves in any new terminal. A per-user package can only write
+         HKCU, hence System="no"; the entry is removed on uninstall (Permanent="no"). -->
+    <Component Id="Cli" Directory="CLIFOLDER" Guid="3E7A9C15-2B4D-4F86-A1C3-8D5E6F7A9B02">
       <File Id="ElevateCli" Source="$(var.CliDir)\elevate.exe" KeyPath="yes" />
-      <Environment Id="CliOnUserPath" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" Permanent="no" System="no" />
+      <Environment Id="CliOnUserPath" Name="PATH" Value="[CLIFOLDER]" Action="set" Part="last" Permanent="no" System="no" />
+      <RemoveFolder Id="RemoveCliFolder" Directory="CLIFOLDER" On="uninstall" />
     </Component>
 
     <!-- A per-user install has no reliable file key path; the registry value stands in for it. -->
