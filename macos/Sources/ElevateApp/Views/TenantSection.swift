@@ -126,6 +126,10 @@ struct TenantPills: View {
         if let r = tenant.azureUnavailableReason { out.append(Issue(title: "Azure resource roles are off", detail: r)) }
         if let r = tenant.groupsUnavailableReason { out.append(Issue(title: "PIM for Groups is off", detail: r)) }
         if let e = model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError { out.append(Issue(title: "Discovery or refresh failed", detail: e)) }
+        if model.tenantsAwaitingSignIn.contains(tenant.id) {
+            out.append(Issue(title: "Sign-in needed to refresh",
+                             detail: "The background refresh could not renew this tenant's sign-in silently, so no browser was opened. Press Refresh to sign in; the roles shown are from the last successful read."))
+        }
         return out
     }
     private var hasError: Bool { (model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError) != nil }

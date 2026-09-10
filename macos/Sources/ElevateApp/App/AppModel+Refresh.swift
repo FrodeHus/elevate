@@ -28,6 +28,9 @@ extension AppModel {
         Task { await self.refreshAll() }
     }
 
+    /// `userInitiated` (the Refresh button) may prompt for sign-in; every other caller — the
+    /// timer, wake, launch, the network coming back, a panel open — is silent, so no browser or
+    /// auth sheet ever appears without the user having asked for it.
     func refreshAll(userInitiated: Bool = false) async {
         if userInitiated { declinedTenants.removeAll() }
         lastRefresh = .now
@@ -37,7 +40,7 @@ extension AppModel {
             for key in keys {
                 group.addTask {
                     guard await self.configGeneration == generation else { return }
-                    await self.refresh(key)
+                    await self.refresh(key, interactive: userInitiated)
                 }
             }
         }
@@ -45,7 +48,10 @@ extension AppModel {
         pruneSeenApprovals()
     }
 
-    func refresh(_ key: TenantKey, kinds requestedKinds: Set<RoleScopeKind>? = nil) async {
+    /// `interactive` allows one sign-in prompt per tenant per session when silent acquisition
+    /// fails; the default suits callers acting on a user gesture. Background callers pass false:
+    /// a tenant that then needs a sign-in keeps its known rows and joins `tenantsAwaitingSignIn`.
+    func refresh(_ key: TenantKey, kinds requestedKinds: Set<RoleScopeKind>? = nil, interactive: Bool = true) async {
         let generation = configGeneration
         guard let identity = self.identity(key.identityId), var tenant = self.tenant(key) else { return }
         // An account without a saved sign-in would only prompt on every refresh; it waits for "Sign in again".
@@ -56,9 +62,19 @@ extension AppModel {
         // A kinds-restricted refresh re-reads only some providers, so it must not clear errors it cannot re-earn.
         if requestedKinds == nil { tenantErrors[key] = nil }
 
+        // Set when a silent read needed a sign-in this pass; decides the tenant's flag at the end.
+        var awaitingSignIn = false
         // Runs a provider read; prompts at most once per tenant per session, never for a tenant that was removed meanwhile.
         func acquire<T: Sendable>(_ scopes: [String], _ op: @Sendable @escaping () async throws -> T) async throws -> T {
             guard self.tenant(key) != nil else { throw CancellationError() }
+            if !interactive {
+                do {
+                    return try await op()
+                } catch PIMError.interactionRequired, PIMError.claimsChallenge {
+                    awaitingSignIn = true
+                    throw PIMError.interactionRequired
+                }
+            }
             if declinedTenants.contains(key) { return try await op() }
             do {
                 return try await InteractionRetry.run(tokens: tokens, identity: identity, tenantId: key.tenantId, scopes: scopes, operation: op)
@@ -137,7 +153,8 @@ extension AppModel {
                 } catch is CancellationError {
                     return
                 } catch PIMError.signInDeclined, PIMError.interactionRequired {
-                    if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
+                    // A silent refresh that needs a sign-in is not a failure; the flag says so.
+                    if interactive, !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
                 } catch let error as PIMError where isAzure && Self.azureUnavailableReason(for: error) != nil {
                     guard generation == configGeneration else { return }
                     azureOff = true
@@ -166,7 +183,7 @@ extension AppModel {
             } catch PIMError.interactionRequired where isEntra && consentBlocked {
             } catch PIMError.consentRequired where isEntra && consentBlocked {
             } catch PIMError.signInDeclined, PIMError.interactionRequired {
-                if !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
+                if interactive, !errors.contains(PIMError.signInDeclined.userMessage) { errors.append(PIMError.signInDeclined.userMessage) }
             } catch is CancellationError {
                 return
             } catch let error as PIMError where isGroup && Self.isGroupConsentFailure(error) {
@@ -226,6 +243,7 @@ extension AppModel {
             tenantErrors[key] = message
             logError("\(tenant.displayName): \(message)")
         }
+        if awaitingSignIn { tenantsAwaitingSignIn.insert(key) } else { tenantsAwaitingSignIn.remove(key) }
         await rescheduleNotifications()
     }
 
