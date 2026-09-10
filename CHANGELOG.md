@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Windows: the optional shared Elevate app registration, matching macOS 1.6.1. The setup panel
+  gains "Quick start with the shared Elevate app…" between "Open Settings…" and "Continue with the
+  Azure CLI app", behind a confirmation dialog stating the no-SLA caveat; it applies the shared id
+  through the normal client-id path. The "No accounts" state gains "Add account…" and "Grant admin
+  consent…" while the shared id is in effect, and Settings › Entra app registration gains the same
+  quick-start button (hidden when `ClientId` is managed), a "Shared Elevate app — no SLA" caption
+  and "Grant admin consent…", which opens the `organizations` admin consent link. Per-tenant
+  consent links redirect to the consent result page for the shared app and keep `nativeclient` for
+  own registrations. Diagnostics reports `Client id: shared Elevate app`, `own registration` or
+  `not set` — never the id.
+
 ## [1.6.1] - 2026-09-10
 
 ### Added

@@ -31,6 +31,7 @@ public sealed partial class PanelView : UserControl
     {
         InitializeComponent();
         GroupedSource.Source = _groups;
+        QuickStartShared.Content = SharedAppConsent.QuickStartLabel;
         Accelerate(SearchToggle, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", () =>
         {
             SearchToggle.IsChecked = SearchToggle.IsChecked != true;
@@ -200,6 +201,9 @@ public sealed partial class PanelView : UserControl
         var noAccounts = !setup && model.Identities.Count == 0;
         SetupView.Visibility = setup ? Visibility.Visible : Visibility.Collapsed;
         NoAccountsView.Visibility = noAccounts ? Visibility.Visible : Visibility.Collapsed;
+        // The quick-start route is offered only where the id can actually be changed.
+        QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
+        NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
         List.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
         Pivots.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
         if (!setup && !noAccounts)
@@ -786,6 +790,37 @@ public sealed partial class PanelView : UserControl
     private void OnAddAccount(object sender, RoutedEventArgs e) => App.Current.OpenAddAccount();
 
     private void OnContinueWithCli(object sender, RoutedEventArgs e) => App.Current.OpenAddAccount(SignInMethod.AzureCLI);
+
+    /// <summary>
+    /// The shared-app quick start: the no-SLA caveat first, then the shared id through the normal
+    /// client-id change path. The setup panel only shows with no accounts, so nothing is signed out.
+    /// </summary>
+    private async void OnQuickStartShared(object sender, RoutedEventArgs e)
+    {
+        if (_model is null || !await SharedAppConsent.ConfirmAsync(XamlRoot))
+        {
+            return;
+        }
+
+        SetupError.Visibility = Visibility.Collapsed;
+        try
+        {
+            _model.ApplyClientId(AppSettings.SharedClientId);
+        }
+        catch (Exception ex) when (ex is PimException or InvalidOperationException)
+        {
+            SetupError.Text = ex is PimException pim ? pim.UserMessage : ex.Message;
+            SetupError.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void OnGrantSharedConsent(object sender, RoutedEventArgs e)
+    {
+        if (_model?.SharedAppAdminConsentUrl() is { } url)
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(url);
+        }
+    }
 
     private void OnSettings(object sender, RoutedEventArgs e) => App.Current.OpenSettings();
 

@@ -29,11 +29,13 @@ public sealed partial class SettingsWindow : Window
         DialogWindows.DefaultButton(Root, CloseButton);
         ClientId.Text = model.Settings.ClientId;
         LoopbackUri.Text = AppSettings.LoopbackRedirectUri;
+        QuickStartShared.Content = SharedAppConsent.QuickStartLabel;
         Version.Text = VersionText();
         SyncStartup();
         SyncHotKey();
         UpdateUris();
         UpdateHint();
+        UpdateSharedApp();
         UpdateOperations();
         ApplyManaged();
         _model.Changed += OnModelChanged;
@@ -169,6 +171,7 @@ public sealed partial class SettingsWindow : Window
             ClientId.IsEnabled = false;
             ClientIdManaged.Visibility = Visibility.Visible;
             ApplyHint.Visibility = Visibility.Collapsed;
+            QuickStartShared.Visibility = Visibility.Collapsed;
         }
 
         if (settings.UpdateCheckDisabled)
@@ -324,6 +327,55 @@ public sealed partial class SettingsWindow : Window
     /// <summary>"Press Enter to apply." while the field differs from the stored value.</summary>
     private void UpdateHint() => ApplyHint.Visibility = IsDirty && ClientId.Text.Trim().Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>
+    /// Names the shared registration and offers its consent link while the shared id is in effect;
+    /// the redirect caption then says the URIs are already registered.
+    /// </summary>
+    private void UpdateSharedApp()
+    {
+        var shared = _model.UsesSharedApp && _model.IsConfigured;
+        SharedAppRow.Visibility = shared ? Visibility.Visible : Visibility.Collapsed;
+        RedirectCaption.Text = shared
+            ? "The shared registration already lists these redirect URIs."
+            : "Register both under the Mobile and desktop applications platform, and add the Graph PIM permissions listed in the app registration guide.";
+    }
+
+    /// <summary>
+    /// Fills the field with the shared registration and applies it through the same path as a typed
+    /// id, so the sign-out confirmation still applies; a no-op when the shared id is already in effect.
+    /// </summary>
+    private async void OnQuickStartShared(object sender, RoutedEventArgs e)
+    {
+        if (_applyingClientId || !await SharedAppConsent.ConfirmAsync(Root.XamlRoot))
+        {
+            return;
+        }
+
+        ClientId.Text = AppSettings.SharedClientId;
+        if (_model.UsesSharedApp && _model.IsConfigured)
+        {
+            return;
+        }
+
+        _applyingClientId = true;
+        try
+        {
+            await ApplyClientIdCoreAsync();
+        }
+        finally
+        {
+            _applyingClientId = false;
+        }
+    }
+
+    private void OnGrantSharedConsent(object sender, RoutedEventArgs e)
+    {
+        if (_model.SharedAppAdminConsentUrl() is { } url)
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(url);
+        }
+    }
+
     private void OnClientIdChanged(object sender, TextChangedEventArgs e)
     {
         Saved.Visibility = Visibility.Collapsed;
@@ -453,6 +505,7 @@ public sealed partial class SettingsWindow : Window
             SaveError.IsOpen = false;
             Saved.Visibility = Visibility.Visible;
             UpdateHint();
+            UpdateSharedApp();
         }
         catch (PimException ex)
         {
