@@ -12,9 +12,12 @@ flyout, windows, tray states and tokens; open the file in a browser, it follows 
 Download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
 [latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it. The MSI
 installs for the current user into `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a
-Start Menu entry and can launch Elevate when it finishes. It needs the .NET 10 runtime
-(`winget install Microsoft.DotNet.Runtime.10`); the Windows App SDK runtime is bundled. Windows 11
-(build 22000) or newer.
+Start Menu entry and can launch Elevate when it finishes. It also installs the `elevate`
+command-line tool next to the app and adds that folder to your user PATH, so `elevate --version`
+works in a new terminal (an already-open terminal needs to be restarted). If you also installed
+the standalone CLI with winget (`Reothor.Elevate.CLI`), uninstall one of them so a single `elevate`
+is on the PATH. It needs the .NET 10 runtime (`winget install Microsoft.DotNet.Runtime.10`); the
+Windows App SDK runtime is bundled. Windows 11 (build 22000) or newer.
 
 Releases are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" the first
 time the installer runs: choose **More info**, then **Run anyway**. Check the download against the
@@ -24,7 +27,8 @@ SHA-256 in the release notes first:
 (Get-FileHash .\Elevate-<version>-x64.msi).Hash
 ```
 
-Upgrade by running a newer MSI; uninstall from Settings > Apps. A winget package
+Upgrade by running a newer MSI; uninstall from Settings > Apps, which removes the app, the CLI and
+the PATH entry. A winget package
 (`Reothor.Elevate`) is prepared but not submitted, because winget moderation requires signed
 installers; see [Release](#release).
 
@@ -119,9 +123,13 @@ winget validate --manifest winget/manifests/r/Reothor/Elevate/1.0.0
 ```
 
 `installer/build.ps1` publishes the app framework-dependent with the Windows App SDK self-contained,
-builds the per-user MSI with WiX v5 (`installer/Elevate.wxs`) and signs it with Azure Trusted Signing
-when `-Sign` is given and the signing variables are set. `winget/New-Manifest.ps1` fills the templates
-in `winget/templates` with the release URLs and hashes.
+and also publishes the CLI (`../cli/src/Elevate.Cli`) self-contained per architecture, signing
+`elevate.exe` when `-Sign` is given, and passes it to WiX as `CliDir`. It builds the per-user MSI
+with WiX v5 (`installer/Elevate.wxs`) and signs the MSI with Azure Trusted Signing when `-Sign` is
+given and the signing variables are set. The MSI's `Cli` component adds the install folder to the
+user's PATH (HKCU; the package is per-user, so the machine PATH is out of reach).
+`winget/New-Manifest.ps1` fills the templates in `winget/templates` with the release URLs and
+hashes.
 
 ## Release
 
