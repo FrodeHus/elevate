@@ -56,6 +56,16 @@ struct AppModelSharedAppTests {
         cleanup(model)
     }
 
+    @Test func sharedAppAdminConsentURLIsNilWhenConfiguredWithAnotherGUID() async {
+        let settings = makeSettings()
+        settings.clientId = "11111111-2222-3333-4444-555555555555"
+        let model = await makeModel(settings: settings, ownAppViaLoopback: true)
+        #expect(model.isConfigured)
+        #expect(!model.usesSharedApp)
+        #expect(model.sharedAppAdminConsentURL() == nil)
+        cleanup(model)
+    }
+
     @Test func adminConsentURLStillUsesTenantIdInPath() async {
         let settings = makeSettings()
         settings.clientId = AppSettings.sharedClientId
@@ -77,12 +87,26 @@ struct AppModelSharedAppTests {
         cleanup(model)
     }
 
-    @Test func diagnosticsTextOmitsSharedAppLineForOtherClientId() async {
+    @Test func diagnosticsTextShowsOwnRegistrationForOtherClientId() async {
         let settings = makeSettings()
         settings.clientId = "11111111-2222-3333-4444-555555555555"
         let model = await makeModel(settings: settings, ownAppViaLoopback: true)
         let text = model.diagnosticsText()
         #expect(!text.contains("Client id: shared Elevate app"))
+        #expect(text.contains("Client id: own registration"))
+        #expect(!text.contains("Client id: not set"))
+        cleanup(model)
+    }
+
+    @Test func diagnosticsTextShowsNotSetWhenUnconfigured() async {
+        let settings = makeSettings()
+        settings.clientId = ""
+        let model = await makeModel(settings: settings, ownAppViaLoopback: true)
+        #expect(!model.isConfigured)
+        let text = model.diagnosticsText()
+        #expect(text.contains("Client id: not set"))
+        #expect(!text.contains("Client id: shared Elevate app"))
+        #expect(!text.contains("Client id: own registration"))
         cleanup(model)
     }
 }

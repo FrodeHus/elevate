@@ -61,6 +61,9 @@ public struct DiagnosticsInput: Sendable {
     /// True when the configured client id is the project-provided shared Elevate app registration.
     /// Never the id itself — the id is not part of this type at all.
     public let usesSharedClientId: Bool
+    /// True when a client id (shared or own) is configured at all. Used together with
+    /// `usesSharedClientId` to distinguish "shared app", "own registration", and "not set".
+    public let isConfigured: Bool
 
     public init(
         appVersion: String,
@@ -73,7 +76,8 @@ public struct DiagnosticsInput: Sendable {
         hotKey: String?,
         managed: DiagnosticsManaged? = nil,
         errors: [DiagnosticsError],
-        usesSharedClientId: Bool = false
+        usesSharedClientId: Bool = false,
+        isConfigured: Bool = false
     ) {
         self.appVersion = appVersion
         self.build = build
@@ -86,6 +90,7 @@ public struct DiagnosticsInput: Sendable {
         self.managed = managed
         self.errors = errors
         self.usesSharedClientId = usesSharedClientId
+        self.isConfigured = isConfigured
     }
 }
 
@@ -104,6 +109,10 @@ public enum DiagnosticsReport {
         lines.append("macOS: \(input.os)")
         if input.usesSharedClientId {
             lines.append("Client id: shared Elevate app")
+        } else if input.isConfigured {
+            lines.append("Client id: own registration")
+        } else {
+            lines.append("Client id: not set")
         }
         lines.append("")
 

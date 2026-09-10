@@ -9,7 +9,9 @@ import Foundation
         tenants: [DiagnosticsTenant] = [],
         profiles: [String] = [],
         hotKey: String? = nil,
-        managed: DiagnosticsManaged? = nil
+        managed: DiagnosticsManaged? = nil,
+        usesSharedClientId: Bool = false,
+        isConfigured: Bool = false
     ) -> DiagnosticsInput {
         DiagnosticsInput(
             appVersion: "1.2.3",
@@ -21,7 +23,9 @@ import Foundation
             profiles: profiles,
             hotKey: hotKey,
             managed: managed,
-            errors: errors
+            errors: errors,
+            usesSharedClientId: usesSharedClientId,
+            isConfigured: isConfigured
         )
     }
 
@@ -117,6 +121,30 @@ import Foundation
         let input = makeInput()
         let text = DiagnosticsReport.render(input)
         #expect(text.contains("Managed configuration:\n  None"))
+    }
+
+    @Test func clientIdLineSharedApp() {
+        let input = makeInput(usesSharedClientId: true, isConfigured: true)
+        let text = DiagnosticsReport.render(input)
+        #expect(text.contains("Client id: shared Elevate app"))
+        #expect(!text.contains("Client id: own registration"))
+        #expect(!text.contains("Client id: not set"))
+    }
+
+    @Test func clientIdLineOwnRegistration() {
+        let input = makeInput(usesSharedClientId: false, isConfigured: true)
+        let text = DiagnosticsReport.render(input)
+        #expect(text.contains("Client id: own registration"))
+        #expect(!text.contains("Client id: shared Elevate app"))
+        #expect(!text.contains("Client id: not set"))
+    }
+
+    @Test func clientIdLineNotSet() {
+        let input = makeInput(usesSharedClientId: false, isConfigured: false)
+        let text = DiagnosticsReport.render(input)
+        #expect(text.contains("Client id: not set"))
+        #expect(!text.contains("Client id: shared Elevate app"))
+        #expect(!text.contains("Client id: own registration"))
     }
 
     @Test func multipleErrorsRenderedInOrder() {

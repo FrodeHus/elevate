@@ -382,7 +382,7 @@ final class AppModel {
     /// Admin consent for the shared Elevate app registration. Uses the `/organizations` segment
     /// rather than a specific tenant id since the shared app is not scoped to one tenant here.
     func sharedAppAdminConsentURL() -> URL? {
-        guard isConfigured else { return nil }
+        guard isConfigured, usesSharedApp else { return nil }
         return adminConsentURL(tenantSegment: "organizations")
     }
 
