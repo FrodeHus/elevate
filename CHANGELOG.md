@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-10
+
 ### Added
 
 - CLI: `elevate config set client-id shared` selects the shared Elevate app registration without
@@ -503,7 +505,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.2...HEAD
+[1.6.2]: https://github.com/FrodeHus/elevate/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/FrodeHus/elevate/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/FrodeHus/elevate/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FrodeHus/elevate/compare/v1.4.0...v1.5.0
