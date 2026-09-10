@@ -16,6 +16,11 @@ Elevate lists every account you have signed in with, each tenant that account ca
 
 ## Install
 
+**New to Elevate?** The [Getting started guide](docs/getting-started.md) walks you from install
+to your first activated role, on macOS and Windows: choosing a sign-in method, adding accounts and
+tenants, and finding your way around the panel. The rest of the user guides are listed in
+[docs/README.md](docs/README.md).
+
 - **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install). The cask
   and the pkg also install the `elevate` CLI; the DMG is the app alone.
 - **Windows 11**: per-user MSI, which installs the app and the `elevate` CLI, see
@@ -53,35 +58,6 @@ Casks/, Formula/   The Homebrew tap: the cask (app + CLI via the pkg) and the de
 docs/       Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 
-## Getting started
-
-1. **Get an Entra app registration** for Elevate to sign in with. Two ways:
-   - **Quick start with the shared Elevate app.** The project publishes an optional multi-tenant
-     registration (`c9011cc5-7422-4630-a432-73ff4df5834e`) so you can try Elevate without
-     creating one — pick it from the setup panel or Settings. It is **completely optional and has
-     no SLA**: it may change or be withdrawn at any time, and anyone who needs control over the
-     registration should register their own. Read
-     [docs/shared-app-registration.md](docs/shared-app-registration.md) first — it covers the
-     security model, the known risks and the admin consent link.
-   - **Register your own**, the route to take when you want control. The step-by-step guide covers
-     both the Azure CLI route (a script and a permissions manifest are included) and the portal:
-     [docs/entra-app-registration.md](docs/entra-app-registration.md).
-     - Script: [docs/entra-app/create-app-registration.sh](docs/entra-app/create-app-registration.sh)
-     - Permissions manifest for `az ad app create`: [docs/entra-app/required-resource-access.json](docs/entra-app/required-resource-access.json)
-2. **Install or build the app** for your platform: [macos/README.md](macos/README.md),
-   [windows/README.md](windows/README.md) or [cli/README.md](cli/README.md) — prerequisites,
-   build steps, sign-in methods, and what each account type can and cannot activate.
-3. **Consent per tenant**: an admin grants the delegated permissions once per tenant, either with
-   `az ad app permission admin-consent` or through the consent link Elevate offers from each
-   tenant's menu. Details in the guide's "Consent" section. For the shared Elevate app the CLI
-   command does not apply — it is registered in another tenant — so use the link;
-   see [docs/shared-app-registration.md](docs/shared-app-registration.md).
-
-Accounts that cannot use your registration can be added with the Azure CLI or Azure PowerShell
-app (Azure resource roles only, no Entra roles or groups) or with another company app
-registration; see the sign-in
-methods in [macos/README.md](macos/README.md#sign-in-methods) or [windows/README.md](windows/README.md#use).
-
 ## Security
 
 - **Tokens stay in the platform's protected store.** On macOS the loopback browser flow keeps its
@@ -108,6 +84,7 @@ from `main`.
 | Topic | Where |
 |---|---|
 | Documentation index | [docs/README.md](docs/README.md) |
+| Getting started: install, sign in, add accounts and tenants, the panel, Settings | [docs/getting-started.md](docs/getting-started.md) |
 | App registration, permissions, consent, troubleshooting sign-in errors | [docs/entra-app-registration.md](docs/entra-app-registration.md) |
 | The shared Elevate app: what it is, its risks, no SLA, admin consent | [docs/shared-app-registration.md](docs/shared-app-registration.md) |
 | macOS app: build, sign-in methods, panel, profiles, manual roles, smoke test | [macos/README.md](macos/README.md) |
