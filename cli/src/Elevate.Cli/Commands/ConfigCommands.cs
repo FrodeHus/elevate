@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
+using Elevate.Core.Auth;
 using Elevate.Core.Managed;
 using Spectre.Console;
 
@@ -20,6 +21,17 @@ public static class ConfigCommands
 
     /// <summary>Everything but client-id is the user's when it has a value, the built-in default otherwise.</summary>
     private static SettingSource StoredSource(bool isSet) => isSet ? SettingSource.User : SettingSource.Default;
+
+    /// <summary>"shared", "own" or null: which kind of registration the client id names, for --json.</summary>
+    internal static string? ClientIdKind(CliSettings settings) =>
+        settings.UsesSharedClientId ? "shared" : settings.IsConfigured ? "own" : null;
+
+    /// <summary>The no-SLA caveat, said once when the shared app is chosen.</summary>
+    internal const string SharedAppCaveat =
+        "The shared Elevate app is an optional multi-tenant registration for quick starts and testing, "
+        + "offered as a convenience with no SLA: it may change or be withdrawn at any time. Organizations "
+        + "that need full control should register their own app. An administrator must grant consent once "
+        + "per tenant before sign-in works: 'elevate consent' prints the link.";
 
     /// <summary>"shown", or the accounts the stale-token hint is hidden for.</summary>
     private static string TokenHintState(CommandContext context)
@@ -42,6 +54,7 @@ public static class ConfigCommands
                 {
                     dataDirectory = context.DataDirectory,
                     clientId = settings.ClientId.Length == 0 ? null : settings.ClientId,
+                    clientIdKind = ClientIdKind(settings),
                     customClientId = settings.CustomClientId.Length == 0 ? null : settings.CustomClientId,
                     unprotectedCache = settings.UnprotectedCache,
                     tokenHintHiddenFor = settings.DismissedTokenHintAccounts.Select(context.Session.AccountName).Order(StringComparer.Ordinal).ToList(),
@@ -61,7 +74,12 @@ public static class ConfigCommands
             table.AddColumn("Value");
             table.AddColumn("Source");
             table.AddRow("data directory", Markup.Escape(context.DataDirectory), string.Empty);
-            table.AddRow("client-id", settings.ClientId.Length == 0 ? "[grey]not set (needed for --method own)[/]" : Markup.Escape(settings.ClientId), Label(settings.ClientIdSource));
+            var clientIdText = settings.ClientId.Length == 0
+                ? "[grey]not set (needed for --method own)[/]"
+                : settings.UsesSharedClientId
+                    ? $"shared Elevate app [grey]({Markup.Escape(settings.ClientId)}, no SLA)[/]"
+                    : Markup.Escape(settings.ClientId);
+            table.AddRow("client-id", clientIdText, Label(settings.ClientIdSource));
             table.AddRow("custom-client-id", settings.CustomClientId.Length == 0 ? "[grey]not set[/]" : Markup.Escape(settings.CustomClientId), Label(StoredSource(settings.CustomClientId.Length > 0)));
             table.AddRow("unprotected-cache", settings.UnprotectedCache ? "[yellow]true (Linux: plain-file token cache)[/]" : "false", Label(StoredSource(settings.UnprotectedCache)));
             table.AddRow("token-hint", Markup.Escape(TokenHintState(context)), Label(StoredSource(settings.DismissedTokenHintAccounts.Count > 0)));
@@ -83,7 +101,7 @@ public static class ConfigCommands
     private static Command Set()
     {
         var key = new Argument<string>("key") { Description = "client-id, custom-client-id, unprotected-cache or token-hint." };
-        var value = new Argument<string>("value") { Description = "The new value; an empty string clears it. token-hint takes on or off." };
+        var value = new Argument<string>("value") { Description = "The new value; an empty string clears it. token-hint takes on or off. client-id takes a GUID, or 'shared' for the shared Elevate app." };
         var yes = CommonOptions.Yes();
         var account = CommonOptions.Account();
         var command = new Command("set", "Change a setting.") { key, value, yes, account };
@@ -138,9 +156,16 @@ public static class ConfigCommands
                         throw new CliException(CliSettings.ManagedClientIdMessage, ExitCodes.Usage);
                     }
 
+                    // 'shared' names the project-provided registration, so nobody has to paste the GUID.
+                    var shared = string.Equals(v, "shared", StringComparison.OrdinalIgnoreCase);
+                    if (shared)
+                    {
+                        v = SharedApp.ClientId;
+                    }
+
                     if (v.Length > 0 && !CliSettings.IsValidClientId(v))
                     {
-                        throw new CliException("The application (client) ID must be a GUID.", ExitCodes.Usage);
+                        throw new CliException("The application (client) ID must be a GUID, or 'shared' for the shared Elevate app.", ExitCodes.Usage);
                     }
 
                     // The own-app cache is per client id, so every own-app account signs out with the change.
@@ -160,6 +185,11 @@ public static class ConfigCommands
                     }
 
                     settings.ClientId = v;
+                    if (shared)
+                    {
+                        context.Output.Warn(Markup.Escape(SharedAppCaveat));
+                    }
+
                     break;
                 }
 
@@ -215,6 +245,11 @@ public static class ConfigCommands
             if (k == "client-id" && settings.IsClientIdManaged)
             {
                 context.Output.Note($"client-id: managed by your organization ({Markup.Escape(settings.Managed.Origin ?? "policy")})");
+            }
+
+            if (k == "client-id" && settings.UsesSharedClientId)
+            {
+                context.Output.Note("client-id: the shared Elevate app (no SLA)");
             }
 
             return Task.FromResult(ExitCodes.Ok);

@@ -70,7 +70,7 @@ The CLI signs in the same ways the apps do, chosen per account with `--method`:
 | Method | Command | What it can do |
 |---|---|---|
 | Your own app registration | `elevate config set client-id <application id>` then `elevate login` | Entra directory roles, Azure resource roles, PIM for Groups, approvals, access packages |
-| The shared Elevate app | `elevate config set client-id c9011cc5-7422-4630-a432-73ff4df5834e` then `elevate login` | The same, once an administrator has consented — optional, no SLA, see [docs/shared-app-registration.md](../docs/shared-app-registration.md) |
+| The shared Elevate app | `elevate config set client-id shared`, `elevate consent` for the link an administrator opens once per tenant, then `elevate login` | The same, once an administrator has consented — optional, no SLA, see [docs/shared-app-registration.md](../docs/shared-app-registration.md) |
 | A custom (company) registration | `elevate login --method custom --client-id <application id>` | The same, given the same permissions; the id is remembered |
 | The Azure CLI app | `elevate login --method cli` | Azure resource roles only, no registration or consent needed |
 | The Azure PowerShell app | `elevate login --method pwsh` | Same, for tenants that block the Azure CLI app |
@@ -116,9 +116,10 @@ roles lists them instead of guessing.
 | `elevate packages` | Access packages (entitlement management) for accounts signed in with your own or a custom registration: `list` (with the state of any pending request or delivered assignment), `requests` (open ones; `--all` adds denied, failed and cancelled with dates and the service's status), `assigned` (delivered, with expiry and policy), `request <package> --justification …` (`--policy` when several apply; packages that ask questions are handed to My Access with a link), `cancel <id>`. The first call asks for the `EntitlementMgmt-SubjectAccess.ReadWrite` permission, which needs no admin consent. |
 | `elevate accounts` / `login` / `logout` | The signed-in accounts. |
 | `elevate tenants` | Tracked tenants with their flags; `discover`, `add`, `remove`, `retry` (clears the manual-roles, azure-off and groups-off latches), and `manual add|list|clear` for tenants that refuse discovery. |
-| `elevate config` | The client id, the remembered custom client id, the Linux cache mode and the stale-token hint (`config set token-hint off --account alex` hides it for one account); `config path` prints the data directory. |
+| `elevate config` | The client id (`config set client-id shared` selects the shared Elevate app and states its no-SLA caveat once; `config` then shows `shared Elevate app`), the remembered custom client id, the Linux cache mode and the stale-token hint (`config set token-hint off --account alex` hides it for one account); `config path` prints the data directory. |
+| `elevate consent [--tenant <id>] [--open]` | The admin consent link for the configured registration: the `organizations` endpoint by default, one tenant with `--tenant` (a tracked tenant's name, or any id or domain). The shared app's link lands on its consent result page, your own registration's on `nativeclient`. `--open` also opens it in the browser. |
 | `elevate catalogue [query]` | The built-in Entra roles, for `tenants manual add --entra`. |
-| `elevate diagnostics` | A plain-text report for a bug report. It has no field for a token or client id. |
+| `elevate diagnostics` | A plain-text report for a bug report. It has no field for a token or client id; it says `Client id: shared Elevate app`, `own registration` or `not set`. |
 | `elevate update` | Checks GitHub for a newer CLI release. `status` also mentions one, at most once a day. |
 
 **Scripts.** `--json` on any command prints stable, camelCase JSON on stdout; tables and

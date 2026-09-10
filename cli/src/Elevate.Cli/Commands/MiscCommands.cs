@@ -85,7 +85,9 @@ public static class MiscCommands
                 // Key names only: a managed value (the client id) never belongs in a bug report.
                 session.Settings.Managed is { IsEmpty: false } managed
                     ? new DiagnosticsManaged(managed.Origin ?? "policy", [.. managed.KeysInEffect.Select(k => k.Name())], managed.Warnings)
-                    : null);
+                    : null,
+                UsesSharedClientId: session.Settings.UsesSharedClientId,
+                IsConfigured: session.Settings.IsConfigured);
             // The shared renderer labels the OS line for the Windows app; this report is not Windows-only.
             var text = DiagnosticsReport.Render(input).Replace("\nWindows: ", "\nOS: ", StringComparison.Ordinal);
             context.Output.Plain(text);
