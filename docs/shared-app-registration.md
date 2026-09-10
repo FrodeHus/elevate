@@ -132,9 +132,9 @@ Elevate offers the shared app and its consent link in four places:
   consent…**.
 - **Settings › Entra app registration**, which shows **Shared Elevate app — no SLA** and a
   **Grant admin consent…** button while the shared id is in effect.
-- The **tenant menu**, for an account signed in with the Entra app registration method, on a
-  tenant that shows manual roles or unavailable groups: **Open admin consent link…**, pre-filled
-  for that tenant.
+- The **tenant menu**, for any account signed in with the Entra app registration method:
+  **Open admin consent link…**, pre-filled for that tenant. Use it to re-consent after a release
+  adds a scope.
 
 ### The link
 

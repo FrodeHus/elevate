@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS and Windows: the sign-in method previously shown as "Own app registration" is now called
   "Entra app registration", since the registration in effect may be your own, your company's, or
   the shared Elevate app. The documentation follows the new name.
+- macOS: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails.
 
 ### Fixed
 

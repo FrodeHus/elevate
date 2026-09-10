@@ -190,8 +190,9 @@ struct TenantMenuItems: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
-        if tenant.discoveryMode == .manualRoles || tenant.groupsUnavailableReason != nil,
-           let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
+        // Offered for every Entra-app-registration account, not only after discovery fell back:
+        // an administrator may need to re-consent after a scope is added, before anything fails.
+        if let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
             Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
         }
         Divider()
