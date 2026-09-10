@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-10
+
 ### Added
 
 - macOS: an optional shared Elevate app registration. The Elevate project publishes one
@@ -467,7 +469,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/FrodeHus/elevate/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/FrodeHus/elevate/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/FrodeHus/elevate/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/FrodeHus/elevate/compare/v1.3.0...v1.4.0
