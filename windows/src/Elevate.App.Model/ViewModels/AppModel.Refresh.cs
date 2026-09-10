@@ -30,6 +30,11 @@ public sealed partial class AppModel
         _ = RefreshAllAsync();
     }
 
+    /// <summary>
+    /// Re-reads every tenant. Only a user-initiated refresh may open a sign-in prompt; the timer,
+    /// wake, launch, network restore and panel open stay silent, and a tenant that would need a
+    /// prompt joins <see cref="TenantsAwaitingSignIn"/> instead.
+    /// </summary>
     public async Task RefreshAllAsync(bool userInitiated = false)
     {
         if (userInitiated)
@@ -47,7 +52,7 @@ public sealed partial class AppModel
                 return;
             }
 
-            await RefreshAsync(key);
+            await RefreshAsync(key, interactive: userInitiated);
         }));
         if (generation == ConfigGeneration)
         {
@@ -55,7 +60,13 @@ public sealed partial class AppModel
         }
     }
 
-    public async Task RefreshAsync(TenantKey key, IReadOnlySet<RoleScopeKind>? requestedKinds = null)
+    /// <summary>
+    /// Re-reads one tenant. <paramref name="interactive"/> allows one sign-in prompt per tenant per
+    /// session when silent acquisition fails; the default suits callers acting on a user gesture.
+    /// Background callers pass false: a tenant that then needs a sign-in keeps its known rows and
+    /// joins <see cref="TenantsAwaitingSignIn"/>.
+    /// </summary>
+    public async Task RefreshAsync(TenantKey key, IReadOnlySet<RoleScopeKind>? requestedKinds = null, bool interactive = true)
     {
         var generation = ConfigGeneration;
         if (Identity(key.IdentityId) is not { } identity || Tenant(key) is not { } tenant)
@@ -71,7 +82,7 @@ public sealed partial class AppModel
         Touch();
         try
         {
-            await RefreshCoreAsync(key, identity, tenant, requestedKinds, generation);
+            await RefreshCoreAsync(key, identity, tenant, requestedKinds, interactive, generation);
         }
         catch (OperationCanceledException)
         {
@@ -84,12 +95,32 @@ public sealed partial class AppModel
         }
     }
 
-    private async Task RefreshCoreAsync(TenantKey key, Identity identity, TenantContext tenant, IReadOnlySet<RoleScopeKind>? requestedKinds, int generation)
+    private async Task RefreshCoreAsync(TenantKey key, Identity identity, TenantContext tenant, IReadOnlySet<RoleScopeKind>? requestedKinds, bool interactive, int generation)
     {
         // A kinds-restricted refresh re-reads only some providers, so it must not clear errors it cannot re-earn.
         if (requestedKinds is null)
         {
             TenantErrors.Remove(key);
+        }
+
+        // Set when a silent read needed a sign-in this pass; decides the tenant's flag at the end.
+        var awaitingSignIn = false;
+        async Task<T> Acquire<T>(IReadOnlyList<string> scopes, Func<Task<T>> operation)
+        {
+            if (interactive)
+            {
+                return await AcquireAsync(key, identity, scopes, operation);
+            }
+
+            try
+            {
+                return await AcquireSilentlyAsync(key, operation);
+            }
+            catch (PimException e) when (e.Kind == PimErrorKind.InteractionRequired)
+            {
+                awaitingSignIn = true;
+                throw;
+            }
         }
 
         // A tenant with no Azure at all is not worth a request per refresh; the breaker is cleared by Retry discovery.
@@ -142,8 +173,7 @@ public sealed partial class AppModel
             {
                 try
                 {
-                    var found = await AcquireAsync(key, identity, provider.Scopes,
-                        () => provider.EligibleRolesAsync(identity, tenantSnapshot));
+                    var found = await Acquire(provider.Scopes, () => provider.EligibleRolesAsync(identity, tenantSnapshot));
                     var withPolicies = await ApplyPoliciesAsync(found, identity);
                     if (generation != ConfigGeneration)
                     {
@@ -213,7 +243,11 @@ public sealed partial class AppModel
                 }
                 catch (PimException e) when (e.Kind is PimErrorKind.SignInDeclined or PimErrorKind.InteractionRequired)
                 {
-                    AddDeclined(errors);
+                    // A silent refresh that needs a sign-in is not a failure; the flag says so.
+                    if (interactive)
+                    {
+                        AddDeclined(errors);
+                    }
                 }
                 catch (PimException e) when (isAzure && AzureUnavailableReason(e) is { } reason)
                 {
@@ -244,7 +278,7 @@ public sealed partial class AppModel
                 var snapshot = tenant;
                 var found = isEntra && consentBlocked
                     ? await provider.ActiveAssignmentsAsync(identity, snapshot)
-                    : await AcquireAsync(key, identity, provider.Scopes, () => provider.ActiveAssignmentsAsync(identity, snapshot));
+                    : await Acquire(provider.Scopes, () => provider.ActiveAssignmentsAsync(identity, snapshot));
                 if (generation != ConfigGeneration)
                 {
                     return;
@@ -258,7 +292,10 @@ public sealed partial class AppModel
             }
             catch (PimException e) when (e.Kind is PimErrorKind.SignInDeclined or PimErrorKind.InteractionRequired)
             {
-                AddDeclined(errors);
+                if (interactive)
+                {
+                    AddDeclined(errors);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -314,8 +351,7 @@ public sealed partial class AppModel
             var snapshot = tenant;
             try
             {
-                var found = await AcquireAsync(key, identity, approvalProvider.Scopes,
-                    () => approvalProvider.PendingApprovalsAsync(identity, snapshot));
+                var found = await Acquire(approvalProvider.Scopes, () => approvalProvider.PendingApprovalsAsync(identity, snapshot));
                 readApprovals[kind] = [.. found];
             }
             catch (OperationCanceledException)
@@ -391,6 +427,16 @@ public sealed partial class AppModel
             LogError($"{tenant.DisplayName}: {message}");
         }
 
+        // A user refresh that signed in, or a silent one that succeeded on its own, lifts the flag.
+        if (awaitingSignIn)
+        {
+            TenantsAwaitingSignIn.Add(key);
+        }
+        else
+        {
+            TenantsAwaitingSignIn.Remove(key);
+        }
+
         Touch();
         await RescheduleNotificationsAsync();
     }
@@ -424,6 +470,34 @@ public sealed partial class AppModel
 
             DeclinedTenants.Add(key);
             throw new PimException(PimErrorKind.SignInDeclined);
+        }
+    }
+
+    /// <summary>
+    /// Runs a provider read without <see cref="InteractionRetry"/>, so no browser or broker dialog
+    /// can open. A read that needs a sign-in (an interaction-required or claims-challenge answer to
+    /// the silent token request) surfaces as <see cref="PimErrorKind.InteractionRequired"/> for
+    /// the caller to flag; never for a tenant that was removed meanwhile.
+    /// </summary>
+    private async Task<T> AcquireSilentlyAsync<T>(TenantKey key, Func<Task<T>> operation)
+    {
+        if (Tenant(key) is null)
+        {
+            throw new OperationCanceledException();
+        }
+
+        try
+        {
+            return await operation();
+        }
+        catch (PimException e) when (e.Kind is PimErrorKind.InteractionRequired or PimErrorKind.ClaimsChallenge)
+        {
+            if (Tenant(key) is null)
+            {
+                throw new OperationCanceledException();
+            }
+
+            throw new PimException(PimErrorKind.InteractionRequired);
         }
     }
 

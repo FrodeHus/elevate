@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the redirect when the shared id is in effect and `nativeclient` otherwise, matching the apps.
   `elevate diagnostics` gains the `Client id: shared Elevate app` / `own registration` /
   `not set` line.
+### Fixed
+
+- Windows: background refreshes (the timer, wake, launch, network restore and opening the
+  flyout) and the access package poll no longer open a browser tab or account-picker dialog when
+  a tenant's silent token refresh needs a sign-in — a tenant whose Conditional Access demands
+  fresh MFA on every refresh could reopen the tab every minute while a role was active. Such a
+  tenant keeps its known rows, is not shown as a red error, and its pill lists "Sign-in needed to
+  refresh" with the instruction to press Refresh; only user actions (Refresh, Sign in again, add
+  tenant, activation, approvals, Retry discovery, the access packages window) may prompt. Same
+  trade-off as the macOS fix: a tenant that cannot refresh silently goes stale until the user
+  refreshes it.
+### Added
 
 - Windows: the optional shared Elevate app registration, matching macOS 1.6.1. The setup panel
   gains "Quick start with the shared Elevate app…" between "Open Settings…" and "Continue with the

@@ -702,6 +702,13 @@ public static class PanelListBuilder
             issues.Add(new TenantIssue("Discovery or refresh failed", error));
         }
 
+        if (model.TenantsAwaitingSignIn.Contains(tenant.Key))
+        {
+            issues.Add(new TenantIssue(
+                "Sign-in needed to refresh",
+                "The background refresh could not renew this tenant's sign-in silently, so no browser was opened. Press Refresh to sign in; the roles shown are from the last successful read."));
+        }
+
         group.Issues = issues;
         group.HasError = error is not null;
         group.Busy = model.Busy.Contains(tenant.Key);
