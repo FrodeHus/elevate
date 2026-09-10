@@ -21,10 +21,12 @@ to your first activated role, on macOS and Windows: choosing a sign-in method, a
 tenants, and finding your way around the panel. The rest of the user guides are listed in
 [docs/README.md](docs/README.md).
 
-- **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install).
-- **Windows 11**: per-user MSI, see [windows/README.md](windows/README.md#install).
-- **CLI** (Linux, macOS, Windows): Homebrew formula, winget, or a single binary from the release,
-  see [cli/README.md](cli/README.md#install).
+- **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install). The cask
+  and the pkg also install the `elevate` CLI; the DMG is the app alone.
+- **Windows 11**: per-user MSI, which installs the app and the `elevate` CLI, see
+  [windows/README.md](windows/README.md#install).
+- **CLI on its own** (Linux, Intel Macs, servers): a single binary from the release, or the
+  deprecated Homebrew formula, see [cli/README.md](cli/README.md#install).
 
 All three sign in with an Entra app registration — your own, a company one, or the project's
 optional [shared Elevate app](docs/shared-app-registration.md), which has no SLA; the Microsoft
@@ -52,7 +54,7 @@ windows/    .NET solution (Elevate.Core, Elevate.App, tests, WiX installer, wing
 cli/        .NET solution (Elevate.Cli over Elevate.Core, tests, packaging script, winget manifest)
 shared/     Assets used by both apps: the Entra built-in roles catalogue script
 enterprise/ Managed-configuration templates: ADMX/ADML, mobileconfig, Jamf schema, managed.json, an example
-Casks/, Formula/   The Homebrew tap: the macOS app's cask and the CLI's formula
+Casks/, Formula/   The Homebrew tap: the cask (app + CLI via the pkg) and the deprecated CLI formula
 docs/       Design specs and implementation plans (docs/superpowers/specs, docs/superpowers/plans)
 ```
 

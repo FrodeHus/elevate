@@ -38,6 +38,7 @@ every key you send is locked.
 3. **Program**:
    - Install command: `msiexec /i "Elevate-<version>-x64.msi" /qn`
    - Uninstall command: `msiexec /x "Elevate-<version>-x64.msi" /qn`
+     Uninstall also removes the CLI and the PATH entry.
    - **Install behavior: User** (the MSI is a per-user install).
 4. **Requirements**: 64-bit, Windows 11 (build 22000) or later.
 5. **Detection rules**: rule type **File**,
@@ -97,7 +98,8 @@ Then in the app:
 - **Copy diagnostics** produces a report with a `Managed configuration:` section naming the source
   (`Windows policy`) and the key names — never the values.
 
-If the CLI is on the same PCs, it reads the same registry keys:
+The MSI installs the `elevate` CLI in a `cli` folder under the app, on the user's PATH; it reads
+the same registry keys:
 
 ```
 elevate config

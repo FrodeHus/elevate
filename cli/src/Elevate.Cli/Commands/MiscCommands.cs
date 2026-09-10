@@ -135,7 +135,7 @@ public static class MiscCommands
             else if (newer)
             {
                 context.Output.WriteLine($"elevate {Markup.Escape(current)}; [green]{Markup.Escape(latest.Version)} is available[/]: {Markup.Escape(latest.Url.ToString())}");
-                context.Output.Note("Homebrew: brew upgrade frodehus/elevate/elevate-cli · winget: winget upgrade Reothor.Elevate.CLI");
+                context.Output.Note(Markup.Escape(UpgradeHint.For(Environment.ProcessPath, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS())));
             }
             else
             {

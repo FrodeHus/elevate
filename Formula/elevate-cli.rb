@@ -4,6 +4,10 @@ class ElevateCli < Formula
   version "1.6.0"
   license "MIT"
 
+  # The CLI now ships inside the Elevate cask (via the pkg) and the MSI. This formula is kept for
+  # one more release for Linux and Intel Macs; the release archives stay available afterwards.
+  deprecate! date: "2026-09-10", because: "the elevate CLI is installed by the elevate cask and the macOS pkg; Linux and Intel Macs use the elevate-cli archives from the GitHub release"
+
   on_macos do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-osx-arm64.tar.gz"

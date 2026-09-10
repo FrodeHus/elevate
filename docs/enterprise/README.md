@@ -56,14 +56,37 @@ Both come from the [latest release](https://github.com/FrodeHus/elevate/releases
   Intune. It carries no company values; it is the same app as the DMG. It is signed and notarized
   when the release was built with the installer signing secrets in place, and unsigned otherwise —
   the release notes say which. Intune requires a signed pkg; Jamf can deploy either, though an
-  unsigned one still has to satisfy Gatekeeper on the Mac.
+  unsigned one still has to satisfy Gatekeeper on the Mac. It also carries the `elevate` CLI inside
+  the app bundle (Apple Silicon) and links `/usr/local/bin/elevate` to it at install time, so the
+  Macs you deploy to get the CLI at the same version.
 - `Elevate-enterprise-kit-<version>.zip` — the templates: the ADMX and ADML for Group Policy and
   Intune, a mobileconfig, an Intune preference-file plist, a Jamf custom schema, a `managed.json`,
   a copy of `keys.md`, and a worked example of one company's finished configuration in every
   format. The same files live in [`enterprise/`](../../enterprise/) in the repository.
 
 Windows is installed from the per-user MSI as before; there is no separate enterprise build. The
-CLI is a single binary from the same release.
+Windows MSI installs the CLI in a `cli` folder under the app and adds that folder to the user's
+PATH. For Linux, Intel Macs and servers the CLI is a single binary from the same release
+([cli.md](cli.md)).
+
+## Uninstalling
+
+**macOS (installed by the pkg, by Jamf, Intune or `installer`).** The package leaves two things
+behind: the app and the `/usr/local/bin/elevate` link. Remove both and forget the receipt:
+
+```bash
+sudo rm -rf /Applications/Elevate.app
+sudo rm -f /usr/local/bin/elevate
+sudo pkgutil --forget no.reothor.elevate
+```
+
+Per-user data stays in `~/Library/Application Support/Elevate` and the keychain; the
+configuration profile is removed from the MDM like any other. A Jamf policy with a script
+running the three commands, or an Intune shell script, does the same across the fleet. Homebrew
+users run `brew uninstall --cask frodehus/elevate/elevate`, which performs the same steps.
+
+**Windows.** `msiexec /x Elevate-<version>-x64.msi /qn` (or Settings → Apps) removes the app, the
+CLI and the PATH entry the MSI added.
 
 ## How you verify, whatever you used
 

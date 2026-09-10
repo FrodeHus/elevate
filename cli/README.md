@@ -21,7 +21,18 @@ $ elevate activate "Global Reader" --duration 2h --reason "Support ticket 4211"
 
 ## Install
 
-**Homebrew (macOS and Linux).** The formula lives in this repository, which doubles as a tap:
+**With the app (macOS on Apple Silicon, Windows).** The Homebrew cask and the macOS installer
+package put the CLI on your PATH as `/usr/local/bin/elevate` (it lives inside
+`Elevate.app/Contents/Helpers`); the Windows MSI installs `elevate.exe` in the `cli` folder under
+the app and adds that folder to your user PATH. Install the app and you have the CLI at the same
+version: [macos/README.md](../macos/README.md#install), [windows/README.md](../windows/README.md#install).
+If you previously installed the `elevate-cli` formula, run `brew uninstall frodehus/elevate/elevate-cli`
+— its `/opt/homebrew/bin/elevate` comes before `/usr/local/bin` on the PATH and would keep running
+the old binary.
+
+**Homebrew formula (Linux, Intel Macs).** The formula lives in this repository, which doubles as a
+tap. It is **deprecated**: the cask now carries the CLI, and the formula will be removed in a later
+release. Linux and Intel Macs keep the archives below.
 
 ```bash
 brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
@@ -31,11 +42,12 @@ brew install frodehus/elevate/elevate-cli
 
 Shell completions are installed with it. Upgrade with `brew upgrade frodehus/elevate/elevate-cli`.
 
-**Windows.** `winget install Reothor.Elevate.CLI` once the manifest is submitted (winget
+**Windows, standalone.** `winget install Reothor.Elevate.CLI` once the manifest is submitted (winget
 moderation requires signed binaries, so the manifest is a release artifact until Azure Artifact
 Signing is set up, like the app's). Until then, download `elevate-cli-<version>-win-x64.zip` (or
 `-win-arm64.zip`) from the [latest release](https://github.com/FrodeHus/elevate/releases/latest)
-and put `elevate.exe` on your PATH.
+and put `elevate.exe` on your PATH. Do not combine this with the MSI's copy: two `elevate` entries
+on the PATH means whichever comes first wins.
 
 **Any platform.** Download the archive for your platform from the latest release, check it against
 `elevate-cli-<version>-checksums.txt` (`sha256sum -c`), and unpack the single binary anywhere on
@@ -190,6 +202,10 @@ app suites. To produce the single-file binary for a platform:
 ./package.sh archive 0.0.0 linux-x64      # dist/elevate-cli-0.0.0-linux-x64.tar.gz + .sha256
 ```
 
+On macOS the release workflow signs the binary with the hardened runtime and
+`cli/elevate.entitlements` (JIT and unsigned executable memory for the .NET runtime, no library
+validation); the same file signs the copy bundled in `Elevate.app/Contents/Helpers`.
+
 Self-contained single-file publishing cross-compiles across operating systems, so all six RIDs can
 be produced on one machine; the release workflow still builds each on its own runner so the macOS
 and Windows binaries can be signed there. The binary is about 34 MB: the framework is trimmed
@@ -216,6 +232,9 @@ cli/
 Released with the apps: tag `v<version>` on `main` and the
 [release workflow](../.github/workflows/release.yml) builds the six archives on Linux, macOS and
 Windows runners, signs the macOS and Windows binaries when the apps' signing secrets are set,
-attaches them and a checksums file to the same GitHub release as the DMG and the MSIs, updates
-`Formula/elevate-cli.rb` on `main` next to the cask, and keeps the winget manifest as the
-`winget-cli-manifest` artifact. The full procedure is in [docs/releasing.md](../docs/releasing.md).
+attaches them and a checksums file to the same GitHub release as the DMG and the MSIs. The pkg
+carries the signed osx-arm64 binary and the MSIs carry the signed win-x64/win-arm64 binaries, so
+the release also ships the CLI inside those installers. The workflow updates
+`Formula/elevate-cli.rb` on `main` next to the cask with its deprecation notice, and keeps the
+winget manifest as the `winget-cli-manifest` artifact. The full procedure is in
+[docs/releasing.md](../docs/releasing.md).

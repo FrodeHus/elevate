@@ -2,7 +2,10 @@
 
 Templates for rolling Elevate out to a fleet with Intune, Jamf Pro, Group
 Policy or a script. Nothing here is company-specific until you fill it in: one
-signed build per platform reads the values you push.
+signed build per platform reads the values you push. The macOS pkg and the
+Windows MSI in the same release install the `elevate` CLI with the app;
+`cli/managed.json` below is how the CLI on macOS and Linux receives your
+values.
 
 A managed value wins over the user's stored value, which wins over the default.
 Locking is per key — a key you do not push leaves that choice to the user. In

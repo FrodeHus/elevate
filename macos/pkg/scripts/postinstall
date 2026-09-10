@@ -1,0 +1,29 @@
+#!/bin/sh
+# Runs as root after Elevate-<version>.pkg has copied Elevate.app into /Applications (pkgbuild
+# --scripts). Puts the bundled CLI on PATH by linking /usr/local/bin/elevate to it.
+#
+# Installer arguments: $1 package path, $2 target location, $3 target volume, $4 root ("/").
+# The bundled CLI is built for Apple Silicon only; Intel Macs use the standalone archive
+# (elevate-cli-<version>-osx-x64.tar.gz) instead. This script never fails the install.
+VOLUME="${3%/}"
+HELPER="$VOLUME/Applications/Elevate.app/Contents/Helpers/elevate"
+LINK_DIR="$VOLUME/usr/local/bin"
+LINK="$LINK_DIR/elevate"
+TARGET="/Applications/Elevate.app/Contents/Helpers/elevate"
+
+if [ ! -x "$HELPER" ]; then
+  echo "Elevate: no bundled CLI at $HELPER; not linking $LINK" >&2
+  exit 0
+fi
+if [ "$(uname -m)" != "arm64" ]; then
+  echo "Elevate: the bundled CLI is built for Apple Silicon; on this Mac install elevate-cli-<version>-osx-x64.tar.gz from the release instead" >&2
+  exit 0
+fi
+if [ -e "$LINK" ] && [ ! -L "$LINK" ]; then
+  echo "Elevate: $LINK exists and is not a symlink; leaving it alone (remove it to use the bundled CLI)" >&2
+  exit 0
+fi
+mkdir -p "$LINK_DIR" || exit 0
+ln -sfn "$TARGET" "$LINK" || { echo "Elevate: could not link $LINK" >&2; exit 0; }
+echo "Elevate: linked $LINK -> $TARGET"
+exit 0

@@ -184,6 +184,19 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      # The CLI ships inside the pkg copy of the app (Contents/Helpers/elevate), Apple Silicon
+      # only; Intel Macs use the standalone archive the cli job builds. Published here rather
+      # than pulled from the cli job so the two jobs stay parallel.
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: cli/global.json
+
+      - name: Publish the CLI helper
+        run: |
+          ../cli/package.sh publish "$VERSION" osx-arm64
+          out="$(../cli/dist/osx-arm64/elevate --version)"
+          test "$out" = "$VERSION" || { echo "::error::elevate --version printed '$out', expected '$VERSION'"; exit 1; }
+
       - name: Import Developer ID certificate
         if: env.HAVE_CERT == '1'
         env:
@@ -209,23 +222,38 @@ jobs:
           echo "PROFILE_NAME=$NAME" >> "$GITHUB_ENV"
           echo "SIGNED=1" >> "$GITHUB_ENV"
 
-      - name: Build (Developer ID)
+      # Built once with signing off; signed below, per path. Xcode cannot sign with an
+      # Xcode-managed Developer ID profile in manual mode, and a PROVISIONING_PROFILE_SPECIFIER on
+      # the command line leaks into the Swift package targets, so signing is done with codesign
+      # the way an Xcode "Developer ID" export does.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build | tail -5
+          echo "APP=build/Build/Products/Release/Elevate.app" >> "$GITHUB_ENV"
+          echo "PKG_APP=build/pkgroot/Elevate.app" >> "$GITHUB_ENV"
+
+      # Two copies of the app: the DMG gets the app alone, the pkg gets the app with the CLI in
+      # Contents/Helpers. A signature seals nested code, so the helper cannot be added or removed
+      # after signing.
+      - name: Embed the CLI helper in the pkg copy
+        run: |
+          rm -rf build/pkgroot && mkdir -p build/pkgroot
+          cp -R "$APP" "$PKG_APP"
+          mkdir -p "$PKG_APP/Contents/Helpers"
+          cp ../cli/dist/osx-arm64/elevate "$PKG_APP/Contents/Helpers/elevate"
+          chmod 755 "$PKG_APP/Contents/Helpers/elevate"
+          test ! -e "$APP/Contents/Helpers"
+
+      - name: Sign (Developer ID)
         if: env.SIGNED == '1'
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          set -o pipefail
           test -n "$APPLE_TEAM_ID" || { echo "APPLE_TEAM_ID secret missing"; exit 1; }
-          # Xcode cannot sign with an Xcode-managed Developer ID profile in manual mode, and a
-          # PROVISIONING_PROFILE_SPECIFIER on the command line leaks into the Swift package
-          # targets. So: build unsigned, then embed the profile and sign with codesign the way
-          # an Xcode "Developer ID" export does (frameworks first, then the app with entitlements).
-          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
-            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build | tail -5
-          APP=build/Build/Products/Release/Elevate.app
           BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw "$APP/Contents/Info.plist")
-          cp "$HOME/Library/MobileDevice/Provisioning Profiles/"*.provisionprofile "$APP/Contents/embedded.provisionprofile"
           cat > entitlements.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -238,22 +266,37 @@ jobs:
           </array>
           </dict></plist>
           EOF
-          for fw in "$APP"/Contents/Frameworks/*.framework; do
-            [ -d "$fw" ] && codesign --force --options runtime --timestamp -s "Developer ID Application" "$fw"
+          # Inside-out, never --deep: frameworks, then the helper with the .NET host entitlements,
+          # then each app bundle with its own entitlements and the embedded profile.
+          for app in "$APP" "$PKG_APP"; do
+            cp "$HOME/Library/MobileDevice/Provisioning Profiles/"*.provisionprofile "$app/Contents/embedded.provisionprofile"
+            for fw in "$app"/Contents/Frameworks/*.framework; do
+              [ -d "$fw" ] && codesign --force --options runtime --timestamp -s "Developer ID Application" "$fw"
+            done
+            if [ -f "$app/Contents/Helpers/elevate" ]; then
+              codesign --force --options runtime --timestamp --entitlements ../cli/elevate.entitlements -s "Developer ID Application" "$app/Contents/Helpers/elevate"
+              codesign -d --entitlements :- "$app/Contents/Helpers/elevate" | grep -q com.apple.security.cs.allow-jit
+            fi
+            codesign --force --options runtime --timestamp --entitlements entitlements.plist -s "Developer ID Application" "$app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dvv "$app" 2>&1 | grep -E "Authority=Developer ID Application|TeamIdentifier"
+            codesign -d --entitlements :- "$app" | grep -q keychain-access-groups
           done
-          codesign --force --options runtime --timestamp --entitlements entitlements.plist -s "Developer ID Application" "$APP"
-          codesign --verify --deep --strict --verbose=2 "$APP"
-          codesign -dvv "$APP" 2>&1 | grep -E "Authority=Developer ID Application|TeamIdentifier"
-          codesign -d --entitlements :- "$APP" | grep -q keychain-access-groups
 
-      - name: Build (unsigned, ad-hoc signature)
+      - name: Sign (ad-hoc)
         if: env.SIGNED != '1'
         run: |
-          set -o pipefail
-          xcodebuild -project Elevate.xcodeproj -scheme ElevateApp -configuration Release -derivedDataPath build \
-            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build | tail -5
-          codesign --force --deep -s - build/Build/Products/Release/Elevate.app
+          codesign --force --deep -s - "$APP"
+          codesign --force --deep -s - "$PKG_APP"
+
+      # The helper must run under the hardened runtime with the entitlements above, and report
+      # the same version the app's About shows; both are checked after signing, on the runner.
+      - name: Check versions
+        run: |
+          app_version=$(plutil -extract CFBundleShortVersionString raw "$PKG_APP/Contents/Info.plist")
+          cli_version=$("$PKG_APP/Contents/Helpers/elevate" --version)
+          echo "app $app_version, cli $cli_version, tag $VERSION"
+          test "$app_version" = "$VERSION" && test "$cli_version" = "$VERSION"
 
       - name: Notarize
         if: env.SIGNED == '1'
@@ -262,14 +305,31 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          ditto -c -k --keepParent build/Build/Products/Release/Elevate.app Elevate.zip
-          xcrun notarytool submit Elevate.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
-          xcrun stapler staple build/Build/Products/Release/Elevate.app
+          set -o pipefail
+          for app in "$APP" "$PKG_APP"; do
+            rm -f notarize.zip
+            ditto -c -k --keepParent "$app" notarize.zip
+            xcrun notarytool submit notarize.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait | tee submit.txt
+            id=$(awk '/^ *id:/ { print $2; exit }' submit.txt)
+            test -n "$id" || { echo "::error::no submission id in notarytool output"; exit 1; }
+            # The log lists every file the notary service examined; with the helper inside the
+            # pkg copy it must come back Accepted with no issues.
+            log="notarization-$(basename "$(dirname "$app")").json"
+            # The log endpoint can lag the --wait result by a few seconds; retry before giving up.
+            for attempt in 1 2 3 4 5; do
+              if xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" > "$log"; then break; fi
+              [ "$attempt" -lt 5 ] || { echo "::error::could not fetch the notarization log for $id"; exit 1; }
+              sleep 10
+            done
+            cat "$log"
+            grep -q '"status": "Accepted"' "$log"
+            xcrun stapler staple "$app"
+          done
 
       - name: Package DMG
         run: |
           rm -rf dist && mkdir -p dist/dmg
-          cp -R build/Build/Products/Release/Elevate.app dist/dmg/
+          cp -R "$APP" dist/dmg/
           ln -s /Applications dist/dmg/Applications
           hdiutil create -volname "Elevate" -srcfolder dist/dmg -ov -format UDZO "dist/Elevate-$VERSION.dmg"
           if [ "$SIGNED" = "1" ]; then
@@ -313,11 +373,16 @@ jobs:
           echo "PKG_SIGNED=1" >> "$GITHUB_ENV"
 
       # The pkg is what Jamf and Intune deploy; `installer -pkg` takes it too. Intune only accepts
-      # a signed one, which is why the unsigned path says so in the release notes.
+      # a signed one, which is why the unsigned path says so in the release notes. This copy of
+      # the app carries the CLI in Contents/Helpers; the postinstall script links it to
+      # /usr/local/bin/elevate.
       - name: Package pkg
         run: |
-          pkgbuild --component build/Build/Products/Release/Elevate.app --install-location /Applications \
-            --identifier no.reothor.elevate --version "$VERSION" "dist/Elevate-$VERSION-unsigned.pkg"
+          pkgbuild --root build/pkgroot --component-plist pkg/component.plist --install-location /Applications \
+            --scripts pkg/scripts --identifier no.reothor.elevate --version "$VERSION" "dist/Elevate-$VERSION-unsigned.pkg"
+          pkgutil --expand "dist/Elevate-$VERSION-unsigned.pkg" build/pkg-expanded
+          test -x build/pkg-expanded/Scripts/postinstall
+          rm -rf build/pkg-expanded
           if [ "$PKG_SIGNED" = "1" ]; then
             productsign --sign "Developer ID Installer" --timestamp \
               "dist/Elevate-$VERSION-unsigned.pkg" "dist/Elevate-$VERSION.pkg"
@@ -520,7 +585,7 @@ jobs:
           rm -f cert.p12
           for rid in ${{ matrix.rids }}; do
             bin="cli/dist/$rid/elevate"
-            codesign --force --options runtime --timestamp -s "Developer ID Application" "$bin"
+            codesign --force --options runtime --timestamp --entitlements cli/elevate.entitlements -s "Developer ID Application" "$bin"
             codesign --verify --strict --verbose=2 "$bin"
             ditto -c -k --keepParent "$bin" "notarize-$rid.zip"
             xcrun notarytool submit "notarize-$rid.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
@@ -674,11 +739,10 @@ jobs:
             echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
             echo '    brew trust frodehus/elevate'
             echo '    brew install --cask frodehus/elevate/elevate'
-            if [ "$MAC_SIGNED" != "1" ]; then
-              echo '    xattr -d com.apple.quarantine /Applications/Elevate.app'
-            fi
             echo
-            echo "Or download \`Elevate-$VERSION.dmg\` below and drag Elevate to Applications. SHA-256: \`$DMG_SHA256\`"
+            echo 'The cask installs the pkg (Homebrew asks for your password), which also puts the `elevate` CLI on your PATH.'
+            echo
+            echo "Or download \`Elevate-$VERSION.dmg\` below and drag Elevate to Applications. SHA-256: \`$DMG_SHA256\` The DMG is the app alone."
             echo
             echo "## Windows"
             echo
@@ -696,13 +760,13 @@ jobs:
             echo
             echo "## CLI (Linux, macOS, Windows)"
             echo
-            echo 'One self-contained `elevate` binary per platform, no runtime to install. Homebrew (macOS and Linux):'
+            echo 'One self-contained `elevate` binary per platform, no runtime to install.'
             echo
-            echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
-            echo '    brew trust frodehus/elevate'
+            echo 'macOS (Apple Silicon): the CLI is installed with the app by the Homebrew cask above or by `Elevate-'"$VERSION"'.pkg`, as `/usr/local/bin/elevate`. The `elevate-cli` formula is deprecated and will be removed in a later release; it still installs on Linux and Intel Macs:'
+            echo
             echo '    brew install frodehus/elevate/elevate-cli'
             echo
-            echo 'Windows: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
             if [ "$MAC_SIGNED" != "1" ]; then
@@ -713,9 +777,9 @@ jobs:
             echo "## Enterprise"
             echo
             if [ "$MAC_PKG_SIGNED" = "1" ]; then
-              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, signed with Developer ID Installer and notarized, for Jamf, Intune and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\`. SHA-256: \`$PKG_SHA256\`"
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, and installs the \`elevate\` CLI (\`/usr/local/bin/elevate\`, Apple Silicon), signed with Developer ID Installer and notarized, for Jamf, Intune and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\`. SHA-256: \`$PKG_SHA256\`"
             else
-              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package. It is **unsigned**: Jamf and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\` accept it, Intune requires a signed pkg. SHA-256: \`$PKG_SHA256\`"
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, and installs the \`elevate\` CLI (\`/usr/local/bin/elevate\`, Apple Silicon). It is **unsigned**: Jamf and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\` accept it, Intune requires a signed pkg. SHA-256: \`$PKG_SHA256\`"
             fi
             echo
             echo "\`Elevate-enterprise-kit-$VERSION.zip\` holds the managed configuration templates: the \`Elevate.admx\`/\`Elevate.adml\` policy definitions and a \`.reg\` file for Windows, a mobileconfig, an Intune preference file and a Jamf manifest for macOS, a \`managed.json\` template for the CLI, the worked example and \`keys.md\`, the key reference. SHA-256: \`$KIT_SHA256\`"
@@ -757,8 +821,9 @@ jobs:
           git remote set-url origin "git@github.com:${{ github.repository }}.git"
 
       # The deploy key bypasses the pull-request requirement on main, so the cask and the CLI
-      # formula land directly, in one commit. A retry covers a commit that reached main while
-      # this run was building.
+      # formula land directly, in one commit. The cask now installs the pkg (app + CLI), so it
+      # is regenerated from the pkg hash rather than the DMG's. A retry covers a commit that
+      # reached main while this run was building.
       - name: Update the cask and the formula on main
         run: |
           git config user.name "github-actions[bot]"
@@ -766,7 +831,7 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin main
             git checkout -B release-cask origin/main
-            ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
+            ./scripts/update-cask.sh "$VERSION" "$PKG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
             ./scripts/update-formula.sh "$VERSION" "${{ github.repository }}" dist
             if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb; then
               echo "Cask and formula already up to date."

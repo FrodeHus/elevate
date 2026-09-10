@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Elevate for Windows: a per-user MSI that installs the published app into
-  %LOCALAPPDATA%\Programs\Elevate with a Start Menu shortcut. Built by build.ps1 for x64 and arm64
-  with `wix build`, which needs the WixToolset.UI.wixext extension for the exit-dialog checkbox.
+  %LOCALAPPDATA%\Programs\Elevate with a Start Menu shortcut and the elevate CLI on the user's
+  PATH. Built by build.ps1 for x64 and arm64 with `wix build`, which needs the WixToolset.UI.wixext
+  extension for the exit-dialog checkbox.
 
   Preprocessor variables (all passed by build.ps1):
     Version     the product version, e.g. 1.0.0
     PublishDir  the `dotnet publish` output for this architecture
+    CliDir      the dotnet publish output of the CLI for this architecture (holds elevate.exe)
+
+  The CLI is installed into a `cli` subfolder of the install folder (and that subfolder, not
+  the install folder itself, is put on the user's PATH: %LOCALAPPDATA%\Programs\Elevate\cli):
+  elevate.exe and the app's Elevate.exe are the same name on a case-insensitive file system and
+  cannot share a directory.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Elevate"
@@ -18,7 +25,7 @@
            InstallerVersion="500"
            Compressed="yes">
 
-    <SummaryInformation Description="Elevate: just-in-time Entra and Azure PIM role activation from the system tray"
+    <SummaryInformation Description="Elevate: just-in-time Entra and Azure PIM role activation from the system tray, with the elevate CLI on the user's PATH"
                         Manufacturer="Reothor" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of Elevate is already installed." />
@@ -32,19 +39,34 @@
     <!-- %LOCALAPPDATA%\Programs\Elevate -->
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="Elevate" />
+        <Directory Id="INSTALLFOLDER" Name="Elevate">
+          <!-- The CLI lives one level down: elevate.exe and the app's Elevate.exe are the same
+               name on a case-insensitive file system and cannot share a directory. -->
+          <Directory Id="CLIFOLDER" Name="cli" />
+        </Directory>
       </Directory>
     </StandardDirectory>
 
     <Feature Id="Main" Title="Elevate" Level="1">
       <ComponentGroupRef Id="PublishedFiles" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="Cli" />
     </Feature>
 
     <!-- Everything `dotnet publish` produced, including the self-contained Windows App SDK runtime. -->
     <ComponentGroup Id="PublishedFiles" Directory="INSTALLFOLDER">
       <Files Include="$(var.PublishDir)\**" />
     </ComponentGroup>
+
+    <!-- The elevate CLI in its own `cli` subfolder (it cannot share INSTALLFOLDER with the app's
+         Elevate.exe on a case-insensitive file system), with that subfolder appended to the
+         user's PATH so `elevate` resolves in any new terminal. A per-user package can only write
+         HKCU, hence System="no"; the entry is removed on uninstall (Permanent="no"). -->
+    <Component Id="Cli" Directory="CLIFOLDER" Guid="3E7A9C15-2B4D-4F86-A1C3-8D5E6F7A9B02">
+      <File Id="ElevateCli" Source="$(var.CliDir)\elevate.exe" KeyPath="yes" />
+      <Environment Id="CliOnUserPath" Name="PATH" Value="[CLIFOLDER]" Action="set" Part="last" Permanent="no" System="no" />
+      <RemoveFolder Id="RemoveCliFolder" Directory="CLIFOLDER" On="uninstall" />
+    </Component>
 
     <!-- A per-user install has no reliable file key path; the registry value stands in for it. -->
     <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="9F1D6A2B-3C4E-4D5F-8A7B-6C5D4E3F2A10">
