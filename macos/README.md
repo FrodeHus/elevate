@@ -57,7 +57,7 @@ approvals only. A tenant that refuses the approver read simply shows nothing.
 
 Elevate can add an account in two ways, chosen per account in "Add account…":
 
-- **Your own Entra app registration** ("Own app registration"). Uses the client ID from Settings.
+- **Your own Entra app registration** ("Entra app registration"). Uses the client ID from Settings.
   It gives Elevate exactly the permissions you grant it, but each tenant needs an admin to
   consent (see Prerequisites below). A signed build signs in with MSAL through the
   `msauth.<bundle id>://auth` redirect; an **unsigned (ad-hoc) build** signs in through the

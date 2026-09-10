@@ -21,7 +21,7 @@ public enum SignInMethod: Hashable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .ownApp: "Own app registration"
+        case .ownApp: "Entra app registration"
         case .azureCLI: "Azure CLI app"
         case .azurePowerShell: "Azure PowerShell app"
         case .custom: "Custom app"

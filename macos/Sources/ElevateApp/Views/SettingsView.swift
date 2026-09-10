@@ -215,9 +215,13 @@ struct SettingsView: View {
     }
 
     /// Fills the field with the shared registration and applies it, so the row reads like a save.
+    /// Routed through `save()` so it gets the same `confirmReplace` sign-out warning as the
+    /// text-field path; skipped entirely when the shared id is already in effect, since there is
+    /// nothing to sign out.
     private func applySharedApp() {
         draft = AppSettings.sharedClientId
-        apply()
+        guard AppSettings.sharedClientId != model.settings.clientId else { return }
+        save()
     }
 
     private func apply() {
