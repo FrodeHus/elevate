@@ -57,8 +57,10 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
   signed build, through your browser on an unsigned one.
 - **Azure CLI app** and **Azure PowerShell app** are Microsoft's own apps. No consent, Azure
   resource roles only. Use the PowerShell one when your tenant blocks the Azure CLI.
-- **Custom app** is any other public-client registration you have an ID for, such as a
-  company-wide PIM app. Elevate reads what it was granted after sign-in.
+- **Company app (client ID)** is for two cases: an existing public-client registration that
+  lists only `http://localhost`, such as a company-wide PIM app, or a second registration you
+  want to use alongside the one in Settings. Type its ID; Elevate reads what it was granted after
+  sign-in.
 
 Click **Continue**. Your browser opens for Microsoft sign-in and returns you to Elevate. The
 account appears in the panel with its home tenant and, after a moment, the roles you are

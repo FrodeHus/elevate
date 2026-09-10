@@ -66,7 +66,7 @@ Elevate can add an account in two ways, chosen per account in "Add account…":
   unsigned build only needs `http://localhost` registered as a redirect URI under the "Mobile and
   desktop applications" platform (the setup script and the guide already add it). Settings shows
   "via loopback" next to the version when that is the active transport.
-- **A custom app registration through the loopback flow** ("Custom app (loopback)"). Any
+- **A custom app registration through the loopback flow** ("Company app (client ID)"). Any
   public-client registration you have a client ID for, such as a company-wide PIM app that has
   no macOS platform configured. It needs `http://localhost` registered as a redirect URI
   under the "Mobile and desktop applications" platform (that platform marks it public-client, so

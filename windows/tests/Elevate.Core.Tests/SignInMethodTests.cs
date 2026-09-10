@@ -30,7 +30,7 @@ public class SignInMethodTests
         SignInMethod.AzureCLI.DisplayName.Should().Be("Azure CLI app");
         SignInMethod.AzurePowerShell.DisplayName.Should().Be("Azure PowerShell app");
         // The flow is an implementation detail; the caption names the method only.
-        SignInMethod.Custom("abc").DisplayName.Should().Be("Custom app");
+        SignInMethod.Custom("abc").DisplayName.Should().Be("Company app (client ID)");
     }
 
     [Fact]

@@ -54,7 +54,7 @@ public readonly record struct SignInMethod
         SignInMethodKind.OwnApp => "Entra app registration",
         SignInMethodKind.AzureCLI => "Azure CLI app",
         SignInMethodKind.AzurePowerShell => "Azure PowerShell app",
-        _ => "Custom app",
+        _ => "Company app (client ID)",
     };
 
     /// <summary>Client id used through the loopback flow, or null when the own MSAL registration is used.</summary>

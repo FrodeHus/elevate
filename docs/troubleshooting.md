@@ -36,7 +36,7 @@ Graph PIM permissions, so Elevate never reads or activates Entra roles or group 
 it and never shows permission errors for them either. Azure resource roles work normally.
 
 To get Entra roles for that account, sign it out and add it again with **Entra app registration**
-or a **Custom app**.
+or a **Company app (client ID)**.
 
 ## Azure is off in a tenant
 

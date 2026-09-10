@@ -16,7 +16,7 @@ struct AddAccountView: View {
 
     private var methods: [SignInMethod] { model.availableMethods }
     private var selectedChoice: Choice {
-        // With every fixed method withheld by the organization, "Custom app" is all that is left
+        // With every fixed method withheld by the organization, "Company app" is all that is left
         // — and it may be withheld too, in which case the dialog has nothing to offer.
         choice ?? methods.first { model.isAvailable($0) }.map(Choice.fixed) ?? methods.first.map(Choice.fixed) ?? .custom
     }
@@ -41,8 +41,8 @@ struct AddAccountView: View {
                 }
                 if model.isCustomMethodAllowed {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Custom app")
-                        Text("An Entra app registration without a macOS platform, e.g. your company's PIM app; signs in through the browser with the standard http://localhost loopback redirect")
+                        Text("Company app (client ID)")
+                        Text("A registration that lists only http://localhost, such as an existing company PIM app, or a second registration alongside the one in Settings; signs in through the browser")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     .tag(Choice.custom)
@@ -118,7 +118,7 @@ struct AddAccountView: View {
         case .azurePowerShell:
             "Azure resource roles only; for tenants that block the Azure CLI app"
         case .custom:
-            "An Entra app registration without a macOS platform, used through the loopback flow"
+            "A registration that lists only http://localhost, or a second one alongside the registration in Settings; signs in through the browser"
         }
     }
 

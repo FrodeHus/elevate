@@ -24,7 +24,7 @@ public enum SignInMethod: Hashable, Sendable {
         case .ownApp: "Entra app registration"
         case .azureCLI: "Azure CLI app"
         case .azurePowerShell: "Azure PowerShell app"
-        case .custom: "Custom app"
+        case .custom: "Company app (client ID)"
         }
     }
 
