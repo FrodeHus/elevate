@@ -730,11 +730,10 @@ jobs:
             echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
             echo '    brew trust frodehus/elevate'
             echo '    brew install --cask frodehus/elevate/elevate'
-            if [ "$MAC_SIGNED" != "1" ]; then
-              echo '    xattr -d com.apple.quarantine /Applications/Elevate.app'
-            fi
             echo
-            echo "Or download \`Elevate-$VERSION.dmg\` below and drag Elevate to Applications. SHA-256: \`$DMG_SHA256\`"
+            echo 'The cask installs the pkg (Homebrew asks for your password), which also puts the `elevate` CLI on your PATH.'
+            echo
+            echo "Or download \`Elevate-$VERSION.dmg\` below and drag Elevate to Applications. SHA-256: \`$DMG_SHA256\` The DMG is the app alone."
             echo
             echo "## Windows"
             echo
@@ -752,13 +751,13 @@ jobs:
             echo
             echo "## CLI (Linux, macOS, Windows)"
             echo
-            echo 'One self-contained `elevate` binary per platform, no runtime to install. Homebrew (macOS and Linux):'
+            echo 'One self-contained `elevate` binary per platform, no runtime to install.'
             echo
-            echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
-            echo '    brew trust frodehus/elevate'
+            echo 'macOS (Apple Silicon): the CLI is installed with the app by the Homebrew cask above or by `Elevate-'"$VERSION"'.pkg`, as `/usr/local/bin/elevate`. The `elevate-cli` formula is deprecated and will be removed in a later release; it still installs on Linux and Intel Macs:'
+            echo
             echo '    brew install frodehus/elevate/elevate-cli'
             echo
-            echo 'Windows: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` next to the app and adds the folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
             if [ "$MAC_SIGNED" != "1" ]; then
@@ -769,9 +768,9 @@ jobs:
             echo "## Enterprise"
             echo
             if [ "$MAC_PKG_SIGNED" = "1" ]; then
-              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, signed with Developer ID Installer and notarized, for Jamf, Intune and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\`. SHA-256: \`$PKG_SHA256\`"
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, and installs the \`elevate\` CLI (\`/usr/local/bin/elevate\`, Apple Silicon), signed with Developer ID Installer and notarized, for Jamf, Intune and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\`. SHA-256: \`$PKG_SHA256\`"
             else
-              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package. It is **unsigned**: Jamf and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\` accept it, Intune requires a signed pkg. SHA-256: \`$PKG_SHA256\`"
+              echo "\`Elevate-$VERSION.pkg\` is a macOS installer package, and installs the \`elevate\` CLI (\`/usr/local/bin/elevate\`, Apple Silicon). It is **unsigned**: Jamf and \`sudo installer -pkg Elevate-$VERSION.pkg -target /\` accept it, Intune requires a signed pkg. SHA-256: \`$PKG_SHA256\`"
             fi
             echo
             echo "\`Elevate-enterprise-kit-$VERSION.zip\` holds the managed configuration templates: the \`Elevate.admx\`/\`Elevate.adml\` policy definitions and a \`.reg\` file for Windows, a mobileconfig, an Intune preference file and a Jamf manifest for macOS, a \`managed.json\` template for the CLI, the worked example and \`keys.md\`, the key reference. SHA-256: \`$KIT_SHA256\`"
@@ -813,8 +812,9 @@ jobs:
           git remote set-url origin "git@github.com:${{ github.repository }}.git"
 
       # The deploy key bypasses the pull-request requirement on main, so the cask and the CLI
-      # formula land directly, in one commit. A retry covers a commit that reached main while
-      # this run was building.
+      # formula land directly, in one commit. The cask now installs the pkg (app + CLI), so it
+      # is regenerated from the pkg hash rather than the DMG's. A retry covers a commit that
+      # reached main while this run was building.
       - name: Update the cask and the formula on main
         run: |
           git config user.name "github-actions[bot]"
@@ -822,7 +822,7 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin main
             git checkout -B release-cask origin/main
-            ./scripts/update-cask.sh "$VERSION" "$DMG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
+            ./scripts/update-cask.sh "$VERSION" "$PKG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
             ./scripts/update-formula.sh "$VERSION" "${{ github.repository }}" dist
             if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb; then
               echo "Cask and formula already up to date."

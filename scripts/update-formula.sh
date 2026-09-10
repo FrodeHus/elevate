@@ -17,6 +17,10 @@ VERSION="$1"
 REPO="$2"
 DIST="$3"
 
+# Fixed date: the first release carrying the deprecation notice, not the run date, so
+# re-runs of this script do not move it.
+DEPRECATED_ON="2026-09-10"
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/Formula/elevate-cli.rb"
 mkdir -p "$(dirname "$OUT")"
@@ -38,6 +42,10 @@ class ElevateCli < Formula
   homepage "https://github.com/$REPO"
   version "$VERSION"
   license "MIT"
+
+  # The CLI now ships inside the Elevate cask (via the pkg) and the MSI. This formula is kept for
+  # one more release for Linux and Intel Macs; the release archives stay available afterwards.
+  deprecate! date: "$DEPRECATED_ON", because: "the elevate CLI is installed by the elevate cask and the macOS pkg; Linux and Intel Macs use the elevate-cli archives from the GitHub release"
 
   on_macos do
     on_arm do
