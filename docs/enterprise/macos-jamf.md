@@ -30,7 +30,10 @@ what you want to take away from users: every key you send is locked.
 
 The pkg installs into `/Applications/Elevate.app` and carries no company values — all of those come
 from the configuration profile in the next step. Check the release notes for whether the pkg was
-signed and notarized; an unsigned pkg still has to satisfy Gatekeeper on the Mac.
+signed and notarized; an unsigned pkg still has to satisfy Gatekeeper on the Mac. It also links
+`/usr/local/bin/elevate` to the CLI bundled inside the app on Apple Silicon Macs, so the same
+policy delivers the command-line tool (Intel Macs get the app only; see [cli.md](cli.md) for
+those).
 
 ## 2. Build the configuration profile
 
@@ -96,6 +99,9 @@ Then in the app:
 On a fresh install with `ClientId` pushed, the setup panel never appears: Elevate is already
 configured, so the panel opens on an empty account list whose **Add account…** is the next step.
 
+`elevate --version` in Terminal prints the deployed version; `elevate config managed` reads
+`/etc/elevate/managed.json`, not the configuration profile — see [cli.md](cli.md).
+
 ## Testing without waiting for Jamf
 
 To try a value on your own Mac before you build the profile, write the managed preferences file
@@ -127,3 +133,4 @@ write there.
 - The `elevate` command-line tool on the same Macs reads `/etc/elevate/managed.json`, not the
   configuration profile: [cli.md](cli.md), which includes a Jamf script that writes it.
 - Something missing or greyed out unexpectedly: [troubleshooting.md](troubleshooting.md).
+- To remove Elevate, see [Uninstalling](README.md#uninstalling).

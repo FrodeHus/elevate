@@ -100,8 +100,9 @@ Elevate reads the policy at its **next launch**: quit the tray app and start it 
   any warnings.
 - **Copy diagnostics** includes a `Managed configuration:` section naming the source
   (`Windows policy`) and the key names — never the values.
-- The CLI on the same PC reads the same keys: `elevate config` marks each value's `Source` as
-  `managed`, and `elevate config managed` prints the origin, the keys and the warnings.
+- The MSI installs the `elevate` CLI in a `cli` folder under the app, on the user's PATH; it reads
+  the same registry keys: `elevate config` marks each value's `Source` as `managed`, and
+  `elevate config managed` prints the origin, the keys and the warnings.
 
 ## Without a GPO: a .reg file
 

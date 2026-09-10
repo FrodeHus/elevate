@@ -6,8 +6,10 @@ setup and nothing for the user to type.
 
 **Prerequisites**
 
-- The CLI installed ([cli/README.md](../../cli/README.md#install)) — a single binary from the
-  release, Homebrew, or winget.
+- The CLI installed. Macs that get `Elevate-<version>.pkg` (Jamf, Intune) and Windows PCs that get
+  the MSI already have it, at `/usr/local/bin/elevate` and in the `cli` folder under the app;
+  Linux workstations and servers take the single binary from the release
+  ([cli/README.md](../../cli/README.md#install)).
 - An Entra app registration for Elevate and its application (client) id
   ([docs/entra-app-registration.md](../entra-app-registration.md) if you need to create one).
 - Root (or an administrator) on the machines you configure.

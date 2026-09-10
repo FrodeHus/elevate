@@ -27,6 +27,10 @@ productsign --sign "Developer ID Installer: Your Company (TEAMID)" \
 The keys you can push are in [keys.md](keys.md). Push only what you want to take away from users:
 every key you send is locked.
 
+The pkg also links `/usr/local/bin/elevate` to the CLI bundled inside the app on Apple Silicon
+Macs, so the same policy delivers the command-line tool (Intel Macs get the app only; see
+[cli.md](cli.md) for those).
+
 ## 1. Add the app
 
 1. In the [Intune admin center](https://intune.microsoft.com): **Apps → macOS → Add**.
@@ -100,6 +104,9 @@ Then in the app:
 On a fresh install with `ClientId` pushed, the setup panel never appears: the app is already
 configured, so the panel opens on an empty account list whose **Add account…** is the next step.
 
+`elevate --version` in Terminal prints the deployed version; `elevate config managed` reads
+`/etc/elevate/managed.json`, not the configuration profile — see [cli.md](cli.md).
+
 ## Testing without waiting for Intune
 
 To try a value on your own Mac first, write the managed preferences file directly and relaunch
@@ -125,3 +132,4 @@ On an enrolled Mac the MDM owns that directory and will overwrite what you write
 - The `elevate` command-line tool on the same Macs reads `/etc/elevate/managed.json`, not the
   configuration profile: [cli.md](cli.md).
 - Something missing or greyed out unexpectedly: [troubleshooting.md](troubleshooting.md).
+- To remove Elevate, see [Uninstalling](README.md#uninstalling).
