@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Elevate.Core.Auth;
 using Elevate.Core.Managed;
 
 namespace Elevate.Cli.Infrastructure;
@@ -143,6 +144,9 @@ public sealed class CliSettings
     }
 
     public bool IsConfigured => IsValidClientId(ClientId);
+
+    /// <summary>True when the client id in effect (managed or stored) is the shared Elevate app registration.</summary>
+    public bool UsesSharedClientId => SharedApp.IsSharedClientId(ClientId);
 
     public static bool IsValidClientId(string? value)
     {

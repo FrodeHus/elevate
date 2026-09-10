@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CLI: `elevate config set client-id shared` selects the shared Elevate app registration without
+  pasting its GUID and states the no-SLA caveat once; `elevate config` then shows
+  `shared Elevate app` (and `--json` gains `clientIdKind`: `shared`, `own` or null). New
+  `elevate consent [--tenant <id>] [--open]` prints the admin consent link for the configured
+  registration — the `organizations` endpoint by default, the shared app's consent result page as
+  the redirect when the shared id is in effect and `nativeclient` otherwise, matching the apps.
+  `elevate diagnostics` gains the `Client id: shared Elevate app` / `own registration` /
+  `not set` line.
 ### Fixed
 
 - Windows: background refreshes (the timer, wake, launch, network restore and opening the

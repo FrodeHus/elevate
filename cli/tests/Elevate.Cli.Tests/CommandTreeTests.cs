@@ -12,7 +12,7 @@ public class CommandTreeTests
         var root = Program.BuildRootCommand();
         root.Subcommands.Select(c => c.Name).Should().Contain(
             ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel", "run",
-             "profiles", "approvals", "packages", "config", "catalogue", "diagnostics", "update", "completion", "init"]);
+             "profiles", "approvals", "packages", "config", "consent", "catalogue", "diagnostics", "update", "completion", "init"]);
     }
 
     [Fact]
@@ -46,6 +46,9 @@ public class CommandTreeTests
     [InlineData("tenants manual add contoso --entra \"Global Reader\" --azure /subscriptions/x=Reader")]
     [InlineData("approvals deny abcd1234 --reason no")]
     [InlineData("config set client-id 11111111-2222-3333-4444-555555555555 --yes")]
+    [InlineData("config set client-id shared --yes")]
+    [InlineData("consent --tenant contoso --json")]
+    [InlineData("consent --open")]
     [InlineData("--data-dir /tmp/x --device-code status")]
     [InlineData("packages list --tenant contoso --json")]
     [InlineData("packages requests --all")]

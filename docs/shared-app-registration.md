@@ -154,6 +154,10 @@ An administrator may replace `organizations` with their own tenant id to be cert
 lands in the right tenant. What each scope is for is in
 [the permission table](entra-app-registration.md#4-permission-table).
 
+From the CLI, `elevate config set client-id shared` selects the shared app (and states the no-SLA
+caveat once), and `elevate consent` prints this link — `--tenant <id or domain>` for one tenant,
+`--open` to open it in the browser.
+
 > `az ad app permission admin-consent --id <client id>` does **not** work here. That command
 > consents for an app registered in your own tenant; the shared app is registered in another
 > one. Use the link.
