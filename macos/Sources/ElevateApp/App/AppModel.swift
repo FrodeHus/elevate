@@ -391,10 +391,15 @@ final class AppModel {
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
         components.path = "/\(tenantSegment)/v2.0/adminconsent"
+        // The shared app registration has a Web redirect URI on the product site that explains
+        // the consent result; own registrations keep the loopback-friendly `nativeclient` URI.
+        let redirectURI = usesSharedApp
+            ? AppSettings.sharedConsentRedirectURI
+            : "https://login.microsoftonline.com/common/oauth2/nativeclient"
         components.queryItems = [
             URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
             URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all + EntitlementScopes.all).joined(separator: " ")),
-            URLQueryItem(name: "redirect_uri", value: "https://login.microsoftonline.com/common/oauth2/nativeclient"),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
         ]
         return components.url
     }

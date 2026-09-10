@@ -29,8 +29,8 @@ class Page(HTMLParser):
             self.ids.add(attrs["id"])
         if tag == "a":
             self.links.append(attrs.get("href", ""))
-        if tag in ("img", "script"):
-            self.assets.append(attrs.get("src", ""))
+        if tag in ("img", "script") and attrs.get("src"):
+            self.assets.append(attrs["src"])
         if tag == "link" and attrs.get("rel") in ("stylesheet", "icon"):
             self.assets.append(attrs.get("href", ""))
         if tag == "img":
