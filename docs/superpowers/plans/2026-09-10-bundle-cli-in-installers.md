@@ -628,11 +628,11 @@ public class UpgradeHintTests
     public void Exe_next_to_the_windows_app_points_at_the_msi()
     {
         var dir = Path.Combine(Path.GetTempPath(), "elevate-cli-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        Directory.CreateDirectory(Path.Combine(dir, "cli"));
         File.WriteAllText(Path.Combine(dir, "Elevate.exe"), "");
         try
         {
-            UpgradeHint.For(Path.Combine(dir, "elevate.exe"), isWindows: true, isMacOS: false)
+            UpgradeHint.For(Path.Combine(dir, "cli", "elevate.exe"), isWindows: true, isMacOS: false)
                 .Should().Be("Installed by the Elevate MSI: run the newer Elevate-<version>-x64.msi or -arm64.msi.");
         }
         finally
@@ -687,7 +687,7 @@ namespace Elevate.Cli.Update;
 
 /// <summary>
 /// The one-line "how to upgrade" note under an available update. The CLI is installed four ways
-/// (inside Elevate.app by the pkg or the cask, next to Elevate.exe by the MSI, the Homebrew
+/// (inside Elevate.app by the pkg or the cask, in the cli folder under Elevate.exe by the MSI, the Homebrew
 /// formula, a bare archive or winget) and the right instruction depends on which one this
 /// executable came from.
 /// </summary>
@@ -704,7 +704,10 @@ internal static class UpgradeHint
         if (isWindows)
         {
             var directory = executablePath is null ? null : Path.GetDirectoryName(executablePath);
-            if (directory is not null && File.Exists(Path.Combine(directory, "Elevate.exe")))
+            // The MSI installs the CLI in the `cli` subfolder of the app's folder (elevate.exe and
+            // Elevate.exe cannot share a directory on a case-insensitive file system).
+            var parent = directory is null ? null : Path.GetDirectoryName(directory);
+            if (parent is not null && File.Exists(Path.Combine(parent, "Elevate.exe")))
             {
                 return "Installed by the Elevate MSI: run the newer Elevate-<version>-x64.msi or -arm64.msi.";
             }
