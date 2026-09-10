@@ -92,7 +92,8 @@ extension AppModel {
                                                                                                   warnings: settings.managed.warnings
                                                                                                       + managedTenantWarnings
                                                                                                       + managedProfileWarnings),
-                                     errors: errorLog.entries)
+                                     errors: errorLog.entries,
+                                     usesSharedClientId: usesSharedApp)
         return DiagnosticsReport.render(input)
     }
 
