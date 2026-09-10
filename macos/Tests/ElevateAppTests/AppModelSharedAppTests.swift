@@ -131,6 +131,7 @@ struct AppModelSharedAppTests {
         #expect(!text.contains("Client id: shared Elevate app"))
         #expect(text.contains("Client id: own registration"))
         #expect(!text.contains("Client id: not set"))
+        #expect(!text.contains("11111111-2222-3333-4444-555555555555"))
         cleanup(model)
     }
 

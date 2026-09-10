@@ -153,7 +153,10 @@ struct SettingsView: View {
         }
         // A programmatic fill (the shared-app quick start) applies the value itself, so only
         // an edit that diverges from the stored id clears the "Saved." confirmation.
-        .onChange(of: draft) { if draft.trimmingCharacters(in: .whitespacesAndNewlines) != model.settings.clientId { saved = false } }
+        .onChange(of: draft) {
+            let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.compare(model.settings.clientId, options: .caseInsensitive) != .orderedSame { saved = false }
+        }
         .onChange(of: hotKey) { applyHotKey() }
         .onChange(of: hotKeyProfileId) { applyHotKey() }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
@@ -210,8 +213,16 @@ struct SettingsView: View {
         return trimmed != model.settings.clientId || !model.isConfigured
     }
 
-    private func save() {
-        if model.identities.isEmpty { apply() } else { confirmReplace = true }
+    /// `deferConfirmation` presents the sign-out warning one run-loop hop later. SwiftUI on macOS
+    /// commonly drops a `confirmationDialog` raised from inside another dialog's dismissal, so the
+    /// shared-app path (which runs from the consent dialog's action) must not present it inline.
+    private func save(deferConfirmation: Bool = false) {
+        guard !model.identities.isEmpty else { apply(); return }
+        if deferConfirmation {
+            Task { @MainActor in confirmReplace = true }
+        } else {
+            confirmReplace = true
+        }
     }
 
     /// Fills the field with the shared registration and applies it, so the row reads like a save.
@@ -220,8 +231,8 @@ struct SettingsView: View {
     /// nothing to sign out.
     private func applySharedApp() {
         draft = AppSettings.sharedClientId
-        guard AppSettings.sharedClientId != model.settings.clientId else { return }
-        save()
+        guard !model.usesSharedApp else { return }
+        save(deferConfirmation: true)
     }
 
     private func apply() {
