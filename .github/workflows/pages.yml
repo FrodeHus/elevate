@@ -3,7 +3,13 @@ name: Product page
 on:
   push:
     branches: [main]
-    paths: ["site/**", "scripts/check-site.py", ".github/workflows/pages.yml"]
+    paths:
+      [
+        "site/**",
+        "scripts/check-site.py",
+        "scripts/consent.test.mjs",
+        ".github/workflows/pages.yml",
+      ]
   pull_request:
   workflow_dispatch:
 
@@ -23,7 +29,11 @@ jobs:
       - name: Check assets and documentation links
         run: python3 scripts/check-site.py
       - name: Check JavaScript syntax
-        run: node --check site/script.js
+        run: |
+          node --check site/script.js
+          node --check site/consent.mjs
+      - name: Check consent result states
+        run: node --test scripts/consent.test.mjs
 
   package:
     name: Package product page
@@ -35,7 +45,7 @@ jobs:
       - name: Stage only public website files
         run: |
           mkdir -p _site
-          cp site/*.html site/styles.css site/script.js _site/
+          cp site/*.html site/*.mjs site/styles.css site/script.js _site/
           cp -R site/assets _site/assets
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

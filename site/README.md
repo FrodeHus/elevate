@@ -17,6 +17,8 @@ Open <http://localhost:4173>. Validate the page before publishing:
 ```sh
 python3 scripts/check-site.py
 node --check site/script.js
+node --check site/consent.mjs
+node --test scripts/consent.test.mjs
 ```
 
 The validator checks asset paths, image attributes, duplicate IDs, navigation fragments, and
@@ -40,7 +42,7 @@ always work without JavaScript. The countdown is an illustration, not a live rol
 
 Pull requests validate without deployment permissions. Pushes that change the site, its validator
 or workflow publish automatically from `main`; manual runs on other branches cannot deploy.
-Only the HTML pages, `styles.css`, `script.js` and `assets/` enter the published artifact. GitHub
+Only the HTML pages, JavaScript modules, `styles.css`, `script.js` and `assets/` enter the published artifact. GitHub
 creates the `github-pages` environment if it does not already exist. No custom token is needed.
 See [GitHub's custom Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
@@ -72,6 +74,14 @@ Design references: [Apple materials](https://developer.apple.com/design/human-in
 and the [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/). The page uses glass
 selectively, visible keyboard focus, semantic landmarks, responsive layouts and user-controlled
 feature switching. It does not auto-rotate panels or gate content behind animation.
+
+## Consent result
+
+`consent.html` uses `consent.mjs` to display the Microsoft admin-consent callback locally.
+It does not authenticate users or independently verify consent. Errors take precedence over
+the consent flag. Success, declined, error, incomplete and direct visits have distinct guidance.
+Technical details are collapsed initially; only scopes actually returned are listed. Check the
+tenant copy button, mobile wrapping, reduced motion and JavaScript-disabled guidance when editing.
 
 ## Legal pages
 
