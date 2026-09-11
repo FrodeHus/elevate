@@ -235,6 +235,7 @@ p {
 }
 .hero {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   padding-top: 155px;
   background: linear-gradient(180deg, #f3f7ff 0%, #fff 56%);
@@ -1726,9 +1727,43 @@ td {
 
 /* Consent is a task result, with the next step ahead of protocol details. */
 .consent-page {
+  position: relative;
+  isolation: isolate;
   background:
     radial-gradient(ellipse at 50% 15%, #eaf2ff 0, transparent 65%), var(--mist);
   min-height: 100vh;
+}
+/* A shared, decorative current sits behind the content, never over controls. */
+.hero::before,
+.consent-page::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: url("assets/energy-wave.svg") center / cover no-repeat;
+  opacity: 0.55;
+  animation: energy-flow 32s ease-in-out infinite alternate;
+}
+.consent-page::before {
+  position: fixed;
+}
+@keyframes energy-flow {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+    opacity: 0.42;
+  }
+  to {
+    transform: translate3d(0, -12px, 0) scale(1.07);
+    opacity: 0.62;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero::before,
+  .consent-page::before {
+    animation: none;
+    transform: none;
+  }
 }
 .consent-main {
   max-width: 660px;
