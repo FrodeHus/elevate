@@ -335,7 +335,7 @@ public static class TenantGroupBox
     /// The status cell: an optional ring, then text that trims inside the fixed column. A Grid rather
     /// than a horizontal StackPanel, which would hand the text unbounded width and let it overflow.
     /// </summary>
-    public static Grid StatusCell(ProgressRing? ring, TextBlock text, HorizontalAlignment alignment)
+    public static Grid StatusCell(FrameworkElement? ring, TextBlock text, HorizontalAlignment alignment)
     {
         ArgumentNullException.ThrowIfNull(text);
         var cell = new Grid { ColumnSpacing = 6, VerticalAlignment = VerticalAlignment.Center };

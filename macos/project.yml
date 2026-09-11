@@ -17,6 +17,8 @@ targets:
     sources:
       - path: Sources/ElevateApp
       - path: Sources/ElevateApp/Assets.xcassets
+      - path: ../shared/elevation-motion.json
+        buildPhase: resources
     dependencies:
       - package: ElevateCore
         product: ElevateCore
