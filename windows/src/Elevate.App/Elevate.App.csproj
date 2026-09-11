@@ -48,6 +48,7 @@
 
   <ItemGroup>
     <Content Include="Assets\**\*.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\shared\elevation-motion.json" Link="Assets\elevation-motion.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

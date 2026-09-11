@@ -10,6 +10,7 @@ struct RunProfileView: View {
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
+    @State private var rowResults: [RoleKey: ActivationOutcome.Result] = [:]
     @State private var finished = false
     @State private var scheduleStart = false
     @State private var startAt = Date.now.addingTimeInterval(3600)
@@ -65,6 +66,9 @@ struct RunProfileView: View {
         .padding(16).frame(width: 560)
         .navigationTitle(finished ? "Ran \"\(profile?.name ?? "profile")\"" : "Run \"\(profile?.name ?? "profile")\"")
         .onAppear(perform: load)
+        .onChange(of: model.progress) { _, progress in
+            for item in items { if let result = progress[item.roleKey] { rowResults[item.roleKey] = result } }
+        }
         // WindowGroup(for:) refocuses an existing window for the same value, so .onAppear does not
         // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
         .onChange(of: model.runRequests[profileId]) { _, _ in
@@ -125,14 +129,9 @@ struct RunProfileView: View {
     }
 
     @ViewBuilder private func statusLabel(for it: ProfilePlanItem) -> some View {
-        switch model.progress[it.roleKey] {
-        case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
-        case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
-        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange).font(.caption)
-        case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
-        case nil:
-            if running { ProgressView().controlSize(.small) }
-            else if let policy = it.role?.policy, let caption = PolicyNotes.caption(for: policy) {
+        ActivationProgressLabel(result: model.progress[it.roleKey] ?? rowResults[it.roleKey], running: running)
+        if model.progress[it.roleKey] == nil && rowResults[it.roleKey] == nil && !running {
+            if let policy = it.role?.policy, let caption = PolicyNotes.caption(for: policy) {
                 Label(caption, systemImage: policy.requiresApproval ? "person.badge.clock" : "lock.shield")
                     .font(.caption).lineLimit(1).help(PolicyNotes.explanation(for: policy) ?? "")
             }
@@ -140,6 +139,7 @@ struct RunProfileView: View {
     }
 
     private func load() {
+        rowResults.removeAll()
         items = model.plan(for: profileId)
         if finished || justification.isEmpty { justification = profile?.lastJustification ?? "" }
         finished = false
@@ -150,12 +150,14 @@ struct RunProfileView: View {
     }
 
     private func submit() async {
+        rowResults.removeAll()
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
         // Two minutes of headroom: a start the service sees as "now" would activate immediately.
         let start: Date? = scheduleStart ? max(startAt, Date.now.addingTimeInterval(120)) : nil
-        await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
+        let outcomes = await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
                                startDateTime: start)
+        for outcome in outcomes { rowResults[outcome.roleKey] = outcome.result }
         running = false
         finished = true
     }

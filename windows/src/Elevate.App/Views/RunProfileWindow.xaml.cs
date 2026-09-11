@@ -24,7 +24,9 @@ public sealed partial class RunProfileWindow : Window
 
         public TextBlock? Status { get; init; }
 
-        public ProgressRing? Ring { get; init; }
+        public ActivationStatusIcon? Ring { get; init; }
+
+        public ActivationResult? Result { get; set; }
     }
 
     private readonly AppModel _model;
@@ -99,7 +101,7 @@ public sealed partial class RunProfileWindow : Window
                 Item = item,
                 Duration = activate ? new DurationPicker { Maximum = item.Role?.Policy.MaximumDuration ?? RolePolicy.ManualDefault.MaximumDuration, Duration = item.Duration } : null,
                 Status = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
-                Ring = activate ? new ProgressRing { Width = 16, Height = 16, IsActive = false, Visibility = Visibility.Collapsed } : null,
+                Ring = activate ? new ActivationStatusIcon() : null,
             });
         }
 
@@ -165,11 +167,14 @@ public sealed partial class RunProfileWindow : Window
         var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
         status.Foreground = secondary;
         ToolTipService.SetToolTip(status, null);
-        if (row.Ring is not null)
+        var progress = _model.Progress.GetValueOrDefault(row.Item.RoleKey) ?? row.Result;
+        row.Result = progress;
+        row.Ring?.SetPhase(row.Item.Disposition != ProfilePlanDisposition.Activate ? ActivationIconPhase.Hidden : progress switch
         {
-            row.Ring.Visibility = Visibility.Collapsed;
-            row.Ring.IsActive = false;
-        }
+            ActivationResult.Activated => ActivationIconPhase.Success,
+            null when _running => ActivationIconPhase.Working,
+            _ => ActivationIconPhase.Hidden,
+        });
 
         switch (row.Item.Disposition)
         {
@@ -195,7 +200,7 @@ public sealed partial class RunProfileWindow : Window
             picker.IsEnabled = false;
         }
 
-        switch (_model.Progress.GetValueOrDefault(row.Item.RoleKey))
+        switch (progress)
         {
             case ActivationResult.Activated:
                 status.Text = "Active";
@@ -217,12 +222,7 @@ public sealed partial class RunProfileWindow : Window
             default:
                 if (_running)
                 {
-                    status.Text = string.Empty;
-                    if (row.Ring is not null)
-                    {
-                        row.Ring.Visibility = Visibility.Visible;
-                        row.Ring.IsActive = true;
-                    }
+                    status.Text = "Activating…";
                 }
                 else if (row.Item.Role?.Policy is { } policy && PolicyNotes.Caption(policy) is { } notes)
                 {
@@ -292,6 +292,8 @@ public sealed partial class RunProfileWindow : Window
             return;
         }
 
+        foreach (var row in _rows) row.Result = null;
+        _model.ClearProgress(_rows.Select(r => r.Item.RoleKey));
         _running = true;
         Failure.IsOpen = false;
         UpdateSubmit();
@@ -312,7 +314,11 @@ public sealed partial class RunProfileWindow : Window
         DateTimeOffset? start = ScheduleToggle.IsOn ? (StartAt > DateTimeOffset.Now.AddMinutes(2) ? StartAt : DateTimeOffset.Now.AddMinutes(2)) : null;
         try
         {
-            await _model.RunProfileAsync(_profileId, [.. _rows.Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
+            var outcomes = await _model.RunProfileAsync(_profileId, [.. _rows.Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
+            foreach (var outcome in outcomes)
+            {
+                if (_rows.FirstOrDefault(r => r.Item.RoleKey == outcome.RoleKey) is { } row) row.Result = outcome.Result;
+            }
         }
         catch (Exception ex)
         {

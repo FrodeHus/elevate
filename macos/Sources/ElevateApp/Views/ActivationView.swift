@@ -4,6 +4,7 @@ import ElevateCore
 struct ActivationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let keys: [RoleKey]
 
     struct Item: Identifiable {
@@ -17,6 +18,7 @@ struct ActivationView: View {
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
+    @State private var rowResults: [RoleKey: ActivationOutcome.Result] = [:]
     @State private var scheduleStart = false
     @State private var startAt = Date.now.addingTimeInterval(3600)
 
@@ -41,7 +43,14 @@ struct ActivationView: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     .help(scopeTooltip(items.first?.role.key) ?? detail)
             }
-            if isBulk { bulkTable } else { singleDuration }
+            if isBulk { bulkTable } else {
+                singleDuration
+                if let key = items.first?.role.key {
+                    // singleDuration already presents the full, selectable failure message.
+                    if case .failed = result(for: key) { EmptyView() }
+                    else { ActivationProgressLabel(result: result(for: key), running: running) }
+                }
+            }
             startAtRow
             TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
             if needsTicket {
@@ -61,6 +70,9 @@ struct ActivationView: View {
         .frame(width: isBulk ? 560 : 380)
         .navigationTitle(isBulk ? "Activate \(keys.count) roles" : (items.first?.role.displayName ?? "Activate role"))
         .onAppear(perform: load)
+        .onChange(of: model.progress) { _, progress in
+            for key in keys { if let result = progress[key] { rowResults[key] = result } }
+        }
     }
 
     /// "Request" when every role in the sheet waits for an approver; otherwise the plain verb.
@@ -165,19 +177,19 @@ struct ActivationView: View {
     }
 
     @ViewBuilder private func progressLabel(for key: RoleKey) -> some View {
-        switch model.progress[key] {
-        case .activated: Label("Active", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
-        case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue).font(.caption)
-        case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange).font(.caption)
-        case .failed(let e): Text(e.userMessage).foregroundStyle(.red).font(.caption).lineLimit(1).help(e.userMessage)
-        case nil: if running { ProgressView().controlSize(.small) } else { emptyCell }
-        }
+        ActivationProgressLabel(result: result(for: key), running: running)
+    }
+
+    // Manual Azure roles acquire a resolved ID during activation; the dialog keeps its original key.
+    private func result(for key: RoleKey) -> ActivationOutcome.Result? {
+        model.progress[key] ?? rowResults[key]
     }
 
     /// Keeps a grid cell occupied without taking space, so later cells stay in their columns.
     private var emptyCell: some View { Color.clear.frame(width: 0, height: 0) }
 
     private func load() {
+        rowResults.removeAll()
         items = keys.compactMap { key in
             guard let role = model.role(for: key) else { return nil }
             let remembered = model.remembered(for: key)?.lastDuration
@@ -192,6 +204,7 @@ struct ActivationView: View {
     }
 
     private func submit() async {
+        rowResults.removeAll()
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
         // Two minutes of headroom: a start the service sees as "now" would activate immediately.
@@ -201,9 +214,20 @@ struct ActivationView: View {
                               authenticationContext: $0.role.policy.authenticationContext,
                               startDateTime: start)
         }
-        await model.activate(requests)
+        let outcomes = await model.activate(requests)
+        for outcome in outcomes { rowResults[outcome.roleKey] = outcome.result }
+        let allOk = requests.allSatisfy {
+            switch result(for: $0.roleKey) {
+            case .activated, .scheduled, .pendingApproval: true
+            case .failed, nil: false
+            }
+        }
+        if allOk && requests.contains(where: {
+            if case .activated = result(for: $0.roleKey) { true } else { false }
+        }) {
+            try? await Task.sleep(for: .seconds(reduceMotion ? 0.4 : ActivationIconPlayback.morphDuration + 0.15))
+        }
         running = false
-        let allOk = requests.allSatisfy { if case .failed = model.progress[$0.roleKey] { false } else { true } }
         if allOk { dismiss() }
     }
 }

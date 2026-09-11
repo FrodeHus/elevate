@@ -24,7 +24,9 @@ public sealed partial class ActivationWindow : Window
 
         public TextBlock? Status { get; init; }
 
-        public ProgressRing? Ring { get; init; }
+        public ActivationStatusIcon? Ring { get; init; }
+
+        public ActivationResult? Result { get; set; }
     }
 
     private readonly AppModel _model;
@@ -98,7 +100,7 @@ public sealed partial class ActivationWindow : Window
             var picker = IsBulk ? new DurationPicker { Maximum = role.Policy.MaximumDuration } : SingleDuration;
             picker.Maximum = role.Policy.MaximumDuration;
             picker.Duration = remembered ?? role.Policy.DefaultDuration;
-            _items.Add(new Item { Role = role, Duration = picker, Status = IsBulk ? new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center } : null, Ring = IsBulk ? new ProgressRing { Width = 16, Height = 16, IsActive = false, Visibility = Visibility.Collapsed } : null });
+            _items.Add(new Item { Role = role, Duration = picker, Status = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center }, Ring = new ActivationStatusIcon() });
         }
 
         Heading.Text = IsBulk ? $"Activate {_keys.Count} roles" : _items.FirstOrDefault()?.Role.DisplayName ?? "Activate role";
@@ -127,6 +129,7 @@ public sealed partial class ActivationWindow : Window
         }
         else if (_items.Count > 0)
         {
+            SinglePane.Children.Add(TenantGroupBox.StatusCell(_items[0].Ring, _items[0].Status!, HorizontalAlignment.Left));
             var policy = _items[0].Role.Policy;
             ApprovalNotice.Visibility = policy.RequiresApproval ? Visibility.Visible : Visibility.Collapsed;
             MfaNotice.Visibility = policy.RequiresMfa ? Visibility.Visible : Visibility.Collapsed;
@@ -231,9 +234,15 @@ public sealed partial class ActivationWindow : Window
         }
 
         var resources = Application.Current.Resources;
-        var progress = _model.Progress.GetValueOrDefault(item.Role.Key);
-        item.Ring.Visibility = Visibility.Collapsed;
-        item.Ring.IsActive = false;
+        // A manual Azure role can be rekeyed while this dialog still holds the original key.
+        var progress = _model.Progress.GetValueOrDefault(item.Role.Key) ?? item.Result;
+        item.Result = progress;
+        item.Ring.SetPhase(progress switch
+        {
+            ActivationResult.Activated => ActivationIconPhase.Success,
+            null when _running || _model.InFlight.Contains(item.Role.Key) => ActivationIconPhase.Working,
+            _ => ActivationIconPhase.Hidden,
+        });
         ToolTipService.SetToolTip(item.Status, null);
         switch (progress)
         {
@@ -250,7 +259,7 @@ public sealed partial class ActivationWindow : Window
                 item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["SystemFillColorCautionBrush"];
                 break;
             case ActivationResult.Failed failed:
-                item.Status.Text = failed.Error.UserMessage;
+                item.Status.Text = IsBulk ? failed.Error.UserMessage : string.Empty; // SingleError shows the full message.
                 item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["SystemFillColorCriticalBrush"];
                 item.Status.TextTrimming = TextTrimming.CharacterEllipsis;
                 ToolTipService.SetToolTip(item.Status, failed.Error.UserMessage);
@@ -258,9 +267,8 @@ public sealed partial class ActivationWindow : Window
             default:
                 if (_running || _model.InFlight.Contains(item.Role.Key))
                 {
-                    item.Status.Text = string.Empty;
-                    item.Ring.Visibility = Visibility.Visible;
-                    item.Ring.IsActive = true;
+                    item.Status.Text = "Activating…";
+                    item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["TextFillColorSecondaryBrush"];
                 }
                 else
                 {
@@ -319,6 +327,8 @@ public sealed partial class ActivationWindow : Window
             return;
         }
 
+        foreach (var item in _items) item.Result = null;
+        _model.ClearProgress(_keys);
         _running = true;
         SingleError.IsOpen = false;
         Failure.IsOpen = false;
@@ -333,7 +343,11 @@ public sealed partial class ActivationWindow : Window
             i.Role.Key, i.Duration.Duration, Reason.Text.Trim(), ticket, i.Role.Policy.AuthenticationContext, start)).ToList();
         try
         {
-            await _model.ActivateAsync(requests);
+            var outcomes = await _model.ActivateAsync(requests);
+            foreach (var outcome in outcomes)
+            {
+                if (_items.FirstOrDefault(i => i.Role.Key == outcome.RoleKey) is { } item) item.Result = outcome.Result;
+            }
         }
         catch (Exception ex)
         {
@@ -341,10 +355,15 @@ public sealed partial class ActivationWindow : Window
             Failure.IsOpen = true;
         }
 
-        _running = false;
-        UpdateSubmit();
         OnModelChanged(this, EventArgs.Empty);
-        var allOk = requests.All(r => _model.Progress.GetValueOrDefault(r.RoleKey) is not ActivationResult.Failed);
+        var allOk = _items.All(i => i.Result is ActivationResult.Activated or ActivationResult.Scheduled or ActivationResult.PendingApproval);
+        if (allOk && _items.Any(i => i.Result is ActivationResult.Activated))
+        {
+            var dwell = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? ActivationIconPlayback.MorphDuration + .15 : .4;
+            await Task.Delay(TimeSpan.FromSeconds(dwell));
+        }
+        _running = false;
+        OnModelChanged(this, EventArgs.Empty);
         if (allOk)
         {
             Close();

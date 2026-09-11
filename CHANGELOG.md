@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS and Windows: per-role progress in activation dialogs and profile runs now uses Elevate's
+  chevrons pulsing upward. Confirmed activation morphs them into a green circle and check mark;
+  pending approval, scheduled requests and failures keep their distinct statuses. The animation
+  respects reduced-motion settings, and activation dialogs briefly hold the success result before closing.
+
 ## [1.6.2] - 2026-09-10
 
 ### Added
