@@ -48,7 +48,7 @@ jobs:
           cp site/*.html site/*.mjs site/styles.css site/script.js _site/
           cp -R site/assets _site/assets
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
