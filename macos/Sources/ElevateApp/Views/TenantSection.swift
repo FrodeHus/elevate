@@ -190,6 +190,12 @@ struct TenantMenuItems: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         Button("Retry discovery") { Task { await model.retryDiscovery(tenant.id) } }
+        // Each portal opens in this tenant; the browser session picks the account.
+        Menu("Open…") {
+            ForEach(AdminPortal.allCases, id: \.self) { portal in
+                Button(portal.title) { NSWorkspace.shared.open(portal.url(tenantId: tenant.tenantId)) }
+            }
+        }
         // Offered for every Entra-app-registration account, not only after discovery fell back:
         // an administrator may need to re-consent after a scope is added, before anything fails.
         if let url = model.adminConsentURL(identityId: tenant.identityId, tenantId: tenant.tenantId) {
