@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-09-12
+
 ### Added
 
 - macOS and Windows: the run and deactivate reviews for a profile show a checkbox next to each
@@ -535,7 +537,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.3...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.4...HEAD
+[1.6.4]: https://github.com/FrodeHus/elevate/compare/v1.6.3...v1.6.4
 [1.6.3]: https://github.com/FrodeHus/elevate/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/FrodeHus/elevate/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/FrodeHus/elevate/compare/v1.6.0...v1.6.1
