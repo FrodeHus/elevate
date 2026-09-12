@@ -111,4 +111,34 @@ struct ProfileDeactivationTests {
         #expect(model.state.profileRuns[0].entries.allSatisfy { $0.completed })
         #expect(await http.requests.filter { $0.method == "POST" }.count == 3)
     }
+
+    @Test func restrictedRunDeactivatesOnlyChosenRolesAndLeavesOthersRetryable() async throws {
+        let http = StubHTTPClient()
+        await http.on("GET", "/me?", body: Data(#"{"id":"principal"}"#.utf8))
+        let start = Date.now.addingTimeInterval(-600), end = Date.now.addingTimeInterval(3600)
+        let other = Sample.key(.entraDirectory(roleDefinitionId: "other", directoryScopeId: "/"))
+        let instances: [String: Any] = ["value": ["role-def", "other"].map { id in
+            ["id": "instance-" + id, "roleAssignmentScheduleId": "schedule-" + id,
+             "roleDefinitionId": id, "directoryScopeId": "/", "assignmentType": "Activated",
+             "startDateTime": GraphJSON.encoderDateString(start), "endDateTime": GraphJSON.encoderDateString(end)]
+        }]
+        await http.on("GET", "roleAssignmentScheduleInstances", body: try JSONSerialization.data(withJSONObject: instances))
+        await http.on("GET", "roleAssignmentScheduleRequests", body: Data(#"{"value":[]}"#.utf8))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Data(#"{"id":"deactivation","status":"Provisioned","roleDefinitionId":"role-def"}"#.utf8))
+        let model = await setup(http)
+        defer { cleanup(model) }
+        let entries = [Sample.entraKey, other].map { key in
+            let id = key == Sample.entraKey ? "role-def" : "other"
+            return ProfileRun.Entry(assignment: ActiveAssignment(roleKey: key, assignmentId: "request-" + id,
+                startDateTime: start, endDateTime: end, status: .active, scheduleId: "schedule-" + id), displayName: id)
+        }
+        let run = ProfileRun(profileId: UUID(), profileName: "Ops", entries: entries)
+        model.state.profileRuns = [run]
+        await model.deactivateProfileRun(run.id, only: [Sample.entraKey])
+        #expect(model.state.profileRuns[0].entries.map(\.completed) == [true, false])
+        #expect(model.profileDeactivationProgress[run.id]?[other] == nil)
+        #expect(await http.requests.filter { $0.method == "POST" }.count == 1)
+        // The omitted role stays available to a later, unrestricted pass.
+        #expect(model.profileRuns(for: run.profileId).count == 1)
+    }
 }

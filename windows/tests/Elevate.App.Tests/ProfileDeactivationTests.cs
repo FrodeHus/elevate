@@ -93,6 +93,25 @@ public class ProfileDeactivationTests
     }
 
     [Fact]
+    public async Task RestrictedRunDeactivatesOnlyChosenRolesAndLeavesOthersRetryable()
+    {
+        var first = Assignment();
+        var second = Assignment("other-role", "s2");
+        using var test = await ModelAsync(first, second);
+        var model = test.Model;
+        var run = new ProfileRun(Guid.NewGuid(), Guid.NewGuid(), "Ops", DateTimeOffset.UtcNow,
+            [new(first, "First"), new(second, "Second")]);
+        model.State.ProfileRuns.Add(run);
+        var results = await model.DeactivateProfileRunAsync(run.Id, only: new HashSet<RoleKey> { first.RoleKey });
+        results.Keys.Should().ContainSingle().Which.Should().Be(first.RoleKey);
+        results[first.RoleKey].Should().BeNull();
+        run.Entries.Select(e => e.Completed).Should().Equal(true, false);
+        test.Http.Requests.Count(r => r.Method == "POST").Should().Be(1);
+        // The omitted role stays available to a later, unrestricted pass.
+        model.ProfileRuns(run.ProfileId).Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task MixedRunRetriesOnlyFailuresAndPersistsSuccessBeforeReturning()
     {
         var first = Assignment();

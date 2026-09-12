@@ -151,7 +151,9 @@ or replaced activation is skipped. A role still within its minimum activation pe
 available to retry while other roles proceed. Completed roles are not retried. When an approval or provisioning response does not identify
 the original activation interval, the review directs you to deactivate the role individually.
 If another
-profile uses the same access, the review names it so the impact is clear.
+profile uses the same access, the review names it so the impact is clear. Every role is
+checked by default; uncheck one to keep that access for this pass. It stays in the run and is
+offered again the next time you open the review.
 
 Downward chevrons indicate deactivation in progress, both in role rows and in the profile
 review. A green check appears only after the provider confirms deactivation. Reduced-motion

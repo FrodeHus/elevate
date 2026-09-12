@@ -46,6 +46,8 @@ Click a chip to open the run sheet:
 ![The run sheet for Incident response, with one entry already active and skipped](images/tutorials/run-profile.png)
 
 - Each entry shows its duration, which you can change for this run.
+- Each entry has a checkbox, ticked by default. Untick a role to leave it out of this run only;
+  the profile itself is unchanged and the role is ticked again next time.
 - Entries that are **already active** or **pending** are skipped, and the sheet says so. An entry
   you are no longer eligible for shows **not eligible · skipped**.
 - Roles that need approval are requested and shown as pending afterwards.

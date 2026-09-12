@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- macOS and Windows: the run and deactivate reviews for a profile show a checkbox next to each
+  role, checked by default. Unchecking a role omits it from that one run or deactivation pass;
+  nothing is remembered onto the profile, and an omitted role stays available to a later pass.
 - macOS and Windows: the tenant menu gains an **Open…** submenu that opens the Azure Portal, the
   Entra and Intune admin centers, and the Defender and Purview portals directly in that tenant.
   The browser session picks the account; Microsoft's sign-in page prompts with the tenant already

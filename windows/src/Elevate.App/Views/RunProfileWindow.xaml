@@ -51,7 +51,7 @@
             </Grid>
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Text="Entries already active are skipped. Approval-required entries are requested and shown as pending."
+        <TextBlock Grid.Row="3" Text="Entries already active or unchecked are skipped. Approval-required entries are requested and shown as pending."
                    FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
         <InfoBar Grid.Row="4" x:Name="Failure" IsOpen="False" IsClosable="False" Severity="Error" />

@@ -42,14 +42,18 @@ public sealed partial class AppModel
         return null;
     }
 
-    /// <summary>Only confirmed provider success completes an entry; retries leave successful entries alone.</summary>
-    public async Task<IReadOnlyDictionary<RoleKey, string?>> DeactivateProfileRunAsync(Guid runId, CancellationToken ct = default)
+    /// <summary>
+    /// Only confirmed provider success completes an entry; retries leave successful entries alone.
+    /// <paramref name="only"/> restricts one pass to the roles the user kept selected; entries left
+    /// out are untouched and remain available to a later pass.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<RoleKey, string?>> DeactivateProfileRunAsync(Guid runId, CancellationToken ct = default, IReadOnlySet<RoleKey>? only = null)
     {
         var results = new Dictionary<RoleKey, string?>();
         if (State.ProfileRuns.Find(r => r.Id == runId) is not { } run) return results;
         foreach (var entry in run.Entries.ToList())
         {
-            if (entry.Completed) continue;
+            if (entry.Completed || only?.Contains(entry.Assignment.RoleKey) == false) continue;
             var key = entry.Assignment.RoleKey;
             results[key] = await DeactivateAssignmentAsync(entry.Assignment, ct);
             if (results[key] is null)

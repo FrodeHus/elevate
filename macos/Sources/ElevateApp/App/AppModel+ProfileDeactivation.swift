@@ -35,14 +35,16 @@ extension AppModel {
 
     /// Re-read the provider immediately before each write. A stale panel must never make a later
     /// activation the target of an old run. Read failures remain retryable, never look like expiry.
-    func deactivateProfileRun(_ runId: UUID) async {
+    /// `only` restricts one pass to the roles the user kept selected; entries left out are
+    /// untouched and remain available to a later pass.
+    func deactivateProfileRun(_ runId: UUID, only: Set<RoleKey>? = nil) async {
         guard let run = state.profileRuns.first(where: { $0.id == runId }) else { return }
         let generation = configGeneration
         func report(_ key: RoleKey, _ phase: DeactivationPhase) {
             deactivationProgress[key] = phase
             profileDeactivationProgress[runId, default: [:]][key] = phase
         }
-        for entry in run.entries where !entry.completed {
+        for entry in run.entries where !entry.completed && only?.contains(entry.assignment.roleKey) != false {
             if state.profileRuns.first(where: { $0.id == runId })?.entries.first(where: { $0.assignment.roleKey == entry.assignment.roleKey })?.completed == true { continue }
             guard generation == configGeneration else { return }
             let key = entry.assignment.roleKey
