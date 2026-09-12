@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The browser session picks the account; Microsoft's sign-in page prompts with the tenant already
   fixed when it has none.
 
+### Fixed
+
+- macOS, Windows and CLI: deactivating a role no longer fails with "Revoked". Microsoft Graph and
+  Azure Resource Manager report a completed self-deactivation with that status, and the
+  confirmation check added for profile deactivation only accepted "Provisioned".
+
 ### Changed
 
 - macOS and Windows: profile runs can now deactivate only the exact role assignments they

@@ -263,7 +263,8 @@ public sealed class EntraDirectoryProvider : IPimProvider
             _transport.GraphUrl("/roleManagement/directory/roleAssignmentScheduleRequests"),
             Scopes, System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()), ct).ConfigureAwait(false);
         var outcome = Decode<ScheduleRequest>(response).Status;
-        if (outcome != "Provisioned")
+        // Graph reports a completed selfDeactivate as Revoked; Provisioned covers the older shape.
+        if (outcome is not ("Provisioned" or "Revoked"))
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
