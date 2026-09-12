@@ -19,6 +19,7 @@ public struct GroupProvider: PIMProvider {
         let groupId: String
         let accessId: String
         let memberType: String?
+        let assignmentScheduleId: String?
         let assignmentType: String?
         let startDateTime: Date?
         let endDateTime: Date?
@@ -27,6 +28,8 @@ public struct GroupProvider: PIMProvider {
     struct ScheduleRequest: Decodable {
         let id: String
         let status: String
+        let targetScheduleId: String?
+        let action: String?
         let groupId: String
         let accessId: String
         let createdDateTime: Date?
@@ -67,15 +70,19 @@ public struct GroupProvider: PIMProvider {
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.assignmentType?.caseInsensitiveCompare("activated") == .orderedSame {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: i.groupId, accessId: Self.access(i.accessId)))
+            let originatingRequest = requests.first {
+                i.assignmentScheduleId != nil && $0.targetScheduleId == i.assignmentScheduleId
+                    && $0.action == "selfActivate"
+            }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: i.id, startDateTime: i.startDateTime ?? .now,
-                                           endDateTime: i.endDateTime, status: .active)
+                                           endDateTime: i.endDateTime, status: .active, scheduleId: i.assignmentScheduleId, activationRequestId: originatingRequest?.id)
         }
         for r in requests where r.status == "PendingApproval" {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .group(groupId: r.groupId, accessId: Self.access(r.accessId)))
             guard result[key] == nil else { continue }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: r.id,
                                            startDateTime: r.scheduleInfo?.startDateTime ?? r.createdDateTime ?? .now,
-                                           endDateTime: nil, status: .pendingApproval)
+                                           endDateTime: nil, status: .pendingApproval, scheduleId: r.targetScheduleId, activationRequestId: r.id)
         }
         for u in requests where !ScheduledStart.isSettledOrPending(u.status) {
             guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
@@ -84,7 +91,7 @@ public struct GroupProvider: PIMProvider {
             let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
                                          duration: u.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
-                                           endDateTime: end, status: .scheduled)
+                                           endDateTime: end, status: .scheduled, scheduleId: u.targetScheduleId, activationRequestId: u.id)
         }
         return Array(result.values)
     }
@@ -161,22 +168,27 @@ public struct GroupProvider: PIMProvider {
         let reported = Self.status(created.status)
         let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
-                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status, scheduleId: created.targetScheduleId, activationRequestId: created.id)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard case .group(let groupId, let access) = assignment.roleKey.scope else { throw PIMError.notEligible }
         let tenantId = assignment.roleKey.tenantId
         let principal = try await requestPrincipalId(groupId: groupId, access: access, identity: identity, tenantId: tenantId)
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "action": "selfDeactivate",
             "principalId": principal,
             "groupId": groupId,
             "accessId": access == .owner ? "owner" : "member",
         ]
-        _ = try await transport.post(identity: identity, tenantId: tenantId,
+        if let scheduleId = assignment.scheduleId { body["targetScheduleId"] = scheduleId }
+        let response = try await transport.post(identity: identity, tenantId: tenantId,
                                      url: try transport.graphURL("\(Self.base)/assignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
+        let outcome = try GraphJSON.decoder.decode(ScheduleRequest.self, from: response.body).status
+        guard outcome == "Provisioned" else {
+            throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome)")
+        }
     }
 
     /// Withdraws a request still awaiting approval. Graph answers 204 with no body.

@@ -43,6 +43,12 @@ internal static class ProfileActions
         var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true));
         last.IsEnabled = profile.LastJustification is not null;
         menu.Items.Add(last);
+        foreach (var run in model.ProfileRuns(id))
+        {
+            var captured = run;
+            menu.Items.Add(Item($"Deactivate run {run.StartedAt.ToLocalTime():g} ({run.Entries.Count(e => !e.Completed)})…",
+                () => new DeactivationWindow(model, captured).Activate()));
+        }
         var managed = profile.Source == ProfileSource.Managed;
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Item(managed ? "Show…" : "Edit…", () => App.Current.OpenManageProfiles(id)));

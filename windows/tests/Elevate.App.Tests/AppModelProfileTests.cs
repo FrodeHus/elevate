@@ -14,6 +14,8 @@ public class AppModelProfileTests
     {
         var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
         var test = await TestModel.BootstrappedAsync(state, http: http);
+        test.Http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
+        test.Http.On("GET", "roleAssignments", """{"value":[]}""");
         test.Model.Roles[Sample.TenantKey] =
         [
             Sample.Role(Sample.EntraKey, "Global Reader"),
@@ -21,6 +23,59 @@ public class AppModelProfileTests
             Sample.Role(Sample.GroupKey, "Platform Admins"),
         ];
         return test;
+    }
+
+    [Fact]
+    public async Task StalePlanNeverExtendsAnAssignmentCreatedAfterPlanning()
+    {
+        using var test = await ModelAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey])!;
+        var plan = model.Plan(profile.Id);
+        var existing = Sample.Assignment(Sample.EntraKey);
+        model.Active[Sample.EntraKey] = existing;
+        (await model.RunProfileAsync(profile.Id, plan, "reason", null)).Should().BeEmpty();
+        model.Active[Sample.EntraKey].Should().Be(existing);
+        test.Http.Requests.Where(r => r.Method != "GET").Should().BeEmpty();
+        model.State.ProfileRuns.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeactivationChecksEachExactAssignmentAndItsMinimumPeriod()
+    {
+        using var test = await ModelAsync();
+        var model = test.Model;
+        var now = DateTimeOffset.UtcNow;
+        var original = Sample.Assignment(Sample.EntraKey) with { StartDateTime = now.AddMinutes(-2) };
+        model.Active[Sample.EntraKey] = original;
+        model.DeactivationRefusal(original, now).Should().Contain("5-minute minimum");
+        model.Active[Sample.EntraKey] = original with { AssignmentId = "replacement" };
+        model.DeactivationRefusal(original).Should().Contain("changed");
+        (await model.DeactivateAssignmentAsync(original)).Should().Be("Offline");
+        test.Http.Requests.Where(r => r.Method != "GET").Should().BeEmpty();
+        model.Active[Sample.EntraKey].AssignmentId.Should().Be("replacement");
+    }
+
+    [Fact]
+    public async Task RunHistorySurvivesProfileEditsAndSeparatesExecutions()
+    {
+        var http = new StubHttpClient();
+        http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
+        http.On("GET", "/me", """{"id":"principal-1"}""");
+        http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
+        using var test = await ModelAsync(http);
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [Sample.EntraKey])!;
+        await model.RunProfileAsync(profile.Id, model.Plan(profile.Id), "reason", null);
+        model.State.ProfileRuns.Should().ContainSingle().Which.Entries.Should().ContainSingle();
+        model.Active.Clear();
+        await model.RunProfileAsync(profile.Id, model.Plan(profile.Id), "reason", null);
+        model.State.ProfileRuns.Should().HaveCount(2);
+        model.RenameProfile(profile.Id, "Renamed");
+        model.DeleteProfile(profile.Id);
+        model.State.ProfileRuns.Select(r => r.ProfileName).Should().Equal("Ops", "Ops");
+        await model.SavesSettledAsync();
+        test.Store.Load().ProfileRuns.Should().HaveCount(2);
     }
 
     [Fact]
@@ -179,6 +234,7 @@ public class AppModelProfileTests
     public async Task RunProfileActivatesAndRemembersReasonAndDurations()
     {
         var http = new StubHttpClient();
+        http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
         http.On("GET", "/me", """{"id":"principal-1"}""");
         http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
         using var test = await ModelAsync(http);
@@ -206,6 +262,7 @@ public class AppModelProfileTests
     public async Task QuickRunNeedsTheDialogWithoutARememberedReasonAndRunsWithOne()
     {
         var http = new StubHttpClient();
+        http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
         http.On("GET", "/me", """{"id":"principal-1"}""");
         http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
         var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
@@ -230,6 +287,7 @@ public class AppModelProfileTests
     public async Task QuickActivateUsesTheRememberedReasonOrAsksForTheDialog()
     {
         var http = new StubHttpClient();
+        http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
         http.On("GET", "/me", """{"id":"principal-1"}""");
         http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
         var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };

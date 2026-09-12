@@ -13,6 +13,7 @@ struct RouteWindow: View {
         case .addAccount: AddAccountView()
         case .saveProfile(let keys): SaveProfileView(keys: keys)
         case .runProfile(let id): RunProfileView(profileId: id)
+        case .deactivateProfile(let id): DeactivateProfileView(profileId: id)
         case .manageProfiles: ManageProfilesView()
         case .decide(let requestId, let approve): DecisionView(requestId: requestId, approve: approve)
         case .accessPackages(let tenantKey): AccessPackagesView(tenantKey: tenantKey)

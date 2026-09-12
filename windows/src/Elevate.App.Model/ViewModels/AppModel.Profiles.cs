@@ -1,3 +1,4 @@
+using Elevate.Core;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
@@ -306,11 +307,47 @@ public sealed partial class AppModel
         DateTimeOffset? startDateTime = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(items);
+        var generation = ConfigGeneration;
+        var preflightFailures = new List<ActivationOutcome>();
+        var unavailable = new HashSet<RoleKey>();
+        // A plan may have been open while another client activated one of its entries.
+        foreach (var group in items.Where(i => i.Disposition == ProfilePlanDisposition.Activate)
+            .GroupBy(i => (i.RoleKey.TenantKey, i.RoleKey.Scope.Kind)))
+        {
+            if (Identity(group.Key.TenantKey.IdentityId) is not { } identity
+                || Tenant(group.Key.TenantKey) is not { } tenant
+                || Coordinator.Provider(group.Key.Kind) is not { } provider) continue;
+            try
+            {
+                var current = await provider.ActiveAssignmentsAsync(identity, tenant, ct);
+                if (generation != ConfigGeneration) return [];
+                foreach (var assignment in current) Active[assignment.RoleKey] = assignment;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                if (generation != ConfigGeneration) return [];
+                foreach (var item in group)
+                {
+                    unavailable.Add(item.RoleKey);
+                    var result = new ActivationResult.Failed(new PimException(PimErrorKind.Unexpected,
+                        $"Could not verify existing assignments: {Describe(ex)}"));
+                    Progress[item.RoleKey] = result;
+                    preflightFailures.Add(new ActivationOutcome(item.RoleKey, result));
+                }
+            }
+        }
+        var runName = Profile(id)?.Name ?? "Profile";
+        var startedAt = DateTimeOffset.UtcNow;
         var requests = items
-            .Where(i => i.Disposition == ProfilePlanDisposition.Activate)
+            .Where(i => i.Disposition == ProfilePlanDisposition.Activate
+                && !Active.ContainsKey(i.RoleKey) && !InFlight.Contains(i.RoleKey) && !unavailable.Contains(i.RoleKey))
             .Select(i => new ActivationRequest(i.RoleKey, i.Duration, justification, ticket, i.Role?.Policy.AuthenticationContext, startDateTime))
             .ToList();
-        var outcomes = requests.Count == 0 ? [] : await ActivateAsync(requests, ct);
+        var run = new ProfileRun(Guid.NewGuid(), id, runName, startedAt, []);
+        if (requests.Count > 0) State.ProfileRuns.Add(run);
+        IReadOnlyList<ActivationOutcome> outcomes = [.. preflightFailures, .. (requests.Count == 0 ? [] : await ActivateAsync(requests, ct, run.Id))];
+        Touch();
         // A managed profile is the organization's document; nothing is remembered onto it. The
         // per-role memory the activation writes is unaffected.
         if (IsManagedProfile(id) || State.Profile(id) is not { } p)

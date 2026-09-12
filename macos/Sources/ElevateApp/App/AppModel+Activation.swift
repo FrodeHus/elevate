@@ -1,6 +1,10 @@
 import Foundation
 import ElevateCore
 
+enum DeactivationPhase: Hashable {
+    case working, succeeded, failed(String), blocked(String)
+}
+
 @MainActor
 extension AppModel {
     // MARK: Entra activation capability
@@ -46,9 +50,17 @@ extension AppModel {
     /// Returns the coordinator's outcomes so callers can report on them; empty when the run was
     /// abandoned because the configuration changed under it.
     @discardableResult
-    func activate(_ requests: [ActivationRequest]) async -> [ActivationOutcome] {
+    func activate(_ requested: [ActivationRequest], profileRunId: UUID? = nil) async -> [ActivationOutcome] {
+        // Check again after profile preflight reads: another run may have finished while they yielded.
+        var seen: Set<RoleKey> = []
+        let requests = requested.filter { request in
+            guard seen.insert(request.roleKey).inserted, !inFlight.contains(request.roleKey) else { return false }
+            guard profileRunId != nil, let current = active[request.roleKey] else { return true }
+            if case .failed = current.status { return true }
+            return false
+        }
         let generation = configGeneration
-        for r in requests { progress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
+        for r in requests { progress[r.roleKey] = nil; deactivationProgress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
         defer { for r in requests { inFlight.remove(r.roleKey) } }
         var deactivated: Set<RoleKey> = []
         var skipped: Set<RoleKey> = []
@@ -74,12 +86,14 @@ extension AppModel {
             // This hop can land after the final loop below, which is authoritative; only fill a gap.
             Task { @MainActor in
                 guard generation == self.configGeneration else { return }
+                if let profileRunId { self.recordProfileOutcome(outcome, runId: profileRunId) }
                 if self.progress[outcome.roleKey] == nil { self.progress[outcome.roleKey] = outcome.result }
             }
         }
         guard generation == configGeneration else { return [] }
         var consentBlocked: Set<TenantKey> = []
         for outcome in outcomes {
+            if let profileRunId { recordProfileOutcome(outcome, runId: profileRunId) }
             progress[outcome.roleKey] = outcome.result
             guard let request = attempted.first(where: { $0.roleKey == outcome.roleKey }) else { continue }
             switch outcome.result {
@@ -256,11 +270,30 @@ extension AppModel {
         }
     }
 
-    func deactivate(_ key: RoleKey) async {
+    @discardableResult
+    func deactivate(_ key: RoleKey) async -> DeactivationPhase {
+        guard !inFlight.contains(key) else { return .blocked("A request is already in progress") }
+        func blocked(_ message: String) -> DeactivationPhase {
+            let result = DeactivationPhase.blocked(message)
+            deactivationProgress[key] = result
+            return result
+        }
+        guard isOnline else { return blocked("Connect to the internet to deactivate this role") }
+        guard canActivate(key) else { return blocked(entraViewOnlyReason(for: key.tenantKey) ?? "This role is view-only") }
+        guard let a = active[key], let identity = self.identity(key.identityId) else {
+            return blocked("This role is no longer active")
+        }
+        guard a.status == .active || a.status == .scheduled else {
+            return blocked("This assignment cannot be deactivated yet")
+        }
+        if a.status == .active {
+            let remaining = 300 - Date.now.timeIntervalSince(a.startDateTime)
+            if remaining > 0 { return blocked("Can be deactivated in \(Int(remaining.rounded(.up))) s (minimum active duration)") }
+        }
+        deactivationProgress[key] = .working
         let generation = configGeneration
         inFlight.insert(key)
         defer { inFlight.remove(key) }
-        guard let a = active[key], let identity = self.identity(key.identityId) else { return }
         do {
             // A booked-ahead activation is still only a request: withdraw it. Providers differ on
             // whether cancel is accepted once the schedule exists, so fall back to a deactivation.
@@ -273,15 +306,22 @@ extension AppModel {
             } else {
                 try await coordinator.deactivate(a, identity: identity)
             }
-            guard generation == configGeneration else { return }
+            guard generation == configGeneration else { return .blocked("Configuration changed during deactivation") }
             active[key] = nil
+            deactivationProgress[key] = .succeeded
             if key.scope.kind == .group { refreshRolesAfterGroupChange([key.tenantKey]) }
             await rescheduleNotifications()
+            return .succeeded
         } catch {
-            guard generation == configGeneration else { return }
+            guard generation == configGeneration else { return .blocked("Configuration changed during deactivation") }
             let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            let result: DeactivationPhase
+            if case .policyViolation = error as? PIMError { result = .blocked(message) }
+            else { result = .failed(message) }
+            deactivationProgress[key] = result
             tenantErrors[key.tenantKey] = message
             logError("\(summaryName(for: key)): \(message)")
+            return result
         }
     }
 

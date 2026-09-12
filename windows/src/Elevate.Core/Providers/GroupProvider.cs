@@ -36,6 +36,7 @@ public sealed class GroupProvider : IPimProvider
         string AccessId,
         string? MemberType,
         string? AssignmentType,
+        string? AssignmentScheduleId,
         DateTimeOffset? StartDateTime,
         DateTimeOffset? EndDateTime,
         GroupRef? Group);
@@ -46,7 +47,9 @@ public sealed class GroupProvider : IPimProvider
         string GroupId,
         string AccessId,
         DateTimeOffset? CreatedDateTime,
-        ScheduleInfo? ScheduleInfo);
+        ScheduleInfo? ScheduleInfo,
+        string? TargetScheduleId,
+        string? Action);
 
     internal static GroupAccess Access(string raw) =>
         string.Equals(raw, "owner", StringComparison.OrdinalIgnoreCase) ? GroupAccess.Owner : GroupAccess.Member;
@@ -118,8 +121,11 @@ public sealed class GroupProvider : IPimProvider
         foreach (var i in instances.Where(i => string.Equals(i.AssignmentType, "activated", StringComparison.OrdinalIgnoreCase)))
         {
             var key = new RoleKey(identity.Id, tenant.TenantId, new GroupScope(i.GroupId, Access(i.AccessId)));
+            var originatingRequest = requests.FirstOrDefault(r =>
+                i.AssignmentScheduleId is not null && r.TargetScheduleId == i.AssignmentScheduleId
+                    && r.Action == "selfActivate");
             result[key] = new ActiveAssignment(
-                key, i.Id, i.StartDateTime ?? DateTimeOffset.UtcNow, i.EndDateTime, AssignmentStatus.Active);
+                key, i.Id, i.StartDateTime ?? DateTimeOffset.UtcNow, i.EndDateTime, AssignmentStatus.Active, i.AssignmentScheduleId, originatingRequest?.Id);
         }
 
         foreach (var r in requests.Where(r => r.Status == "PendingApproval"))
@@ -133,7 +139,7 @@ public sealed class GroupProvider : IPimProvider
             result[key] = new ActiveAssignment(
                 key, r.Id,
                 r.ScheduleInfo?.StartDateTime ?? r.CreatedDateTime ?? DateTimeOffset.UtcNow,
-                null, AssignmentStatus.PendingApproval);
+                null, AssignmentStatus.PendingApproval, r.TargetScheduleId, r.Id);
         }
 
         foreach (var u in requests.Where(r => !ScheduleRules.IsSettledOrPending(r.Status)))
@@ -150,7 +156,7 @@ public sealed class GroupProvider : IPimProvider
             }
 
             var end = ScheduleRules.End(u.ScheduleInfo?.Expiration?.EndDateTime, u.ScheduleInfo?.Expiration?.Duration, start);
-            result[key] = new ActiveAssignment(key, u.Id, start, end, AssignmentStatus.Scheduled);
+            result[key] = new ActiveAssignment(key, u.Id, start, end, AssignmentStatus.Scheduled, u.TargetScheduleId, u.Id);
         }
 
         return [.. result.Values];
@@ -257,7 +263,7 @@ public sealed class GroupProvider : IPimProvider
             start, request.Duration);
 
         var (status, reportedEnd) = GraphSchedule.Settle(created.Status, start, end);
-        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status);
+        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status, created.TargetScheduleId, created.Id);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
@@ -281,9 +287,14 @@ public sealed class GroupProvider : IPimProvider
             ["accessId"] = scope.AccessId == GroupAccess.Owner ? "owner" : "member",
         };
 
-        await _transport.PostAsync(
+        if (assignment.ScheduleId is { } scheduleId) body["targetScheduleId"] = scheduleId;
+
+        var response = await _transport.PostAsync(
             identity, tenantId, _transport.GraphUrl(Base + "/assignmentScheduleRequests"),
             Scopes, Encoding.UTF8.GetBytes(body.ToJsonString()), ct).ConfigureAwait(false);
+        var outcome = JsonSerializer.Deserialize<ScheduleRequest>(response.Body, GraphJson.Options)!.Status;
+        if (outcome != "Provisioned")
+            throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
     /// <summary>Withdraws a request still awaiting approval. Graph answers 204 with no body.</summary>

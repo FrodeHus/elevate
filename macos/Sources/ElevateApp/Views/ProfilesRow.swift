@@ -207,6 +207,9 @@ struct ProfileMenuItems: View {
     let profile: ActivationProfile
 
     var body: some View {
+        if !model.profileRuns(for: profile.id).isEmpty {
+            Button("Deactivate roles…") { ProfileActions.open(.deactivateProfile(profile.id), openWindow: openWindow) }
+        }
         Button("Run…") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false) }
         Button("Run with last reason") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: true) }
             .disabled(profile.lastJustification == nil)

@@ -6,7 +6,7 @@
     "roleDefinitionId": "/subscriptions/sub-1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
     "principalId": "user-obj-1",
     "requestType": "SelfActivate",
-    "status": "Provisioned",
+    "targetRoleAssignmentScheduleId": "schedule-stable", "status": "Provisioned",
     "scheduleInfo": { "startDateTime": "2026-09-04T09:00:00Z", "expiration": { "type": "AfterDuration", "endDateTime": null, "duration": "PT2H" } },
     "createdOn": "2026-09-04T09:00:00Z"
   }

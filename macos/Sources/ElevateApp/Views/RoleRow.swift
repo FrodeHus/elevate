@@ -55,7 +55,7 @@ struct RoleRow: View {
     }
 
     private var statusDot: some View {
-        StatusDot(status: assignment?.status)
+        RoleStatusIndicator(status: assignment?.status, deactivation: model.deactivationProgress[role.key])
     }
 
     /// Azure captions are shortened to the scope's display name; the full ARM path is one hover away.

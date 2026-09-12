@@ -39,6 +39,7 @@ import Foundation
         let ops = active.first { $0.roleKey.scope == .group(groupId: "grp-ops", accessId: .member) }!
         #expect(ops.status == .active)
         #expect(ops.assignmentId == "ginst-1")
+        #expect(ops.scheduleId == "schedule-stable")
         #expect(ops.endDateTime == GraphJSON.parseDate("2026-09-04T16:00:00Z"))
         let sec = active.first { $0.roleKey.scope == .group(groupId: "grp-sec", accessId: .owner) }!
         #expect(sec.status == .pendingApproval)
@@ -128,6 +129,7 @@ import Foundation
         let a = try await p.activate(ActivationRequest(roleKey: opsMember.key, duration: .seconds(7200), justification: "INC-7", ticket: TicketInfo(number: "42", system: "Jira")), identity: identity)
         #expect(a.status == .active)
         #expect(a.assignmentId == "greq-new")
+        #expect(a.scheduleId == "schedule-stable")
         #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T14:00:00Z"))
         #expect(a.roleKey == opsMember.key)
         let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
@@ -216,13 +218,14 @@ import Foundation
         let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
         await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
         await http.on("POST", "assignmentScheduleRequests", status: 201, body: Fixtures.data("group-activate-response"))
-        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "ginst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "ginst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
         try await p.deactivate(a, identity: identity)
         let post = await http.requests(matching: "assignmentScheduleRequests").first { $0.method == "POST" }!
         let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
         #expect(body["action"] as? String == "selfDeactivate")
         #expect(body["principalId"] as? String == "caller-oid")
         #expect(body["groupId"] as? String == "grp-ops" && body["accessId"] as? String == "member")
+        #expect(body["targetScheduleId"] as? String == "owned-schedule")
         #expect(body["scheduleInfo"] == nil)
     }
 
@@ -235,4 +238,25 @@ import Foundation
         #expect(post.method == "POST")
         #expect(post.url.absoluteString.hasSuffix("/identityGovernance/privilegedAccess/group/assignmentScheduleRequests/greq-9/cancel"))
     }
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: Data(String(decoding: Fixtures.data("group-activate-response"), as: UTF8.self).replacingOccurrences(of: "Provisioned", with: outcome).utf8))
+        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "ginst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        await #expect(throws: PIMError.self) { try await p.deactivate(a, identity: identity) }
+    }
+    @Test func refreshedInstanceRetainsOriginatingActivationRequest() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "assignmentScheduleInstances", body: Fixtures.data("group-active"))
+        let activation = try JSONSerialization.jsonObject(with: Fixtures.data("group-activate-response")) as! [String: Any]
+        var removal = activation
+        removal["action"] = "selfDeactivate"
+        removal["id"] = "removal-request"
+        await http.on("GET", "assignmentScheduleRequests", body: try JSONSerialization.data(withJSONObject: ["value": [removal, activation]]))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.first { $0.assignmentId == "ginst-1" }?.activationRequestId == "greq-new")
+    }
+
 }

@@ -29,6 +29,7 @@ public sealed class AppState : IEquatable<AppState>
     private List<ManualRole> _manualRoles = [];
     private List<RoleMemory> _memory = [];
     private List<ActivationProfile> _profiles = [];
+    private List<ProfileRun> _profileRuns = [];
     private List<AccessPackageRecord> _accessPackages = [];
     private List<RoleTrackingRecord> _roleTracking = [];
 
@@ -60,6 +61,12 @@ public sealed class AppState : IEquatable<AppState>
     {
         get => _profiles;
         set => _profiles = value ?? [];
+    }
+
+    public List<ProfileRun> ProfileRuns
+    {
+        get => _profileRuns;
+        set => _profileRuns = value ?? [];
     }
 
     public List<AccessPackageRecord> AccessPackages
@@ -147,6 +154,8 @@ public sealed class AppState : IEquatable<AppState>
             profile.Entries.RemoveAll(e => e.RoleKey.TenantKey == key);
         }
 
+        foreach (var run in ProfileRuns) run.Entries.RemoveAll(e => e.Assignment.RoleKey.TenantKey == key);
+        ProfileRuns.RemoveAll(r => r.Entries.Count == 0);
         AccessPackages.RemoveAll(r => r.TenantKey == key);
         RoleTracking.RemoveAll(r => r.TenantKey == key);
     }
@@ -155,6 +164,8 @@ public sealed class AppState : IEquatable<AppState>
     public void RemoveIdentity(string identityId)
     {
         Identities.RemoveAll(i => i.Id == identityId);
+        foreach (var run in ProfileRuns) run.Entries.RemoveAll(e => e.Assignment.RoleKey.IdentityId == identityId);
+        ProfileRuns.RemoveAll(r => r.Entries.Count == 0);
         foreach (var tenant in Tenants.Where(t => t.IdentityId == identityId).ToList())
         {
             RemoveTenant(tenant.Key);
@@ -221,6 +232,7 @@ public sealed class AppState : IEquatable<AppState>
         ManualRoles = [.. ManualRoles],
         Memory = [.. Memory],
         Profiles = [.. Profiles.Select(p => p.DeepCopy())],
+        ProfileRuns = [.. ProfileRuns.Select(r => r.DeepCopy())],
         AccessPackages = [.. AccessPackages],
         RoleTracking = [.. RoleTracking],
     };
@@ -232,6 +244,7 @@ public sealed class AppState : IEquatable<AppState>
         && ManualRoles.SequenceEqual(other.ManualRoles)
         && Memory.SequenceEqual(other.Memory)
         && Profiles.SequenceEqual(other.Profiles)
+        && ProfileRuns.SequenceEqual(other.ProfileRuns)
         && AccessPackages.SequenceEqual(other.AccessPackages)
         && RoleTracking.SequenceEqual(other.RoleTracking);
 

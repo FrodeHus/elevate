@@ -28,6 +28,7 @@ public sealed class EntraDirectoryProvider : IPimProvider
         string RoleDefinitionId,
         string? DirectoryScopeId,
         string? AssignmentType,
+        string? RoleAssignmentScheduleId,
         DateTimeOffset? StartDateTime,
         DateTimeOffset? EndDateTime,
         RoleDefinitionRef? RoleDefinition,
@@ -39,7 +40,9 @@ public sealed class EntraDirectoryProvider : IPimProvider
         string RoleDefinitionId,
         string? DirectoryScopeId,
         DateTimeOffset? CreatedDateTime,
-        ScheduleInfo? ScheduleInfo);
+        ScheduleInfo? ScheduleInfo,
+        string? TargetScheduleId,
+        string? Action);
 
     private sealed record Collection<T>(IReadOnlyList<T> Value);
 
@@ -105,8 +108,11 @@ public sealed class EntraDirectoryProvider : IPimProvider
         foreach (var s in activated)
         {
             var key = new RoleKey(identity.Id, tenant.TenantId, new EntraDirectoryScope(s.RoleDefinitionId, s.DirectoryScopeId ?? "/"));
+            var originatingRequest = all.FirstOrDefault(r =>
+                s.RoleAssignmentScheduleId is not null && r.TargetScheduleId == s.RoleAssignmentScheduleId
+                    && r.Action == "selfActivate");
             result[key] = new ActiveAssignment(
-                key, s.Id, s.StartDateTime ?? DateTimeOffset.UtcNow, s.EndDateTime, AssignmentStatus.Active);
+                key, s.Id, s.StartDateTime ?? DateTimeOffset.UtcNow, s.EndDateTime, AssignmentStatus.Active, s.RoleAssignmentScheduleId, originatingRequest?.Id);
         }
 
         foreach (var p in all.Where(r => r.Status == "PendingApproval"))
@@ -120,7 +126,7 @@ public sealed class EntraDirectoryProvider : IPimProvider
             result[key] = new ActiveAssignment(
                 key, p.Id,
                 p.ScheduleInfo?.StartDateTime ?? p.CreatedDateTime ?? DateTimeOffset.UtcNow,
-                null, AssignmentStatus.PendingApproval);
+                null, AssignmentStatus.PendingApproval, p.TargetScheduleId, p.Id);
         }
 
         foreach (var u in all.Where(r => !ScheduleRules.IsSettledOrPending(r.Status)))
@@ -137,7 +143,7 @@ public sealed class EntraDirectoryProvider : IPimProvider
             }
 
             var end = ScheduleRules.End(u.ScheduleInfo?.Expiration?.EndDateTime, u.ScheduleInfo?.Expiration?.Duration, start);
-            result[key] = new ActiveAssignment(key, u.Id, start, end, AssignmentStatus.Scheduled);
+            result[key] = new ActiveAssignment(key, u.Id, start, end, AssignmentStatus.Scheduled, u.TargetScheduleId, u.Id);
         }
 
         return [.. result.Values];
@@ -229,7 +235,7 @@ public sealed class EntraDirectoryProvider : IPimProvider
             start, request.Duration);
 
         var (status, reportedEnd) = GraphSchedule.Settle(created.Status, start, end);
-        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status);
+        return new ActiveAssignment(request.RoleKey, created.Id, start, reportedEnd, status, created.TargetScheduleId, created.Id);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
@@ -250,10 +256,15 @@ public sealed class EntraDirectoryProvider : IPimProvider
             ["directoryScopeId"] = scope.DirectoryScopeId,
         };
 
-        await _transport.PostAsync(
+        if (assignment.ScheduleId is { } scheduleId) body["targetScheduleId"] = scheduleId;
+
+        var response = await _transport.PostAsync(
             identity, assignment.RoleKey.TenantId,
             _transport.GraphUrl("/roleManagement/directory/roleAssignmentScheduleRequests"),
             Scopes, System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()), ct).ConfigureAwait(false);
+        var outcome = Decode<ScheduleRequest>(response).Status;
+        if (outcome != "Provisioned")
+            throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
     /// <summary>Withdraws a request still awaiting approval. Graph answers 204 with no body.</summary>

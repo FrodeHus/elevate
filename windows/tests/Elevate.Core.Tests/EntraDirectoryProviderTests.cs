@@ -102,6 +102,7 @@ public class EntraDirectoryProviderTests
         var globalReader = active.Single(a => a.RoleKey.Scope == new EntraDirectoryScope("f2ef992c-3afb-46b9-b7cf-a126ee74c451", "/"));
         globalReader.Status.Should().Be(AssignmentStatus.Active);
         globalReader.AssignmentId.Should().Be("inst-1");
+        globalReader.ScheduleId.Should().Be("schedule-stable");
         globalReader.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T16:00:00Z"));
 
         var userAdmin = active.Single(a => a.RoleKey.Scope == new EntraDirectoryScope("fe930be7-5e62-47db-91af-98c3a49a38b1", "/"));
@@ -181,6 +182,7 @@ public class EntraDirectoryProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("req-1");
+        assignment.ScheduleId.Should().Be("schedule-stable");
         assignment.StartDateTime.Should().Be(Fixtures.Date("2026-09-04T09:00:00Z"));
         assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T11:00:00Z"));
 
@@ -325,13 +327,14 @@ public class EntraDirectoryProviderTests
         var (provider, http, _) = MakeProvider();
         http.On("GET", "/me?", body: Fixtures.Data("me"));
         http.On("POST", "roleAssignmentScheduleRequests", 201, body: Fixtures.Data("entra-activate-response"));
-        var assignment = new ActiveAssignment(GlobalReader.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+        var assignment = new ActiveAssignment(GlobalReader.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
 
         await provider.DeactivateAsync(assignment, TestIdentity);
 
         var body = BodyOf(http.RequestsMatching("roleAssignmentScheduleRequests")[0]);
         body["action"]!.GetValue<string>().Should().Be("selfDeactivate");
         body.ContainsKey("scheduleInfo").Should().BeFalse();
+        body["targetScheduleId"]!.GetValue<string>().Should().Be("owned-schedule");
     }
 
     [Fact]
@@ -359,6 +362,38 @@ public class EntraDirectoryProviderTests
 
         (await act.Should().ThrowAsync<PimException>()).Which.Kind.Should().Be(PimErrorKind.NotEligible);
     }
+    [Theory]
+    [InlineData("PendingApproval")]
+    [InlineData("PendingProvisioning")]
+    [InlineData("Failed")]
+    [InlineData("Denied")]
+    [InlineData("Revoked")]
+    [InlineData("Unknown")]
+    public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
+    {
+        var (provider, http, _) = MakeProvider();
+        http.On("GET", "/me?", body: Fixtures.Data("me"));
+        http.On("POST", "roleAssignmentScheduleRequests", 201, body: Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(Fixtures.Data("entra-activate-response")).Replace("Provisioned", outcome, StringComparison.Ordinal)));
+        var assignment = new ActiveAssignment(GlobalReader.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+
+        var action = () => provider.DeactivateAsync(assignment, TestIdentity);
+        await action.Should().ThrowAsync<PimException>();
+    }
+
+    [Fact]
+    public async Task RefreshedInstance_RetainsOriginatingActivationRequest()
+    {
+        var (provider, http, _) = MakeProvider();
+        http.On("GET", "roleAssignmentScheduleInstances", body: Fixtures.Data("entra-active"));
+        var activation = JsonNode.Parse(Fixtures.Data("entra-activate-response"))!.AsObject();
+        var removal = activation.DeepClone().AsObject();
+        removal["action"] = "selfDeactivate";
+        removal["id"] = "removal-request";
+        http.On("GET", "roleAssignmentScheduleRequests", body: Encoding.UTF8.GetBytes(new JsonObject { ["value"] = new JsonArray(removal, activation) }.ToJsonString()));
+        var active = await provider.ActiveAssignmentsAsync(TestIdentity, Tenant);
+        active.Single(a => a.AssignmentId == "inst-1").ActivationRequestId.Should().Be("req-1");
+    }
+
 }
 
 /// <summary>Port of the Swift <c>FirstPartyForbiddenTests</c>.</summary>

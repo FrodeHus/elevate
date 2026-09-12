@@ -24,7 +24,11 @@
                           Visibility="{x:Bind SelectVisibility, Mode=OneWay}" IsChecked="{x:Bind Selected, Mode=OneWay}"
                           IsEnabled="{x:Bind SelectEnabled, Mode=OneWay}" Click="OnSelectClick"
                           ToolTipService.ToolTip="{x:Bind ViewOnlyReason, Mode=OneWay}" AutomationProperties.Name="{x:Bind SelectLabel, Mode=OneWay}" />
-                <views:StatusDot Grid.Column="1" Status="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center" />
+                <Grid Grid.Column="1" Width="20" Height="20" VerticalAlignment="Center">
+                    <views:StatusDot Status="{x:Bind Status, Mode=OneWay}" VerticalAlignment="Center"
+                                     Visibility="{x:Bind StatusDotVisibility, Mode=OneWay}" />
+                    <views:ActivationStatusIcon Downward="True" Phase="{x:Bind DeactivationPhase, Mode=OneWay}" />
+                </Grid>
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
                     <!-- One line with trimming, in select mode too; the tenant · account caption below keeps the 12 px caption size. -->
                     <StackPanel Orientation="Horizontal" Spacing="6">

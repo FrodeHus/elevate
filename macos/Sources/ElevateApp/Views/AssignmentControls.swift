@@ -14,11 +14,25 @@ struct AssignmentControls: View {
     /// The summary never offers Activate (its rows are already active or pending).
     var allowActivate: Bool = true
 
+    @State private var successVisible = true
+
     var body: some View {
-        if model.inFlight.contains(key) {
-            ProgressView().controlSize(.small).help("Request in progress")
-        } else {
-            forStatus
+        HStack(spacing: 8) {
+            if let phase = model.deactivationProgress[key], phase != .succeeded || successVisible {
+                DeactivationProgressLabel(phase: phase, showsIcon: false)
+                if phase != .working && phase != .succeeded { forStatus }
+            } else if model.inFlight.contains(key) {
+                ProgressView().controlSize(.small).help("Request in progress")
+            } else {
+                forStatus
+            }
+        }
+        .task(id: model.deactivationProgress[key]) {
+            successVisible = true
+            if model.deactivationProgress[key] == .succeeded {
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled { successVisible = false }
+            }
         }
     }
 

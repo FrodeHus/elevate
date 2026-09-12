@@ -37,11 +37,12 @@ public struct AppState: Codable, Hashable, Sendable {
     public var manualRoles: [ManualRole] = []
     public var memory: [RoleMemory] = []
     public var profiles: [ActivationProfile] = []
+    public var profileRuns: [ProfileRun] = []
     public var accessPackages: [AccessPackageRecord] = []
     public var roleTracking: [RoleTrackingRecord] = []
 
     private enum CodingKeys: String, CodingKey {
-        case identities, tenants, manualRoles, memory, profiles, accessPackages, roleTracking
+        case identities, tenants, manualRoles, memory, profiles, profileRuns, accessPackages, roleTracking
     }
 
     public init() {}
@@ -53,8 +54,21 @@ public struct AppState: Codable, Hashable, Sendable {
         manualRoles = try c.decodeIfPresent([ManualRole].self, forKey: .manualRoles) ?? []
         memory = try c.decodeIfPresent([RoleMemory].self, forKey: .memory) ?? []
         profiles = try c.decodeIfPresent([ActivationProfile].self, forKey: .profiles) ?? []
+        profileRuns = try c.decodeIfPresent([ProfileRun].self, forKey: .profileRuns) ?? []
         accessPackages = try c.decodeIfPresent([AccessPackageRecord].self, forKey: .accessPackages) ?? []
         roleTracking = try c.decodeIfPresent([RoleTrackingRecord].self, forKey: .roleTracking) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(identities, forKey: .identities)
+        try c.encode(tenants, forKey: .tenants)
+        try c.encode(manualRoles, forKey: .manualRoles)
+        try c.encode(memory, forKey: .memory)
+        try c.encode(profiles, forKey: .profiles)
+        if !profileRuns.isEmpty { try c.encode(profileRuns, forKey: .profileRuns) }
+        try c.encode(accessPackages, forKey: .accessPackages)
+        try c.encode(roleTracking, forKey: .roleTracking)
     }
 
     public func profile(id: UUID) -> ActivationProfile? { profiles.first { $0.id == id } }
@@ -95,6 +109,8 @@ public struct AppState: Codable, Hashable, Sendable {
         manualRoles.removeAll { $0.tenantKey == key }
         memory.removeAll { $0.roleKey.tenantKey == key }
         for i in profiles.indices { profiles[i].entries.removeAll { $0.roleKey.tenantKey == key } }
+        for i in profileRuns.indices { profileRuns[i].entries.removeAll { $0.assignment.roleKey.tenantKey == key } }
+        profileRuns.removeAll { $0.entries.isEmpty }
         accessPackages.removeAll { $0.tenantKey == key }
         roleTracking.removeAll { $0.tenantKey == key }
     }
@@ -103,6 +119,8 @@ public struct AppState: Codable, Hashable, Sendable {
         identities.removeAll { $0.id == identityId }
         for t in tenants where t.identityId == identityId { removeTenant(t.id) }
         for i in profiles.indices { profiles[i].entries.removeAll { $0.roleKey.identityId == identityId } }
+        for i in profileRuns.indices { profileRuns[i].entries.removeAll { $0.assignment.roleKey.identityId == identityId } }
+        profileRuns.removeAll { $0.entries.isEmpty }
     }
 
     public func memory(for key: RoleKey) -> RoleMemory? {

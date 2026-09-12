@@ -72,12 +72,13 @@ public sealed partial class AppModel
     /// Returns the coordinator's outcomes so callers can report on them; empty when the run was
     /// abandoned because the configuration changed under it.
     /// </summary>
-    public async Task<IReadOnlyList<ActivationOutcome>> ActivateAsync(IReadOnlyList<ActivationRequest> requests, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ActivationOutcome>> ActivateAsync(IReadOnlyList<ActivationRequest> requests, CancellationToken ct = default, Guid? profileRunId = null)
     {
         ArgumentNullException.ThrowIfNull(requests);
         var generation = ConfigGeneration;
         foreach (var r in requests)
         {
+            DeactivationErrors.Remove(r.RoleKey);
             Progress.Remove(r.RoleKey);
             InFlight.Add(r.RoleKey);
         }
@@ -85,7 +86,7 @@ public sealed partial class AppModel
         Touch();
         try
         {
-            return await ActivateCoreAsync(requests, generation, ct);
+            return await ActivateCoreAsync(requests, generation, ct, profileRunId);
         }
         finally
         {
@@ -98,8 +99,9 @@ public sealed partial class AppModel
         }
     }
 
-    private async Task<IReadOnlyList<ActivationOutcome>> ActivateCoreAsync(IReadOnlyList<ActivationRequest> requests, int generation, CancellationToken ct)
+    private async Task<IReadOnlyList<ActivationOutcome>> ActivateCoreAsync(IReadOnlyList<ActivationRequest> requests, int generation, CancellationToken ct, Guid? profileRunId)
     {
+        if (profileRunId is not null) requests = requests.Where(r => !Active.ContainsKey(r.RoleKey)).ToList();
         var deactivated = new HashSet<RoleKey>();
         var skipped = new HashSet<RoleKey>();
         foreach (var r in requests)
@@ -153,6 +155,7 @@ public sealed partial class AppModel
                 return;
             }
 
+            RecordProfileOutcome(profileRunId, outcome);
             Progress.TryAdd(outcome.RoleKey, outcome.Result);
             Touch();
         }), ct);
@@ -165,6 +168,7 @@ public sealed partial class AppModel
         var consentBlocked = new HashSet<TenantKey>();
         foreach (var outcome in outcomes)
         {
+            RecordProfileOutcome(profileRunId, outcome);
             Progress[outcome.RoleKey] = outcome.Result;
             if (attempted.FirstOrDefault(r => r.RoleKey == outcome.RoleKey) is not { } request)
             {

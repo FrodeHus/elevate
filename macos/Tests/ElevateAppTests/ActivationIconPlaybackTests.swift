@@ -15,6 +15,33 @@ struct ActivationIconPlaybackTests {
         #expect(ActivationProgressLabel(result: nil, running: false).phase == .hidden)
     }
 
+    @MainActor @Test func deactivationRequiresConfirmationAndFailureNeverShowsSuccess() {
+        #expect(DeactivationProgressLabel(phase: .working).iconPhase == .working)
+        #expect(DeactivationProgressLabel(phase: .succeeded).iconPhase == .success)
+        #expect(DeactivationProgressLabel(phase: .failed("Denied")).iconPhase == .hidden)
+        #expect(DeactivationProgressLabel(phase: .blocked("Minimum duration")).iconPhase == .hidden)
+    }
+
+    @MainActor @Test func directDeactivationPreservesMinimumDurationAndInFlightRequests() async {
+        var state = AppState()
+        state.identities = [Sample.identity()]
+        state.tenants = [Sample.tenant()]
+        let model = await makeModel(state: state, online: true)
+        defer { cleanup(model) }
+        model.active[Sample.entraKey] = ActiveAssignment(roleKey: Sample.entraKey, assignmentId: "recent",
+                                                        startDateTime: .now, endDateTime: nil, status: .active)
+        let result = await model.deactivate(Sample.entraKey)
+        guard case .blocked = result else { Issue.record("A recent assignment must remain blocked"); return }
+        #expect(model.active[Sample.entraKey] != nil)
+        #expect(!model.inFlight.contains(Sample.entraKey))
+        model.inFlight.insert(Sample.entraKey)
+        model.deactivationProgress[Sample.entraKey] = .working
+        let duplicate = await model.deactivate(Sample.entraKey)
+        guard case .blocked = duplicate else { Issue.record("Duplicate request must be blocked"); return }
+        #expect(model.inFlight.contains(Sample.entraKey))
+        #expect(model.deactivationProgress[Sample.entraKey] == .working)
+    }
+
     @Test func tracedMotionIsBundledAndCircleCloses() throws {
         let motion = try #require(ElevationMotion.shared)
         #expect(motion.frames.count == 29)

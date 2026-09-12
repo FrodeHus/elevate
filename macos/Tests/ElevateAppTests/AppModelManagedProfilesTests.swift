@@ -101,9 +101,11 @@ struct AppModelManagedProfilesTests {
         #expect(items.last?.disposition == .notEligible)
     }
 
-    @Test func runningAManagedProfileActivatesAndSavesNothing() async {
+    @Test func runningAManagedProfilePersistsOnlyRunOwnership() async {
         let http = StubHTTPClient()
         await http.on("GET", "/me?", body: Data(#"{"id":"user-obj-1"}"#.utf8))
+        await http.on("GET", "roleAssignmentScheduleInstances", body: Data(#"{"value":[]}"#.utf8))
+        await http.on("GET", "roleAssignmentScheduleRequests", body: Data(#"{"value":[]}"#.utf8))
         await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Data("""
         {"id": "req-1", "status": "Provisioned", "roleDefinitionId": "role-def", "directoryScopeId": "/",
          "scheduleInfo": {"startDateTime": "2026-09-04T09:00:00Z",
@@ -116,8 +118,10 @@ struct AppModelManagedProfilesTests {
                                               justification: "Incident response", ticket: nil)
         #expect(outcomes.count == 1)
         #expect(model.active[Self.entraKey]?.assignmentId == "req-1")
-        // Nothing about the run is written onto the profile, and none of it reaches state.json.
+        // Managed profile definitions remain read-only; assignment ownership is persisted so the
+        // run can be safely deactivated after restart.
         #expect(model.state.profiles.isEmpty)
+        #expect(model.state.profileRuns.first?.entries.first?.assignment.assignmentId == "req-1")
         #expect(model.profile(id: Self.managedId)?.lastJustification == "Incident response")
     }
 

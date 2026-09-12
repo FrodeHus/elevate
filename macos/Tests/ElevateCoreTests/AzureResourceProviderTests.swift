@@ -43,6 +43,7 @@ import Foundation
         let contributor = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId) }!
         #expect(contributor.status == .active)
         #expect(contributor.assignmentId == "inst-1")
+        #expect(contributor.scheduleId == "schedule-stable")
         #expect(contributor.endDateTime == GraphJSON.parseDate("2026-09-04T12:00:00Z"))
         let reader = active.first { $0.roleKey.scope == .azureResource(scope: "/subscriptions/sub-1/resourceGroups/rg-ops", roleDefinitionId: readerId) }!
         #expect(reader.status == .pendingApproval)
@@ -146,6 +147,7 @@ import Foundation
         let a = try await p.activate(ActivationRequest(roleKey: contributor.key, duration: .seconds(7200), justification: "INC-1", ticket: TicketInfo(number: "42", system: "Jira")), identity: identity)
         #expect(a.status == .active)
         #expect(a.assignmentId == "fea7a502-9a96-4806-a26f-eee560e52045")
+        #expect(a.scheduleId == "schedule-stable")
         #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T11:00:00Z"))
         let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
         #expect(put.method == "PUT")
@@ -259,12 +261,13 @@ import Foundation
         await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
         await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
         await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("arm-activate-response"))
-        let a = ActiveAssignment(roleKey: contributor.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        let a = ActiveAssignment(roleKey: contributor.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
         try await p.deactivate(a, identity: identity)
         let put = await http.requests(matching: "roleAssignmentScheduleRequests").first!
         let props = (try JSONSerialization.jsonObject(with: put.body!) as! [String: Any])["properties"] as! [String: Any]
         #expect(props["requestType"] as? String == "SelfDeactivate")
         #expect(props["linkedRoleEligibilityScheduleId"] as? String == "b1477448-2cc6-4ceb-93b4-54a202a89413")
+        #expect(props["targetRoleAssignmentScheduleId"] as? String == "owned-schedule")
         #expect(props["scheduleInfo"] == nil)
     }
 
@@ -278,4 +281,27 @@ import Foundation
         #expect(post.method == "POST")
         #expect(post.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-ops/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/req-77/cancel"))
     }
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Data(String(decoding: Fixtures.data("arm-activate-response"), as: UTF8.self).replacingOccurrences(of: "Provisioned", with: outcome).utf8))
+        let a = ActiveAssignment(roleKey: contributor.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        await #expect(throws: PIMError.self) { try await p.deactivate(a, identity: identity) }
+    }
+    @Test func refreshedInstanceRetainsOriginatingActivationRequest() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("arm-active"))
+        let activation = try JSONSerialization.jsonObject(with: Fixtures.data("arm-activate-response")) as! [String: Any]
+        var removal = activation
+        var props = removal["properties"] as! [String: Any]
+        props["requestType"] = "SelfDeactivate"
+        removal["properties"] = props
+        removal["name"] = "removal-request"
+        await http.on("GET", "roleAssignmentScheduleRequests", body: try JSONSerialization.data(withJSONObject: ["value": [removal, activation]]))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.first { $0.assignmentId == "inst-1" }?.activationRequestId == "fea7a502-9a96-4806-a26f-eee560e52045")
+    }
+
 }
