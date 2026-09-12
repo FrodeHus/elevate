@@ -293,7 +293,8 @@ public sealed class GroupProvider : IPimProvider
             identity, tenantId, _transport.GraphUrl(Base + "/assignmentScheduleRequests"),
             Scopes, Encoding.UTF8.GetBytes(body.ToJsonString()), ct).ConfigureAwait(false);
         var outcome = JsonSerializer.Deserialize<ScheduleRequest>(response.Body, GraphJson.Options)!.Status;
-        if (outcome != "Provisioned")
+        // Graph reports a completed selfDeactivate as Revoked; Provisioned covers the older shape.
+        if (outcome is not ("Provisioned" or "Revoked"))
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 

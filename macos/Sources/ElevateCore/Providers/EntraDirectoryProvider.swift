@@ -174,7 +174,8 @@ public struct EntraDirectoryProvider: PIMProvider {
                                      url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
         let outcome = try GraphJSON.decoder.decode(ScheduleRequest.self, from: response.body).status
-        guard outcome == "Provisioned" else {
+        // Graph reports a completed selfDeactivate as Revoked; Provisioned covers the older shape.
+        guard outcome == "Provisioned" || outcome == "Revoked" else {
             throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome)")
         }
     }

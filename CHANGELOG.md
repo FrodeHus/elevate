@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS, Windows and CLI: deactivating a role no longer fails with "Revoked". Microsoft Graph and
+  Azure Resource Manager report a completed self-deactivation with that status, and the
+  confirmation check added for profile deactivation only accepted "Provisioned".
+
 ## [1.6.3] - 2026-09-12
 
 ### Added

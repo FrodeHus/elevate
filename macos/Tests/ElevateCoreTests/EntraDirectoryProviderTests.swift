@@ -220,6 +220,20 @@ import Foundation
         #expect(body["scheduleInfo"] == nil)
     }
 
+    /// Graph answers a completed selfDeactivate with status Revoked, not Provisioned.
+    @Test func deactivateAcceptsRevokedAndRejectsFailure() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
+        let template = String(decoding: Fixtures.data("entra-activate-response"), as: UTF8.self)
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Data(template.replacingOccurrences(of: "\"Provisioned\"", with: "\"Revoked\"").utf8))
+        try await p.deactivate(a, identity: identity)
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Data(template.replacingOccurrences(of: "\"Provisioned\"", with: "\"Failed\"").utf8))
+        await #expect(throws: PIMError.unexpected(status: 0, body: "Deactivation has not completed: Failed")) {
+            try await p.deactivate(a, identity: identity)
+        }
+    }
+
     @Test func cancelPendingRequestPostsToCancelEndpoint() async throws {
         let (p, http, _) = makeProvider()
         await http.on("POST", "roleAssignmentScheduleRequests/req-9/cancel", status: 204)
@@ -238,7 +252,7 @@ import Foundation
             try await p.cancelPendingRequest(a, identity: identity)
         }
     }
-    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Unknown"])
     func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "/me?", body: Fixtures.data("me"))

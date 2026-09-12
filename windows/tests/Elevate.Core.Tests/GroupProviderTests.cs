@@ -301,6 +301,18 @@ public class GroupProviderTests
         assignment.EndDateTime.Should().BeNull();
     }
 
+    /// <summary>Graph answers a completed selfDeactivate with status Revoked, not Provisioned.</summary>
+    [Fact]
+    public async Task Deactivate_AcceptsRevoked()
+    {
+        var (provider, http) = MakeCallerProvider();
+        http.On("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.Data("group-eligible-page2"));
+        http.On("POST", "assignmentScheduleRequests", Fixtures.Text("group-activate-response").Replace("\"Provisioned\"", "\"Revoked\""), 201);
+        var assignment = new ActiveAssignment(OpsMember.Key, "ginst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
+
+        await provider.DeactivateAsync(assignment, TestIdentity);
+    }
+
     [Fact]
     public async Task Deactivate_PostsSelfDeactivateWithoutSchedule()
     {
@@ -338,7 +350,6 @@ public class GroupProviderTests
     [InlineData("PendingProvisioning")]
     [InlineData("Failed")]
     [InlineData("Denied")]
-    [InlineData("Revoked")]
     [InlineData("Unknown")]
     public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
     {

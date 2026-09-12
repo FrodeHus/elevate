@@ -271,6 +271,17 @@ import Foundation
         #expect(props["scheduleInfo"] == nil)
     }
 
+    /// ARM answers a completed SelfDeactivate with status Revoked, not Provisioned.
+    @Test func deactivateAcceptsRevoked() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))
+        await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
+        let template = String(decoding: Fixtures.data("arm-activate-response"), as: UTF8.self)
+        await http.on("PUT", "roleAssignmentScheduleRequests", status: 201, body: Data(template.replacingOccurrences(of: "\"Provisioned\"", with: "\"Revoked\"").utf8))
+        let a = ActiveAssignment(roleKey: contributor.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
+        try await p.deactivate(a, identity: identity)
+    }
+
     @Test func cancelPostsToTheRequestAtItsScope() async throws {
         let (p, http, _) = makeProvider()
         await http.on("POST", "/cancel", status: 200, body: Data())
@@ -281,7 +292,7 @@ import Foundation
         #expect(post.method == "POST")
         #expect(post.url.absoluteString.hasPrefix("https://management.azure.com/subscriptions/sub-1/resourceGroups/rg-ops/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/req-77/cancel"))
     }
-    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Unknown"])
     func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
         let (p, http, _) = makeProvider()
         await http.on("GET", "roleEligibilityScheduleInstances?", body: Fixtures.data("arm-eligible"))

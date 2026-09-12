@@ -337,6 +337,23 @@ public class EntraDirectoryProviderTests
         body["targetScheduleId"]!.GetValue<string>().Should().Be("owned-schedule");
     }
 
+    /// <summary>Graph answers a completed selfDeactivate with status Revoked, not Provisioned.</summary>
+    [Fact]
+    public async Task Deactivate_AcceptsRevokedAndRejectsFailure()
+    {
+        var (provider, http, _) = MakeProvider();
+        http.On("GET", "/me?", body: Fixtures.Data("me"));
+        var assignment = new ActiveAssignment(GlobalReader.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
+        var template = Fixtures.Text("entra-activate-response");
+        http.On("POST", "roleAssignmentScheduleRequests", template.Replace("\"Provisioned\"", "\"Revoked\""), 201);
+
+        await provider.DeactivateAsync(assignment, TestIdentity);
+
+        http.On("POST", "roleAssignmentScheduleRequests", template.Replace("\"Provisioned\"", "\"Failed\""), 201);
+        var thrown = await Assert.ThrowsAsync<PimException>(() => provider.DeactivateAsync(assignment, TestIdentity));
+        thrown.Detail.Should().Be("Deactivation has not completed: Failed");
+    }
+
     [Fact]
     public async Task CancelPendingRequest_PostsToCancelEndpoint()
     {
@@ -367,7 +384,6 @@ public class EntraDirectoryProviderTests
     [InlineData("PendingProvisioning")]
     [InlineData("Failed")]
     [InlineData("Denied")]
-    [InlineData("Revoked")]
     [InlineData("Unknown")]
     public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
     {

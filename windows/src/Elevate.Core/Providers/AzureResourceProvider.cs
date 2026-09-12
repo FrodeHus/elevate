@@ -420,7 +420,8 @@ public sealed class AzureResourceProvider : IPimProvider
         var response = await _transport.PutAsync(identity, tenantId, RequestUrl(scope.Scope), Scopes, Encode(props), ct)
             .ConfigureAwait(false);
         var outcome = JsonSerializer.Deserialize<Instance>(response.Body, GraphJson.Options)!.Properties.Status;
-        if (outcome != "Provisioned")
+        // ARM reports a completed SelfDeactivate as Revoked; Provisioned covers the older shape.
+        if (outcome is not ("Provisioned" or "Revoked"))
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 

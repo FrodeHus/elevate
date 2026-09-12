@@ -240,7 +240,8 @@ public struct AzureResourceProvider: PIMProvider {
         let response = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes,
                                     body: try JSONSerialization.data(withJSONObject: ["properties": props]))
         let outcome = try GraphJSON.decoder.decode(Instance.self, from: response.body).properties.status
-        guard outcome == "Provisioned" else {
+        // ARM reports a completed SelfDeactivate as Revoked; Provisioned covers the older shape.
+        guard outcome == "Provisioned" || outcome == "Revoked" else {
             throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome ?? "Unknown")")
         }
     }
