@@ -387,6 +387,19 @@ public class AzureResourceProviderTests
         props["targetRoleAssignmentScheduleId"]!.GetValue<string>().Should().Be("owned-schedule");
     }
 
+    /// <summary>ARM answers a completed SelfDeactivate with status Revoked, not Provisioned.</summary>
+    [Fact]
+    public async Task Deactivate_AcceptsRevoked()
+    {
+        var (provider, http, _) = MakeProvider();
+        StubEligibilityPages(http);
+        http.On("PUT", "roleAssignmentScheduleRequests", Fixtures.Text("arm-activate-response").Replace("\"Provisioned\"", "\"Revoked\""), 201);
+        var assignment = new ActiveAssignment(
+            Contributor.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
+
+        await provider.DeactivateAsync(assignment, TestIdentity);
+    }
+
     [Fact]
     public async Task Cancel_PostsToTheRequestAtItsScope()
     {
@@ -430,7 +443,6 @@ public class AzureResourceProviderTests
     [InlineData("PendingProvisioning")]
     [InlineData("Failed")]
     [InlineData("Denied")]
-    [InlineData("Revoked")]
     [InlineData("Unknown")]
     public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
     {

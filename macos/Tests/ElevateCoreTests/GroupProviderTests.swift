@@ -229,6 +229,17 @@ import Foundation
         #expect(body["scheduleInfo"] == nil)
     }
 
+    /// Graph answers a completed selfDeactivate with status Revoked, not Provisioned.
+    @Test func deactivateAcceptsRevoked() async throws {
+        let http = StubHTTPClient()
+        let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
+        await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.data("group-eligible-page2"))
+        let template = String(decoding: Fixtures.data("group-activate-response"), as: UTF8.self)
+        await http.on("POST", "assignmentScheduleRequests", status: 201, body: Data(template.replacingOccurrences(of: "\"Provisioned\"", with: "\"Revoked\"").utf8))
+        let a = ActiveAssignment(roleKey: opsMember.key, assignmentId: "ginst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
+        try await p.deactivate(a, identity: identity)
+    }
+
     @Test func cancelPostsToTheRequestCancelAction() async throws {
         let (p, http, _) = makeProvider()
         await http.on("POST", "/cancel", status: 204)
@@ -238,7 +249,7 @@ import Foundation
         #expect(post.method == "POST")
         #expect(post.url.absoluteString.hasSuffix("/identityGovernance/privilegedAccess/group/assignmentScheduleRequests/greq-9/cancel"))
     }
-    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Unknown"])
     func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
         let http = StubHTTPClient()
         let p = GroupProvider(http: http, tokens: JWTTokenProvider(oid: "caller-oid"))
