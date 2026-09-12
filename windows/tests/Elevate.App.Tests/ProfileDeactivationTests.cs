@@ -112,6 +112,7 @@ public class ProfileDeactivationTests
         var results = await model.DeactivateProfileRunAsync(run.Id);
         results[first.RoleKey].Should().BeNull();
         results[second.RoleKey].Should().Contain("not completed");
+        await model.SavesSettledAsync();
         test.Store.Load().ProfileRuns[0].Entries.Select(e => e.Completed).Should().Equal(true, false);
         test.Http.On("POST", "roleAssignmentScheduleRequests", """{"id":"done","status":"Provisioned"}""", 201);
         var retry = await model.DeactivateProfileRunAsync(run.Id);

@@ -74,6 +74,7 @@ public class AppModelProfileTests
         model.RenameProfile(profile.Id, "Renamed");
         model.DeleteProfile(profile.Id);
         model.State.ProfileRuns.Select(r => r.ProfileName).Should().Equal("Ops", "Ops");
+        await model.SavesSettledAsync();
         test.Store.Load().ProfileRuns.Should().HaveCount(2);
     }
 

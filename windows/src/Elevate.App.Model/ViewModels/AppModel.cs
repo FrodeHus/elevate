@@ -196,6 +196,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
     /// <summary>Mutation order for saves, so a slow write cannot land after a newer one.</summary>
     private ulong _saveGeneration;
+    private Task _lastSave = Task.CompletedTask;
 
     /// <summary>Raised on the model's thread after any change the views should redraw for.</summary>
     public event EventHandler? Changed;
@@ -611,7 +612,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         _saveGeneration += 1;
         var snapshot = State.Clone();
         var generation = _saveGeneration;
-        _ = Task.Run(() =>
+        _lastSave = Task.Run(() =>
         {
             try
             {
@@ -624,6 +625,14 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         });
         Touch();
     }
+
+    /// <summary>
+    /// Completes once the most recently requested save has landed. The store refuses to overwrite a
+    /// newer generation with an older one, so the file is settled as soon as the last-issued save
+    /// finishes, regardless of the order the writes are scheduled in. Tests await this before
+    /// reading the store back.
+    /// </summary>
+    internal Task SavesSettledAsync() => Volatile.Read(ref _lastSave);
 
     /// <summary>
     /// Records one user-visible failure. Called wherever a tenant error or a failure notice is set;
