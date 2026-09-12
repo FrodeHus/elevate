@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS and Windows: the tenant menu gains an **Open…** submenu that opens the Azure Portal, the
+  Entra and Intune admin centers, and the Defender and Purview portals directly in that tenant.
+  The browser session picks the account; Microsoft's sign-in page prompts with the tenant already
+  fixed when it has none.
+
 ### Changed
 
 - macOS and Windows: per-role progress in activation dialogs and profile runs now uses Elevate's

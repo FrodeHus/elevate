@@ -717,6 +717,15 @@ public sealed partial class PanelView : UserControl
 
         menu.Items.Add(Item("Configure known PIM roles…", () => App.Current.OpenConfigureRoles(tenant.Key)));
         menu.Items.Add(Item("Retry discovery", () => _ = model.RetryDiscoveryAsync(tenant.Key)));
+        // Each portal opens in this tenant; the browser session picks the account.
+        var open = new MenuFlyoutSubItem { Text = "Open…" };
+        foreach (var portal in AdminPortal.All)
+        {
+            var portalUri = portal.Uri(tenant.TenantId);
+            open.Items.Add(Item(portal.Title, () => _ = Windows.System.Launcher.LaunchUriAsync(portalUri)));
+        }
+
+        menu.Items.Add(open);
         if ((tenant.DiscoveryMode == DiscoveryMode.ManualRoles || tenant.GroupsUnavailableReason is not null)
             && model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
         {

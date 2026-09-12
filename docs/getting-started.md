@@ -129,7 +129,9 @@ From the top:
   countdown.
 - **Accounts and tenants** follow, each with its eligible roles. Every account and tenant row has
   a menu with actions such as sign in again, discover tenants, configure known roles, request
-  access packages, and remove.
+  access packages, and remove. The tenant menu's **Open…** submenu opens the Azure Portal, the
+  Entra and Intune admin centers, and the Defender and Purview portals in that tenant; the
+  browser decides which account, so a sign-in prompt may appear with the tenant already chosen.
 - **Add account…**, **Settings…** and **Quit** are at the bottom.
 
 Click a tenant name to collapse or expand it. The pills next to a tenant name tell you about
