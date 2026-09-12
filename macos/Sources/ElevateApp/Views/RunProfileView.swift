@@ -158,6 +158,14 @@ struct RunProfileView: View {
         let outcomes = await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
                                startDateTime: start)
         for outcome in outcomes { rowResults[outcome.roleKey] = outcome.result }
+        // A role may have become active after the sheet was opened. The execution recheck skips it.
+        for index in items.indices where items[index].disposition == .activate {
+            let item = items[index]
+            if !outcomes.contains(where: { $0.roleKey == item.roleKey }), let current = model.active[item.roleKey] {
+                items[index] = ProfilePlanItem(roleKey: item.roleKey, role: item.role, duration: item.duration,
+                    disposition: current.status == .active ? .alreadyActive : .pending)
+            }
+        }
         running = false
         finished = true
     }

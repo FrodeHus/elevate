@@ -18,6 +18,15 @@ public sealed class ActivationIconPlayback
         _started = now;
     }
 
+    /// <summary>Reflect the working chevrons downward while retaining the upright success check.</summary>
+    public static double VerticalPosition(double y, double? morphTime, bool downward)
+    {
+        if (!downward) return y;
+        var t = Math.Clamp((morphTime ?? 0) / MorphDuration, 0, 1);
+        var blend = t * t * (3 - 2 * t);
+        return y + (20 - 2 * y) * (1 - blend);
+    }
+
     public readonly record struct Frame(double PulseTime, double? MorphTime, bool Animating);
 
     public Frame Sample(double now, bool reduceMotion)

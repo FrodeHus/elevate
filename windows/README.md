@@ -140,3 +140,19 @@ release with the DMG, both MSIs and their SHA-256 files, and attaches the genera
 manifest as a workflow artifact. The Windows MSIs are unsigned unless the Azure Artifact Signing
 secrets are configured, and the manifest is not submitted to `microsoft/winget-pkgs` until they
 are. The full procedure is in [docs/releasing.md](../docs/releasing.md).
+
+### Deactivating a profile run
+
+Choose **Deactivate roles…** from a profile's menu and select the run by date and time.
+The review lists only assignments that run created, including roles since removed from the
+profile. Roles already active when the run started are excluded. The saved run survives an
+app restart; each assignment is verified with the provider before deactivation, so an expired
+or replaced activation is skipped. A role still within its minimum activation period stays
+available to retry while other roles proceed. Completed roles are not retried. When an approval or provisioning response does not identify
+the original activation interval, the review directs you to deactivate the role individually.
+If another
+profile uses the same access, the review names it so the impact is clear.
+
+Downward chevrons indicate deactivation in progress, both in role rows and in the profile
+review. A green check appears only after the provider confirms deactivation. Reduced-motion
+settings use static status indicators.

@@ -20,6 +20,9 @@ public struct AzureResourceProvider: PIMProvider {
         let principalId: String?
         let status: String?
         let assignmentType: String?
+        let roleAssignmentScheduleId: String?
+        let targetRoleAssignmentScheduleId: String?
+        let requestType: String?
         let roleEligibilityScheduleId: String?
         let linkedRoleEligibilityScheduleId: String?
         let startDateTime: Date?
@@ -99,15 +102,19 @@ public struct AzureResourceProvider: PIMProvider {
         var result: [RoleKey: ActiveAssignment] = [:]
         for i in instances where i.properties.assignmentType == "Activated" {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: i.properties.scope, roleDefinitionId: i.properties.roleDefinitionId))
+            let originatingRequest = requests.first {
+                i.properties.roleAssignmentScheduleId != nil && $0.properties.targetRoleAssignmentScheduleId == i.properties.roleAssignmentScheduleId
+                    && $0.properties.requestType == "SelfActivate"
+            }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: i.name, startDateTime: i.properties.startDateTime ?? .now,
-                                           endDateTime: i.properties.endDateTime, status: .active)
+                                           endDateTime: i.properties.endDateTime, status: .active, scheduleId: i.properties.roleAssignmentScheduleId, activationRequestId: originatingRequest?.name)
         }
         for r in requests where Self.pendingStatuses.contains(r.properties.status ?? "") {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: .azureResource(scope: r.properties.scope, roleDefinitionId: r.properties.roleDefinitionId))
             guard result[key] == nil else { continue }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: r.name,
                                            startDateTime: r.properties.scheduleInfo?.startDateTime ?? r.properties.createdOn ?? .now,
-                                           endDateTime: nil, status: .pendingApproval)
+                                           endDateTime: nil, status: .pendingApproval, scheduleId: r.properties.targetRoleAssignmentScheduleId, activationRequestId: r.name)
         }
         // The requests list is unfiltered, so a booked-ahead request is already in hand.
         for u in requests where !ScheduledStart.isSettledOrPending(u.properties.status) {
@@ -118,7 +125,7 @@ public struct AzureResourceProvider: PIMProvider {
             let end = ScheduledStart.end(explicit: props.scheduleInfo?.expiration?.endDateTime,
                                          duration: props.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.name, startDateTime: start,
-                                           endDateTime: end, status: .scheduled)
+                                           endDateTime: end, status: .scheduled, scheduleId: u.properties.targetRoleAssignmentScheduleId, activationRequestId: u.name)
         }
         return Array(result.values)
     }
@@ -214,7 +221,7 @@ public struct AzureResourceProvider: PIMProvider {
         let resolvedKey = RoleKey(identityId: request.roleKey.identityId, tenantId: tenantId,
                                   scope: .azureResource(scope: scope, roleDefinitionId: roleDefinitionId))
         return ActiveAssignment(roleKey: resolvedKey, assignmentId: created.name, startDateTime: start,
-                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status, scheduleId: created.properties.targetRoleAssignmentScheduleId, activationRequestId: created.name)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
@@ -223,14 +230,19 @@ public struct AzureResourceProvider: PIMProvider {
         let roleDefinitionId = try await resolveRoleDefinitionId(nameOrId, scope: scope, identity: identity, tenantId: tenantId)
         let elig = try await eligibility(scope: scope, roleDefinitionId: roleDefinitionId, identity: identity, tenantId: tenantId)
         let principalId = await requestPrincipalId(eligibilityPrincipalId: elig.principalId, identity: identity, tenantId: tenantId)
-        let props: [String: Any] = [
+        var props: [String: Any] = [
             "principalId": principalId,
             "roleDefinitionId": roleDefinitionId,
             "requestType": "SelfDeactivate",
             "linkedRoleEligibilityScheduleId": elig.scheduleName,
         ]
-        _ = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes,
+        if let scheduleId = assignment.scheduleId { props["targetRoleAssignmentScheduleId"] = scheduleId }
+        let response = try await transport.put(identity: identity, tenantId: tenantId, url: try requestURL(scope: scope), scopes: scopes,
                                     body: try JSONSerialization.data(withJSONObject: ["properties": props]))
+        let outcome = try GraphJSON.decoder.decode(Instance.self, from: response.body).properties.status
+        guard outcome == "Provisioned" else {
+            throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome ?? "Unknown")")
+        }
     }
 
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {

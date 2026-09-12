@@ -9,6 +9,7 @@ enum PanelRoute: Codable, Hashable {
     case addAccount
     case saveProfile([RoleKey])
     case runProfile(UUID)
+    case deactivateProfile(UUID)
     case manageProfiles
     case decide(requestId: String, approve: Bool)
     case accessPackages(TenantKey)

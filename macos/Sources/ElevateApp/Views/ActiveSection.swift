@@ -5,15 +5,31 @@ import ElevateCore
 struct ActiveSection: View {
     @Environment(AppModel.self) private var model
 
+    @State private var visibleItems: [ActiveAssignment] = []
+
     var body: some View {
         let items = model.activeAssignmentsOrdered
-        if !items.isEmpty {
-            Section {
-                if !model.collapsedActive {
-                    ForEach(items) { a in ActiveRow(assignment: a) }
+        Group {
+            if !visibleItems.isEmpty {
+                Section {
+                    if !model.collapsedActive {
+                        ForEach(visibleItems) { a in ActiveRow(assignment: a) }
+                    }
+                } header: {
+                    ActiveHeader(count: items.count)
                 }
-            } header: {
-                ActiveHeader(count: items.count)
+            }
+        }
+        .task(id: items) {
+            // Preserve row identity long enough for its working icon to morph after confirmation.
+            let retained = visibleItems.filter { old in
+                !items.contains(where: { $0.roleKey == old.roleKey })
+                    && model.deactivationProgress[old.roleKey] == .succeeded
+            }
+            visibleItems = items + retained
+            if !retained.isEmpty {
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled { visibleItems = items }
             }
         }
     }
@@ -52,7 +68,7 @@ struct ActiveRow: View {
     }
 
     private var statusDot: some View {
-        StatusDot(status: assignment.status)
+        RoleStatusIndicator(status: assignment.status, deactivation: model.deactivationProgress[assignment.roleKey])
     }
 }
 

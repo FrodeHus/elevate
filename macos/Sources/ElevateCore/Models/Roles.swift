@@ -57,14 +57,20 @@ public struct ActiveAssignment: Codable, Hashable, Sendable, Identifiable {
     }
     public let roleKey: RoleKey
     public var assignmentId: String?
+    /// Stable schedule identity shared by activation requests and refreshed instances.
+    public var scheduleId: String?
+    /// The originating activation request, retained when the service creates an instance.
+    public var activationRequestId: String?
     public var startDateTime: Date
     public var endDateTime: Date?
     public var status: Status
     public var id: RoleKey { roleKey }
 
-    public init(roleKey: RoleKey, assignmentId: String?, startDateTime: Date, endDateTime: Date?, status: Status) {
+    public init(roleKey: RoleKey, assignmentId: String?, startDateTime: Date, endDateTime: Date?, status: Status, scheduleId: String? = nil, activationRequestId: String? = nil) {
         self.roleKey = roleKey
         self.assignmentId = assignmentId
+        self.scheduleId = scheduleId
+        self.activationRequestId = activationRequestId
         self.startDateTime = startDateTime
         self.endDateTime = endDateTime
         self.status = status

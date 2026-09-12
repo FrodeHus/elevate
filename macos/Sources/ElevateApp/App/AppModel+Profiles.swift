@@ -166,12 +166,52 @@ extension AppModel {
     @discardableResult
     func runProfile(id: UUID, items: [ProfilePlanItem], justification: String, ticket: TicketInfo?,
                     startDateTime: Date? = nil) async -> [ActivationOutcome] {
-        let requests = items.filter { $0.disposition == .activate }.map {
+        let requests = items.filter { item in
+            guard item.disposition == .activate, !inFlight.contains(item.roleKey) else { return false }
+            if let current = active[item.roleKey] {
+                if case .failed = current.status { return true }
+                return false
+            }
+            return true
+        }.map {
             ActivationRequest(roleKey: $0.roleKey, duration: $0.duration, justification: justification, ticket: ticket,
                               authenticationContext: $0.role?.policy.authenticationContext,
                               startDateTime: startDateTime)
         }
-        let outcomes = requests.isEmpty ? [] : await activate(requests)
+        let generation = configGeneration
+        var verified: [ActivationRequest] = []
+        var verificationFailures: [ActivationOutcome] = []
+        // A profile is never an Extend operation, even if the confirmation sheet or panel is stale.
+        for request in requests {
+            let key = request.roleKey
+            guard !inFlight.contains(key), let identity = identity(key.identityId), let tenant = tenant(key.tenantKey),
+                  let provider = coordinator.provider(for: key.scope.kind) else { continue }
+            do {
+                let assignments = try await provider.activeAssignments(identity: identity, tenant: tenant)
+                guard generation == configGeneration else { return [] }
+                if let existing = assignments.first(where: { a in
+                    guard a.roleKey == key else { return false }
+                    if case .failed = a.status { return false }
+                    return a.endDateTime.map { $0 > Date.now } ?? true
+                }) {
+                    active[key] = existing
+                    continue
+                }
+                guard !inFlight.contains(key) else { continue }
+                if let cached = active[key] {
+                    guard case .failed = cached.status else { continue }
+                    active[key] = nil
+                }
+                verified.append(request)
+            } catch {
+                let result = ActivationOutcome.Result.failed((error as? PIMError) ?? .unexpected(status: 0, body: error.localizedDescription))
+                progress[key] = result
+                verificationFailures.append(ActivationOutcome(roleKey: key, result: result))
+            }
+        }
+        let run = ProfileRun(profileId: id, profileName: profile(id: id)?.name ?? "Profile")
+        if !verified.isEmpty { state.profileRuns.append(run); persist() }
+        let outcomes = (verified.isEmpty ? [] : await activate(verified, profileRunId: run.id)) + verificationFailures
         // A managed profile is the organization's document; nothing is remembered onto it. The
         // per-role memory `activate` writes is unaffected.
         guard !isManagedProfile(id), var p = state.profile(id: id) else { return outcomes }

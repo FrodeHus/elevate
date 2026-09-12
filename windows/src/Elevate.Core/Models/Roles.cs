@@ -67,12 +67,15 @@ public sealed record ActiveAssignment(
     string? AssignmentId,
     DateTimeOffset StartDateTime,
     DateTimeOffset? EndDateTime,
-    AssignmentStatus Status)
+    AssignmentStatus Status,
+    // Stable schedule identity shared by activation requests and refreshed instances.
+    string? ScheduleId = null,
+    // Originating activation request, retained when the service creates an instance.
+    string? ActivationRequestId = null)
 {
     /// <summary>
-    /// Decoding entry point. The positional constructor's nullable members carry no default, which
-    /// under <c>RespectRequiredConstructorParameters</c> would make them required in JSON; Swift
-    /// decodes both with <c>decodeIfPresent</c>, so they are optional here.
+    /// Decoding entry point. Nullable members remain optional in persisted JSON, including states
+    /// saved before schedule and activation request identities were tracked.
     /// </summary>
     [JsonConstructor]
     public ActiveAssignment(
@@ -80,8 +83,10 @@ public sealed record ActiveAssignment(
         DateTimeOffset startDateTime,
         AssignmentStatus status,
         string? assignmentId = null,
-        DateTimeOffset? endDateTime = null)
-        : this(roleKey, assignmentId, startDateTime, endDateTime, status)
+        DateTimeOffset? endDateTime = null,
+        string? scheduleId = null,
+        string? activationRequestId = null)
+        : this(roleKey, assignmentId, startDateTime, endDateTime, status, scheduleId, activationRequestId)
     {
     }
 }

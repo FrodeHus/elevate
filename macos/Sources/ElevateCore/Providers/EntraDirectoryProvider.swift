@@ -16,6 +16,7 @@ public struct EntraDirectoryProvider: PIMProvider {
         let id: String
         let roleDefinitionId: String
         let directoryScopeId: String?
+        let roleAssignmentScheduleId: String?
         let assignmentType: String?
         let startDateTime: Date?
         let endDateTime: Date?
@@ -25,6 +26,8 @@ public struct EntraDirectoryProvider: PIMProvider {
     struct ScheduleRequest: Decodable {
         let id: String
         let status: String
+        let targetScheduleId: String?
+        let action: String?
         let roleDefinitionId: String
         let directoryScopeId: String?
         let createdDateTime: Date?
@@ -67,8 +70,12 @@ public struct EntraDirectoryProvider: PIMProvider {
         for s in activated {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId,
                               scope: .entraDirectory(roleDefinitionId: s.roleDefinitionId, directoryScopeId: s.directoryScopeId ?? "/"))
+            let originatingRequest = all.first {
+                s.roleAssignmentScheduleId != nil && $0.targetScheduleId == s.roleAssignmentScheduleId
+                    && $0.action == "selfActivate"
+            }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: s.id, startDateTime: s.startDateTime ?? .now,
-                                           endDateTime: s.endDateTime, status: .active)
+                                           endDateTime: s.endDateTime, status: .active, scheduleId: s.roleAssignmentScheduleId, activationRequestId: originatingRequest?.id)
         }
         for p in pending {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId,
@@ -76,7 +83,7 @@ public struct EntraDirectoryProvider: PIMProvider {
             guard result[key] == nil else { continue }
             result[key] = ActiveAssignment(roleKey: key, assignmentId: p.id,
                                            startDateTime: p.scheduleInfo?.startDateTime ?? p.createdDateTime ?? .now,
-                                           endDateTime: nil, status: .pendingApproval)
+                                           endDateTime: nil, status: .pendingApproval, scheduleId: p.targetScheduleId, activationRequestId: p.id)
         }
         for u in all where !ScheduledStart.isSettledOrPending(u.status) {
             guard let start = u.scheduleInfo?.startDateTime, ScheduledStart.isFuture(start) else { continue }
@@ -86,7 +93,7 @@ public struct EntraDirectoryProvider: PIMProvider {
             let end = ScheduledStart.end(explicit: u.scheduleInfo?.expiration?.endDateTime,
                                          duration: u.scheduleInfo?.expiration?.duration, start: start, fallback: nil)
             result[key] = ActiveAssignment(roleKey: key, assignmentId: u.id, startDateTime: start,
-                                           endDateTime: end, status: .scheduled)
+                                           endDateTime: end, status: .scheduled, scheduleId: u.targetScheduleId, activationRequestId: u.id)
         }
         return Array(result.values)
     }
@@ -150,21 +157,26 @@ public struct EntraDirectoryProvider: PIMProvider {
         // A future start only masks an outcome that would otherwise read as active; pending/failed still win.
         let status: ActiveAssignment.Status = (reported == .active && ScheduledStart.isFuture(start)) ? .scheduled : reported
         return ActiveAssignment(roleKey: request.roleKey, assignmentId: created.id, startDateTime: start,
-                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status)
+                                endDateTime: status == .active || status == .scheduled ? end : nil, status: status, scheduleId: created.targetScheduleId, activationRequestId: created.id)
     }
 
     public func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard case .entraDirectory(let roleDefinitionId, let directoryScopeId) = assignment.roleKey.scope else { throw PIMError.notEligible }
         let principal = try await principalId(identity: identity, tenantId: assignment.roleKey.tenantId)
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "action": "selfDeactivate",
             "principalId": principal,
             "roleDefinitionId": roleDefinitionId,
             "directoryScopeId": directoryScopeId,
         ]
-        _ = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
+        if let scheduleId = assignment.scheduleId { body["targetScheduleId"] = scheduleId }
+        let response = try await transport.post(identity: identity, tenantId: assignment.roleKey.tenantId,
                                      url: try transport.graphURL("/roleManagement/directory/roleAssignmentScheduleRequests"),
                                      scopes: scopes, body: try JSONSerialization.data(withJSONObject: body))
+        let outcome = try GraphJSON.decoder.decode(ScheduleRequest.self, from: response.body).status
+        guard outcome == "Provisioned" else {
+            throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome)")
+        }
     }
 
     /// Withdraws a request still awaiting approval. Graph answers 204 with no body.

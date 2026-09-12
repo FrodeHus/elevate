@@ -221,3 +221,19 @@ The Entra roles catalogue is regenerated as described in
 [CONTRIBUTING.md](../CONTRIBUTING.md#the-entra-roles-catalogue).
 
 UI design canvas: [docs/design/elevate-macos-canvas.html](../docs/design/elevate-macos-canvas.html) (Claude Design artboards for the panel, select mode, activation, profiles).
+
+### Deactivating a profile run
+
+Choose **Deactivate roles…** from a profile's menu and select the run by date and time.
+The review lists only assignments that run created, including roles since removed from the
+profile. Roles already active when the run started are excluded. The saved run survives an
+app restart; each assignment is verified with the provider before deactivation, so an expired
+or replaced activation is skipped. A role still within its minimum activation period stays
+available to retry while other roles proceed. Completed roles are not retried. When an approval or provisioning response does not identify
+the original activation interval, the review directs you to deactivate the role individually.
+If another
+profile uses the same access, the review names it so the impact is clear.
+
+Downward chevrons indicate deactivation in progress, both in role rows and in the profile
+review. A green check appears only after the provider confirms deactivation. Reduced-motion
+settings use static status indicators.

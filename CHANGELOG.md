@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- macOS and Windows: profile runs can now deactivate only the exact role assignments they
+  activated. Per-role eligibility and results survive restarts, partial failures can be retried,
+  and confirmed deactivation uses Elevate's chevrons pulsing downward before showing success.
 - macOS and Windows: per-role progress in activation dialogs and profile runs now uses Elevate's
   chevrons pulsing upward. Confirmed activation morphs them into a green circle and check mark;
   pending approval, scheduled requests and failures keep their distinct statuses. The animation

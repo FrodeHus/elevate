@@ -109,6 +109,7 @@ public class GroupProviderTests
         var ops = active.Single(a => a.RoleKey.Scope == new GroupScope("grp-ops", GroupAccess.Member));
         ops.Status.Should().Be(AssignmentStatus.Active);
         ops.AssignmentId.Should().Be("ginst-1");
+        ops.ScheduleId.Should().Be("schedule-stable");
         ops.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T16:00:00Z"));
 
         var sec = active.Single(a => a.RoleKey.Scope == new GroupScope("grp-sec", GroupAccess.Owner));
@@ -204,6 +205,7 @@ public class GroupProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("greq-new");
+        assignment.ScheduleId.Should().Be("schedule-stable");
         assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T14:00:00Z"));
         assignment.RoleKey.Should().Be(OpsMember.Key);
 
@@ -305,7 +307,7 @@ public class GroupProviderTests
         var (provider, http) = MakeCallerProvider();
         http.On("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.Data("group-eligible-page2"));
         http.On("POST", "assignmentScheduleRequests", 201, body: Fixtures.Data("group-activate-response"));
-        var assignment = new ActiveAssignment(OpsMember.Key, "ginst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+        var assignment = new ActiveAssignment(OpsMember.Key, "ginst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
 
         await provider.DeactivateAsync(assignment, TestIdentity);
 
@@ -315,6 +317,7 @@ public class GroupProviderTests
         body["groupId"]!.GetValue<string>().Should().Be("grp-ops");
         body["accessId"]!.GetValue<string>().Should().Be("member");
         body.ContainsKey("scheduleInfo").Should().BeFalse();
+        body["targetScheduleId"]!.GetValue<string>().Should().Be("owned-schedule");
     }
 
     [Fact]
@@ -330,4 +333,35 @@ public class GroupProviderTests
         post.Method.Should().Be("POST");
         post.Url.AbsoluteUri.Should().EndWith("/identityGovernance/privilegedAccess/group/assignmentScheduleRequests/greq-9/cancel");
     }
+    [Theory]
+    [InlineData("PendingApproval")]
+    [InlineData("PendingProvisioning")]
+    [InlineData("Failed")]
+    [InlineData("Denied")]
+    [InlineData("Revoked")]
+    [InlineData("Unknown")]
+    public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
+    {
+        var (provider, http) = MakeCallerProvider();
+        http.On("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Fixtures.Data("group-eligible-page2"));
+        http.On("POST", "assignmentScheduleRequests", 201, body: Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(Fixtures.Data("group-activate-response")).Replace("Provisioned", outcome, StringComparison.Ordinal)));
+        var assignment = new ActiveAssignment(OpsMember.Key, "ginst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+
+        var action = () => provider.DeactivateAsync(assignment, TestIdentity);
+        await action.Should().ThrowAsync<PimException>();
+    }
+    [Fact]
+    public async Task RefreshedInstance_RetainsOriginatingActivationRequest()
+    {
+        var (provider, http, _) = MakeProvider();
+        http.On("GET", "assignmentScheduleInstances", body: Fixtures.Data("group-active"));
+        var activation = JsonNode.Parse(Fixtures.Data("group-activate-response"))!.AsObject();
+        var removal = activation.DeepClone().AsObject();
+        removal["action"] = "selfDeactivate";
+        removal["id"] = "removal-request";
+        http.On("GET", "assignmentScheduleRequests", body: Encoding.UTF8.GetBytes(new JsonObject { ["value"] = new JsonArray(removal, activation) }.ToJsonString()));
+        var active = await provider.ActiveAssignmentsAsync(TestIdentity, Tenant);
+        active.Single(a => a.AssignmentId == "ginst-1").ActivationRequestId.Should().Be("greq-new");
+    }
+
 }

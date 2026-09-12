@@ -1,7 +1,7 @@
 import SwiftUI
 import ElevateCore
 
-/// A request may pulse indefinitely. Only a confirmed activation starts the morph.
+/// A request may pulse indefinitely. Only a confirmed result starts the morph.
 struct ActivationIconPlayback {
     enum Phase: Equatable { case hidden, working, success }
     static let morphDuration = 1.4
@@ -53,7 +53,9 @@ struct ElevationMotion: Decodable {
 }
 
 struct ActivationStatusIcon: View {
+    enum Direction { case upward, downward }
     let phase: ActivationIconPlayback.Phase
+    var direction: Direction = .upward
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var playback = ActivationIconPlayback()
     @State private var paused = false
@@ -64,7 +66,7 @@ struct ActivationStatusIcon: View {
                                          reduceMotion: reduceMotion || (paused && phase == .success))
             Canvas { context, size in
                 guard let motion = ElevationMotion.shared else {
-                    context.draw(Image(systemName: phase == .success ? "checkmark.circle" : "chevron.up.2"),
+                    context.draw(Image(systemName: phase == .success ? "checkmark.circle" : (direction == .downward ? "chevron.down.2" : "chevron.up.2")),
                                  at: CGPoint(x: size.width / 2, y: size.height / 2))
                     return
                 }
@@ -76,8 +78,11 @@ struct ActivationStatusIcon: View {
                     let wave = max(0, sample.pulseTime - (upper ? 0.12 : 0))
                     let pulse = sample.morphTime == nil ? pow(sin(.pi * wave / 0.74), 2) : 0
                     let points = zip(from, to).map { p, q in
-                        CGPoint(x: (p[0] + (q[0] - p[0]) * fraction - 32) / 192 * size.width,
-                                y: (p[1] + (q[1] - p[1]) * fraction - 9 * pulse - 32) / 192 * size.height)
+                        let y = (p[1] + (q[1] - p[1]) * fraction - 9 * pulse - 32) / 192
+                        // Reflect the working chevrons, then restore the upright check during the morph.
+                        let reflection = direction == .downward ? 1 - smooth((sample.morphTime ?? 0) / ActivationIconPlayback.morphDuration) : 0
+                        return CGPoint(x: (p[0] + (q[0] - p[0]) * fraction - 32) / 192 * size.width,
+                                       y: (y + (1 - 2 * y) * reflection) * size.height)
                     }
                     var path = Path()
                     path.addLines(points); path.closeSubpath()
@@ -90,6 +95,7 @@ struct ActivationStatusIcon: View {
         }
         .frame(width: 20, height: 20)
         .accessibilityHidden(true) // The adjacent status text supplies the accessible label.
+        .onDisappear { paused = true }
         .task(id: phase) {
             playback.update(phase, at: Date.now.timeIntervalSinceReferenceDate)
             paused = false
@@ -133,5 +139,69 @@ struct ActivationProgressLabel: View {
         }
         .font(.caption)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Deactivation shares the confirmed-result animation, with downward working chevrons.
+struct DeactivationProgressLabel: View {
+    let phase: DeactivationPhase
+    var showsIcon = true
+
+    var iconPhase: ActivationIconPlayback.Phase {
+        switch phase {
+        case .working: .working
+        case .succeeded: .success
+        case .failed, .blocked: .hidden
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if showsIcon && iconPhase != .hidden { ActivationStatusIcon(phase: iconPhase, direction: .downward) }
+            switch phase {
+            case .working: Text("Deactivating…").foregroundStyle(.secondary)
+            case .succeeded: Text("Deactivated").foregroundStyle(.green)
+            case .failed(let message):
+                Label("Failed", systemImage: "exclamationmark.circle").foregroundStyle(.red).help(message)
+            case .blocked(let message):
+                Label("Blocked", systemImage: "lock").foregroundStyle(.orange).help(message)
+            }
+        }
+        .font(.caption)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Keeps the role's leading status position while showing confirmed deactivation feedback.
+struct RoleStatusIndicator: View {
+    let status: ActiveAssignment.Status?
+    let deactivation: DeactivationPhase?
+    @State private var successVisible = true
+
+    var body: some View {
+        Group {
+            if let deactivation, deactivation != .succeeded || successVisible {
+                switch deactivation {
+                case .working, .succeeded:
+                    ActivationStatusIcon(phase: deactivation == .working ? .working : .success, direction: .downward)
+                        .accessibilityHidden(false)
+                        .accessibilityLabel(deactivation == .working ? "Deactivating" : "Deactivated")
+                case .failed(let message):
+                    Image(systemName: "exclamationmark.circle").foregroundStyle(.red).help(message)
+                        .accessibilityLabel("Deactivation failed: \(message)")
+                case .blocked(let message):
+                    Image(systemName: "lock").foregroundStyle(.orange).help(message)
+                        .accessibilityLabel("Deactivation blocked: \(message)")
+                }
+            } else { StatusDot(status: status) }
+        }
+        .frame(width: 20, height: 20)
+        .task(id: deactivation) {
+            successVisible = true
+            if deactivation == .succeeded {
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled { successVisible = false }
+            }
+        }
     }
 }

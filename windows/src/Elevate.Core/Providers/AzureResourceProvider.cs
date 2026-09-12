@@ -35,6 +35,9 @@ public sealed class AzureResourceProvider : IPimProvider
         string? AssignmentType,
         string? RoleEligibilityScheduleId,
         string? LinkedRoleEligibilityScheduleId,
+        string? RoleAssignmentScheduleId,
+        string? TargetRoleAssignmentScheduleId,
+        string? RequestType,
         DateTimeOffset? StartDateTime,
         DateTimeOffset? EndDateTime,
         DateTimeOffset? CreatedOn,
@@ -181,9 +184,12 @@ public sealed class AzureResourceProvider : IPimProvider
         foreach (var i in instances.Where(i => i.Properties.AssignmentType == "Activated"))
         {
             var key = Key(identity, tenant.TenantId, i.Properties);
+            var originatingRequest = requests.FirstOrDefault(r =>
+                i.Properties.RoleAssignmentScheduleId is not null && r.Properties.TargetRoleAssignmentScheduleId == i.Properties.RoleAssignmentScheduleId
+                    && r.Properties.RequestType == "SelfActivate");
             result[key] = new ActiveAssignment(
                 key, i.Name, i.Properties.StartDateTime ?? DateTimeOffset.UtcNow,
-                i.Properties.EndDateTime, AssignmentStatus.Active);
+                i.Properties.EndDateTime, AssignmentStatus.Active, i.Properties.RoleAssignmentScheduleId, originatingRequest?.Name);
         }
 
         foreach (var r in requests.Where(r => PendingStatuses.Contains(r.Properties.Status ?? "")))
@@ -197,7 +203,7 @@ public sealed class AzureResourceProvider : IPimProvider
             result[key] = new ActiveAssignment(
                 key, r.Name,
                 r.Properties.ScheduleInfo?.StartDateTime ?? r.Properties.CreatedOn ?? DateTimeOffset.UtcNow,
-                null, AssignmentStatus.PendingApproval);
+                null, AssignmentStatus.PendingApproval, r.Properties.TargetRoleAssignmentScheduleId, r.Name);
         }
 
         // The requests list is unfiltered, so a booked-ahead request is already in hand.
@@ -218,7 +224,7 @@ public sealed class AzureResourceProvider : IPimProvider
                 u.Properties.ScheduleInfo?.Expiration?.EndDateTime,
                 u.Properties.ScheduleInfo?.Expiration?.Duration,
                 start);
-            result[key] = new ActiveAssignment(key, u.Name, start, end, AssignmentStatus.Scheduled);
+            result[key] = new ActiveAssignment(key, u.Name, start, end, AssignmentStatus.Scheduled, u.Properties.TargetRoleAssignmentScheduleId, u.Name);
         }
 
         return [.. result.Values];
@@ -383,7 +389,7 @@ public sealed class AzureResourceProvider : IPimProvider
             request.RoleKey.IdentityId, tenantId, new AzureResourceScope(scope.Scope, roleDefinitionId));
 
         return new ActiveAssignment(
-            resolvedKey, created.Name, start, reportedEnd, status);
+            resolvedKey, created.Name, start, reportedEnd, status, created.Properties.TargetRoleAssignmentScheduleId, created.Name);
     }
 
     public async Task DeactivateAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
@@ -409,8 +415,13 @@ public sealed class AzureResourceProvider : IPimProvider
             ["linkedRoleEligibilityScheduleId"] = eligibility.ScheduleName,
         };
 
-        await _transport.PutAsync(identity, tenantId, RequestUrl(scope.Scope), Scopes, Encode(props), ct)
+        if (assignment.ScheduleId is { } scheduleId) props["targetRoleAssignmentScheduleId"] = scheduleId;
+
+        var response = await _transport.PutAsync(identity, tenantId, RequestUrl(scope.Scope), Scopes, Encode(props), ct)
             .ConfigureAwait(false);
+        var outcome = JsonSerializer.Deserialize<Instance>(response.Body, GraphJson.Options)!.Properties.Status;
+        if (outcome != "Provisioned")
+            throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
     public async Task CancelPendingRequestAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)

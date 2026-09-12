@@ -96,6 +96,8 @@ public sealed class RoleRow : PanelItem
     private string? _deactivateTooltip;
     private bool _showCancel;
     private bool _showCancelPending;
+    private ActivationIconPhase _deactivationPhase;
+    public ActivationIconPhase DeactivationPhase { get => _deactivationPhase; set => SetProperty(ref _deactivationPhase, value); }
     private bool _inFlight;
     private bool _selectMode;
     private bool _selected;
@@ -200,7 +202,9 @@ public sealed class RoleRow : PanelItem
 
     public Visibility ProvisioningVisibility => Status == RowStatus.Provisioning && !InFlight ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility InFlightVisibility => InFlight ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StatusDotVisibility => DeactivationPhase == ActivationIconPhase.Hidden ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility InFlightVisibility => InFlight && DeactivationPhase == ActivationIconPhase.Hidden ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility SelectVisibility => SelectMode ? Visibility.Visible : Visibility.Collapsed;
 
@@ -248,6 +252,7 @@ public sealed class RoleRow : PanelItem
         DeactivateTooltip = other.DeactivateTooltip;
         ShowCancel = other.ShowCancel;
         ShowCancelPending = other.ShowCancelPending;
+        DeactivationPhase = other.DeactivationPhase;
         InFlight = other.InFlight;
         SelectMode = other.SelectMode;
         Selected = other.Selected;
@@ -837,6 +842,7 @@ public static class PanelListBuilder
         ArgumentNullException.ThrowIfNull(row);
         var key = row.RoleKey;
         row.InFlight = model.InFlight.Contains(key);
+        row.DeactivationPhase = model.DeactivationPhases.GetValueOrDefault(key);
         row.Online = model.IsOnline;
         row.SelectMode = model.SelectMode && !row.IsSummary;
         row.Selected = model.Selection.Contains(key);
@@ -900,6 +906,7 @@ public static class PanelListBuilder
                 break;
         }
 
+        row.FailedText = model.DeactivationErrors.GetValueOrDefault(key) ?? row.FailedText;
         row.RaiseAll();
     }
 

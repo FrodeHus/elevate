@@ -50,6 +50,19 @@ public sealed class ActivationStatusIcon : Grid
         ActualThemeChanged += (_, _) => DrawFrame();
     }
 
+    public static readonly DependencyProperty PhaseProperty = DependencyProperty.Register(
+        nameof(Phase), typeof(ActivationIconPhase), typeof(ActivationStatusIcon),
+        new PropertyMetadata(ActivationIconPhase.Hidden, (sender, args) =>
+            ((ActivationStatusIcon)sender).SetPhase((ActivationIconPhase)args.NewValue)));
+
+    public ActivationIconPhase Phase
+    {
+        get => (ActivationIconPhase)GetValue(PhaseProperty);
+        set => SetValue(PhaseProperty, value);
+    }
+
+    public bool Downward { get; set; }
+
     public void SetPhase(ActivationIconPhase phase)
     {
         _phase = phase;
@@ -81,7 +94,7 @@ public sealed class ActivationStatusIcon : Grid
         var success = ((SolidColorBrush)resources["SystemFillColorSuccessBrush"]).Color;
         if (Data.Value is not { } motion)
         {
-            _fallback.Glyph = _phase == ActivationIconPhase.Success ? "\uE73E" : "\uE96D";
+            _fallback.Glyph = _phase == ActivationIconPhase.Success ? "\uE73E" : (Downward ? "\uE96E" : "\uE96D");
             _fallback.Foreground = new SolidColorBrush(_phase == ActivationIconPhase.Success ? success : accent);
             return;
         }
@@ -107,6 +120,7 @@ public sealed class ActivationStatusIcon : Grid
                 var fraction = position - index;
                 var point = new Point((from[i][0] + (to[i][0] - from[i][0]) * fraction - 32) / 192 * 20,
                     (from[i][1] + (to[i][1] - from[i][1]) * fraction - 9 * pulse - 32) / 192 * 20);
+                point.Y = ActivationIconPlayback.VerticalPosition(point.Y, sample.MorphTime, Downward);
                 if (i == 0) figure.StartPoint = point;
                 else segment.Points.Add(point);
             }

@@ -35,6 +35,7 @@ import Foundation
         let gr = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/") }!
         #expect(gr.status == .active)
         #expect(gr.assignmentId == "inst-1")
+        #expect(gr.scheduleId == "schedule-stable")
         #expect(gr.endDateTime == GraphJSON.parseDate("2026-09-04T16:00:00Z"))
         let ua = active.first { $0.roleKey.scope == .entraDirectory(roleDefinitionId: "fe930be7-5e62-47db-91af-98c3a49a38b1", directoryScopeId: "/") }!
         #expect(ua.status == .pendingApproval)
@@ -98,6 +99,7 @@ import Foundation
         let a = try await p.activate(request, identity: identity)
         #expect(a.status == .active)
         #expect(a.assignmentId == "req-1")
+        #expect(a.scheduleId == "schedule-stable")
         #expect(a.startDateTime == GraphJSON.parseDate("2026-09-04T09:00:00Z"))
         #expect(a.endDateTime == GraphJSON.parseDate("2026-09-04T11:00:00Z"))
 
@@ -209,11 +211,12 @@ import Foundation
         let (p, http, _) = makeProvider()
         await http.on("GET", "/me?", body: Fixtures.data("me"))
         await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Fixtures.data("entra-activate-response"))
-        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active, scheduleId: "owned-schedule")
         try await p.deactivate(a, identity: identity)
         let post = await http.requests(matching: "roleAssignmentScheduleRequests").first!
         let body = try JSONSerialization.jsonObject(with: post.body!) as! [String: Any]
         #expect(body["action"] as? String == "selfDeactivate")
+        #expect(body["targetScheduleId"] as? String == "owned-schedule")
         #expect(body["scheduleInfo"] == nil)
     }
 
@@ -235,6 +238,27 @@ import Foundation
             try await p.cancelPendingRequest(a, identity: identity)
         }
     }
+    @Test(arguments: ["PendingApproval", "PendingProvisioning", "Failed", "Denied", "Revoked", "Unknown"])
+    func deactivateRejectsUnconfirmedOutcome(outcome: String) async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "/me?", body: Fixtures.data("me"))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 201, body: Data(String(decoding: Fixtures.data("entra-activate-response"), as: UTF8.self).replacingOccurrences(of: "Provisioned", with: outcome).utf8))
+        let a = ActiveAssignment(roleKey: globalReader.key, assignmentId: "inst-1", startDateTime: .now, endDateTime: nil, status: .active)
+        await #expect(throws: PIMError.self) { try await p.deactivate(a, identity: identity) }
+    }
+
+    @Test func refreshedInstanceRetainsOriginatingActivationRequest() async throws {
+        let (p, http, _) = makeProvider()
+        await http.on("GET", "roleAssignmentScheduleInstances", body: Fixtures.data("entra-active"))
+        let activation = try JSONSerialization.jsonObject(with: Fixtures.data("entra-activate-response")) as! [String: Any]
+        var removal = activation
+        removal["action"] = "selfDeactivate"
+        removal["id"] = "removal-request"
+        await http.on("GET", "roleAssignmentScheduleRequests", body: try JSONSerialization.data(withJSONObject: ["value": [removal, activation]]))
+        let active = try await p.activeAssignments(identity: identity, tenant: tenant)
+        #expect(active.first { $0.assignmentId == "inst-1" }?.activationRequestId == "req-1")
+    }
+
 }
 
 @Suite struct FirstPartyForbiddenTests {

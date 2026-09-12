@@ -568,8 +568,18 @@ public sealed partial class PanelView : UserControl
     {
         if (Row(sender) is { } row && _model is not null)
         {
-            _ = _model.DeactivateAsync(row.RoleKey);
+            if (_model.Active.GetValueOrDefault(row.RoleKey) is { Status.Kind: Elevate.Core.Models.AssignmentStatusKind.Active } assignment)
+                _ = DeactivateRowAsync(assignment);
+            else
+                _ = _model.DeactivateAsync(row.RoleKey);
         }
+    }
+
+    private async Task DeactivateRowAsync(Elevate.Core.Models.ActiveAssignment assignment)
+    {
+        if (_model is null) return;
+        var error = await _model.DeactivateAssignmentAsync(assignment);
+        if (error is not null) _model.Notice = error;
     }
 
     private void OnCancelPendingClick(object sender, RoutedEventArgs e)

@@ -80,6 +80,7 @@ public static class Json
         foreach (var property in info.Properties)
         {
             property.IsSetNullable = true;
+            if (property.Name == "profileRuns") property.ShouldSerialize = (_, value) => value is List<ProfileRun> { Count: > 0 };
         }
     }
 

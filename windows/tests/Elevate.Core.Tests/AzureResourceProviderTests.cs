@@ -119,6 +119,7 @@ public class AzureResourceProviderTests
         var contributor = active.Single(a => a.RoleKey.Scope == new AzureResourceScope("/subscriptions/sub-1", ContributorId));
         contributor.Status.Should().Be(AssignmentStatus.Active);
         contributor.AssignmentId.Should().Be("inst-1");
+        contributor.ScheduleId.Should().Be("schedule-stable");
         contributor.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T12:00:00Z"));
 
         var reader = active.Single(a =>
@@ -238,6 +239,7 @@ public class AzureResourceProviderTests
 
         assignment.Status.Should().Be(AssignmentStatus.Active);
         assignment.AssignmentId.Should().Be("fea7a502-9a96-4806-a26f-eee560e52045");
+        assignment.ScheduleId.Should().Be("schedule-stable");
         assignment.EndDateTime.Should().Be(Fixtures.Date("2026-09-04T11:00:00Z"));
 
         var put = http.RequestsMatching("roleAssignmentScheduleRequests").First(r => r.Method == "PUT");
@@ -374,7 +376,7 @@ public class AzureResourceProviderTests
         StubEligibilityPages(http);
         http.On("PUT", "roleAssignmentScheduleRequests", 201, body: Fixtures.Data("arm-activate-response"));
         var assignment = new ActiveAssignment(
-            Contributor.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+            Contributor.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active, "owned-schedule");
 
         await provider.DeactivateAsync(assignment, TestIdentity);
 
@@ -382,6 +384,7 @@ public class AzureResourceProviderTests
         props["requestType"]!.GetValue<string>().Should().Be("SelfDeactivate");
         props["linkedRoleEligibilityScheduleId"]!.GetValue<string>().Should().Be("b1477448-2cc6-4ceb-93b4-54a202a89413");
         props.ContainsKey("scheduleInfo").Should().BeFalse();
+        props["targetRoleAssignmentScheduleId"]!.GetValue<string>().Should().Be("owned-schedule");
     }
 
     [Fact]
@@ -422,4 +425,36 @@ public class AzureResourceProviderTests
             "https://management.azure.com/subscriptions/sub-1/resourceGroups/rg%20ops%20(prod)/providers/Microsoft.Authorization/x"
             + "?api-version=2020-10-01");
     }
+    [Theory]
+    [InlineData("PendingApproval")]
+    [InlineData("PendingProvisioning")]
+    [InlineData("Failed")]
+    [InlineData("Denied")]
+    [InlineData("Revoked")]
+    [InlineData("Unknown")]
+    public async Task Deactivate_RejectsUnconfirmedOutcome(string outcome)
+    {
+        var (provider, http, _) = MakeProvider();
+        StubEligibilityPages(http);
+        http.On("PUT", "roleAssignmentScheduleRequests", 201, body: Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(Fixtures.Data("arm-activate-response")).Replace("Provisioned", outcome, StringComparison.Ordinal)));
+        var assignment = new ActiveAssignment(
+            Contributor.Key, "inst-1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+
+        var action = () => provider.DeactivateAsync(assignment, TestIdentity);
+        await action.Should().ThrowAsync<PimException>();
+    }
+    [Fact]
+    public async Task RefreshedInstance_RetainsOriginatingActivationRequest()
+    {
+        var (provider, http, _) = MakeProvider();
+        http.On("GET", "roleAssignmentScheduleInstances", body: Fixtures.Data("arm-active"));
+        var activation = JsonNode.Parse(Fixtures.Data("arm-activate-response"))!.AsObject();
+        var removal = activation.DeepClone().AsObject();
+        removal["properties"]!["requestType"] = "SelfDeactivate";
+        removal["name"] = "removal-request";
+        http.On("GET", "roleAssignmentScheduleRequests", body: Encoding.UTF8.GetBytes(new JsonObject { ["value"] = new JsonArray(removal, activation) }.ToJsonString()));
+        var active = await provider.ActiveAssignmentsAsync(TestIdentity, Tenant);
+        active.Single(a => a.AssignmentId == "inst-1").ActivationRequestId.Should().Be("fea7a502-9a96-4806-a26f-eee560e52045");
+    }
+
 }
