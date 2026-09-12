@@ -99,6 +99,9 @@ struct RunProfileView: View {
                     get: { included },
                     set: { on in if on { excluded.remove(it.roleKey) } else { excluded.insert(it.roleKey) } }))
                     .toggleStyle(.checkbox).labelsHidden().disabled(running || finished)
+            } else {
+                // Skipped rows have nothing to choose; reserve the checkbox width so names line up.
+                Toggle("", isOn: .constant(false)).toggleStyle(.checkbox).labelsHidden().hidden()
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(it.role?.displayName ?? model.summaryName(for: it.roleKey))
