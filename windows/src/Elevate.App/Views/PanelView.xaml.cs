@@ -721,8 +721,8 @@ public sealed partial class PanelView : UserControl
         var open = new MenuFlyoutSubItem { Text = "Open…" };
         foreach (var portal in AdminPortal.All)
         {
-            var url = portal.Uri(tenant.TenantId);
-            open.Items.Add(Item(portal.Title, () => _ = Windows.System.Launcher.LaunchUriAsync(url)));
+            var portalUri = portal.Uri(tenant.TenantId);
+            open.Items.Add(Item(portal.Title, () => _ = Windows.System.Launcher.LaunchUriAsync(portalUri)));
         }
 
         menu.Items.Add(open);
