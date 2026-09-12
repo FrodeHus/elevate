@@ -4,6 +4,7 @@ using Elevate.Core.Coordination;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
@@ -21,6 +22,13 @@ public sealed partial class RunProfileWindow : Window
         public required ProfilePlanItem Item { get; set; }
 
         public DurationPicker? Duration { get; init; }
+
+        /// <summary>Present on activatable rows only; unchecking omits the role from this run alone.</summary>
+        public CheckBox? Include { get; init; }
+
+        public StackPanel? Name { get; set; }
+
+        public bool Included => Include?.IsChecked != false;
 
         public TextBlock? Status { get; init; }
 
@@ -53,7 +61,7 @@ public sealed partial class RunProfileWindow : Window
 
     private ActivationProfile? Profile => _model.Profile(_profileId);
 
-    private IEnumerable<Row> ToActivate => _rows.Where(r => r.Item.Disposition == ProfilePlanDisposition.Activate);
+    private IEnumerable<Row> ToActivate => _rows.Where(r => r.Item.Disposition == ProfilePlanDisposition.Activate && r.Included);
 
     private bool NeedsTicket => ToActivate.Any(r => r.Item.Role?.Policy.RequiresTicket == true);
 
@@ -96,13 +104,23 @@ public sealed partial class RunProfileWindow : Window
         foreach (var item in items)
         {
             var activate = item.Disposition == ProfilePlanDisposition.Activate;
-            _rows.Add(new Row
+            var name = item.Role?.DisplayName ?? _model.SummaryName(item.RoleKey);
+            var row = new Row
             {
                 Item = item,
                 Duration = activate ? new DurationPicker { Maximum = item.Role?.Policy.MaximumDuration ?? RolePolicy.ManualDefault.MaximumDuration, Duration = item.Duration } : null,
+                Include = activate ? new CheckBox { IsChecked = true, MinWidth = 0, Padding = new Thickness(0), Margin = new Thickness(0, 0, -4, 0), VerticalAlignment = VerticalAlignment.Center } : null,
                 Status = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
                 Ring = activate ? new ActivationStatusIcon() : null,
-            });
+            };
+            if (row.Include is { } include)
+            {
+                AutomationProperties.SetName(include, $"Include {name}");
+                include.Checked += (_, _) => OnIncludeChanged(row);
+                include.Unchecked += (_, _) => OnIncludeChanged(row);
+            }
+
+            _rows.Add(row);
         }
 
         Heading.Text = $"Run \"{Profile?.Name ?? "profile"}\"";
@@ -136,11 +154,26 @@ public sealed partial class RunProfileWindow : Window
                 }
 
                 first = false;
-                grid.Children.Add(TenantGroupBox.NameCell(
+                row.Name = TenantGroupBox.NameCell(
                     row.Item.Role?.DisplayName ?? _model.SummaryName(row.Item.RoleKey),
                     row.Item.Role?.Detail,
                     row.Item.RoleKey,
-                    opacity: row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6));
+                    opacity: row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6);
+                if (row.Include is { } include)
+                {
+                    // Checkbox at the leading edge, the name trimming inside the remaining width.
+                    var lead = new Grid { ColumnSpacing = 8 };
+                    lead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    lead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    lead.Children.Add(include);
+                    Grid.SetColumn(row.Name, 1);
+                    lead.Children.Add(row.Name);
+                    grid.Children.Add(lead);
+                }
+                else
+                {
+                    grid.Children.Add(row.Name);
+                }
                 if (row.Duration is { } picker)
                 {
                     picker.VerticalAlignment = VerticalAlignment.Center;
@@ -169,6 +202,19 @@ public sealed partial class RunProfileWindow : Window
         ToolTipService.SetToolTip(status, null);
         var progress = _model.Progress.GetValueOrDefault(row.Item.RoleKey) ?? row.Result;
         row.Result = progress;
+        if (row.Include is { } include)
+        {
+            include.IsEnabled = !_running && !_finished;
+            if (row.Name is { } name) name.Opacity = row.Included ? 1 : 0.6;
+            if (row.Duration is { } duration) duration.IsEnabled = row.Included && !_finished;
+            if (!row.Included)
+            {
+                row.Ring?.SetPhase(ActivationIconPhase.Hidden);
+                status.Text = _finished ? "unchecked · skipped" : "unchecked";
+                return;
+            }
+        }
+
         row.Ring?.SetPhase(row.Item.Disposition != ProfilePlanDisposition.Activate ? ActivationIconPhase.Hidden : progress switch
         {
             ActivationResult.Activated => ActivationIconPhase.Success,
@@ -275,6 +321,14 @@ public sealed partial class RunProfileWindow : Window
 
     private void OnInputChanged(object sender, TextChangedEventArgs e) => UpdateSubmit();
 
+    private void OnIncludeChanged(Row row)
+    {
+        UpdateStatus(row);
+        TicketRow.Visibility = NeedsTicket ? Visibility.Visible : Visibility.Collapsed;
+        SubmitButton.Content = $"Activate {ToActivate.Count()}";
+        UpdateSubmit();
+    }
+
     private void OnScheduleToggled(object sender, RoutedEventArgs e)
     {
         var on = ScheduleToggle.IsOn;
@@ -314,7 +368,8 @@ public sealed partial class RunProfileWindow : Window
         DateTimeOffset? start = ScheduleToggle.IsOn ? (StartAt > DateTimeOffset.Now.AddMinutes(2) ? StartAt : DateTimeOffset.Now.AddMinutes(2)) : null;
         try
         {
-            var outcomes = await _model.RunProfileAsync(_profileId, [.. _rows.Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
+            // Unchecked roles never reach the model: no request, no run entry, no remembered duration.
+            var outcomes = await _model.RunProfileAsync(_profileId, [.. _rows.Where(r => r.Included).Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
             foreach (var outcome in outcomes)
             {
                 if (_rows.FirstOrDefault(r => r.Item.RoleKey == outcome.RoleKey) is { } row) row.Result = outcome.Result;

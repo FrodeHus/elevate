@@ -14,9 +14,11 @@ struct RunProfileView: View {
     @State private var finished = false
     @State private var scheduleStart = false
     @State private var startAt = Date.now.addingTimeInterval(3600)
+    /// Roles the user unchecked for this run only; nothing is remembered onto the profile.
+    @State private var excluded: Set<RoleKey> = []
 
     private var profile: ActivationProfile? { model.profiles.first { $0.id == profileId } }
-    private var toActivate: [ProfilePlanItem] { items.filter { $0.disposition == .activate } }
+    private var toActivate: [ProfilePlanItem] { items.filter { $0.disposition == .activate && !excluded.contains($0.roleKey) } }
     private var needsTicket: Bool { toActivate.contains { $0.role?.policy.requiresTicket == true } }
     private var justificationRequired: Bool { toActivate.contains { $0.role?.policy.requiresJustification == true } }
     private var canSubmit: Bool {
@@ -51,7 +53,7 @@ struct RunProfileView: View {
                 }
             }
             HStack(alignment: .firstTextBaseline) {
-                Text("Entries already active are skipped. Approval-required entries are requested and shown as pending.")
+                Text("Entries already active or unchecked are skipped. Approval-required entries are requested and shown as pending.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 if finished {
@@ -90,16 +92,28 @@ struct RunProfileView: View {
 
     @ViewBuilder private func row(_ item: Binding<ProfilePlanItem>) -> some View {
         let it = item.wrappedValue
+        let included = !excluded.contains(it.roleKey)
         HStack(spacing: 8) {
+            if it.disposition == .activate {
+                Toggle("Include \(it.role?.displayName ?? model.summaryName(for: it.roleKey))", isOn: Binding(
+                    get: { included },
+                    set: { on in if on { excluded.remove(it.roleKey) } else { excluded.insert(it.roleKey) } }))
+                    .toggleStyle(.checkbox).labelsHidden().disabled(running || finished)
+            } else {
+                // Skipped rows have nothing to choose; reserve the checkbox width so names line up.
+                Toggle("", isOn: .constant(false)).toggleStyle(.checkbox).labelsHidden().hidden()
+            }
             VStack(alignment: .leading, spacing: 1) {
                 Text(it.role?.displayName ?? model.summaryName(for: it.roleKey))
                 if let detail = it.role?.detail {
                     Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(it.roleKey) ?? detail)
                 }
             }
-            .opacity(it.disposition == .activate ? 1 : 0.6)
+            .opacity(it.disposition == .activate && included ? 1 : 0.6)
             Spacer()
             switch it.disposition {
+            case .activate where !included:
+                Text(finished ? "unchecked · skipped" : "unchecked").font(.caption).foregroundStyle(.secondary)
             case .activate:
                 // Fixed columns: the picker without its label, then the status. Both keep their width
                 // even when empty so the rows line up.
@@ -143,7 +157,8 @@ struct RunProfileView: View {
         items = model.plan(for: profileId)
         if finished || justification.isEmpty { justification = profile?.lastJustification ?? "" }
         finished = false
-        // The sheet is reused: a stale toggle or a start time from the last run must not carry over.
+        // The sheet is reused: a stale toggle, a start time or unchecked roles from the last run must not carry over.
+        excluded.removeAll()
         scheduleStart = false
         startAt = Date.now.addingTimeInterval(3600)
         model.clearProgress(items.map(\.roleKey))
@@ -155,11 +170,13 @@ struct RunProfileView: View {
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil
         // Two minutes of headroom: a start the service sees as "now" would activate immediately.
         let start: Date? = scheduleStart ? max(startAt, Date.now.addingTimeInterval(120)) : nil
-        let outcomes = await model.runProfile(id: profileId, items: items, justification: justification, ticket: ticket,
+        // Unchecked roles never reach the model: no request, no run entry, no remembered duration.
+        let chosen = items.filter { !excluded.contains($0.roleKey) }
+        let outcomes = await model.runProfile(id: profileId, items: chosen, justification: justification, ticket: ticket,
                                startDateTime: start)
         for outcome in outcomes { rowResults[outcome.roleKey] = outcome.result }
         // A role may have become active after the sheet was opened. The execution recheck skips it.
-        for index in items.indices where items[index].disposition == .activate {
+        for index in items.indices where items[index].disposition == .activate && !excluded.contains(items[index].roleKey) {
             let item = items[index]
             if !outcomes.contains(where: { $0.roleKey == item.roleKey }), let current = model.active[item.roleKey] {
                 items[index] = ProfilePlanItem(roleKey: item.roleKey, role: item.role, duration: item.duration,
