@@ -107,7 +107,9 @@ src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --
 ```
 
 `--show` takes `settings`, `add-account`, `configure`, `activation`, `bulk`, `add-tenant`, `discover`,
-`save-profile`, `manage-profiles`, `run-profile` or `decision`. To exercise the flyout without
+`save-profile`, `manage-profiles`, `run-profile` or `decision`. `--test-toast <seconds>` schedules one
+Extend toast with Windows that far out; quit the app before it fires to see it delivered anyway.
+To exercise the flyout without
 signing in, seed `%LOCALAPPDATA%\Elevate\state.json` with an own-app identity, tenants in
 `manualRoles` mode, manual roles and profiles (the golden fixture
 `tests/Elevate.Core.Tests/Fixtures/state-macos.json` shows the shape; durations are the

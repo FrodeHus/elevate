@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: expiry notifications are now scheduled with Windows instead of being timed inside the app,
+  so the "expires in 5 minutes" and "expired" toasts still appear after Elevate is quit or crashes, as
+  they do on macOS. **Extend** and **Activate again** launch Elevate when it is not running. The
+  in-app timer remains as a fallback when the system schedule is unavailable.
+
 ## [1.6.4] - 2026-09-12
 
 ### Added
