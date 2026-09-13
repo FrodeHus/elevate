@@ -85,6 +85,39 @@ public class ScannerTests
     }
 
     [Fact]
+    public async Task Scan_WhenOrganizationLookupFails_FallsBackToHomeTenantId()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/organization", """{"error":{"code":"Boom","message":"organization lookup failed"}}""", 500);
+
+        var scanner = new Scanner(
+            TestIdentity.Graph(stub),
+            TestIdentity.Arm(stub),
+            TestIdentity.Alex,
+            "organizations",
+            new AuditOptions(),
+            "1.2.3",
+            _ => { },
+            new FakeTimeProvider(DateTimeOffset.Parse("2026-09-13T12:00:00Z")));
+
+        var snapshot = await scanner.ScanAsync(CancellationToken.None);
+
+        snapshot.Tenant.Id.Should().Be(TestIdentity.Alex.HomeTenantId);
+    }
+
+    [Fact]
+    public async Task Scan_WhenAzureReturnsUnparseableBody_SkipsTheSourceAndContinues()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/subscriptions?api-version", "<html>oops</html>");
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        snapshot.Skipped.Should().ContainSingle(s => s.Source == "azure");
+        snapshot.EntraAssignments.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Scan_WhenDirectoryRolesAreForbidden_Throws()
     {
         var stub = Tenant();

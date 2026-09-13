@@ -106,6 +106,8 @@ public sealed class Scanner(
             skipped);
     }
 
+    private string FallbackTenantId() => Guid.TryParse(tenantId, out _) ? tenantId : identity.HomeTenantId;
+
     private async Task<TenantInfo> ReadTenantAsync(CancellationToken ct)
     {
         try
@@ -113,11 +115,11 @@ public sealed class Scanner(
             var response = await graph.GetAsync(identity, tenantId, GraphUrls.Organization, ClientIds.GraphReadScopes, ct).ConfigureAwait(false);
             var page = JsonSerializer.Deserialize<GraphTransport.Page<WireOrganization>>(response.Body, GraphJson.Options);
             var org = page?.Value.FirstOrDefault();
-            return new TenantInfo(org?.Id ?? (Guid.TryParse(tenantId, out _) ? tenantId : identity.HomeTenantId), org?.DisplayName);
+            return new TenantInfo(org?.Id ?? FallbackTenantId(), org?.DisplayName);
         }
-        catch (PimException)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            return new TenantInfo(tenantId, null);
+            return new TenantInfo(FallbackTenantId(), null);
         }
     }
 
@@ -128,11 +130,11 @@ public sealed class Scanner(
             note("Reading Azure role assignments…");
             return await new AzureCollector(transport, identity, tenantId).CollectAsync(ct).ConfigureAwait(false);
         }
-        catch (PimException e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             lock (skipped)
             {
-                skipped.Add(new SkippedSource("azure", e.UserMessage));
+                skipped.Add(new SkippedSource("azure", e is PimException pe ? pe.UserMessage : e.Message));
             }
 
             return null;
