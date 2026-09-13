@@ -62,6 +62,20 @@ public class TerminalRendererTests
     }
 
     [Fact]
+    public void SummaryOnly_StaysOneLine_EvenWithHiddenFindings()
+    {
+        var (console, writer) = PlainConsole();
+        var snapshot = SampleSnapshot.Build();
+        var options = new AuditOptions(MinSeverity: Severity.Medium);
+        var findings = RuleRunner.Run(snapshot, options);
+        var report = AuditReport.From(snapshot, findings, RuleRunner.Visible(findings, options), options, "sample", ClientIds.GraphReadScopeNames);
+
+        TerminalRenderer.Render(report, console, summaryOnly: true);
+
+        Plain(writer.ToString()).Trim().Split('\n').Should().ContainSingle();
+    }
+
+    [Fact]
     public void Render_SplitsPanelsBySeverityWithinSameRuleCode()
     {
         var (console, writer) = PlainConsole();

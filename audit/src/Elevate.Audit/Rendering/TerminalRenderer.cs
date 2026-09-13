@@ -21,8 +21,8 @@ public static class TerminalRenderer
         ArgumentNullException.ThrowIfNull(console);
         if (summaryOnly)
         {
+            // --quiet must stay exactly one line; the hidden count still shows up in JSON/HTML.
             console.WriteLine(SummaryLine(report));
-            WriteHiddenNote(report, console);
             return;
         }
 
