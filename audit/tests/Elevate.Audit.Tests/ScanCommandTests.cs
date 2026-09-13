@@ -59,6 +59,24 @@ public class ScanCommandTests
     }
 
     [Fact]
+    public async Task MinSeverity_FiltersFindingsOnly_TheSummaryStaysComplete()
+    {
+        var (code, stdout, _) = await RunAsync("--from-snapshot", SnapshotPath(), "--json", "-", "--no-fail", "--min-severity", "medium");
+
+        code.Should().Be(0);
+        using var doc = JsonDocument.Parse(stdout);
+        var summary = doc.RootElement.GetProperty("summary");
+        summary.GetProperty("high").GetInt32().Should().Be(13);
+        summary.GetProperty("medium").GetInt32().Should().Be(5);
+        summary.GetProperty("low").GetInt32().Should().Be(5);
+        summary.GetProperty("info").GetInt32().Should().Be(2);
+        doc.RootElement.GetProperty("hidden").GetInt32().Should().Be(7, "the 5 low and 2 info findings are hidden by --min-severity medium");
+        var findings = doc.RootElement.GetProperty("findings").EnumerateArray().ToList();
+        findings.Should().HaveCount(18);
+        findings.Select(f => f.GetProperty("severity").GetString()).Should().NotContain("low").And.NotContain("info");
+    }
+
+    [Fact]
     public async Task HtmlAndJsonFiles_AreWritten_AndTerminalStillPrints()
     {
         var dir = Directory.CreateTempSubdirectory("elevate-audit").FullName;

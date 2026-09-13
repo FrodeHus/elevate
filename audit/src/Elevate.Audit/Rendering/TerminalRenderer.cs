@@ -22,6 +22,7 @@ public static class TerminalRenderer
         if (summaryOnly)
         {
             console.WriteLine(SummaryLine(report));
+            WriteHiddenNote(report, console);
             return;
         }
 
@@ -82,6 +83,15 @@ public static class TerminalRenderer
         }
 
         console.WriteLine(SummaryLine(report));
+        WriteHiddenNote(report, console);
+    }
+
+    private static void WriteHiddenNote(AuditReport report, IAnsiConsole console)
+    {
+        if (report.Hidden > 0)
+        {
+            console.WriteLine($"({report.Hidden} findings below --min-severity {report.Options.MinSeverity} hidden)");
+        }
     }
 
     private static string Colour(Severity severity) => severity switch

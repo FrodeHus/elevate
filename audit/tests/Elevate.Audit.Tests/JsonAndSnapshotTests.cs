@@ -16,7 +16,7 @@ public class JsonAndSnapshotTests
         var snapshot = SampleSnapshot.Build();
         var options = new AuditOptions();
         var findings = RuleRunner.Run(snapshot, options);
-        var report = AuditReport.From(snapshot, findings, options, "sample", Elevate.Audit.Auth.ClientIds.GraphReadScopeNames);
+        var report = AuditReport.From(snapshot, findings, findings, options, "sample", Elevate.Audit.Auth.ClientIds.GraphReadScopeNames);
 
         var json = JsonRenderer.Render(report);
 
@@ -40,7 +40,7 @@ public class JsonAndSnapshotTests
         var snapshot = SampleSnapshot.Build();
 
         SnapshotFile.Save(snapshot, snapshotPath);
-        File.WriteAllText(reportPath, JsonRenderer.Render(AuditReport.From(snapshot, [], new AuditOptions(), "x", [])));
+        File.WriteAllText(reportPath, JsonRenderer.Render(AuditReport.From(snapshot, [], [], new AuditOptions(), "x", [])));
 
         SnapshotFile.Load(snapshotPath).Should().BeEquivalentTo(snapshot, o => o.Excluding(ctx => ctx.Path.EndsWith("IsPermanent", StringComparison.Ordinal)));
         var act = () => SnapshotFile.Load(reportPath);

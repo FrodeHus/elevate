@@ -22,12 +22,18 @@ public sealed record AuditReport(
     IReadOnlyList<string> ScopesRequested,
     IReadOnlyList<SkippedSource> Skipped,
     ReportSummary Summary,
+    int Hidden,
     IReadOnlyList<Finding> Findings)
 {
-    public static AuditReport From(Snapshot snapshot, IReadOnlyList<Finding> findings, AuditOptions options, string toolVersion, IReadOnlyList<string> scopesRequested)
+    /// <summary>
+    /// <paramref name="findings"/> is every finding (the summary is never filtered by <c>--min-severity</c>);
+    /// <paramref name="visible"/> is what <c>--min-severity</c> lets through and becomes <see cref="Findings"/>.
+    /// </summary>
+    public static AuditReport From(Snapshot snapshot, IReadOnlyList<Finding> findings, IReadOnlyList<Finding> visible, AuditOptions options, string toolVersion, IReadOnlyList<string> scopesRequested)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(visible);
         ArgumentNullException.ThrowIfNull(options);
         return new AuditReport(
             new ReportTool(AppInfo.Name, toolVersion),
@@ -42,6 +48,7 @@ public sealed record AuditReport(
                 findings.Count(f => f.Severity == Severity.Medium),
                 findings.Count(f => f.Severity == Severity.Low),
                 findings.Count(f => f.Severity == Severity.Info)),
-            findings);
+            findings.Count - visible.Count,
+            visible);
     }
 }

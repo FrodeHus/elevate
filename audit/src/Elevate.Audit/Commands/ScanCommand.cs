@@ -82,7 +82,8 @@ public static class ScanCommand
         }
 
         var findings = RuleRunner.Run(snapshot, options);
-        var report = AuditReport.From(snapshot, RuleRunner.Visible(findings, options), options, AppInfo.Version, scopesRequested);
+        var visible = RuleRunner.Visible(findings, options);
+        var report = AuditReport.From(snapshot, findings, visible, options, AppInfo.Version, scopesRequested);
 
         if (jsonTarget is not null)
         {
@@ -137,7 +138,7 @@ public static class ScanCommand
         terminal.Note($"Signed in as {identity.Upn}.");
         try
         {
-            return await new Scanner(graph, arm, identity, tenantId, options, AppInfo.Version, terminal.Note).ScanAsync(ct).ConfigureAwait(false);
+            return await new Scanner(graph, arm, identity, tenantId, options, AppInfo.Version, terminal.Note, verbose: verbose ? terminal.Note : null).ScanAsync(ct).ConfigureAwait(false);
         }
         catch (PimException e) when (e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {

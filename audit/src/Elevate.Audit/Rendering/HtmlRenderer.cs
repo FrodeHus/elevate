@@ -39,6 +39,11 @@ public static class HtmlRenderer
         Card(b, "low", report.Summary.Low);
         Card(b, "info", report.Summary.Info);
         b.Append("</div>\n");
+        if (report.Hidden > 0)
+        {
+            b.Append("<p class=\"muted\">").Append(E($"{report.Hidden} findings below --min-severity {report.Options.MinSeverity} hidden")).Append("</p>\n");
+        }
+
         if (report.Skipped.Count > 0)
         {
             b.Append("<div class=\"notice\"><strong>Some sources were skipped.</strong> The report under-counts standing access in those areas.<ul>\n");
