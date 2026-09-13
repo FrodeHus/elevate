@@ -744,8 +744,10 @@ public sealed partial class PanelView : UserControl
         }
 
         menu.Items.Add(open);
-        if ((tenant.DiscoveryMode == DiscoveryMode.ManualRoles || tenant.GroupsUnavailableReason is not null)
-            && model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
+        // Offered for every Entra-app-registration account, not only after discovery fell back:
+        // an administrator may need to re-consent after a scope is added, before anything fails.
+        // AdminConsentUrl is null for the first-party (Azure CLI / PowerShell) and custom methods.
+        if (model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
         {
             menu.Items.Add(Item("Open admin consent link…", () => _ = Windows.System.Launcher.LaunchUriAsync(url)));
         }

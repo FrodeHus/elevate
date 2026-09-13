@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signed out. The account row shows a **Sign in** button and its menu a **Sign in again** item
   that re-run the account's own sign-in method; refreshes skip the account until then. A read
   failure of the token caches keeps every account as it was. Matches macOS.
+- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails, as on macOS since 1.6.1.
 
 ## [1.6.4] - 2026-09-12
 
