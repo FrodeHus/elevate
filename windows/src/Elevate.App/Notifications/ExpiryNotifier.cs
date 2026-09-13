@@ -172,8 +172,8 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
     public void ScheduleTestToast(TimeSpan delay)
     {
         var key = new RoleKey("dev-identity", "dev-tenant", new EntraDirectoryScope("dev-role", "/"));
-        var toast = new PlannedToast(DateTimeOffset.UtcNow + delay, "expiry-test", "Test role expires in 5 minutes", "Developer toast", ExpiryPlan.ExtendButton, key);
-        Replace([toast], tag => tag == "expiry-test", p => p.Tag == "expiry-test");
+        var toast = new PlannedToast(DateTimeOffset.UtcNow + delay, "test-toast", "Test role expires in 5 minutes", "Developer toast", ExpiryPlan.ExtendButton, key);
+        Replace([toast], tag => tag == "test-toast", p => p.Tag == "test-toast");
     }
 
     /// <summary>
