@@ -77,7 +77,7 @@ jobs:
           exe="audit/dist/${{ matrix.rid }}/elevate-audit"; [ -f "$exe" ] || exe="$exe.exe"
           # Trimmed binary: exercise JSON both ways, the HTML renderer and the tables.
           "$exe" version
-          "$exe" --from-snapshot audit/tests/Elevate.Audit.Tests/Fixtures/snapshots/sample.json --json - --quiet | grep -q '"findings"'
+          "$exe" --from-snapshot audit/tests/Elevate.Audit.Tests/Fixtures/snapshots/sample.json --json - --quiet --no-fail | grep -q '"findings"'
           "$exe" --from-snapshot audit/tests/Elevate.Audit.Tests/Fixtures/snapshots/sample.json --html "$RUNNER_TEMP/sample.html" --no-color --no-fail | grep -q "ENTRA-USER-PERMANENT"
           grep -q "<!doctype html>" "$RUNNER_TEMP/sample.html"
           ls -la audit/dist/*.sha256

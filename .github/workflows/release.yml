@@ -992,7 +992,7 @@ jobs:
             ./scripts/update-formula.sh "$VERSION" "${{ github.repository }}" dist
             ./scripts/update-audit-formula.sh "$VERSION" "${{ github.repository }}" dist
             if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb Formula/elevate-audit.rb; then
-              echo "Cask and formula already up to date."
+              echo "Cask and formulas already up to date."
               exit 0
             fi
             git add Casks/elevate.rb Formula/elevate-cli.rb Formula/elevate-audit.rb
@@ -1000,4 +1000,4 @@ jobs:
             if git push origin HEAD:main; then exit 0; fi
             echo "Push rejected (attempt $attempt); refetching main."
           done
-          echo "::error::Could not push the cask and formula update to main"; exit 1
+          echo "::error::Could not push the cask and formulas update to main"; exit 1
