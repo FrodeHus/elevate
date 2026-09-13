@@ -705,6 +705,14 @@ public sealed partial class PanelView : UserControl
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
+            if (group.NeedsSignIn)
+            {
+                var again = Item("Sign in again", () => RetrySignIn(identityId));
+                again.IsEnabled = group.SignInEnabled;
+                menu.Items.Add(again);
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+
             menu.Items.Add(Item("Discover tenants…", () => App.Current.OpenDiscoverTenants(identityId)));
             menu.Items.Add(Item("Add tenant…", () => App.Current.OpenAddTenant(identityId)));
             if (group.TenantKey is { } soleKey && _model.Tenant(soleKey) is { } sole)
@@ -770,6 +778,24 @@ public sealed partial class PanelView : UserControl
         var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
         remove.IsEnabled = tenant.Source != TenantSource.Home;
         menu.Items.Add(remove);
+    }
+
+    /// <summary>The account row's Sign in button: re-runs the account's own sign-in method and clears the flag.</summary>
+    private void OnSignInAgainClick(object sender, RoutedEventArgs e)
+    {
+        if (Group(sender) is { IdentityId: { } identityId })
+        {
+            RetrySignIn(identityId);
+        }
+    }
+
+    private void RetrySignIn(string identityId)
+    {
+        if (_model is { } model && model.Identity(identityId) is { } identity)
+        {
+            // The model reports the outcome through Notice; nothing to await here.
+            _ = model.RetrySignInAsync(identity);
+        }
     }
 
     // Signing out and removing a tenant run at once and have no undo: each says what is forgotten

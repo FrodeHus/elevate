@@ -127,6 +127,98 @@ public sealed partial class AppModel
         }
     }
 
+    /// <summary>Whether <paramref name="identityId"/> is kept in the list without a usable saved sign-in.</summary>
+    public bool NeedsSignIn(string identityId) => SignInNeeded.Contains(identityId);
+
+    /// <summary>
+    /// Signs an account marked <see cref="SignInNeeded"/> in again with the method it was added
+    /// with, keeping its tenants and configured roles. Sets <see cref="Notice"/> and keeps the flag
+    /// when the sign-in fails or the browser comes back with a different account. Returns whether
+    /// the account is usable again.
+    /// </summary>
+    public async Task<bool> RetrySignInAsync(Identity identity, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        var method = identity.SignInMethod;
+        if (!IsMethodAllowed(method))
+        {
+            Notice = DisallowedMethodNotice;
+            LogError($"Sign in again ({method.DisplayName}): {DisallowedMethodNotice}");
+            return false;
+        }
+
+        if (!IsAvailable(method))
+        {
+            Notice = method.Kind == SignInMethodKind.OwnApp ? "Complete initial setup first" : "That sign-in method is unavailable";
+            LogError($"Sign in again ({method.DisplayName}): {Notice}");
+            return false;
+        }
+
+        if (!SignInInFlight.Add(identity.Id))
+        {
+            return false;
+        }
+
+        Touch();
+        try
+        {
+            var signedIn = await Tokens.SignInAsync(method, ct);
+            if (signedIn.Id != identity.Id)
+            {
+                // A different account came back. Its token is keyed by its own id, so discarding it
+                // cannot touch the one we were waiting for.
+                try
+                {
+                    await Tokens.SignOutAsync(signedIn, ct);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // The stray sign-in stays in the cache; harmless.
+                }
+
+                Notice = $"Signed in as {signedIn.Upn}, but {identity.Upn} was expected. Sign out {identity.Upn} if you no longer need it.";
+                LogError($"Sign in again: got {signedIn.Upn}, expected {identity.Upn}");
+                return false;
+            }
+
+            SignInNeeded.Remove(identity.Id);
+            Notice = null;
+            var keys = TenantsFor(identity.Id).Select(t => t.Key).ToList();
+            foreach (var key in keys)
+            {
+                TenantErrors.Remove(key);
+            }
+
+            var generation = ConfigGeneration;
+            await Task.WhenAll(keys.Select(async key =>
+            {
+                if (ConfigGeneration != generation)
+                {
+                    return;
+                }
+
+                await RefreshAsync(key);
+            }));
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            var message = Describe(e);
+            Notice = message;
+            LogError($"Sign in again ({method.DisplayName}): {message}");
+            return false;
+        }
+        finally
+        {
+            SignInInFlight.Remove(identity.Id);
+            Touch();
+        }
+    }
+
     public void SignOut(Identity identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
