@@ -129,20 +129,90 @@ public class AppModelAccountTests
     }
 
     [Fact]
-    public async Task BootstrapDropsIdentitiesTheCachesNoLongerKnow()
+    public async Task BootstrapKeepsAndFlagsIdentitiesTheCachesNoLongerKnow()
     {
-        var state = new AppState
-        {
-            Identities = [Sample.Identity("gone", SignInMethod.AzureCLI), Sample.Identity("kept", SignInMethod.AzureCLI)],
-            Tenants = [Sample.Tenant("gone"), Sample.Tenant("kept")],
-        };
         var tokens = new FakeTokenProvider();
         tokens.AddIdentity(Sample.Identity("kept", SignInMethod.AzureCLI));
-        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens);
+        using var test = await TestModel.BootstrappedAsync(GoneAndKept(), tokens: tokens);
+
+        // The account, its tenant and its roles stay: a lost token is not the user removing the account.
+        test.Model.Identities.Select(i => i.Id).Should().Equal("gone", "kept");
+        test.Model.TenantsFor("gone").Should().ContainSingle();
+        test.Model.NeedsSignIn("gone").Should().BeTrue();
+        test.Model.NeedsSignIn("kept").Should().BeFalse();
+        test.Model.Notice.Should().Contain("gone@example.com").And.Contain("sign in again").And.NotContain("signed out");
+    }
+
+    [Fact]
+    public async Task AFlaggedIdentityIsNotRefreshed()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity("kept", SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(GoneAndKept(), tokens: tokens);
+
+        // Without a saved sign-in every read would only prompt or fail; the tenant waits for "Sign in again".
+        await test.Model.RefreshAsync(new TenantKey("gone", GoneTenantId));
+
+        tokens.SilentCalls.Should().NotContain(GoneTenantId);
+        test.Model.TenantErrors.Should().NotContainKey(new TenantKey("gone", GoneTenantId));
+    }
+
+    [Fact]
+    public async Task SigningInAgainClearsTheFlag()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity("kept", SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(GoneAndKept(), tokens: tokens);
+        var gone = test.Model.Identity("gone")!;
+        tokens.NextSignIn = Sample.Identity("gone", SignInMethod.AzureCLI);
+
+        var ok = await test.Model.RetrySignInAsync(gone);
+
+        ok.Should().BeTrue();
+        test.Model.NeedsSignIn("gone").Should().BeFalse();
+        test.Model.Notice.Should().BeNull();
+        test.Model.Identities.Select(i => i.Id).Should().Equal("gone", "kept");
+    }
+
+    [Fact]
+    public async Task SigningInAgainAsADifferentAccountKeepsTheFlagAndDiscardsThatSignIn()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity("kept", SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(GoneAndKept(), tokens: tokens);
+        var gone = test.Model.Identity("gone")!;
+        tokens.NextSignIn = Sample.Identity("other", SignInMethod.AzureCLI);
+
+        var ok = await test.Model.RetrySignInAsync(gone);
+
+        ok.Should().BeFalse();
+        test.Model.NeedsSignIn("gone").Should().BeTrue();
+        tokens.SignOutCalls.Should().Equal("other");
+        test.Model.Identities.Select(i => i.Id).Should().Equal("gone", "kept");
+        test.Model.Notice.Should().Contain("other@example.com").And.Contain("gone@example.com");
+    }
+
+    [Fact]
+    public async Task SigningOutAFlaggedIdentityRemovesItAndTheFlag()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity("kept", SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(GoneAndKept(), tokens: tokens);
+
+        test.Model.SignOut(test.Model.Identity("gone")!);
 
         test.Model.Identities.Select(i => i.Id).Should().Equal("kept");
-        test.Model.Notice.Should().Contain("gone@example.com").And.Contain("signed out");
+        test.Model.NeedsSignIn("gone").Should().BeFalse();
     }
+
+    private const string GoneTenantId = "tenant-gone";
+
+    /// <summary>Two Azure CLI accounts; only "kept" is added to the fake token cache by the tests.</summary>
+    private static AppState GoneAndKept() => new()
+    {
+        Identities = [Sample.Identity("gone", SignInMethod.AzureCLI), Sample.Identity("kept", SignInMethod.AzureCLI)],
+        Tenants = [Sample.Tenant("gone", GoneTenantId), Sample.Tenant("kept")],
+    };
 
     [Fact]
     public async Task BootstrapKeepsOwnAppIdentitiesWhenThereIsNoOwnAppProvider()
@@ -161,6 +231,7 @@ public class AppModelAccountTests
         await test.Model.BootstrapAsync();
 
         test.Model.Identities.Select(i => i.Id).Should().Equal("kept");
+        test.Model.NeedsSignIn("kept").Should().BeFalse();
         test.Model.Notice.Should().Contain("accounts were kept");
     }
 
