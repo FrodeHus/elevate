@@ -120,7 +120,8 @@ internal sealed class DeactivationWindow : Window
                 : row.Error is null || !row.Included ? "TextFillColorSecondaryBrush" : row.Finished ? "SystemFillColorCautionBrush" : "SystemFillColorCriticalBrush"];
             ToolTipService.SetToolTip(row.Status, row.Status.Text);
         }
-        _submit.IsEnabled = _model.IsOnline && _rows.Any(r => !r.Finished && r.Included && !_model.InFlight.Contains(r.Assignment.RoleKey));
+        // Disabled while every remaining role is blocked (awaiting confirmation, unverifiable, minimum period, offline, in flight).
+        _submit.IsEnabled = _model.CanDeactivateAny(_rows.Where(r => !r.Finished && r.Included).Select(r => r.Assignment));
     }
 
     private async Task SubmitAsync()

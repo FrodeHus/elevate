@@ -27,20 +27,36 @@ public sealed partial class AppModel
         }
     }
 
-    public string? DeactivationRefusal(ActiveAssignment expected, DateTimeOffset? at = null)
+    /// <summary>
+    /// Preview verdict for one snapshot assignment against the cached state. The assignment-state
+    /// checks come from <see cref="ProfileRun.Entry.Disposition"/> so the review matches macOS and
+    /// the write path; account, in-flight and connectivity checks only apply to an otherwise ready
+    /// entry, so a terminal skip or an assignment-state block is still explained while offline.
+    /// </summary>
+    public ProfileRun.Disposition DeactivationDisposition(ActiveAssignment expected, DateTimeOffset? at = null)
     {
-        var now = at ?? DateTimeOffset.UtcNow;
-        if (!Active.TryGetValue(expected.RoleKey, out var current)) return "No matching active assignment";
-        if (!ProfileRun.Matches(expected, current)) return "Assignment changed · skipped";
-        if (current.Status.Kind != AssignmentStatusKind.Active) return "Not active · skipped";
-        if (current.EndDateTime <= now) return "Expired · skipped";
-        if (Identity(current.RoleKey.IdentityId) is null) return "Account unavailable";
-        var remaining = current.StartDateTime.AddMinutes(5) - now;
-        if (remaining > TimeSpan.Zero) return $"Available in {Math.Ceiling(remaining.TotalSeconds)} s (5-minute minimum)";
-        if (InFlight.Contains(current.RoleKey)) return "Operation in progress";
-        if (!IsOnline) return "Offline";
-        return null;
+        var entry = new ProfileRun.Entry(expected, SummaryName(expected.RoleKey), ProfileAssignmentCompleted(expected));
+        var disposition = entry.Disposition(Active.GetValueOrDefault(expected.RoleKey), at ?? DateTimeOffset.UtcNow);
+        if (disposition.Kind != ProfileRun.DispositionKind.Ready) return disposition;
+        if (Identity(expected.RoleKey.IdentityId) is null) return ProfileRun.Disposition.Blocked("Account unavailable");
+        if (InFlight.Contains(expected.RoleKey)) return ProfileRun.Disposition.Blocked("Operation in progress");
+        if (!IsOnline) return ProfileRun.Disposition.Blocked("Offline");
+        return disposition;
     }
+
+    /// <summary>The review line for an entry; null when it is ready to deactivate.</summary>
+    public string? DeactivationRefusal(ActiveAssignment expected, DateTimeOffset? at = null) => DeactivationDisposition(expected, at) switch
+    {
+        { Kind: ProfileRun.DispositionKind.Completed } => "Already handled · skipped",
+        var disposition => disposition.Reason,
+    };
+
+    /// <summary>
+    /// Whether a pass over <paramref name="remaining"/> could change anything. Skipped entries count:
+    /// a pass records them as handled. Blocked and completed ones do not, and nothing does offline.
+    /// </summary>
+    public bool CanDeactivateAny(IEnumerable<ActiveAssignment> remaining, DateTimeOffset? at = null) =>
+        IsOnline && remaining.Any(a => DeactivationDisposition(a, at).Kind is not (ProfileRun.DispositionKind.Blocked or ProfileRun.DispositionKind.Completed));
 
     /// <summary>
     /// Only confirmed provider success completes an entry; retries leave successful entries alone.

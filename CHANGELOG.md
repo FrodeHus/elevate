@@ -13,17 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the message and an Open Settings… button, in place of the role list, as the macOS panel does.
   Settings repeats the message next to Copy diagnostics. Before, the flyout stayed empty and the
   reason was only in `elevate.log`.
+
 ### Changed
 
+- Windows: the deactivation review uses the same pre-flight verdicts as macOS. A role whose
+  assignment has not been confirmed active shows "Awaiting active assignment confirmation", one
+  without a verifiable identity or original activation interval says so, a replaced or expired
+  assignment reads "Assignment replaced" or "Already inactive or expired", and the minimum period
+  line becomes "Can be deactivated in N s (minimum activation period)". The **Deactivate** button
+  is disabled while every remaining role is blocked instead of only when offline.
+- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails, as on macOS since 1.6.1.
 - Windows: an account whose saved sign-in is gone at launch (a cleared MSAL or Azure CLI cache, a
   revoked session) is kept with its tenants, configured roles and profile entries instead of being
   signed out. The account row shows a **Sign in** button and its menu a **Sign in again** item
   that re-run the account's own sign-in method; refreshes skip the account until then. A read
   failure of the token caches keeps every account as it was. Matches macOS.
-- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
-  with the Entra app registration method, not only after discovery fell back to manual roles or
-  groups became unavailable, so an administrator can re-consent after a scope is added before
-  anything fails, as on macOS since 1.6.1.
 
 ### Fixed
 
