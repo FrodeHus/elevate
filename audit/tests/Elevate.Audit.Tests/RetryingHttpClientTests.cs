@@ -95,13 +95,30 @@ public class RetryingHttpClientTests
         var stub = new StubHttpClient();
         stub.On("GET", "/users", _ => new HttpResponseData(429, new Dictionary<string, string> { ["Retry-After"] = "1" }, []));
         using var cts = new CancellationTokenSource();
-        var client = new RetryingHttpClient(stub, (_, ct) => throw new OperationCanceledException(ct));
+        var client = new RetryingHttpClient(stub, (_, ct) => { ct.ThrowIfCancellationRequested(); return Task.CompletedTask; });
         cts.Cancel();
 
         var act = () => client.SendAsync(Get("https://graph.microsoft.com/v1.0/users"), cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
-        stub.Requests.Should().HaveCount(1, "the delay is cancelled before a second attempt is made");
+        stub.Requests.Should().HaveCount(1, "the delay observes the already-cancelled token before a second attempt is made");
+    }
+
+    /// <summary>The same delay delegate as the cancellation test above, but with a token that is never cancelled, so the retry proceeds normally.</summary>
+    [Fact]
+    public async Task UncancelledToken_LetsTheDelayDelegateProceedToARetry()
+    {
+        var stub = new StubHttpClient();
+        var calls = 0;
+        stub.On("GET", "/users", _ => ++calls == 1
+            ? new HttpResponseData(429, new Dictionary<string, string> { ["Retry-After"] = "0" }, [])
+            : new HttpResponseData(200, new Dictionary<string, string>(), Encoding.UTF8.GetBytes("{}")));
+        var client = new RetryingHttpClient(stub, (_, ct) => { ct.ThrowIfCancellationRequested(); return Task.CompletedTask; });
+
+        var response = await client.SendAsync(Get("https://graph.microsoft.com/v1.0/users"), CancellationToken.None);
+
+        response.Status.Should().Be(200);
+        stub.Requests.Should().HaveCount(2);
     }
 
     [Fact]

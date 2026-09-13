@@ -24,9 +24,10 @@ public sealed record GroupData(
 /// <summary>
 /// Every role-assignable group plus every group reached from a seed, breadth-first through direct
 /// members with a visited set (so nested groups are attributed and cycles terminate), each with its
-/// PIM for Groups schedule instances. Each breadth-first level is processed in bounded-concurrency
-/// waves (see <see cref="MaxConcurrency"/>) rather than one group at a time, since a tenant with a deep
-/// or wide group hierarchy is otherwise dominated by network round trips.
+/// PIM for Groups schedule instances. Rather than draining the queue one group at a time, each pass
+/// takes up to <see cref="MaxConcurrency"/> ids off the queue — regardless of which breadth-first level
+/// they came from — and fetches them concurrently, since a tenant with a deep or wide group hierarchy is
+/// otherwise dominated by network round trips.
 /// </summary>
 /// <param name="progress">
 /// Optional progress note, invoked from the single thread that drives <see cref="CollectAsync"/> (never
@@ -117,19 +118,21 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
 
             var outcomes = await Task.WhenAll(wave.Select(id => ProcessGroupAsync(id, known, ct))).ConfigureAwait(false);
 
-            // Every outcome in this wave was fetched concurrently, so if any of them reveals the scope is
-            // missing tenant-wide we cannot tell which of the others "happened before" it: the whole
-            // wave's findings are dropped (same as the metadata path stopping before recording a group)
-            // and no further waves are dispatched.
-            var tenantWide = outcomes.FirstOrDefault(o => o.TenantWideMessage is not null);
-            if (tenantWide is not null)
-            {
-                _groupsUnavailable = tenantWide.TenantWideMessage;
-                break;
-            }
-
+            // Every outcome in this wave was fetched concurrently, so a sibling that reveals the scope is
+            // missing tenant-wide tells us nothing about whether the *other* members of the wave "happened
+            // before" or "after" it — but their own outcomes are independently trustworthy (each is one
+            // group's own successful read), so they are still merged. Only the offending member itself is
+            // dropped, and no further wave is dispatched once one is seen.
+            var sawTenantWide = false;
             foreach (var outcome in outcomes)
             {
+                if (outcome.TenantWideMessage is { } message)
+                {
+                    _groupsUnavailable ??= message;
+                    sawTenantWide = true;
+                    continue;
+                }
+
                 if (outcome.Unreadable)
                 {
                     _unreadableGroups++;
@@ -152,6 +155,11 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
                 {
                     queue.Enqueue(nested);
                 }
+            }
+
+            if (sawTenantWide)
+            {
+                break;
             }
 
             if (progress is not null)
@@ -282,7 +290,7 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             // GroupMember.Read.All is missing or restricted: every other group would refuse the same way.
             return (null, FetchStatus.TenantUnavailable, e.UserMessage);
         }
-        catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
+        catch (PimException e) when (IsPerGroupRefusal(e))
         {
             // Deleted, or a nested group the signed-in account cannot read; its parent still lists it as a member.
             return (null, FetchStatus.Unreadable, null);
@@ -304,12 +312,19 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
         {
             return (null, FetchStatus.TenantUnavailable, e.UserMessage);
         }
-        catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
+        catch (PimException e) when (IsPerGroupRefusal(e))
         {
             return (null, FetchStatus.Unreadable, null);
         }
     }
 
+    /// <summary>
+    /// <see cref="_pimUnavailable"/> is only ever assigned by the single thread merging a wave's results,
+    /// but this read can happen concurrently from more than one in-flight <see cref="ProcessGroupAsync"/>
+    /// task within the same wave. That is a benign race: it is purely an optimisation to skip a call
+    /// already known to fail, so at worst a few sibling tasks in the same wave each make one redundant
+    /// PIM request before the field is set for the next wave.
+    /// </summary>
     private async Task<(PimStatus Status, IReadOnlyList<GroupPimRecord> Assigned, IReadOnlyList<GroupPimRecord> Eligible, string? PimUnavailableMessage)> PimAsync(string id, CancellationToken ct)
     {
         if (_pimUnavailable is not null)
@@ -342,6 +357,10 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
     /// </summary>
     private static bool IsMissingScope(PimException e) =>
         e.Kind == PimErrorKind.Forbidden && e.UserMessage.Contains("is not granted", StringComparison.Ordinal);
+
+    /// <summary>One group refusing to be read: deleted, or this account cannot see it — not a tenant-wide condition.</summary>
+    private static bool IsPerGroupRefusal(PimException e) =>
+        e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired;
 
     private static GroupPimRecord Map(WireGroupPim p) => new(
         p.Id,

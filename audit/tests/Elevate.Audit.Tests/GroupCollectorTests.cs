@@ -1,6 +1,7 @@
 using Elevate.Audit.Collectors;
 using Elevate.Audit.Model;
 using Elevate.Audit.Tests.Support;
+using Elevate.Core.Networking;
 using FluentAssertions;
 
 namespace Elevate.Audit.Tests;
@@ -179,52 +180,71 @@ public class GroupCollectorTests
     }
 
     /// <summary>
-    /// g1 and g2 are both top-level seeds, so bounded concurrency (<see cref="GroupCollector"/> fetches
-    /// up to 4 groups per wave) dispatches them together: g2's own calls may still go out even though g1
-    /// reveals the tenant-wide condition. What must hold is that nothing from that wave is trusted or
-    /// recorded once any member of it hits the missing-scope 403 — g2 is stubbed to succeed on its own
-    /// merits, and is still discarded.
+    /// All 5 groups are already known from the role-assignable list route, so they enter the queue
+    /// together and the first wave (of up to 4) takes g1-g4, leaving g5 for a second wave. g1's members
+    /// call reveals the tenant-wide condition; g2-g4's own member reads succeed independently and are
+    /// still recorded (only the offending member is dropped from the wave, per
+    /// <see cref="GroupCollector"/>'s wave-merge rule) — but no second wave is ever dispatched, so g5 is
+    /// never asked for at all.
     /// </summary>
     [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy()
     {
         var stub = new StubHttpClient();
-        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
-        stub.On("GET", "/groups/g1?", """{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[]}""");
+        var ids = Enumerable.Range(1, 5).Select(i => $"g{i}").ToList();
+        stub.On("GET", "/groups?$filter=isAssignableToRole",
+            $$"""{"value":[{{string.Join(",", ids.Select(id => $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":true,"groupTypes":[]}"""))}}]}""");
         stub.On("GET", "/groups/g1/members",
             """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
-        stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
-        stub.On("GET", "/groups/g2/members", """{"value":[]}""");
-        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
-        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
+        foreach (var id in ids.Skip(1))
+        {
+            stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+            stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+            stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+        }
 
-        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync([], CancellationToken.None);
 
         data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
-        data.Groups.Should().BeEmpty("the whole wave is discarded once any group in it reveals the tenant-wide condition, even a sibling that otherwise succeeded");
+        data.Groups.Select(g => g.Id).Should().BeEquivalentTo(["g2", "g3", "g4"], "g1 is dropped as the offending member, and g5's wave is never dispatched");
         data.UnreadableGroups.Should().Be(0);
+        stub.RequestsMatching("/groups/g5").Should().BeEmpty("the walk stops before a second wave is ever dispatched");
     }
 
-    /// <summary>Same rationale as <see cref="Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy"/>, for the metadata read.</summary>
+    /// <summary>
+    /// Same rationale as <see cref="Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy"/>,
+    /// but for the metadata read: here the groups must NOT be pre-known from the list route (which would
+    /// skip the metadata call entirely), so they arrive as 5 seeds and each needs its own network fetch.
+    /// </summary>
     [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissing_StopsWalkingAndReportsWhy()
     {
         var stub = new StubHttpClient();
         stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        var ids = Enumerable.Range(1, 5).Select(i => $"g{i}").ToList();
         stub.On("GET", "/groups/g1?",
             """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
-        stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
-        stub.On("GET", "/groups/g2/members", """{"value":[]}""");
-        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
-        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
+        foreach (var id in ids.Skip(1))
+        {
+            stub.On("GET", $"/groups/{id}?", $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":false,"groupTypes":[]}""");
+            stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+            stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+            stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+        }
 
-        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(ids, CancellationToken.None);
 
         data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
-        data.Groups.Should().BeEmpty("the whole wave is discarded once any group in it reveals the tenant-wide condition, even a sibling that otherwise succeeded");
+        data.Groups.Select(g => g.Id).Should().BeEquivalentTo(["g2", "g3", "g4"], "g1 is dropped as the offending member, and g5's wave is never dispatched");
         data.UnreadableGroups.Should().Be(0, "a tenant-wide refusal is reported once, not counted per group");
+        stub.RequestsMatching("/groups/g5").Should().BeEmpty("the walk stops before a second wave is ever dispatched");
     }
 
+    /// <summary>
+    /// g1's members respond asynchronously (after a short delay), so it is guaranteed to complete after
+    /// its wave-siblings even though it was dispatched first — proving the collector doesn't depend on
+    /// completion order matching dispatch order.
+    /// </summary>
     [Fact]
     public async Task Collect_WithSixGroups_CollectsAllOfThemRegardlessOfWaveOrder()
     {
@@ -232,9 +252,18 @@ public class GroupCollectorTests
         var ids = Enumerable.Range(1, 6).Select(i => $"g{i}").ToList();
         stub.On("GET", "/groups?$filter=isAssignableToRole",
             $$"""{"value":[{{string.Join(",", ids.Select(id => $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":true,"groupTypes":[]}"""))}}]}""");
-        foreach (var id in ids)
+        stub.On("GET", "/groups/g1/members", async _ =>
+        {
+            await Task.Delay(50);
+            return new HttpResponseData(200, new Dictionary<string, string>(), System.Text.Encoding.UTF8.GetBytes("""{"value":[]}"""));
+        });
+        foreach (var id in ids.Skip(1))
         {
             stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+        }
+
+        foreach (var id in ids)
+        {
             stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
             stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
         }

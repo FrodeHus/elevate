@@ -48,19 +48,21 @@ public class TerminalTests
     }
 
     /// <summary>
-    /// Without NO_COLOR and without --no-color, Terminal asks Spectre to auto-detect the host's
-    /// capabilities; what it detects depends on the test host (a CI runner is rarely a real terminal),
-    /// so the only thing this can assert deterministically is that it did not fall back to the same
-    /// forced-off profile as the NO_COLOR path.
+    /// Without NO_COLOR and without --no-color, Terminal asks Spectre to auto-detect the host's colour
+    /// and ANSI support; what it detects depends on the test host (a CI runner is rarely a real
+    /// terminal), so this cannot assert a ColorSystem or Ansi value deterministically. What IS
+    /// deterministic regardless of host is that Terminal always builds both consoles as non-interactive
+    /// (prompts would hang a script reading `--json -` from a pipe), so that is what this pins.
     /// </summary>
     [Fact]
-    public void WithoutNoColor_DoesNotForceTheNoColoursProfile()
+    public void WithoutNoColor_ConstructsWithDetection()
     {
         WithEnvironmentVariable("NO_COLOR", null, () =>
         {
             var terminal = new Terminal(quiet: false, noColor: false);
 
-            _ = terminal.Stdout.Profile.Capabilities.Ansi; // detection ran without throwing; the value itself is host-dependent
+            terminal.Stdout.Profile.Capabilities.Should().NotBeNull();
+            terminal.Stderr.Profile.Capabilities.Interactive.Should().BeFalse();
         });
     }
 
