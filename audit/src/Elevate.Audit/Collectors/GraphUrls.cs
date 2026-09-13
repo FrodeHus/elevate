@@ -15,13 +15,13 @@ public static class GraphUrls
 
     public static Uri RoleDefinitions => Beta("/roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn");
 
-    public static Uri RoleAssignmentInstances => Graph("/roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal,roleDefinition");
+    public static Uri RoleAssignmentInstances => Graph("/roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal");
 
-    public static Uri RoleEligibilityInstances => Graph("/roleManagement/directory/roleEligibilityScheduleInstances?$expand=principal,roleDefinition");
+    public static Uri RoleEligibilityInstances => Graph("/roleManagement/directory/roleEligibilityScheduleInstances?$expand=principal");
 
-    public static Uri RoleAssignableGroups => Graph("/groups?$filter=isAssignableToRole eq true&$select=id,displayName,isAssignableToRole,groupTypes");
+    public static Uri RoleAssignableGroups => Graph("/groups?$filter=isAssignableToRole eq true&$select=id,displayName,isAssignableToRole,groupTypes,securityEnabled,mailEnabled,visibility");
 
-    public static Uri Group(string id) => Graph($"/groups/{Escape(id)}?$select=id,displayName,isAssignableToRole,groupTypes");
+    public static Uri Group(string id) => Graph($"/groups/{Escape(id)}?$select=id,displayName,isAssignableToRole,groupTypes,securityEnabled,mailEnabled,visibility");
 
     public static Uri GroupMembers(string id) => Beta($"/groups/{Escape(id)}/members?$select=id,displayName,userPrincipalName,userType,accountEnabled,servicePrincipalType&$top=999");
 

@@ -28,7 +28,7 @@ public sealed record GroupData(
 /// </summary>
 public sealed class GroupCollector(GraphTransport graph, Identity identity, string tenantId, Action<string>? verbose = null)
 {
-    internal sealed record WireGroup(string Id, string? DisplayName, bool? IsAssignableToRole, IReadOnlyList<string>? GroupTypes);
+    internal sealed record WireGroup(string Id, string? DisplayName, bool? IsAssignableToRole, IReadOnlyList<string>? GroupTypes, bool? SecurityEnabled, bool? MailEnabled, string? Visibility);
 
     internal sealed record WireGroupPim(string Id, string? PrincipalId, string? GroupId, string? AccessId, string? AssignmentType, DateTimeOffset? StartDateTime, DateTimeOffset? EndDateTime);
 
@@ -108,7 +108,10 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
                 status,
                 direct,
                 assigned,
-                eligible);
+                eligible,
+                meta.SecurityEnabled ?? true,
+                meta.MailEnabled ?? false,
+                meta.Visibility);
         }
 
         if (verbose is not null)

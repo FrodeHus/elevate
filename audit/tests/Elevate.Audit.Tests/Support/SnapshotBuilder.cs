@@ -43,9 +43,9 @@ public sealed class SnapshotBuilder
         return this;
     }
 
-    public SnapshotBuilder Group(string id, string name, bool assignable = true, bool dynamic = false, PimStatus pim = PimStatus.Unknown, params (string Id, PrincipalType Type)[] members)
+    public SnapshotBuilder Group(string id, string name, bool assignable = true, bool dynamic = false, PimStatus pim = PimStatus.Unknown, bool securityEnabled = true, bool mailEnabled = false, string? visibility = null, params (string Id, PrincipalType Type)[] members)
     {
-        _groups[id] = new GroupRecord(id, name, assignable, dynamic, pim, members.Select(m => new GroupMemberRecord(m.Id, m.Type)).ToList(), [], []);
+        _groups[id] = new GroupRecord(id, name, assignable, dynamic, pim, members.Select(m => new GroupMemberRecord(m.Id, m.Type)).ToList(), [], [], securityEnabled, mailEnabled, visibility);
         return this;
     }
 

@@ -59,7 +59,10 @@ public sealed record GroupRecord(
     PimStatus PimStatus,
     IReadOnlyList<GroupMemberRecord> DirectMembers,
     IReadOnlyList<GroupPimRecord> PimAssignments,
-    IReadOnlyList<GroupPimRecord> PimEligibilities);
+    IReadOnlyList<GroupPimRecord> PimEligibilities,
+    bool SecurityEnabled,
+    bool MailEnabled,
+    string? Visibility);
 
 public sealed record AzureScopeRecord(string Id, AzureScopeKind Kind, string DisplayName);
 

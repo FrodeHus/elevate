@@ -61,6 +61,24 @@ public class GroupCollectorTests
     }
 
     [Fact]
+    public async Task Collect_RoundTripsSecurityEnabledMailEnabledAndVisibility()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?", """{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[],"securityEnabled":false,"mailEnabled":true,"visibility":"Private"}""");
+        stub.On("GET", "/groups/g1/members", """{"value":[]}""");
+        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1"], CancellationToken.None);
+
+        var g1 = data.Groups.Should().ContainSingle().Which;
+        g1.SecurityEnabled.Should().BeFalse();
+        g1.MailEnabled.Should().BeTrue();
+        g1.Visibility.Should().Be("Private");
+    }
+
+    [Fact]
     public async Task Collect_WhenThePimScopeIsMissing_StopsAskingAndReportsWhy()
     {
         var stub = Tenant();
