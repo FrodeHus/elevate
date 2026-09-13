@@ -20,7 +20,7 @@ $ elevate-audit --html report.html
 │ Sam Chen             Global Administrator  Directory  Tier 0 Admins         │
 │ Casey Wong           Global Administrator  Directory  Tier 0 Admins ← Platform Team │
 ╰─────────────────────────────────────────────────────────────────────────────╯
-24 findings: 12 high, 5 medium, 5 low, 2 info.
+25 findings: 13 high, 5 medium, 5 low, 2 info.
 ```
 
 ## Build and test
