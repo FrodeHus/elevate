@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assignment reads "Assignment replaced" or "Already inactive or expired", and the minimum period
   line becomes "Can be deactivated in N s (minimum activation period)". The **Deactivate** button
   is disabled while every remaining role is blocked instead of only when offline.
+- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails, as on macOS since 1.6.1.
 
 ## [1.6.4] - 2026-09-12
 
