@@ -32,10 +32,16 @@ public sealed class AzurePermanentRule : IRule
                         PortalLinks.AzureScope(a.Scope), RuleContext.Evidence(a));
                 }
             }
-            else if (principal.Type == PrincipalType.User)
+            else
             {
-                yield return new Finding(Code, severity, RuleContext.ToFinding(principal), role, scope, [],
-                    $"Remove the permanent {role.DisplayName} assignment on {scope.DisplayName} and make {principal.DisplayName ?? principal.Id} eligible for it in PIM.",
+                // Unknown, ServicePrincipal, Device: still standing access, and reporting it is the
+                // whole promise of the tool. SP-PERMANENT adds its own Info finding on top for a
+                // resolved service principal.
+                var name = principal.DisplayName ?? principal.Id;
+                var remedy = principal.Type == PrincipalType.User
+                    ? $"Remove the permanent {role.DisplayName} assignment on {scope.DisplayName} and make {name} eligible for it in PIM."
+                    : $"Remove the permanent {role.DisplayName} assignment on {scope.DisplayName} or make {name} eligible for it in PIM; PIM eligibility does not apply to workload identities.";
+                yield return new Finding(Code, severity, RuleContext.ToFinding(principal), role, scope, [], remedy,
                     PortalLinks.AzureScope(a.Scope), RuleContext.Evidence(a));
             }
         }

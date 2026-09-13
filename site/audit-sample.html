@@ -78,7 +78,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 <li>Tool<strong>elevate-audit sample</strong></li>
 </ul>
 <div class="cards">
-<div class="card high"><div class="count">12</div><div class="label">high</div></div>
+<div class="card high"><div class="count">13</div><div class="label">high</div></div>
 <div class="card medium"><div class="count">5</div><div class="label">medium</div></div>
 <div class="card low"><div class="count">5</div><div class="label">low</div></div>
 <div class="card info"><div class="count">2</div><div class="label">info</div></div>
@@ -91,6 +91,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 <h2 id="start-here">Start here</h2>
 <ol class="start">
 <li><span class="who">Alex Rivera · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></span></li>
+<li><span class="who">Deploy Bot · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></span></li>
 <li><span class="who">Casey Wong · Global Administrator on Directory</span><span class="path">via Tier 0 Admins ← Platform Team</span><span class="what">Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></span></li>
 <li><span class="who">Helpdesk Leads · Privileged Role Administrator on Directory</span><span class="what">Make Helpdesk Leads&#39;s Privileged Role Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk">Open in portal</a></span></li>
 <li><span class="who">Legacy Ops · Security Administrator on Directory</span><span class="what">Make Legacy Ops&#39;s Security Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></span></li>
@@ -104,9 +105,10 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 <li><span class="who">Priya Natarajan <span class="pill">guest</span> · Security Administrator on Directory</span><span class="what">Guest Priya Natarajan holds Security Administrator permanently. Guests should hold privileged roles only as eligible, if at all. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
 </ol>
 <h2 id="findings">All findings</h2>
-<section class="rule" id="azure-permanent-high"><header><h3>AZURE-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">1 finding</span></header>
+<section class="rule" id="azure-permanent-high"><header><h3>AZURE-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">2 findings</span></header>
 <div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
 <tr><td>Alex Rivera<br /><span class="muted">alex.rivera@contoso.com</span></td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
+<tr><td>Deploy Bot</td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
 </tbody></table></div></section>
 <section class="rule" id="entra-group-permanent-high"><header><h3>ENTRA-GROUP-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">7 findings</span></header>
 <div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
@@ -167,6 +169,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 <p>This report contains personal data (names and sign-in names of people who hold roles). Handle it as you would any access review.</p>
 <details><summary>Evidence ids</summary><div class="table-scroll"><table><thead><tr><th>Rule</th><th>Principal id</th><th>Assignment id</th><th>Start</th><th>End</th><th>Type</th></tr></thead><tbody>
 <tr><td>AZURE-PERMANENT</td><td><code>u-alex</code></td><td><code>ra-alex-owner</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+<tr><td>AZURE-PERMANENT</td><td><code>sp-deploy</code></td><td><code>ra-deploy-owner</code></td><td>—</td><td>—</td><td>Classic</td></tr>
 <tr><td>ENTRA-GROUP-PERMANENT</td><td><code>u-casey</code></td><td><code>a-tier0-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
 <tr><td>ENTRA-GROUP-PERMANENT</td><td><code>g-helpdesk</code></td><td><code>a-helpdesk-pra</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
 <tr><td>ENTRA-GROUP-PERMANENT</td><td><code>g-legacy</code></td><td><code>a-legacy-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>

@@ -70,7 +70,15 @@ public sealed class EntraGroupNotPimRule : IRule
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in context.Snapshot.EntraAssignments.Where(a => !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && context.IsPrivilegedEntra(a.RoleDefinitionId)))
         {
-            if (!context.Groups.TryGetValue(a.PrincipalId, out var group) || !group.IsAssignableToRole || group.PimStatus != PimStatus.NotOnboarded || !seen.Add(group.Id))
+            if (!context.Groups.TryGetValue(a.PrincipalId, out var group) || !group.IsAssignableToRole || !seen.Add(group.Id))
+            {
+                continue;
+            }
+
+            // An empty 200 from the PIM for Groups endpoints reads as Unknown, and that is the usual
+            // reply for a group that was never onboarded: treat "no PIM records at all" the same way.
+            var ungoverned = group.PimStatus == PimStatus.Unknown && group.PimAssignments.Count + group.PimEligibilities.Count == 0;
+            if (group.PimStatus != PimStatus.NotOnboarded && !ungoverned)
             {
                 continue;
             }
@@ -82,7 +90,9 @@ public sealed class EntraGroupNotPimRule : IRule
                 context.EntraRole(a.RoleDefinitionId),
                 RuleContext.EntraScope(a),
                 [],
-                $"Onboard {group.DisplayName} to PIM for Groups so its membership can be eligible instead of permanent.",
+                group.PimStatus == PimStatus.NotOnboarded
+                    ? $"Onboard {group.DisplayName} to PIM for Groups so its membership can be eligible instead of permanent."
+                    : $"{group.DisplayName} carries a role but is not governed by PIM for Groups (no eligible or active PIM assignments found). Onboard it so membership can be eligible instead of permanent.",
                 PortalLinks.GroupPim(group.Id),
                 RuleContext.Evidence(a));
         }

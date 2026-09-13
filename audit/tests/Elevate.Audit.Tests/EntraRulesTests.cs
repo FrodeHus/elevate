@@ -86,6 +86,33 @@ public class EntraRulesTests
     }
 
     [Fact]
+    public void GroupWithNoPimAssignmentsAtAll_IsReportedAsNotGovernedByPim()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .Group("g1", "Tier 0 Admins", pim: PimStatus.Unknown)
+            .Assigned("a1", "g1", "rd-ga")
+            .Build();
+
+        var finding = Run(snapshot).Should().ContainSingle(f => f.Id == "ENTRA-GROUP-NOT-PIM").Subject;
+
+        finding.Severity.Should().Be(Severity.Medium);
+        finding.Remedy.Should().Be("Tier 0 Admins carries a role but is not governed by PIM for Groups (no eligible or active PIM assignments found). Onboard it so membership can be eligible instead of permanent.");
+    }
+
+    [Fact]
+    public void GroupWithPimAssignments_IsNotReportedAsNotPim()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .User("u1", "Sam Chen", "sam.chen@contoso.com")
+            .Group("g1", "Tier 0 Admins", pim: PimStatus.Unknown)
+            .GroupPim("g1", "gp1", "u1", eligible: true)
+            .Assigned("a1", "g1", "rd-ga")
+            .Build();
+
+        Run(snapshot).Should().NotContain(f => f.Id == "ENTRA-GROUP-NOT-PIM", "an empty status with PIM records is an onboarded group Graph reported thinly");
+    }
+
+    [Fact]
     public void DynamicGroup_RemedyMentionsIt()
     {
         var snapshot = SnapshotBuilder.Contoso()

@@ -42,7 +42,7 @@ public class ScanCommandTests
 
         code.Should().Be(2);
         using var doc = JsonDocument.Parse(stdout);
-        doc.RootElement.GetProperty("summary").GetProperty("high").GetInt32().Should().Be(12);
+        doc.RootElement.GetProperty("summary").GetProperty("high").GetInt32().Should().Be(13);
         doc.RootElement.GetProperty("tool").GetProperty("name").GetString().Should().Be("elevate-audit");
     }
 
@@ -70,7 +70,7 @@ public class ScanCommandTests
         code.Should().Be(2);
         File.ReadAllText(html).Should().StartWith("<!doctype html>");
         File.ReadAllText(json).Should().Contain("\"findings\"");
-        stdout.Should().Contain("ENTRA-USER-PERMANENT").And.Contain("12 high");
+        stdout.Should().Contain("ENTRA-USER-PERMANENT").And.Contain("13 high");
     }
 
     [Fact]

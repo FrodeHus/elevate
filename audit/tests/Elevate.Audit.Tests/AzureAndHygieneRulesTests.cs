@@ -40,6 +40,20 @@ public class AzureAndHygieneRulesTests
     }
 
     [Fact]
+    public void AzurePermanent_StillReportsAPrincipalThatCouldNotBeResolved()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .AzureAssigned("ra-ghost", "/subscriptions/sub1", Owner, "00000000-0000-0000-0000-0000000000ff", "Unknown")
+            .Build();
+
+        var finding = Run(snapshot).Should().ContainSingle(f => f.Id == "AZURE-PERMANENT").Subject;
+
+        finding.Severity.Should().Be(Severity.High);
+        finding.Principal.DisplayName.Should().StartWith("<unknown principal");
+        finding.Remedy.Should().Contain("PIM eligibility does not apply to workload identities");
+    }
+
+    [Fact]
     public void EligibilitiesWithoutEnd_AreLow_AcrossAllThreeSystems()
     {
         var snapshot = SnapshotBuilder.Contoso()

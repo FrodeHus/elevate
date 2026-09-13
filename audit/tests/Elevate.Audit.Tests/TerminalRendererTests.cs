@@ -52,7 +52,7 @@ public class TerminalRendererTests
 
         TerminalRenderer.Render(Sample(), console, summaryOnly: true);
 
-        writer.ToString().Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("12 high").And.Contain("5 medium");
+        writer.ToString().Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("13 high").And.Contain("5 medium");
     }
 
     [Fact]
