@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows: the Profiles window says "No roles resolved yet. They appear once the tenants they
+  name have loaded." for a managed profile whose tenants have not loaded, as on macOS, instead of
+  the "Add roles…" hint for a control that is not there.
+- Windows: in the run review, rows that are already active, pending or not eligible reserve the
+  checkbox width, so their names line up with the rows that have one.
+
 ## [1.6.4] - 2026-09-12
 
 ### Added
