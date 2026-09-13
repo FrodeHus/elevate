@@ -196,3 +196,17 @@ works end to end.
 - **"PIM for Groups is not permitted" / the Groups tab is empty**: the three
   `*.AzureADGroup` scopes have not been consented in that tenant. Re-run consent after confirming
   they are listed under API permissions.
+
+## 7. Optional: read scopes for elevate-audit
+
+[elevate-audit](audit.md) does not use this registration; by default it signs in with
+Microsoft's own Graph PowerShell client. If your tenant blocks that client, you can point
+`elevate-audit --client-id` at this registration instead. Add these delegated Microsoft Graph
+permissions and grant admin consent; Elevate itself never asks for them:
+
+`User.Read` (already present), `RoleManagement.Read.Directory`,
+`PrivilegedAssignmentSchedule.Read.AzureADGroup`, `PrivilegedEligibilitySchedule.Read.AzureADGroup`,
+`GroupMember.Read.All`, `User.ReadBasic.All`.
+
+With a custom client the auditor requests `https://graph.microsoft.com/.default`, so it can do
+only what was consented.
