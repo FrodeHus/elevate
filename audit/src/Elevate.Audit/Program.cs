@@ -30,12 +30,15 @@ public static class Program
         {
             return ExitCodes.Interrupted;
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e)
         {
-            Console.Error.WriteLine($"Unexpected error: {e.Message}");
+            Console.Error.WriteLine(FormatUnexpectedError(e));
             return ExitCodes.Failure;
         }
     }
+
+    /// <summary>Keeps the catch-all's report to one line even when the exception's own message spans several.</summary>
+    internal static string FormatUnexpectedError(Exception e) => $"Unexpected error: {e.Message.ReplaceLineEndings(" ")}";
 
     private static void TryUseUtf8()
     {

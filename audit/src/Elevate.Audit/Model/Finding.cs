@@ -13,7 +13,16 @@ public static class Severities
         _ => 3,
     };
 
-    public static bool TryParse(string? text, out Severity severity) => Enum.TryParse(text, ignoreCase: true, out severity) && Enum.IsDefined(severity);
+    /// <summary>
+    /// Parses a severity name (case-insensitively); rejects everything else, including a numeric string
+    /// like "0" that <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/> would otherwise accept
+    /// as the underlying ordinal.
+    /// </summary>
+    public static bool TryParse(string? text, out Severity severity)
+    {
+        severity = default;
+        return text is not null && !int.TryParse(text, out _) && Enum.TryParse(text, ignoreCase: true, out severity) && Enum.IsDefined(severity);
+    }
 
     public static Severity Parse(string text) => TryParse(text, out var s) ? s : throw new ArgumentException($"Unknown severity '{text}'. Use high, medium, low or info.", nameof(text));
 }
