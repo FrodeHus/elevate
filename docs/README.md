@@ -27,6 +27,9 @@ Reference:
   deprecated CLI formula.
 - [Requesting access packages](access-packages.md) — finding, requesting and following
   entitlement management access packages per tenant; notifications and the new-role marker.
+- [Finding standing access with elevate-audit](audit.md) — the read-only companion tool that
+  lists permanent privileged assignments, nested group members and PIM-managed groups with
+  standing members, so they can be moved to PIM.
 
 Enterprise — for the administrator rolling Elevate out to a fleet:
 

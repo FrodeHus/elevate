@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Standing access report — Contoso</title>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #101d32;
+  --muted: #526176;
+  --blue: #075bd8;
+  --mist: #f5f7fb;
+  --line: #dce3ec;
+  --navy: #0e2138;
+  --radius: 28px;
+  --font:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; line-height: 1.5; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.wrap { width: min(1120px, calc(100% - 48px)); margin-inline: auto; }
+.report-header { background: var(--mist); border-bottom: 1px solid var(--line); padding-block: 40px 32px; }
+.eyebrow { margin: 0 0 8px; color: var(--muted); font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; }
+h1 { margin: 0 0 12px; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+h2 { margin: 48px 0 16px; font-size: 24px; letter-spacing: -0.01em; }
+h3 { margin: 0; font-size: 17px; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 24px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
+.meta strong { display: block; color: var(--ink); font-weight: 600; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-top: 32px; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
+.card .count { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+.card .label { color: var(--muted); font-size: 14px; text-transform: capitalize; }
+.card.high .count { color: #b42318; }
+.card.medium .count { color: #b54708; }
+.card.low .count { color: var(--blue); }
+.card.info .count { color: var(--muted); }
+.notice { background: var(--mist); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-top: 24px; }
+.notice ul { margin: 8px 0 0; padding-left: 20px; }
+.start { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.start li { border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; display: grid; gap: 4px; }
+.start .who { font-weight: 600; }
+.start .what { color: var(--muted); font-size: 14px; }
+.rule { border: 1px solid var(--line); border-radius: 20px; padding: 20px 24px; margin-top: 16px; }
+.rule header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; background: var(--mist); color: var(--muted); }
+.pill.high { background: #fee4e2; color: #b42318; }
+.pill.medium { background: #fef0c7; color: #b54708; }
+.pill.low { background: #e0ecff; color: var(--blue); }
+.count-pill { color: var(--muted); font-size: 14px; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-top: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; border-top: 0; }
+td .muted, .muted { color: var(--muted); }
+details { margin-top: 6px; }
+summary { cursor: pointer; color: var(--blue); }
+.path { font-size: 13px; color: var(--muted); }
+.appendix { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.appendix code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; color: var(--ink); }
+footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { .wrap { width: calc(100% - 32px); } .rule { padding: 16px; } h2 { margin-top: 36px; } }
+@media print { .rule { break-inside: avoid; } a { color: inherit; } summary { display: none; } details > * { display: block; } }
+
+</style>
+</head>
+<body>
+<header class="report-header"><div class="wrap">
+<p class="eyebrow">elevate-audit · standing privileged access</p>
+<h1>Contoso</h1>
+<ul class="meta">
+<li>Tenant id<strong>5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e</strong></li>
+<li>Scanned by<strong>alex.rivera@contoso.com</strong></li>
+<li>Scanned at<strong>2026-09-13 12:00 UTC</strong></li>
+<li>Tool<strong>elevate-audit sample</strong></li>
+</ul>
+<div class="cards">
+<div class="card high"><div class="count">13</div><div class="label">high</div></div>
+<div class="card medium"><div class="count">5</div><div class="label">medium</div></div>
+<div class="card low"><div class="count">5</div><div class="label">low</div></div>
+<div class="card info"><div class="count">2</div><div class="label">info</div></div>
+</div>
+<div class="notice"><strong>Some sources were skipped.</strong> The report under-counts standing access in those areas.<ul>
+<li><strong>azure-management-groups:</strong> Azure management groups are not readable by this account; scanned subscriptions only.</li>
+</ul></div>
+</div></header>
+<main class="wrap">
+<h2 id="start-here">Start here</h2>
+<ol class="start">
+<li><span class="who">Alex Rivera · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></span></li>
+<li><span class="who">Deploy Bot · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></span></li>
+<li><span class="who">Casey Wong · Global Administrator on Directory</span><span class="path">via Tier 0 Admins ← Platform Team</span><span class="what">Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></span></li>
+<li><span class="who">Helpdesk Leads · Privileged Role Administrator on Directory</span><span class="what">Make Helpdesk Leads&#39;s Privileged Role Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk">Open in portal</a></span></li>
+<li><span class="who">Legacy Ops · Security Administrator on Directory</span><span class="what">Make Legacy Ops&#39;s Security Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></span></li>
+<li><span class="who">Morgan Diaz · Privileged Role Administrator on Directory</span><span class="path">via Helpdesk Leads</span><span class="what">Morgan Diaz holds Privileged Role Administrator permanently through Helpdesk Leads. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk">Open in portal</a></span></li>
+<li><span class="who">Riley Park · Security Administrator on Directory</span><span class="path">via Legacy Ops</span><span class="what">Riley Park holds Security Administrator permanently through Legacy Ops. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></span></li>
+<li><span class="who">Sam Chen · Global Administrator on Directory</span><span class="path">via Tier 0 Admins</span><span class="what">Sam Chen holds Global Administrator permanently through Tier 0 Admins. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></span></li>
+<li><span class="who">Tier 0 Admins · Global Administrator on Directory</span><span class="what">Make Tier 0 Admins&#39;s Global Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></span></li>
+<li><span class="who">Alex Rivera · Global Administrator on Directory</span><span class="what">Remove the permanent Global Administrator assignment and make Alex Rivera eligible for it in PIM. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
+<li><span class="who">Priya Natarajan <span class="pill">guest</span> · Security Administrator on Directory</span><span class="what">Remove the permanent Security Administrator assignment and make Priya Natarajan eligible for it in PIM. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
+<li><span class="who">Sam Chen · Tier 0 Admins (owner) on Tier 0 Admins</span><span class="what">Tier 0 Admins is managed by PIM for Groups, but Sam Chen is a permanent owner. Convert the assignment to eligible. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup">Open in portal</a></span></li>
+<li><span class="who">Priya Natarajan <span class="pill">guest</span> · Security Administrator on Directory</span><span class="what">Guest Priya Natarajan holds Security Administrator permanently. Guests should hold privileged roles only as eligible, if at all. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
+</ol>
+<h2 id="findings">All findings</h2>
+<section class="rule" id="azure-permanent-high"><header><h3>AZURE-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">2 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Alex Rivera<br /><span class="muted">alex.rivera@contoso.com</span></td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
+<tr><td>Deploy Bot</td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="entra-group-permanent-high"><header><h3>ENTRA-GROUP-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">7 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Casey Wong<br /><span class="muted">casey.wong@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><details><summary>through 2 groups</summary><span class="path">Tier 0 Admins ← Platform Team</span></details></td><td>Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></td></tr>
+<tr><td>Helpdesk Leads <span class="pill">group</span></td><td>Privileged Role Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Make Helpdesk Leads&#39;s Privileged Role Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk">Open in portal</a></td></tr>
+<tr><td>Legacy Ops <span class="pill">group</span></td><td>Security Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Make Legacy Ops&#39;s Security Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></td></tr>
+<tr><td>Morgan Diaz<br /><span class="muted">morgan.diaz@contoso.com</span></td><td>Privileged Role Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><details><summary>through 1 group</summary><span class="path">Helpdesk Leads</span></details></td><td>Morgan Diaz holds Privileged Role Administrator permanently through Helpdesk Leads. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk">Open in portal</a></td></tr>
+<tr><td>Riley Park<br /><span class="muted">riley.park@contoso.com</span></td><td>Security Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><details><summary>through 1 group</summary><span class="path">Legacy Ops</span></details></td><td>Riley Park holds Security Administrator permanently through Legacy Ops. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></td></tr>
+<tr><td>Sam Chen<br /><span class="muted">sam.chen@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><details><summary>through 1 group</summary><span class="path">Tier 0 Admins</span></details></td><td>Sam Chen holds Global Administrator permanently through Tier 0 Admins. Make the membership or the group&#39;s assignment eligible. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></td></tr>
+<tr><td>Tier 0 Admins <span class="pill">group</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Make Tier 0 Admins&#39;s Global Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="entra-user-permanent-high"><header><h3>ENTRA-USER-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">2 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Alex Rivera<br /><span class="muted">alex.rivera@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Global Administrator assignment and make Alex Rivera eligible for it in PIM. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+<tr><td>Priya Natarajan<br /><span class="muted">priya.natarajan_fabrikam.com#EXT#@contoso.com</span> <span class="pill">guest</span></td><td>Security Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Remove the permanent Security Administrator assignment and make Priya Natarajan eligible for it in PIM. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="group-member-permanent-high"><header><h3>GROUP-MEMBER-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">1 finding</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Sam Chen<br /><span class="muted">sam.chen@contoso.com</span></td><td>Tier 0 Admins (owner)<br /><span class="muted">Group</span></td><td>Tier 0 Admins<br /><span class="muted">group</span></td><td><span class="muted">direct</span></td><td>Tier 0 Admins is managed by PIM for Groups, but Sam Chen is a permanent owner. Convert the assignment to eligible. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="guest-permanent-high"><header><h3>GUEST-PERMANENT</h3><span class="pill high">high</span><span class="count-pill">1 finding</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Priya Natarajan<br /><span class="muted">priya.natarajan_fabrikam.com#EXT#@contoso.com</span> <span class="pill">guest</span></td><td>Security Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Guest Priya Natarajan holds Security Administrator permanently. Guests should hold privileged roles only as eligible, if at all. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="azure-permanent-medium"><header><h3>AZURE-PERMANENT</h3><span class="pill medium">medium</span><span class="count-pill">2 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Cloud Ops <span class="pill">group</span></td><td>Contributor<br /><span class="muted">Azure</span></td><td>rg-payments<br /><span class="muted">resource group</span></td><td><span class="muted">direct</span></td><td>Make the group&#39;s Contributor assignment on rg-payments eligible in PIM for Azure resources, or govern the group&#39;s membership with PIM for Groups. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users">Open in portal</a></td></tr>
+<tr><td>Jordan Lee<br /><span class="muted">jordan.lee@contoso.com</span></td><td>Contributor<br /><span class="muted">Azure</span></td><td>rg-payments<br /><span class="muted">resource group</span></td><td><details><summary>through 1 group</summary><span class="path">Cloud Ops</span></details></td><td>Jordan Lee holds Contributor on rg-payments permanently through Cloud Ops. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="entra-group-not-assignable-medium"><header><h3>ENTRA-GROUP-NOT-ASSIGNABLE</h3><span class="pill medium">medium</span><span class="count-pill">1 finding</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Legacy Ops <span class="pill">group</span></td><td>Security Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Legacy Ops is not role-assignable, so PIM for Groups cannot govern it. Recreate it as a role-assignable group and move the assignment. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="entra-group-not-pim-medium"><header><h3>ENTRA-GROUP-NOT-PIM</h3><span class="pill medium">medium</span><span class="count-pill">1 finding</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Helpdesk Leads <span class="pill">group</span></td><td>Privileged Role Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Onboard Helpdesk Leads to PIM for Groups so its membership can be eligible instead of permanent. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-helpdesk/resourceType/Security/provider/aadgroup">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="ga-count-medium"><header><h3>GA-COUNT</h3><span class="pill medium">medium</span><span class="count-pill">1 finding</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Contoso</td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>6 people can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="eligible-no-end-low"><header><h3>ELIGIBLE-NO-END</h3><span class="pill low">low</span><span class="count-pill">5 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Alex Rivera<br /><span class="muted">alex.rivera@contoso.com</span></td><td>Tier 0 Admins (member)<br /><span class="muted">Group</span></td><td>Tier 0 Admins<br /><span class="muted">group</span></td><td><span class="muted">direct</span></td><td>Give the eligibility an end date so it is reviewed, or cover it with an access review. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup">Open in portal</a></td></tr>
+<tr><td>Jordan Lee<br /><span class="muted">jordan.lee@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Give the eligibility an end date so it is reviewed, or cover it with an access review. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+<tr><td>Jordan Lee<br /><span class="muted">jordan.lee@contoso.com</span></td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Give the eligibility an end date so it is reviewed, or cover it with an access review. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
+<tr><td>Morgan Diaz<br /><span class="muted">morgan.diaz@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Give the eligibility an end date so it is reviewed, or cover it with an access review. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+<tr><td>Riley Park<br /><span class="muted">riley.park@contoso.com</span></td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Give the eligibility an end date so it is reviewed, or cover it with an access review. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="rule" id="sp-permanent-info"><header><h3>SP-PERMANENT</h3><span class="pill info">info</span><span class="count-pill">2 findings</span></header>
+<div class="table-scroll"><table><thead><tr><th>Principal</th><th>Role</th><th>Scope</th><th>How</th><th>Remedy</th></tr></thead><tbody>
+<tr><td>Deploy Bot</td><td>Global Administrator<br /><span class="muted">Entra</span></td><td>Directory<br /><span class="muted">directory</span></td><td><span class="muted">direct</span></td><td>Deploy Bot holds Global Administrator permanently. PIM eligibility does not apply to workload identities; review whether the workload identity needs the role at all, scope it down, or replace it with a narrower custom role. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></td></tr>
+<tr><td>Deploy Bot</td><td>Owner<br /><span class="muted">Azure</span></td><td>Production<br /><span class="muted">subscription</span></td><td><span class="muted">direct</span></td><td>Deploy Bot holds Owner permanently. PIM eligibility does not apply to workload identities; review whether the workload identity needs the role at all, scope it down, or replace it with a narrower custom role. <a href="https://portal.azure.com/#@/resource/subscriptions/sub1/users">Open in portal</a></td></tr>
+</tbody></table></div></section>
+<section class="appendix" id="appendix"><h2>Appendix</h2>
+<p>Options: all roles off; minimum severity info; ignored rules: none.</p>
+<p>Read-only Microsoft Graph scopes requested: <code>User.Read</code>, <code>RoleManagement.Read.Directory</code>, <code>PrivilegedAssignmentSchedule.Read.AzureADGroup</code>, <code>PrivilegedEligibilitySchedule.Read.AzureADGroup</code>, <code>GroupMember.Read.All</code>, <code>User.ReadBasic.All</code>. Nothing was written to the tenant.</p>
+<p>This report contains personal data (names and sign-in names of people who hold roles). Handle it as you would any access review.</p>
+<details><summary>Evidence ids</summary><div class="table-scroll"><table><thead><tr><th>Rule</th><th>Principal id</th><th>Assignment id</th><th>Start</th><th>End</th><th>Type</th></tr></thead><tbody>
+<tr><td>AZURE-PERMANENT</td><td><code>u-alex</code></td><td><code>ra-alex-owner</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+<tr><td>AZURE-PERMANENT</td><td><code>sp-deploy</code></td><td><code>ra-deploy-owner</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>u-casey</code></td><td><code>a-tier0-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>g-helpdesk</code></td><td><code>a-helpdesk-pra</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>g-legacy</code></td><td><code>a-legacy-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>u-morgan</code></td><td><code>a-helpdesk-pra</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>u-riley</code></td><td><code>a-legacy-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>u-sam</code></td><td><code>a-tier0-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-PERMANENT</td><td><code>g-tier0</code></td><td><code>a-tier0-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-USER-PERMANENT</td><td><code>u-alex</code></td><td><code>a-alex-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-USER-PERMANENT</td><td><code>u-priya</code></td><td><code>a-priya-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>GROUP-MEMBER-PERMANENT</td><td><code>u-sam</code></td><td><code>gp-sam-owner</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>GUEST-PERMANENT</td><td><code>u-priya</code></td><td><code>a-priya-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>AZURE-PERMANENT</td><td><code>g-cloudops</code></td><td><code>ra-cloudops-contrib</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+<tr><td>AZURE-PERMANENT</td><td><code>u-jordan</code></td><td><code>ra-cloudops-contrib</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+<tr><td>ENTRA-GROUP-NOT-ASSIGNABLE</td><td><code>g-legacy</code></td><td><code>a-legacy-sec</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>ENTRA-GROUP-NOT-PIM</td><td><code>g-helpdesk</code></td><td><code>a-helpdesk-pra</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>GA-COUNT</td><td><code>5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e</code></td><td><code>global-administrator-count</code></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>ELIGIBLE-NO-END</td><td><code>u-alex</code></td><td><code>gp-alex-member</code></td><td>2025-01-01</td><td>—</td><td>—</td></tr>
+<tr><td>ELIGIBLE-NO-END</td><td><code>u-jordan</code></td><td><code>e-jordan-ga</code></td><td>2025-01-01</td><td>—</td><td>Direct</td></tr>
+<tr><td>ELIGIBLE-NO-END</td><td><code>u-jordan</code></td><td><code>ae-jordan-owner</code></td><td>2025-01-01</td><td>—</td><td>Schedule</td></tr>
+<tr><td>ELIGIBLE-NO-END</td><td><code>u-morgan</code></td><td><code>e-morgan-ga</code></td><td>2025-01-01</td><td>—</td><td>Direct</td></tr>
+<tr><td>ELIGIBLE-NO-END</td><td><code>u-riley</code></td><td><code>e-riley-ga</code></td><td>2025-01-01</td><td>—</td><td>Direct</td></tr>
+<tr><td>SP-PERMANENT</td><td><code>sp-deploy</code></td><td><code>a-deploy-ga</code></td><td>2025-01-01</td><td>—</td><td>Assigned</td></tr>
+<tr><td>SP-PERMANENT</td><td><code>sp-deploy</code></td><td><code>ra-deploy-owner</code></td><td>—</td><td>—</td><td>Classic</td></tr>
+</tbody></table></div></details></section>
+</main>
+<footer class="wrap">Generated by <a href="https://elevate.reothor.no/audit.html">elevate-audit</a>, the standing-access companion to Elevate. Sample data is fictional.</footer>
+<script>addEventListener('beforeprint',()=>document.querySelectorAll('details').forEach(d=>d.open=true));</script>
+</body>
+</html>

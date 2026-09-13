@@ -161,6 +161,13 @@ for `osx-arm64` and `osx-x64`, `windows-latest` for `win-x64` and `win-arm64`):
    `winget-cli-manifest` artifact.
 6. Uploads the archives and hashes as `cli-linux`, `cli-macos` and `cli-windows`.
 
+**audit** mirrors **cli** for the `elevate-audit` companion: the same three-leg matrix, tests from
+`audit/Elevate.Audit.sln`, `audit/package.sh publish|archive`, the same signing steps, archives
+named `elevate-audit-<version>-<rid>`, a `Reothor.Elevate.Audit` winget manifest as the
+`winget-audit-manifest` artifact. `publish` adds the archives and an
+`elevate-audit-<version>-checksums.txt` to the release and regenerates
+`Formula/elevate-audit.rb` with `scripts/update-audit-formula.sh` in the same commit as the cask.
+
 **publish** (`ubuntu-latest`):
 
 1. Downloads every artifact, reads the app hashes and writes one

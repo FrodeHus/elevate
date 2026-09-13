@@ -1,0 +1,12 @@
+[
+  { "name": "Owner", "severity": "high" },
+  { "name": "User Access Administrator", "severity": "high" },
+  { "name": "Role Based Access Control Administrator", "severity": "high" },
+  { "name": "Contributor", "severity": "medium" },
+  { "name": "Key Vault Administrator", "severity": "medium" },
+  { "name": "Key Vault Data Access Administrator", "severity": "medium" },
+  { "name": "Storage Account Contributor", "severity": "medium" },
+  { "name": "Virtual Machine Administrator Login", "severity": "medium" },
+  { "name": "Azure Kubernetes Service RBAC Cluster Admin", "severity": "medium" },
+  { "name": "Security Admin", "severity": "medium" }
+]

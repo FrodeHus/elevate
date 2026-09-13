@@ -1,0 +1,850 @@
+{
+  "tool": {
+    "name": "elevate-audit",
+    "version": "sample"
+  },
+  "tenant": {
+    "id": "5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e",
+    "displayName": "Contoso"
+  },
+  "account": "alex.rivera@contoso.com",
+  "scannedAt": "2026-09-13T12:00:00+00:00",
+  "options": {
+    "allRoles": false,
+    "ignored": [],
+    "minSeverity": "info",
+    "skipAzure": false
+  },
+  "scopesRequested": [
+    "User.Read",
+    "RoleManagement.Read.Directory",
+    "PrivilegedAssignmentSchedule.Read.AzureADGroup",
+    "PrivilegedEligibilitySchedule.Read.AzureADGroup",
+    "GroupMember.Read.All",
+    "User.ReadBasic.All"
+  ],
+  "skipped": [
+    {
+      "source": "azure-management-groups",
+      "reason": "Azure management groups are not readable by this account; scanned subscriptions only."
+    }
+  ],
+  "summary": {
+    "high": 13,
+    "medium": 5,
+    "low": 5,
+    "info": 2,
+    "total": 25
+  },
+  "findings": [
+    {
+      "id": "AZURE-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-alex",
+        "displayName": "Alex Rivera",
+        "userPrincipalName": "alex.rivera@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "displayName": "Owner",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1",
+        "displayName": "Production",
+        "kind": "subscription"
+      },
+      "via": [],
+      "remedy": "Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "evidence": {
+        "assignmentId": "ra-alex-owner",
+        "memberType": "Classic"
+      }
+    },
+    {
+      "id": "AZURE-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "sp-deploy",
+        "displayName": "Deploy Bot",
+        "type": "servicePrincipal",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "displayName": "Owner",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1",
+        "displayName": "Production",
+        "kind": "subscription"
+      },
+      "via": [],
+      "remedy": "Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "evidence": {
+        "assignmentId": "ra-deploy-owner",
+        "memberType": "Classic"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-casey",
+        "displayName": "Casey Wong",
+        "userPrincipalName": "casey.wong@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [
+        {
+          "id": "g-tier0",
+          "displayName": "Tier 0 Admins"
+        },
+        {
+          "id": "g-platform",
+          "displayName": "Platform Team"
+        }
+      ],
+      "remedy": "Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team. Make the membership or the group's assignment eligible.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0",
+      "evidence": {
+        "assignmentId": "a-tier0-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "g-helpdesk",
+        "displayName": "Helpdesk Leads",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-pra",
+        "displayName": "Privileged Role Administrator",
+        "templateId": "e8611ab8-c189-46e8-94e1-60213ab1f814",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Make Helpdesk Leads's Privileged Role Administrator assignment eligible, or keep it active and make the group's members eligible through PIM for Groups.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk",
+      "evidence": {
+        "assignmentId": "a-helpdesk-pra",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "g-legacy",
+        "displayName": "Legacy Ops",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Make Legacy Ops's Security Administrator assignment eligible, or keep it active and make the group's members eligible through PIM for Groups.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy",
+      "evidence": {
+        "assignmentId": "a-legacy-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-morgan",
+        "displayName": "Morgan Diaz",
+        "userPrincipalName": "morgan.diaz@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-pra",
+        "displayName": "Privileged Role Administrator",
+        "templateId": "e8611ab8-c189-46e8-94e1-60213ab1f814",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [
+        {
+          "id": "g-helpdesk",
+          "displayName": "Helpdesk Leads"
+        }
+      ],
+      "remedy": "Morgan Diaz holds Privileged Role Administrator permanently through Helpdesk Leads. Make the membership or the group's assignment eligible.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-helpdesk",
+      "evidence": {
+        "assignmentId": "a-helpdesk-pra",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-riley",
+        "displayName": "Riley Park",
+        "userPrincipalName": "riley.park@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [
+        {
+          "id": "g-legacy",
+          "displayName": "Legacy Ops"
+        }
+      ],
+      "remedy": "Riley Park holds Security Administrator permanently through Legacy Ops. Make the membership or the group's assignment eligible.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy",
+      "evidence": {
+        "assignmentId": "a-legacy-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-sam",
+        "displayName": "Sam Chen",
+        "userPrincipalName": "sam.chen@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [
+        {
+          "id": "g-tier0",
+          "displayName": "Tier 0 Admins"
+        }
+      ],
+      "remedy": "Sam Chen holds Global Administrator permanently through Tier 0 Admins. Make the membership or the group's assignment eligible.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0",
+      "evidence": {
+        "assignmentId": "a-tier0-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "g-tier0",
+        "displayName": "Tier 0 Admins",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Make Tier 0 Admins's Global Administrator assignment eligible, or keep it active and make the group's members eligible through PIM for Groups.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0",
+      "evidence": {
+        "assignmentId": "a-tier0-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-USER-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-alex",
+        "displayName": "Alex Rivera",
+        "userPrincipalName": "alex.rivera@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Remove the permanent Global Administrator assignment and make Alex Rivera eligible for it in PIM.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "a-alex-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-USER-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-priya",
+        "displayName": "Priya Natarajan",
+        "userPrincipalName": "priya.natarajan_fabrikam.com#EXT#@contoso.com",
+        "type": "user",
+        "isGuest": true,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Remove the permanent Security Administrator assignment and make Priya Natarajan eligible for it in PIM.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "a-priya-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "GROUP-MEMBER-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-sam",
+        "displayName": "Sam Chen",
+        "userPrincipalName": "sam.chen@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "g-tier0",
+        "displayName": "Tier 0 Admins (owner)",
+        "isPrivileged": true,
+        "system": "group"
+      },
+      "scope": {
+        "id": "g-tier0",
+        "displayName": "Tier 0 Admins",
+        "kind": "group"
+      },
+      "via": [],
+      "remedy": "Tier 0 Admins is managed by PIM for Groups, but Sam Chen is a permanent owner. Convert the assignment to eligible.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup",
+      "evidence": {
+        "assignmentId": "gp-sam-owner",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned"
+      }
+    },
+    {
+      "id": "GUEST-PERMANENT",
+      "severity": "high",
+      "principal": {
+        "id": "u-priya",
+        "displayName": "Priya Natarajan",
+        "userPrincipalName": "priya.natarajan_fabrikam.com#EXT#@contoso.com",
+        "type": "user",
+        "isGuest": true,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Guest Priya Natarajan holds Security Administrator permanently. Guests should hold privileged roles only as eligible, if at all.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "a-priya-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "AZURE-PERMANENT",
+      "severity": "medium",
+      "principal": {
+        "id": "g-cloudops",
+        "displayName": "Cloud Ops",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "displayName": "Contributor",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1/resourceGroups/rg-payments",
+        "displayName": "rg-payments",
+        "kind": "resourceGroup"
+      },
+      "via": [],
+      "remedy": "Make the group's Contributor assignment on rg-payments eligible in PIM for Azure resources, or govern the group's membership with PIM for Groups.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
+      "evidence": {
+        "assignmentId": "ra-cloudops-contrib",
+        "memberType": "Classic"
+      }
+    },
+    {
+      "id": "AZURE-PERMANENT",
+      "severity": "medium",
+      "principal": {
+        "id": "u-jordan",
+        "displayName": "Jordan Lee",
+        "userPrincipalName": "jordan.lee@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+        "displayName": "Contributor",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1/resourceGroups/rg-payments",
+        "displayName": "rg-payments",
+        "kind": "resourceGroup"
+      },
+      "via": [
+        {
+          "id": "g-cloudops",
+          "displayName": "Cloud Ops"
+        }
+      ],
+      "remedy": "Jordan Lee holds Contributor on rg-payments permanently through Cloud Ops.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
+      "evidence": {
+        "assignmentId": "ra-cloudops-contrib",
+        "memberType": "Classic"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-NOT-ASSIGNABLE",
+      "severity": "medium",
+      "principal": {
+        "id": "g-legacy",
+        "displayName": "Legacy Ops",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Legacy Ops is not role-assignable, so PIM for Groups cannot govern it. Recreate it as a role-assignable group and move the assignment.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-legacy",
+      "evidence": {
+        "assignmentId": "a-legacy-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ENTRA-GROUP-NOT-PIM",
+      "severity": "medium",
+      "principal": {
+        "id": "g-helpdesk",
+        "displayName": "Helpdesk Leads",
+        "type": "group",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-pra",
+        "displayName": "Privileged Role Administrator",
+        "templateId": "e8611ab8-c189-46e8-94e1-60213ab1f814",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Onboard Helpdesk Leads to PIM for Groups so its membership can be eligible instead of permanent.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-helpdesk/resourceType/Security/provider/aadgroup",
+      "evidence": {
+        "assignmentId": "a-helpdesk-pra",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "GA-COUNT",
+      "severity": "medium",
+      "principal": {
+        "id": "5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e",
+        "displayName": "Contoso",
+        "type": "unknown",
+        "isGuest": false
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "6 people can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "global-administrator-count"
+      }
+    },
+    {
+      "id": "ELIGIBLE-NO-END",
+      "severity": "low",
+      "principal": {
+        "id": "u-alex",
+        "displayName": "Alex Rivera",
+        "userPrincipalName": "alex.rivera@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "g-tier0",
+        "displayName": "Tier 0 Admins (member)",
+        "isPrivileged": true,
+        "system": "group"
+      },
+      "scope": {
+        "id": "g-tier0",
+        "displayName": "Tier 0 Admins",
+        "kind": "group"
+      },
+      "via": [],
+      "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup",
+      "evidence": {
+        "assignmentId": "gp-alex-member",
+        "startDateTime": "2025-01-01T00:00:00+00:00"
+      }
+    },
+    {
+      "id": "ELIGIBLE-NO-END",
+      "severity": "low",
+      "principal": {
+        "id": "u-jordan",
+        "displayName": "Jordan Lee",
+        "userPrincipalName": "jordan.lee@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-jordan-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ELIGIBLE-NO-END",
+      "severity": "low",
+      "principal": {
+        "id": "u-jordan",
+        "displayName": "Jordan Lee",
+        "userPrincipalName": "jordan.lee@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "displayName": "Owner",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1",
+        "displayName": "Production",
+        "kind": "subscription"
+      },
+      "via": [],
+      "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "evidence": {
+        "assignmentId": "ae-jordan-owner",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Schedule"
+      }
+    },
+    {
+      "id": "ELIGIBLE-NO-END",
+      "severity": "low",
+      "principal": {
+        "id": "u-morgan",
+        "displayName": "Morgan Diaz",
+        "userPrincipalName": "morgan.diaz@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-morgan-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "ELIGIBLE-NO-END",
+      "severity": "low",
+      "principal": {
+        "id": "u-riley",
+        "displayName": "Riley Park",
+        "userPrincipalName": "riley.park@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-riley-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "SP-PERMANENT",
+      "severity": "info",
+      "principal": {
+        "id": "sp-deploy",
+        "displayName": "Deploy Bot",
+        "type": "servicePrincipal",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Deploy Bot holds Global Administrator permanently. PIM eligibility does not apply to workload identities; review whether the workload identity needs the role at all, scope it down, or replace it with a narrower custom role.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "a-deploy-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "assignmentType": "assigned",
+        "memberType": "Direct"
+      }
+    },
+    {
+      "id": "SP-PERMANENT",
+      "severity": "info",
+      "principal": {
+        "id": "sp-deploy",
+        "displayName": "Deploy Bot",
+        "type": "servicePrincipal",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "displayName": "Owner",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1",
+        "displayName": "Production",
+        "kind": "subscription"
+      },
+      "via": [],
+      "remedy": "Deploy Bot holds Owner permanently. PIM eligibility does not apply to workload identities; review whether the workload identity needs the role at all, scope it down, or replace it with a narrower custom role.",
+      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "evidence": {
+        "assignmentId": "ra-deploy-owner",
+        "memberType": "Classic"
+      }
+    }
+  ]
+}

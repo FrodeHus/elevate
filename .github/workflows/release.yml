@@ -662,9 +662,150 @@ jobs:
           name: winget-cli-manifest
           path: cli/winget/manifests
 
+  audit:
+    name: Audit (${{ matrix.name }})
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux, rids: "linux-x64 linux-arm64" }
+          - { os: macos-26, name: macos, rids: "osx-arm64 osx-x64" }
+          - { os: windows-latest, name: windows, rids: "win-x64 win-arm64" }
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: audit/global.json
+
+      - name: Version
+        shell: bash
+        run: echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: dotnet test audit/Elevate.Audit.sln -c Release
+
+      - name: Publish
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./audit/package.sh publish "$VERSION" "$rid"
+          done
+
+      # macOS: Developer ID signature with hardened runtime and a notarization ticket, the same
+      # secrets as the app. A bare binary cannot be stapled; Gatekeeper checks the ticket online.
+      - name: Detect macOS signing secrets
+        if: matrix.name == 'macos'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$P12" ]; then echo "HAVE_CERT=1" >> "$GITHUB_ENV"; else echo "Developer ID secrets not configured; publishing unsigned macOS binaries."; fi
+
+      - name: Sign and notarize (macOS)
+        if: matrix.name == 'macos' && env.HAVE_CERT == '1'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "$P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm -f cert.p12
+          for rid in ${{ matrix.rids }}; do
+            bin="audit/dist/$rid/elevate-audit"
+            codesign --force --options runtime --timestamp --entitlements cli/elevate.entitlements -s "Developer ID Application" "$bin"
+            codesign --verify --strict --verbose=2 "$bin"
+            ditto -c -k --keepParent "$bin" "notarize-$rid.zip"
+            xcrun notarytool submit "notarize-$rid.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            rm -f "notarize-$rid.zip"
+          done
+
+      # Windows: Azure Artifact Signing, the same secrets and client as the MSIs.
+      - name: Detect Windows signing secrets
+        if: matrix.name == 'windows'
+        shell: pwsh
+        env:
+          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+        run: |
+          if ($env:ENDPOINT) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned Windows binaries." }
+
+      - name: Azure login for signing
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign (Windows)
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        shell: pwsh
+        env:
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: |
+          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
+          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $metadata = Join-Path $env:RUNNER_TEMP "signing.json"
+          @{ Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT; CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT; CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_PROFILE } | ConvertTo-Json | Set-Content $metadata
+          foreach ($rid in "${{ matrix.rids }}".Split(' ')) {
+            & $signtool.FullName sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib.FullName /dmdf $metadata "audit/dist/$rid/elevate-audit.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $rid" }
+          }
+
+      - name: Archive
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./audit/package.sh archive "$VERSION" "$rid"
+          done
+          ls -la audit/dist
+
+      - name: winget manifest (audit)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-x64.zip.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-arm64.zip.sha256").Split(' ')[0]
+          ./audit/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
+          winget validate --manifest "audit/winget/manifests/r/Reothor/Elevate.Audit/$env:VERSION"
+
+      - name: Upload archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-${{ matrix.name }}
+          path: |
+            audit/dist/elevate-audit-*.tar.gz
+            audit/dist/elevate-audit-*.zip
+            audit/dist/elevate-audit-*.sha256
+          if-no-files-found: error
+
+      # Like the app's manifest: kept as an artifact until releases are signed, then submitted by hand.
+      - name: Manifest artifact (audit)
+        if: matrix.name == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: winget-audit-manifest
+          path: audit/winget/manifests
+
   publish:
     name: Publish release
-    needs: [macos, windows, cli]
+    needs: [macos, windows, cli, audit]
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.ref_name }}
@@ -692,6 +833,12 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: audit-*
+          path: dist
+          merge-multiple: true
+
       - name: Versions and hashes
         run: |
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
@@ -702,6 +849,8 @@ jobs:
           # One checksums file for the six CLI archives, the usual shape for `sha256sum -c`.
           (cd dist && for f in elevate-cli-*.sha256; do printf '%s  %s\n' "$(cut -d' ' -f1 "$f")" "${f%.sha256}"; done) > "dist/elevate-cli-${TAG#v}-checksums.txt"
           cat "dist/elevate-cli-${TAG#v}-checksums.txt"
+          (cd dist && for f in elevate-audit-*.sha256; do printf '%s  %s\n' "$(cut -d' ' -f1 "$f")" "${f%.sha256}"; done) > "dist/elevate-audit-${TAG#v}-checksums.txt"
+          cat "dist/elevate-audit-${TAG#v}-checksums.txt"
 
       # The kit is text from the checkout, not a build artifact; the release only stamps the
       # version into its README. The validator runs first so a kit that drifted from
@@ -774,6 +923,10 @@ jobs:
               echo 'The macOS binary is not signed; if Gatekeeper blocks a browser download, run `xattr -d com.apple.quarantine elevate`. Homebrew downloads carry no quarantine flag.'
             fi
             echo
+            echo "## elevate-audit (Linux, macOS, Windows)"
+            echo
+            echo 'The read-only companion that lists standing privileged access to move to PIM: `brew install frodehus/elevate/elevate-audit`, or `winget install Reothor.Elevate.Audit` once the manifest is submitted, or download `elevate-audit-'"$VERSION"'-<platform>` below and put `elevate-audit` on your PATH. Verify with `sha256sum -c elevate-audit-'"$VERSION"'-checksums.txt`. See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
+            echo
             echo "## Enterprise"
             echo
             if [ "$MAC_PKG_SIGNED" = "1" ]; then
@@ -805,6 +958,10 @@ jobs:
           dist/elevate-cli-$VERSION-*.zip
           dist/elevate-cli-$VERSION-*.sha256
           "dist/elevate-cli-$VERSION-checksums.txt"
+          dist/elevate-audit-$VERSION-*.tar.gz
+          dist/elevate-audit-$VERSION-*.zip
+          dist/elevate-audit-$VERSION-*.sha256
+          "dist/elevate-audit-$VERSION-checksums.txt"
           "dist/Elevate-enterprise-kit-$VERSION.zip"
           "dist/Elevate-enterprise-kit-$VERSION.zip.sha256"
           --title "Elevate $VERSION" --notes-file notes.md
@@ -833,13 +990,14 @@ jobs:
             git checkout -B release-cask origin/main
             ./scripts/update-cask.sh "$VERSION" "$PKG_SHA256" "${{ github.repository }}" "${MAC_SIGNED:-}"
             ./scripts/update-formula.sh "$VERSION" "${{ github.repository }}" dist
-            if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb; then
-              echo "Cask and formula already up to date."
+            ./scripts/update-audit-formula.sh "$VERSION" "${{ github.repository }}" dist
+            if git diff --quiet -- Casks/elevate.rb Formula/elevate-cli.rb Formula/elevate-audit.rb; then
+              echo "Cask and formulas already up to date."
               exit 0
             fi
-            git add Casks/elevate.rb Formula/elevate-cli.rb
-            git commit -m "Cask and formula: Elevate $VERSION"
+            git add Casks/elevate.rb Formula/elevate-cli.rb Formula/elevate-audit.rb
+            git commit -m "Cask and formulas: Elevate $VERSION"
             if git push origin HEAD:main; then exit 0; fi
             echo "Push rejected (attempt $attempt); refetching main."
           done
-          echo "::error::Could not push the cask and formula update to main"; exit 1
+          echo "::error::Could not push the cask and formulas update to main"; exit 1
