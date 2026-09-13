@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: an account whose saved sign-in is gone at launch (a cleared MSAL or Azure CLI cache, a
+  revoked session) is kept with its tenants, configured roles and profile entries instead of being
+  signed out. The account row shows a **Sign in** button and its menu a **Sign in again** item
+  that re-run the account's own sign-in method; refreshes skip the account until then. A read
+  failure of the token caches keeps every account as it was. Matches macOS.
+
 ## [1.6.4] - 2026-09-12
 
 ### Added

@@ -180,6 +180,10 @@
                                ToolTipService.ToolTip="{x:Bind Caption, Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <!-- An account kept without a saved sign-in: the retry sits on the row, where the active count would be. -->
+                    <Button Content="Sign in" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind SignInVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind SignInEnabled, Mode=OneWay}" Click="OnSignInAgainClick"
+                            ToolTipService.ToolTip="{x:Bind SignInTooltip, Mode=OneWay}" />
                     <!-- Secondary text, not green: 13 px green on the light ground falls under 3:1, and the row's status dots already carry the colour. -->
                     <TextBlock Text="{x:Bind ActiveText, Mode=OneWay}" Visibility="{x:Bind ActiveVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
