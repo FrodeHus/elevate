@@ -1,0 +1,451 @@
+{
+  "kind": "elevate-audit-snapshot",
+  "toolVersion": "0.0.0-test",
+  "tenant": {
+    "id": "72f988bf-0000-4000-8000-2d7cd011db47",
+    "displayName": "Contoso"
+  },
+  "account": "alex.rivera@contoso.com",
+  "scannedAt": "2026-09-13T12:00:00+00:00",
+  "entraRoleDefinitions": [
+    {
+      "id": "rd-ga",
+      "templateId": "62e90394-69f5-4237-9190-012177145e10",
+      "displayName": "Global Administrator",
+      "isPrivileged": true,
+      "isBuiltIn": true
+    },
+    {
+      "id": "rd-pra",
+      "templateId": "e8611ab8-c189-46e8-94e1-60213ab1f814",
+      "displayName": "Privileged Role Administrator",
+      "isPrivileged": true,
+      "isBuiltIn": true
+    },
+    {
+      "id": "rd-reader",
+      "templateId": "f2ef992c-3afb-46b9-b7cf-a126ee74c451",
+      "displayName": "Global Reader",
+      "isPrivileged": false,
+      "isBuiltIn": true
+    },
+    {
+      "id": "rd-sec",
+      "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+      "displayName": "Security Administrator",
+      "isPrivileged": true,
+      "isBuiltIn": true
+    }
+  ],
+  "entraAssignments": [
+    {
+      "id": "a-alex-ga",
+      "principalId": "u-alex",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-tier0-ga",
+      "principalId": "g-tier0",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-tier0-ga-sam",
+      "principalId": "u-sam",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Group",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-legacy-sec",
+      "principalId": "g-legacy",
+      "roleDefinitionId": "rd-sec",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-helpdesk-pra",
+      "principalId": "g-helpdesk",
+      "roleDefinitionId": "rd-pra",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-priya-sec",
+      "principalId": "u-priya",
+      "roleDefinitionId": "rd-sec",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-deploy-ga",
+      "principalId": "sp-deploy",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    },
+    {
+      "id": "a-jordan-ga-active",
+      "principalId": "u-jordan",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "assignmentType": "activated",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "endDateTime": "2026-09-13T20:00:00+00:00",
+      "isPermanent": false
+    },
+    {
+      "id": "a-alex-reader",
+      "principalId": "u-alex",
+      "roleDefinitionId": "rd-reader",
+      "directoryScopeId": "/",
+      "assignmentType": "assigned",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": true
+    }
+  ],
+  "entraEligibilities": [
+    {
+      "id": "e-jordan-ga",
+      "principalId": "u-jordan",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": false
+    },
+    {
+      "id": "e-casey-ga",
+      "principalId": "u-casey",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "endDateTime": "2027-03-01T00:00:00+00:00",
+      "isPermanent": false
+    },
+    {
+      "id": "e-riley-ga",
+      "principalId": "u-riley",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": false
+    },
+    {
+      "id": "e-morgan-ga",
+      "principalId": "u-morgan",
+      "roleDefinitionId": "rd-ga",
+      "directoryScopeId": "/",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "isPermanent": false
+    }
+  ],
+  "groups": [
+    {
+      "id": "g-tier0",
+      "displayName": "Tier 0 Admins",
+      "isAssignableToRole": true,
+      "isDynamic": false,
+      "pimStatus": "onboarded",
+      "directMembers": [
+        {
+          "id": "u-sam",
+          "type": "user"
+        },
+        {
+          "id": "g-platform",
+          "type": "group"
+        }
+      ],
+      "pimAssignments": [
+        {
+          "id": "gp-sam-owner",
+          "principalId": "u-sam",
+          "accessId": "owner",
+          "assignmentType": "assigned",
+          "startDateTime": "2025-01-01T00:00:00+00:00",
+          "isPermanent": true
+        }
+      ],
+      "pimEligibilities": [
+        {
+          "id": "gp-alex-member",
+          "principalId": "u-alex",
+          "accessId": "member",
+          "startDateTime": "2025-01-01T00:00:00+00:00",
+          "isPermanent": false
+        }
+      ]
+    },
+    {
+      "id": "g-platform",
+      "displayName": "Platform Team",
+      "isAssignableToRole": false,
+      "isDynamic": false,
+      "pimStatus": "unknown",
+      "directMembers": [
+        {
+          "id": "u-casey",
+          "type": "user"
+        },
+        {
+          "id": "g-tier0",
+          "type": "group"
+        }
+      ],
+      "pimAssignments": [],
+      "pimEligibilities": []
+    },
+    {
+      "id": "g-legacy",
+      "displayName": "Legacy Ops",
+      "isAssignableToRole": false,
+      "isDynamic": false,
+      "pimStatus": "notOnboarded",
+      "directMembers": [
+        {
+          "id": "u-riley",
+          "type": "user"
+        }
+      ],
+      "pimAssignments": [],
+      "pimEligibilities": []
+    },
+    {
+      "id": "g-helpdesk",
+      "displayName": "Helpdesk Leads",
+      "isAssignableToRole": true,
+      "isDynamic": false,
+      "pimStatus": "notOnboarded",
+      "directMembers": [
+        {
+          "id": "u-morgan",
+          "type": "user"
+        }
+      ],
+      "pimAssignments": [],
+      "pimEligibilities": []
+    },
+    {
+      "id": "g-cloudops",
+      "displayName": "Cloud Ops",
+      "isAssignableToRole": false,
+      "isDynamic": false,
+      "pimStatus": "unknown",
+      "directMembers": [
+        {
+          "id": "u-jordan",
+          "type": "user"
+        }
+      ],
+      "pimAssignments": [],
+      "pimEligibilities": []
+    }
+  ],
+  "principals": [
+    {
+      "id": "u-alex",
+      "type": "user",
+      "displayName": "Alex Rivera",
+      "userPrincipalName": "alex.rivera@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-sam",
+      "type": "user",
+      "displayName": "Sam Chen",
+      "userPrincipalName": "sam.chen@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-priya",
+      "type": "user",
+      "displayName": "Priya Natarajan",
+      "userPrincipalName": "priya.natarajan_fabrikam.com#EXT#@contoso.com",
+      "isGuest": true,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-jordan",
+      "type": "user",
+      "displayName": "Jordan Lee",
+      "userPrincipalName": "jordan.lee@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-casey",
+      "type": "user",
+      "displayName": "Casey Wong",
+      "userPrincipalName": "casey.wong@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-riley",
+      "type": "user",
+      "displayName": "Riley Park",
+      "userPrincipalName": "riley.park@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "u-morgan",
+      "type": "user",
+      "displayName": "Morgan Diaz",
+      "userPrincipalName": "morgan.diaz@contoso.com",
+      "isGuest": false,
+      "accountEnabled": true
+    },
+    {
+      "id": "sp-deploy",
+      "type": "servicePrincipal",
+      "displayName": "Deploy Bot",
+      "isGuest": false,
+      "accountEnabled": true,
+      "servicePrincipalType": "Application"
+    }
+  ],
+  "azureScopes": [
+    {
+      "id": "/subscriptions/sub1",
+      "kind": "subscription",
+      "displayName": "Production"
+    },
+    {
+      "id": "/subscriptions/sub1/resourceGroups/rg-payments",
+      "kind": "resourceGroup",
+      "displayName": "rg-payments"
+    }
+  ],
+  "azureRoleDefinitions": [
+    {
+      "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "name": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "displayName": "Owner",
+      "type": "BuiltInRole",
+      "actions": [
+        "*"
+      ]
+    },
+    {
+      "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+      "name": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+      "displayName": "Contributor",
+      "type": "BuiltInRole",
+      "actions": [
+        "*"
+      ]
+    },
+    {
+      "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+      "name": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+      "displayName": "Reader",
+      "type": "BuiltInRole",
+      "actions": [
+        "*/read"
+      ]
+    }
+  ],
+  "azureAssignments": [
+    {
+      "id": "ra-alex-owner",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "principalId": "u-alex",
+      "principalType": "User",
+      "fromSchedule": false
+    },
+    {
+      "id": "ra-cloudops-contrib",
+      "scope": "/subscriptions/sub1/resourceGroups/rg-payments",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+      "principalId": "g-cloudops",
+      "principalType": "Group",
+      "fromSchedule": false
+    },
+    {
+      "id": "ra-deploy-owner",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "principalId": "sp-deploy",
+      "principalType": "ServicePrincipal",
+      "fromSchedule": false
+    },
+    {
+      "id": "ra-sam-owner-classic",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "principalId": "u-sam",
+      "principalType": "User",
+      "fromSchedule": false
+    },
+    {
+      "id": "si-sam-owner-active",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "principalId": "u-sam",
+      "principalType": "User",
+      "assignmentType": "activated",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "endDateTime": "2026-09-13T18:00:00+00:00",
+      "fromSchedule": true
+    },
+    {
+      "id": "ra-jordan-reader",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+      "principalId": "u-jordan",
+      "principalType": "User",
+      "fromSchedule": false
+    }
+  ],
+  "azureEligibilities": [
+    {
+      "id": "ae-jordan-owner",
+      "scope": "/subscriptions/sub1",
+      "roleDefinitionId": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+      "principalId": "u-jordan",
+      "principalType": "User",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "fromSchedule": true
+    }
+  ],
+  "skipped": [
+    {
+      "source": "azure-management-groups",
+      "reason": "Azure management groups are not readable by this account; scanned subscriptions only."
+    }
+  ]
+}
