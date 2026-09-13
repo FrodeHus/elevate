@@ -47,8 +47,8 @@ The Graph scopes and why each one is needed:
 | `GroupMember.Read.All` | Expanding the members of role-assigned groups, including nested groups. |
 | `User.ReadBasic.All` | Names and sign-in names of the people found, instead of bare object ids. |
 
-Every read is Microsoft Graph v1.0 except the members of a group, which are read on the beta
-endpoint: v1.0 `/groups/{id}/members` has a documented known issue that omits service principals.
+Every read is Microsoft Graph v1.0 except role definitions (for the isPrivileged flag) and group
+members (v1.0 omits service principals), both read on beta.
 
 All of them are read scopes; several require an administrator to consent. Since the person
 running a standing-access audit is a privileged administrator, you consent for yourself at the

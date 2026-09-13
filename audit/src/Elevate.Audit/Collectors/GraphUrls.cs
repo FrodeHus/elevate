@@ -4,8 +4,9 @@ namespace Elevate.Audit.Collectors;
 
 /// <summary>
 /// Every URL the auditor calls, in one place, so the docs' list of reads can be checked against it.
-/// Everything is Microsoft Graph v1.0 except <see cref="GroupMembers"/>, which uses beta: v1.0
-/// <c>/groups/{id}/members</c> has a documented known issue that omits service principals, and the
+/// Everything is Microsoft Graph v1.0 except two reads on beta: <see cref="RoleDefinitions"/>, because
+/// <c>isPrivileged</c> exists only on the beta <c>unifiedRoleDefinition</c>, and <see cref="GroupMembers"/>,
+/// because v1.0 <c>/groups/{id}/members</c> has a documented known issue that omits service principals, and the
 /// <c>$expand=members</c> workaround caps at 20 objects.
 /// </summary>
 public static class GraphUrls
@@ -14,7 +15,7 @@ public static class GraphUrls
 
     public static Uri Organization => Graph("/organization?$select=id,displayName");
 
-    public static Uri RoleDefinitions => Graph("/roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn");
+    public static Uri RoleDefinitions => Beta("/roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn");
 
     public static Uri RoleAssignmentInstances => Graph("/roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal,roleDefinition");
 

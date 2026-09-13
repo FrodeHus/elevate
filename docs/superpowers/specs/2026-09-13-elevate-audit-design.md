@@ -133,13 +133,16 @@ attach a snapshot to a bug report without tenant access.
 
 ## 4. Data collection
 
-All requests are GET. Graph `v1.0` throughout. Every collector returns plain
-records into the `Snapshot`; classification happens in the rules.
+All requests are GET. Graph `v1.0` throughout, except role definitions (for the
+isPrivileged flag) and group members (v1.0 omits service principals), both read
+on beta. Every collector returns plain records into the `Snapshot`;
+classification happens in the rules.
 
 ### 4.1 Entra directory roles (`DirectoryRoleCollector`)
 
-- `roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn`.
-  A template id missing `isPrivileged` falls back to `RoleCatalogue`.
+- `roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn`,
+  read on the Graph **beta** endpoint because `isPrivileged` exists only on the beta
+  `unifiedRoleDefinition`. A template id missing `isPrivileged` falls back to `RoleCatalogue`.
 - `roleManagement/directory/roleAssignmentScheduleInstances?$expand=principal($select=id,displayName,userPrincipalName,userType),roleDefinition($select=id,displayName,templateId)`
   — every current active assignment. Recorded per instance: principal id and
   type, role definition id, `directoryScopeId`, `appScopeId`, `assignmentType`
@@ -165,7 +168,7 @@ For every distinct group principal seen in a permanent privileged assignment
 - `groups/{id}/members?$select=id,displayName,userPrincipalName,userType,accountEnabled,servicePrincipalType&$top=999`
   walked breadth-first with a visited set of group ids. This yields the
   **membership path** (`alex ← Tier0-Admins ← Platform-Team`) and terminates
-  on cycles. Members are the one read taken on the Graph **beta** endpoint, because v1.0
+  on cycles. Members are one of the two reads taken on the Graph **beta** endpoint, because v1.0
   `/groups/{id}/members` has a documented known issue that omits service principals (and the
   `$expand=members` workaround caps at 20 objects). `transitiveMembers` is not used for the path because it flattens;
   it is called once per top-level group only as a cross-check count in

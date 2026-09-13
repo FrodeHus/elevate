@@ -57,6 +57,9 @@ public class DirectoryRoleCollectorTests
         data.Principals.Single(p => p.Id == "u2").Should().BeEquivalentTo(new { Type = PrincipalType.User, IsGuest = true, DisplayName = "Priya Natarajan" });
         data.Principals.Single(p => p.Id == "g1").Type.Should().Be(PrincipalType.Group);
         stub.RequestsMatching("roleAssignmentScheduleInstances").Should().HaveCount(2);
+        stub.RequestsMatching("roleDefinitions").Should().ContainSingle()
+            .Which.Url.ToString().Should().StartWith("https://graph.microsoft.com/beta/")
+            .And.Contain("isPrivileged");
     }
 
     [Fact]
