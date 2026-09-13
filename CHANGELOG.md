@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shares the tool's token cache. For an account signed in through an app registration Elevate cannot
   tell whether the Azure CLI, Azure PowerShell or kubelogin were ever used as that account, so the
   hint no longer asserts that their cached tokens exist.
+- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails, as on macOS since 1.6.1.
 
 ## [1.6.4] - 2026-09-12
 

@@ -95,6 +95,31 @@ public class AppModelSharedAppTests
     }
 
     [Fact]
+    public async Task PerTenantAdminConsentUrlIsNullForFirstPartyCustomAndUnknownAccounts()
+    {
+        // The tenant menu offers "Open admin consent link…" whenever this returns a URL, so the
+        // methods that cannot be consented to must come back null here rather than in the view.
+        using var test = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: AppSettings.SharedClientId);
+        test.Model.State.Identities.Add(Sample.Identity("cli", SignInMethod.AzureCLI));
+        test.Model.State.Identities.Add(Sample.Identity("psh", SignInMethod.AzurePowerShell));
+        test.Model.State.Identities.Add(Sample.Identity("custom", SignInMethod.Custom(OtherClientId)));
+
+        test.Model.AdminConsentUrl("cli", Sample.TenantId).Should().BeNull();
+        test.Model.AdminConsentUrl("psh", Sample.TenantId).Should().BeNull();
+        test.Model.AdminConsentUrl("custom", Sample.TenantId).Should().BeNull();
+        test.Model.AdminConsentUrl("missing", Sample.TenantId).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PerTenantAdminConsentUrlIsNullWhenUnconfigured()
+    {
+        using var test = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: "");
+        test.Model.State.Identities.Add(Sample.Identity(method: SignInMethod.OwnApp));
+
+        test.Model.AdminConsentUrl(Sample.IdentityId, Sample.TenantId).Should().BeNull();
+    }
+
+    [Fact]
     public async Task ApplyingTheSharedIdMakesItTheOneInEffect()
     {
         using var test = await TestModel.BootstrappedAsync(
