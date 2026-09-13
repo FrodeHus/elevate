@@ -21,7 +21,8 @@ public static class Privilege
         }
 
         if (!string.Equals(role.Type, "BuiltInRole", StringComparison.OrdinalIgnoreCase)
-            && role.Actions.Any(a => a == "*" || a.StartsWith("Microsoft.Authorization/", StringComparison.OrdinalIgnoreCase) && a.EndsWith("/write", StringComparison.OrdinalIgnoreCase)))
+            && role.Actions.Any(a => a == "*" || a.StartsWith("Microsoft.Authorization/", StringComparison.OrdinalIgnoreCase)
+                && (a.EndsWith("/write", StringComparison.OrdinalIgnoreCase) || a.EndsWith("/*", StringComparison.OrdinalIgnoreCase))))
         {
             return Severity.Medium;
         }

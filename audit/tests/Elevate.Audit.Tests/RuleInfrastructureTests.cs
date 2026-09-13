@@ -54,6 +54,19 @@ public class RuleInfrastructureTests
     }
 
     [Fact]
+    public void Privilege_WildcardAuthorizationActions_AreAlsoPrivileged()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .AzureRole("11111111-0000-0000-0000-000000000003", "Custom Authorization Wildcard", "CustomRole", "Microsoft.Authorization/*")
+            .AzureRole("11111111-0000-0000-0000-000000000004", "Custom Compute Wildcard", "CustomRole", "Microsoft.Compute/*")
+            .Build();
+        var context = new RuleContext(snapshot, new AuditOptions());
+
+        context.AzureSeverity(SnapshotBuilder.AzureRolePrefix + "11111111-0000-0000-0000-000000000003").Should().Be(Severity.Medium);
+        context.AzureSeverity(SnapshotBuilder.AzureRolePrefix + "11111111-0000-0000-0000-000000000004").Should().BeNull();
+    }
+
+    [Fact]
     public void AllRoles_MakesEverythingPrivileged()
     {
         var context = new RuleContext(SnapshotBuilder.Contoso().Build(), new AuditOptions(AllRoles: true));

@@ -8,7 +8,8 @@ public static class RuleRunner
     public static IReadOnlyList<IRule> All { get; } =
     [
         new EntraUserPermanentRule(), new EntraGroupPermanentRule(), new EntraGroupNotPimRule(), new EntraGroupNotAssignableRule(),
-        new GroupMemberPermanentRule(), new GuestPermanentRule(), new ServicePrincipalPermanentRule(),
+        new GroupMemberPermanentRule(), new AzurePermanentRule(), new ServicePrincipalPermanentRule(), new GuestPermanentRule(),
+        new EligibleNoEndRule(), new GlobalAdminCountRule(),
     ];
 
     public static IReadOnlyList<Finding> Run(Snapshot snapshot, AuditOptions options, IEnumerable<IRule>? rules = null)
