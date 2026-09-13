@@ -126,7 +126,7 @@ public sealed class RuleContext
     /// <summary>Renders "" for a direct holder or " through A ← B" for one reached through nested groups.</summary>
     public static string Through(IReadOnlyList<GroupRef> via) => via.Count == 0 ? string.Empty : $" through {string.Join(" ← ", via.Select(v => v.DisplayName))}";
 
-    /// <summary>Permanent privileged Entra assignments (not the per-member echoes of a group assignment), excluding group-member echoes.</summary>
+    /// <summary>Permanent privileged Entra assignments, excluding the per-member echoes of a group assignment.</summary>
     public IEnumerable<EntraAssignmentRecord> PermanentPrivilegedEntraAssignments() =>
         Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && IsPrivilegedEntra(a.RoleDefinitionId));
 

@@ -77,15 +77,19 @@ once, and read the report in the terminal. Useful options:
 | `--html report.html` | Also write a self-contained HTML report you can share or print. |
 | `--json report.json` (or `--json -`) | Also write the JSON report, or print only JSON on stdout. |
 | `--all-roles` | Report every role, not only the privileged ones. |
-| `--min-severity medium` | Hide low and informational findings. |
+| `--min-severity medium` | Hides findings below the level from the output; the summary counts and the exit code still cover every finding, and the report says how many were hidden. |
 | `--ignore GA-COUNT` | Skip a rule (repeatable). |
 | `--skip-azure` | Do not sign in to Azure or scan Azure RBAC. |
 | `--tenant <id>` | Scan a tenant you are a guest in. |
 | `--save-snapshot scan.json` / `--from-snapshot scan.json` | Save everything that was read; re-run the rules offline later, or attach the snapshot to a bug report. |
 | `--client-id <guid>` | Use your own public client for Graph; see section 5. |
+| `--verbose` | Log every request; also cross-checks each role-assigned group's walk against Graph's `transitiveMembers` and prints a line when the counts differ. |
 
 Exit codes: `0` no high findings, `2` at least one high finding, `1` error. `--no-fail` forces
 `0` so a pipeline can publish the report without failing on it.
+
+`--save-snapshot` writes every principal's display name and sign-in name to the file; treat it
+like the report — it contains personal data.
 
 ### The rules
 
@@ -157,3 +161,10 @@ A sample report from a fictional tenant is at
   at directory scope.
 - **Throttled** — the tool retries `429` replies honouring `Retry-After`; `--verbose` shows each
   request.
+- **The `groups` source shows "N nested group(s) could not be read"** — the account lacks read
+  access to those groups, so their members are missing from the walk.
+- **The `groups` source is skipped tenant-wide** — the scope needed to read group membership is
+  missing entirely for this account, not just for individual groups.
+- **`--verbose` prints a walk/transitiveMembers count mismatch** — for a role-assigned group, the
+  tool's own membership walk found a different number of members than Graph's `transitiveMembers`
+  reports; this is informational and does not by itself indicate a missing finding.
