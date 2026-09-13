@@ -59,9 +59,12 @@ public sealed class FakeTokenProvider : ITokenProvider
         }
     }
 
+    /// <summary>Returned by the next <see cref="SignInAsync"/> instead of the fixed "new" account; a test sets it to sign a known account in again.</summary>
+    public Identity? NextSignIn { get; set; }
+
     public Task<Identity> SignInAsync(SignInMethod method, CancellationToken ct)
     {
-        var identity = new Identity("new", "new@x", "New", "home", method);
+        var identity = NextSignIn ?? new Identity("new", "new@x", "New", "home", method);
         lock (_gate)
         {
             _storedIdentities.Add(identity);

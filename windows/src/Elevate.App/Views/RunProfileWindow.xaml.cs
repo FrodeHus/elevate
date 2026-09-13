@@ -136,6 +136,9 @@ public sealed partial class RunProfileWindow : Window
     private const double DurationColumn = 130;
     private const double StatusColumn = 160;
 
+    // A WinUI CheckBox with no content and zero padding is its 20 px glyph box.
+    private const double CheckBoxGlyphWidth = 20;
+
     private void Build()
     {
         Rows.Children.Clear();
@@ -159,21 +162,18 @@ public sealed partial class RunProfileWindow : Window
                     row.Item.Role?.Detail,
                     row.Item.RoleKey,
                     opacity: row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6);
-                if (row.Include is { } include)
-                {
-                    // Checkbox at the leading edge, the name trimming inside the remaining width.
-                    var lead = new Grid { ColumnSpacing = 8 };
-                    lead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    lead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    lead.Children.Add(include);
-                    Grid.SetColumn(row.Name, 1);
-                    lead.Children.Add(row.Name);
-                    grid.Children.Add(lead);
-                }
-                else
-                {
-                    grid.Children.Add(row.Name);
-                }
+                // Checkbox at the leading edge, the name trimming inside the remaining width. Skipped
+                // rows have nothing to choose; a placeholder the width of the checkbox glyph keeps the
+                // names lined up with the checked rows.
+                var lead = new Grid { ColumnSpacing = 8 };
+                lead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                lead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                lead.Children.Add(row.Include is { } include
+                    ? include
+                    : (UIElement)new Border { Width = CheckBoxGlyphWidth, Margin = new Thickness(0, 0, -4, 0) });
+                Grid.SetColumn(row.Name, 1);
+                lead.Children.Add(row.Name);
+                grid.Children.Add(lead);
                 if (row.Duration is { } picker)
                 {
                     picker.VerticalAlignment = VerticalAlignment.Center;

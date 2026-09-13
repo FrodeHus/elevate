@@ -74,6 +74,12 @@ public sealed partial class AppModel
             return;
         }
 
+        // An account without a saved sign-in would only prompt on every refresh; it waits for "Sign in again".
+        if (SignInNeeded.Contains(identity.Id))
+        {
+            return;
+        }
+
         if (!Busy.Add(key))
         {
             return;
