@@ -4,7 +4,7 @@
     "version": "sample"
   },
   "tenant": {
-    "id": "72f988bf-0000-4000-8000-2d7cd011db47",
+    "id": "5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e",
     "displayName": "Contoso"
   },
   "account": "alex.rivera@contoso.com",
@@ -575,7 +575,7 @@
       "id": "GA-COUNT",
       "severity": "medium",
       "principal": {
-        "id": "72f988bf-0000-4000-8000-2d7cd011db47",
+        "id": "5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e",
         "displayName": "Contoso",
         "type": "unknown",
         "isGuest": false

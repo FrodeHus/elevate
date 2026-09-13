@@ -9,7 +9,7 @@ public static class SampleSnapshot
     public const string Reader = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
 
     public static Snapshot Build() => SnapshotBuilder.Contoso()
-        .Tenant("72f988bf-0000-4000-8000-2d7cd011db47", "Contoso")
+        .Tenant("5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e", "Contoso")
         .EntraRole("rd-sec", "194ae4cb-b126-40b2-bd5b-6091b380977d", "Security Administrator", privileged: true)
         .User("u-alex", "Alex Rivera", "alex.rivera@contoso.com")
         .User("u-sam", "Sam Chen", "sam.chen@contoso.com")
