@@ -8,6 +8,12 @@ using Elevate.Core.Support;
 
 namespace Elevate.Audit.Collectors;
 
+/// <summary>
+/// <paramref name="Groups"/>' own <c>DirectMembers</c> may reference a group id that is not itself a key
+/// in <paramref name="Groups"/>: a nested group can be skipped (deleted, or unreadable by this account —
+/// see <see cref="UnreadableGroups"/>) after its parent already recorded it as a member. Consumers that
+/// walk <c>DirectMembers</c> (see <see cref="Rules.GroupExpansion"/>) must tolerate a missing lookup.
+/// </summary>
 public sealed record GroupData(
     IReadOnlyList<GroupRecord> Groups,
     IReadOnlyList<PrincipalRecord> Principals,

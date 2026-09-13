@@ -11,6 +11,14 @@ namespace Elevate.Audit.Collectors;
 /// Runs the collectors and assembles the <see cref="Snapshot"/>. Directory roles are required; Azure,
 /// PIM for Groups and principal resolution degrade to a <see cref="SkippedSource"/> entry.
 /// </summary>
+/// <param name="note">
+/// Progress text for the user. Directory, Azure and tenant collection run as concurrent tasks, so this
+/// may be invoked from more than one task at a time; callers must be safe to call from any thread
+/// (e.g. writing to <see cref="Console"/>, which is inherently thread-safe).
+/// </param>
+/// <param name="verbose">
+/// Same concurrency note as <paramref name="note"/>: nullable, and may be invoked from concurrent tasks.
+/// </param>
 public sealed class Scanner(
     GraphTransport graph,
     GraphTransport? arm,
@@ -28,6 +36,9 @@ public sealed class Scanner(
 
     public async Task<Snapshot> ScanAsync(CancellationToken ct)
     {
+        // Written concurrently only by CollectAzureAsync below (the sole task that touches it while
+        // directoryTask/azureTask/tenantTask are all in flight); every other Add happens after `await
+        // azureTask` has completed, so there is never more than one writer at a time and no lock is needed.
         var skipped = new List<SkippedSource>();
 
         note("Reading directory roles…");
@@ -162,11 +173,7 @@ public sealed class Scanner(
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            lock (skipped)
-            {
-                skipped.Add(new SkippedSource("azure", e is PimException pe ? pe.UserMessage : e.Message));
-            }
-
+            skipped.Add(new SkippedSource("azure", e is PimException pe ? pe.UserMessage : e.Message));
             return null;
         }
     }

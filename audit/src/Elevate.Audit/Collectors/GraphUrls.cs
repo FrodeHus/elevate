@@ -11,8 +11,6 @@ namespace Elevate.Audit.Collectors;
 /// </summary>
 public static class GraphUrls
 {
-    public const string ArmBase = "https://management.azure.com";
-
     public static Uri Organization => Graph("/organization?$select=id,displayName");
 
     public static Uri RoleDefinitions => Beta("/roleManagement/directory/roleDefinitions?$select=id,templateId,displayName,isPrivileged,isBuiltIn");
@@ -49,22 +47,22 @@ public static class GraphUrls
     public static Uri Subscriptions => Arm("/subscriptions", "2022-12-01");
 
     /// <summary>All assignments at the subscription, its children, and inherited from above.</summary>
-    public static Uri SubscriptionRoleAssignments(string subscriptionId) => Arm($"/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignments", "2022-04-01");
+    public static Uri SubscriptionRoleAssignments(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleAssignments", "2022-04-01");
 
-    public static Uri ManagementGroupRoleAssignments(string name) => Arm($"/providers/Microsoft.Management/managementGroups/{name}/providers/Microsoft.Authorization/roleAssignments", "2022-04-01", "$filter=atScope()");
+    public static Uri ManagementGroupRoleAssignments(string name) => Arm($"/providers/Microsoft.Management/managementGroups/{Escape(name)}/providers/Microsoft.Authorization/roleAssignments", "2022-04-01", "$filter=atScope()");
 
-    public static Uri SubscriptionAssignmentInstances(string subscriptionId) => Arm($"/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignmentScheduleInstances", "2020-10-01");
+    public static Uri SubscriptionAssignmentInstances(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleAssignmentScheduleInstances", "2020-10-01");
 
-    public static Uri SubscriptionEligibilityInstances(string subscriptionId) => Arm($"/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleEligibilityScheduleInstances", "2020-10-01");
+    public static Uri SubscriptionEligibilityInstances(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleEligibilityScheduleInstances", "2020-10-01");
 
-    public static Uri SubscriptionRoleDefinitions(string subscriptionId) => Arm($"/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleDefinitions", "2022-04-01");
+    public static Uri SubscriptionRoleDefinitions(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleDefinitions", "2022-04-01");
 
     private static Uri Graph(string path) => new(GraphTransport.GraphBase + path);
 
     private static Uri Beta(string path) => new(GraphTransport.GraphBetaBase + path);
 
     private static Uri Arm(string path, string apiVersion, string? extra = null) =>
-        new($"{ArmBase}{path}?api-version={apiVersion}{(extra is null ? string.Empty : "&" + extra)}");
+        new($"{GraphTransport.ArmBase}{path}?api-version={apiVersion}{(extra is null ? string.Empty : "&" + extra)}");
 
     private static string Escape(string id) => Uri.EscapeDataString(id);
 }
