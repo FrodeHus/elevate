@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the message and an Open Settings… button, in place of the role list, as the macOS panel does.
   Settings repeats the message next to Copy diagnostics. Before, the flyout stayed empty and the
   reason was only in `elevate.log`.
+
 ### Changed
 
 - Windows: expiry notifications are now scheduled with Windows instead of being timed inside the app,
@@ -23,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the Entra app registration method, not only after discovery fell back to manual roles or
   groups became unavailable, so an administrator can re-consent after a scope is added before
   anything fails, as on macOS since 1.6.1.
+- Windows: an account whose saved sign-in is gone at launch (a cleared MSAL or Azure CLI cache, a
+  revoked session) is kept with its tenants, configured roles and profile entries instead of being
+  signed out. The account row shows a **Sign in** button and its menu a **Sign in again** item
+  that re-run the account's own sign-in method; refreshes skip the account until then. A read
+  failure of the token caches keeps every account as it was. Matches macOS.
+
+### Fixed
+
+- Windows: the Profiles window says "No roles resolved yet. They appear once the tenants they
+  name have loaded." for a managed profile whose tenants have not loaded, as on macOS, instead of
+  the "Add roles…" hint for a control that is not there.
+- Windows: in the run review, rows that are already active, pending or not eligible reserve the
+  checkbox width, so their names line up with the rows that have one.
 
 ## [1.6.4] - 2026-09-12
 
