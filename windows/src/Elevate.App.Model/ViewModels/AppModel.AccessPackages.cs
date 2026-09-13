@@ -106,6 +106,12 @@ public sealed partial class AppModel
             return;
         }
 
+        // As for the role refresh: an account without a saved sign-in waits for "Sign in again".
+        if (SignInNeeded.Contains(identity.Id))
+        {
+            return;
+        }
+
         if (!AccessPackagesPolling.Add(key))
         {
             return;
