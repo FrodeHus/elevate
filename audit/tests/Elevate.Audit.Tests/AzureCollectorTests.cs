@@ -60,6 +60,7 @@ public class AzureCollectorTests
     }
 
     [Theory]
+    [InlineData("/", AzureScopeKind.ManagementGroup, "/")]
     [InlineData("/providers/Microsoft.Management/managementGroups/contoso", AzureScopeKind.ManagementGroup, "contoso")]
     [InlineData("/subscriptions/sub1", AzureScopeKind.Subscription, "sub1")]
     [InlineData("/subscriptions/sub1/resourceGroups/rg-app", AzureScopeKind.ResourceGroup, "rg-app")]

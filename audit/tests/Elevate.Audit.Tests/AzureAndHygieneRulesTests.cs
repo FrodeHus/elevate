@@ -54,6 +54,20 @@ public class AzureAndHygieneRulesTests
     }
 
     [Fact]
+    public void AzurePermanent_ClassicAndScheduleForSameRole_AreOneFinding_WhenRoleDefinitionIdPrefixesDiffer()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .User("u1", "Sam Chen", "sam.chen@contoso.com")
+            .AzureAssigned("ra-owner", "/", Owner, "u1", "User", roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/" + Owner)
+            .AzureAssigned("si-owner", "/", Owner, "u1", "User", type: AssignmentType.Assigned, fromSchedule: true, roleDefinitionId: "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/" + Owner)
+            .Build();
+
+        var findings = Run(snapshot).Where(f => f.Id == "AZURE-PERMANENT").ToList();
+
+        findings.Should().ContainSingle();
+    }
+
+    [Fact]
     public void EligibilitiesWithoutEnd_AreLow_AcrossAllThreeSystems()
     {
         var snapshot = SnapshotBuilder.Contoso()

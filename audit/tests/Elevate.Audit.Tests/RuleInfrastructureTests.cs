@@ -76,6 +76,17 @@ public class RuleInfrastructureTests
     }
 
     [Fact]
+    public void AzureScope_TenantRoot_IsLabeledAndKindManagementGroup()
+    {
+        var context = new RuleContext(SnapshotBuilder.Contoso().Build(), new AuditOptions());
+
+        var scope = context.AzureScope("/");
+
+        scope.DisplayName.Should().Be("Tenant root");
+        scope.Kind.Should().Be(ScopeKind.ManagementGroup);
+    }
+
+    [Fact]
     public void Principal_FallsBackToGroupsAndThenToUnknown()
     {
         var context = new RuleContext(SnapshotBuilder.Contoso().Group("g1", "Tier 0 Admins").Build(), new AuditOptions());

@@ -98,6 +98,11 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
     public static AzureScopeKind ScopeKindOf(string scope)
     {
         ArgumentNullException.ThrowIfNull(scope);
+        if (string.IsNullOrEmpty(scope) || scope == "/")
+        {
+            return AzureScopeKind.ManagementGroup;
+        }
+
         var parts = scope.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 3 && parts[0].Equals("providers", StringComparison.OrdinalIgnoreCase) && parts[1].Equals("Microsoft.Management", StringComparison.OrdinalIgnoreCase))
         {

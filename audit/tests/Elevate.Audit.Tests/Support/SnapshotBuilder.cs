@@ -85,9 +85,9 @@ public sealed class SnapshotBuilder
         return this;
     }
 
-    public SnapshotBuilder AzureAssigned(string id, string scope, string roleGuid, string principalId, string principalType, AssignmentType? type = null, DateTimeOffset? end = null, bool fromSchedule = false)
+    public SnapshotBuilder AzureAssigned(string id, string scope, string roleGuid, string principalId, string principalType, AssignmentType? type = null, DateTimeOffset? end = null, bool fromSchedule = false, string? roleDefinitionId = null)
     {
-        _azureAssignments.Add(new AzureAssignmentRecord(id, scope, AzureRolePrefix + roleGuid, principalId, principalType, type, fromSchedule ? new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero) : null, end, fromSchedule));
+        _azureAssignments.Add(new AzureAssignmentRecord(id, scope, roleDefinitionId ?? AzureRolePrefix + roleGuid, principalId, principalType, type, fromSchedule ? new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero) : null, end, fromSchedule));
         return this;
     }
 

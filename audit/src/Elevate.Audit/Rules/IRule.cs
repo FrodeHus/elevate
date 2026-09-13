@@ -102,6 +102,11 @@ public sealed class RuleContext
 
     public FindingScope AzureScope(string scope)
     {
+        if (string.IsNullOrEmpty(scope) || scope == "/")
+        {
+            return new FindingScope("/", "Tenant root", ScopeKind.ManagementGroup);
+        }
+
         var known = Snapshot.AzureScopes.FirstOrDefault(s => s.Id.Equals(scope, StringComparison.OrdinalIgnoreCase));
         var kind = AzureCollector.ScopeKindOf(scope) switch
         {
@@ -159,9 +164,12 @@ public sealed class RuleContext
     /// </summary>
     public IEnumerable<AzureAssignmentRecord> PermanentAzureAssignments()
     {
-        static string Key(AzureAssignmentRecord a) => $"{a.Scope}|{a.RoleDefinitionId}|{a.PrincipalId}".ToUpperInvariant();
+        static (string Scope, string RoleGuid, string PrincipalId) Key(AzureAssignmentRecord a) =>
+            (a.Scope.TrimEnd('/') is { Length: > 0 } trimmed ? trimmed.ToUpperInvariant() : "/",
+             AzureCollector.ScopeDisplayName(a.RoleDefinitionId).ToUpperInvariant(),
+             a.PrincipalId.ToUpperInvariant());
         var schedules = Snapshot.AzureAssignments.Where(a => a.FromSchedule).ToLookup(Key);
-        var classicKeys = new HashSet<string>(Snapshot.AzureAssignments.Where(a => !a.FromSchedule).Select(Key));
+        var classicKeys = new HashSet<(string Scope, string RoleGuid, string PrincipalId)>(Snapshot.AzureAssignments.Where(a => !a.FromSchedule).Select(Key));
         foreach (var classic in Snapshot.AzureAssignments.Where(a => !a.FromSchedule))
         {
             var behind = schedules[Key(classic)].ToList();
