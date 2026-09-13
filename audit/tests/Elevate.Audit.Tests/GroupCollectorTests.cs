@@ -54,6 +54,10 @@ public class GroupCollectorTests
         data.Principals.Select(p => p.Id).Should().BeEquivalentTo(["u1", "sp1"], "devices are counted, not resolved");
         data.PimUnavailableReason.Should().BeNull();
         stub.RequestsMatching("/groups/g1/members").Should().HaveCount(1, "each group is visited once even when nested in a cycle");
+        var members = Uri.UnescapeDataString(stub.RequestsMatching("/groups/g1/members")[0].Url.AbsoluteUri);
+        members.Should().StartWith("https://graph.microsoft.com/beta/groups/g1/members", "v1.0 has a documented known issue that omits service principals from group members");
+        members.Should().Contain("$select=id,displayName,userPrincipalName,userType,accountEnabled,servicePrincipalType", "userType is not in the default user projection, so guests would read as members");
+        data.Principals.Single(p => p.Id == "u1").AccountEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -91,5 +95,24 @@ public class GroupCollectorTests
         data.Groups.Select(g => g.Id).Should().BeEquivalentTo(["g1"], "the unreadable nested group is skipped, not collected");
         var g1 = data.Groups.Single(g => g.Id == "g1");
         g1.DirectMembers.Select(m => (m.Id, m.Type)).Should().Contain(("g9", PrincipalType.Group), "the parent still lists it as a member");
+        data.UnreadableGroups.Should().Be(1, "the skip is counted so the report can say the expansion is incomplete");
+        data.GroupsUnavailableReason.Should().BeNull("one refused group is not a tenant-wide condition");
+    }
+
+    [Fact]
+    public async Task Collect_WhenTheGroupScopeIsMissing_StopsWalkingAndReportsWhy()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?",
+            """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
+        stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
+
+        data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
+        data.Groups.Should().BeEmpty();
+        data.UnreadableGroups.Should().Be(0, "a tenant-wide refusal is reported once, not counted per group");
+        stub.RequestsMatching("/groups/g2").Should().BeEmpty("the walk stops instead of asking for every group in the tenant");
     }
 }

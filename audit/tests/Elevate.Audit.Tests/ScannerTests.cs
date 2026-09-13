@@ -20,6 +20,7 @@ public class ScannerTests
         stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[]}]}""");
         stub.On("GET", "/groups/g1/members", """{"value":[{"@odata.type":"#microsoft.graph.user","id":"u1","displayName":"Sam Chen","userPrincipalName":"sam.chen@contoso.com","userType":"Member"}]}""");
         stub.On("GET", "privilegedAccess/group", """{"value":[]}""");
+        stub.On("GET", "/users?$select=", Users("Member"));
         stub.On("POST", "/directoryObjects/getByIds", """{"value":[{"@odata.type":"#microsoft.graph.user","id":"u9","displayName":"Jordan Lee","userPrincipalName":"jordan.lee@contoso.com","userType":"Member"}]}""");
         stub.On("GET", "/providers/Microsoft.Management/managementGroups?", """{"value":[]}""");
         stub.On("GET", "/subscriptions?api-version", """{"value":[{"id":"/subscriptions/sub1","subscriptionId":"sub1","displayName":"Production"}]}""");
@@ -31,6 +32,15 @@ public class ScannerTests
         stub.On("GET", "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions?", """{"value":[{"id":"/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635","name":"8e3af657-a8ff-443c-a75c-2fe8c4bcb635","properties":{"roleName":"Owner","type":"BuiltInRole","permissions":[{"actions":["*"]}]}}]}""");
         return stub;
     }
+
+    /// <summary>Answers the enrichment read by echoing back the ids in its $filter with the given userType.</summary>
+    private static Func<Elevate.Core.Networking.HttpRequestData, Elevate.Core.Networking.HttpResponseData> Users(string userType) => request =>
+    {
+        var url = Uri.UnescapeDataString(request.Url.AbsoluteUri);
+        var ids = url[(url.IndexOf("id in (", StringComparison.Ordinal) + 7)..].TrimEnd(')').Split(',').Select(i => i.Trim('\''));
+        var value = string.Join(",", ids.Select(id => $$"""{"id":"{{id}}","displayName":"Priya Natarajan","userPrincipalName":"priya_fabrikam.com#EXT#@contoso.com","userType":"{{userType}}","accountEnabled":true}"""));
+        return new Elevate.Core.Networking.HttpResponseData(200, new Dictionary<string, string>(), System.Text.Encoding.UTF8.GetBytes($$"""{"value":[{{value}}]}"""));
+    };
 
     private static Scanner Build(StubHttpClient stub, AuditOptions? options = null, bool withArm = true) => new(
         TestIdentity.Graph(stub),
@@ -126,5 +136,49 @@ public class ScannerTests
         var act = () => Build(stub).ScanAsync(CancellationToken.None);
 
         (await act.Should().ThrowAsync<PimException>()).Which.Kind.Should().Be(PimErrorKind.Forbidden);
+    }
+
+    [Fact]
+    public async Task Scan_WhenTheExpandedPrincipalOmitsUserType_ReadsItBackAndMarksTheGuest()
+    {
+        var stub = Tenant();
+        stub.On("GET", "roleAssignmentScheduleInstances?$expand", """
+            {"value":[{"id":"a1","principalId":"u5","roleDefinitionId":"rd-ga","directoryScopeId":"/","assignmentType":"Assigned","memberType":"Direct","principal":{"@odata.type":"#microsoft.graph.user","id":"u5","displayName":"Priya Natarajan","userPrincipalName":"priya_fabrikam.com#EXT#@contoso.com"}}]}
+            """);
+        stub.On("GET", "/users?$select=", Users("Guest"));
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        var priya = snapshot.Principals.Single(p => p.Id == "u5");
+        priya.IsGuest.Should().BeTrue("$expand=principal does not project userType, so the user is read back explicitly");
+        priya.AccountEnabled.Should().BeTrue();
+        snapshot.Skipped.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Scan_WhenGroupsCannotBeReadAtAll_SkipsTheSource()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?",
+            """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        snapshot.Skipped.Should().ContainSingle(s => s.Source == "groups").Which.Reason.Should().Contain("GroupMember.Read.All");
+        snapshot.Groups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Scan_WhenANestedGroupIsRefused_SaysHowManyWereNotRead()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}""", 403);
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        snapshot.Skipped.Should().ContainSingle(s => s.Source == "groups")
+            .Which.Reason.Should().Be("1 nested group(s) could not be read; their members are not included.");
     }
 }

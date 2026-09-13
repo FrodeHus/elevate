@@ -7,7 +7,12 @@ using Elevate.Core.Support;
 
 namespace Elevate.Audit.Collectors;
 
-public sealed record GroupData(IReadOnlyList<GroupRecord> Groups, IReadOnlyList<PrincipalRecord> Principals, string? PimUnavailableReason);
+public sealed record GroupData(
+    IReadOnlyList<GroupRecord> Groups,
+    IReadOnlyList<PrincipalRecord> Principals,
+    string? PimUnavailableReason,
+    string? GroupsUnavailableReason,
+    int UnreadableGroups);
 
 /// <summary>
 /// Every role-assignable group plus every group reached from a seed, breadth-first through direct
@@ -22,6 +27,8 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
 
     private readonly IReadOnlyList<string> _scopes = ClientIds.GraphReadScopes;
     private string? _pimUnavailable;
+    private string? _groupsUnavailable;
+    private int _unreadableGroups;
 
     public async Task<GroupData> CollectAsync(IEnumerable<string> seedGroupIds, CancellationToken ct)
     {
@@ -51,7 +58,12 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             var meta = known.TryGetValue(id, out var k) ? k : await GetGroupAsync(id, ct).ConfigureAwait(false);
             if (meta is null)
             {
-                continue; // deleted between calls
+                if (_groupsUnavailable is not null)
+                {
+                    break; // the scope is missing tenant-wide; asking for every other group would repeat the same 403
+                }
+
+                continue; // deleted between calls, or one group this account cannot read
             }
 
             var members = await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupMembers(id), _scopes, ct).ConfigureAwait(false);
@@ -83,7 +95,7 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
                 eligible);
         }
 
-        return new GroupData(groups.Values.ToList(), principals.Values.ToList(), _pimUnavailable);
+        return new GroupData(groups.Values.ToList(), principals.Values.ToList(), _pimUnavailable, _groupsUnavailable, _unreadableGroups);
     }
 
     private async Task<WireGroup?> GetGroupAsync(string id, CancellationToken ct)
@@ -93,9 +105,16 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             var response = await graph.GetAsync(identity, tenantId, GraphUrls.Group(id), _scopes, ct).ConfigureAwait(false);
             return JsonSerializer.Deserialize<WireGroup>(response.Body, GraphJson.Options);
         }
+        catch (PimException e) when (IsMissingScope(e))
+        {
+            // GroupMember.Read.All is missing or restricted: every other group would refuse the same way.
+            _groupsUnavailable = e.UserMessage;
+            return null;
+        }
         catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {
             // Deleted, or a nested group the signed-in account cannot read; its parent still lists it as a member.
+            _unreadableGroups++;
             return null;
         }
     }
@@ -125,7 +144,12 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
         }
     }
 
-    /// <summary>Core phrases a PermissionScopeNotGranted 403 as "… is not granted &lt;scope&gt; …"; that is a tenant-wide condition, not one group's.</summary>
+    /// <summary>
+    /// Core phrases a PermissionScopeNotGranted 403 as "… is not granted &lt;scope&gt; …"; that is a
+    /// tenant-wide condition, not one group's. The wording lives in Elevate.Core, so the tenant-wide
+    /// tests here (<c>…TheGroupScopeIsMissing…</c>, <c>…ThePimScopeIsMissing…</c>) are the drift guard:
+    /// if Core rephrases the message they fail rather than silently reclassifying the whole tenant.
+    /// </summary>
     private static bool IsMissingScope(PimException e) =>
         e.Kind == PimErrorKind.Forbidden && e.UserMessage.Contains("is not granted", StringComparison.Ordinal);
 

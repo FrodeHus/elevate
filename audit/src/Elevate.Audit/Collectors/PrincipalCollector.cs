@@ -12,6 +12,9 @@ public sealed class PrincipalCollector(GraphTransport graph, Identity identity, 
 {
     public const int ChunkSize = 1000;
 
+    /// <summary>Ids per <c>id in (…)</c> filter; the filter travels in the URL, so the chunk stays small.</summary>
+    public const int EnrichChunkSize = 15;
+
     private static readonly string[] Types = ["user", "group", "servicePrincipal", "device"];
 
     public async Task<IReadOnlyList<PrincipalRecord>> ResolveAsync(IReadOnlyCollection<string> ids, CancellationToken ct)
@@ -27,6 +30,31 @@ public sealed class PrincipalCollector(GraphTransport graph, Identity identity, 
             {
                 result.AddRange(value.Select(Wire.ToRecord));
             }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Reads <c>userType</c> and <c>accountEnabled</c> for users that arrived without them: neither
+    /// <c>$expand=principal</c> nor <c>getByIds</c> projects <c>userType</c>, so a guest would
+    /// otherwise be recorded as a member.
+    /// </summary>
+    public async Task<IReadOnlyList<PrincipalRecord>> EnrichUsersAsync(IReadOnlyCollection<string> userIds, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(userIds);
+        var result = new List<PrincipalRecord>(userIds.Count);
+        foreach (var chunk in userIds.Distinct(StringComparer.OrdinalIgnoreCase).Chunk(EnrichChunkSize))
+        {
+            var users = await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.UsersByIds(chunk), ClientIds.GraphReadScopes, ct).ConfigureAwait(false);
+            result.AddRange(users.Select(u => new PrincipalRecord(
+                u.Id,
+                PrincipalType.User,
+                u.DisplayName,
+                u.UserPrincipalName,
+                string.Equals(u.UserType, "Guest", StringComparison.OrdinalIgnoreCase),
+                u.AccountEnabled,
+                null)));
         }
 
         return result;

@@ -62,6 +62,16 @@ public sealed class Scanner(
             skipped.Add(new SkippedSource("pim-for-groups", reason));
         }
 
+        if (groups.GroupsUnavailableReason is { } groupsReason)
+        {
+            skipped.Add(new SkippedSource("groups", groupsReason));
+        }
+
+        if (groups.UnreadableGroups > 0)
+        {
+            skipped.Add(new SkippedSource("groups", $"{groups.UnreadableGroups} nested group(s) could not be read; their members are not included."));
+        }
+
         var referenced = directory.Assignments.Select(a => a.PrincipalId)
             .Concat(directory.Eligibilities.Select(e => e.PrincipalId))
             .Concat(groups.Groups.SelectMany(g => g.PimAssignments.Concat(g.PimEligibilities)).Select(p => p.PrincipalId))
@@ -83,6 +93,25 @@ public sealed class Scanner(
             catch (PimException e)
             {
                 skipped.Add(new SkippedSource("principals", $"Some principals could not be resolved to names: {e.UserMessage}"));
+            }
+        }
+
+        // Neither $expand=principal nor getByIds projects userType, so a user that still has no
+        // accountEnabled was never told apart from a guest; read those back explicitly.
+        var unprojected = principals.Values.Where(p => p.Type == PrincipalType.User && p.AccountEnabled is null).Select(p => p.Id).ToList();
+        if (unprojected.Count > 0)
+        {
+            note($"Reading {unprojected.Count} user records…");
+            try
+            {
+                foreach (var p in await new PrincipalCollector(graph, identity, tenantId).EnrichUsersAsync(unprojected, ct).ConfigureAwait(false))
+                {
+                    principals[p.Id] = p;
+                }
+            }
+            catch (PimException e)
+            {
+                skipped.Add(new SkippedSource("principals", $"Guest status and sign-in status could not be read for some users: {e.UserMessage}"));
             }
         }
 

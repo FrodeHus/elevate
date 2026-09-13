@@ -58,4 +58,49 @@ public class DirectoryRoleCollectorTests
         data.Principals.Single(p => p.Id == "g1").Type.Should().Be(PrincipalType.Group);
         stub.RequestsMatching("roleAssignmentScheduleInstances").Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task Collect_WithoutAnExpandedPrincipal_StillRecordsTheAssignment()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/roleManagement/directory/roleDefinitions", """{"value":[{"id":"rd-ga","displayName":"Global Administrator","isPrivileged":true,"isBuiltIn":true}]}""");
+        stub.On("GET", "roleAssignmentScheduleInstances?$expand", """
+            {"value":[{"id":"a1","principalId":"u1","roleDefinitionId":"rd-ga","directoryScopeId":"/","assignmentType":"Assigned","memberType":"Direct","principal":null}]}
+            """);
+        stub.On("GET", "roleEligibilityScheduleInstances", """{"value":[]}""");
+
+        var data = await new DirectoryRoleCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(CancellationToken.None);
+
+        data.Assignments.Should().ContainSingle().Which.PrincipalId.Should().Be("u1");
+        data.Principals.Should().BeEmpty("the principal is resolved later, by id");
+    }
+
+    [Fact]
+    public async Task Collect_WithAnUnfamiliarPrincipalType_RecordsItAsUnknown()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/roleManagement/directory/roleDefinitions", """{"value":[]}""");
+        stub.On("GET", "roleAssignmentScheduleInstances?$expand", """
+            {"value":[{"id":"a1","principalId":"x1","roleDefinitionId":"rd-ga","directoryScopeId":"/","assignmentType":"Assigned","principal":{"@odata.type":"#microsoft.graph.directoryObject","id":"x1","displayName":"Something New"}}]}
+            """);
+        stub.On("GET", "roleEligibilityScheduleInstances", """{"value":[]}""");
+
+        var data = await new DirectoryRoleCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(CancellationToken.None);
+
+        data.Principals.Should().ContainSingle().Which.Type.Should().Be(PrincipalType.Unknown);
+    }
+
+    [Fact]
+    public async Task Collect_WithADefinitionThatDeclaresNothing_IsNotPrivileged()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/roleManagement/directory/roleDefinitions", """{"value":[{"id":"rd-custom","displayName":"Custom Role"}]}""");
+        stub.On("GET", "roleAssignmentScheduleInstances?$expand", """{"value":[]}""");
+        stub.On("GET", "roleEligibilityScheduleInstances", """{"value":[]}""");
+
+        var data = await new DirectoryRoleCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(CancellationToken.None);
+
+        var definition = data.Definitions.Should().ContainSingle().Subject;
+        definition.Should().BeEquivalentTo(new { IsPrivileged = false, IsBuiltIn = false, TemplateId = (string?)null, DisplayName = "Custom Role" });
+    }
 }

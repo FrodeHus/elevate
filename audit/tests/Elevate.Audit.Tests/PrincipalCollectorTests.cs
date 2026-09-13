@@ -45,4 +45,39 @@ public class PrincipalCollectorTests
         resolved.Should().BeEmpty();
         stub.Requests.Should().BeEmpty();
     }
+    [Fact]
+    public async Task EnrichUsers_ReadsUserTypeInChunksOfFifteen_WithAnIdInFilter()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/users?$select=", request =>
+        {
+            var url = Uri.UnescapeDataString(request.Url.AbsoluteUri);
+            var ids = url[(url.IndexOf("id in (", StringComparison.Ordinal) + 7)..].TrimEnd(')').Split(',').Select(i => i.Trim('\'')).ToList();
+            var value = string.Join(",", ids.Select(id =>
+                $$"""{"id":"{{id}}","displayName":"Priya Natarajan","userPrincipalName":"priya_fabrikam.com#EXT#@contoso.com","userType":"Guest","accountEnabled":true}"""));
+            return new Elevate.Core.Networking.HttpResponseData(200, new Dictionary<string, string>(), Encoding.UTF8.GetBytes($$"""{"value":[{{value}}]}"""));
+        });
+        var ids = Enumerable.Range(0, 16).Select(i => $"u{i}").ToList();
+
+        var enriched = await new PrincipalCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).EnrichUsersAsync(ids, CancellationToken.None);
+
+        var requests = stub.RequestsMatching("/users?$select=");
+        requests.Should().HaveCount(2, "ids are chunked at fifteen so the $filter stays inside Graph's URL limits");
+        var first = Uri.UnescapeDataString(requests[0].Url.AbsoluteUri);
+        first.Should().Contain("$select=id,displayName,userPrincipalName,userType,accountEnabled");
+        first.Should().Contain("$filter=id in ('u0','u1',");
+        enriched.Should().HaveCount(16);
+        enriched.Should().OnlyContain(p => p.Type == PrincipalType.User && p.IsGuest && p.AccountEnabled == true);
+    }
+
+    [Fact]
+    public async Task EnrichUsers_WithNoIds_MakesNoRequest()
+    {
+        var stub = new StubHttpClient();
+
+        var enriched = await new PrincipalCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).EnrichUsersAsync([], CancellationToken.None);
+
+        enriched.Should().BeEmpty();
+        stub.Requests.Should().BeEmpty();
+    }
 }
