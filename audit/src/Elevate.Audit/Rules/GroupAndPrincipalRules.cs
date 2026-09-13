@@ -23,7 +23,7 @@ public sealed class GroupMemberPermanentRule : IRule
                     [],
                     $"{group.DisplayName} is managed by PIM for Groups, but {principal.DisplayName ?? principal.Id} is a permanent {p.AccessId}. Convert the assignment to eligible.",
                     PortalLinks.GroupPim(group.Id),
-                    new FindingEvidence(p.Id, p.StartDateTime, p.EndDateTime, p.AssignmentType, null));
+                    new FindingEvidence(p.Id, p.StartDateTime, p.EndDateTime, p.AssignmentType, p.AccessId));
             }
         }
     }
