@@ -111,6 +111,8 @@
                 </StackPanel>
                 <Button Grid.Column="1" x:Name="CopyDiagnostics" Content="Copy diagnostics" Click="OnCopyDiagnostics" VerticalAlignment="Center" />
             </Grid>
+            <!-- The bootstrap failure the flyout shows (see elevate.log), kept here next to the diagnostics report. -->
+            <InfoBar x:Name="BootstrapError" IsOpen="False" IsClosable="False" Severity="Error" Title="Elevate cannot start" />
         </StackPanel>
 
         <!-- Global shortcut -->

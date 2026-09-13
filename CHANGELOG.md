@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Windows: a startup failure now shows in the flyout as an error bar ("Elevate cannot start") with
+  the message and an Open Settings… button, in place of the role list, as the macOS panel does.
+  Settings repeats the message next to Copy diagnostics. Before, the flyout stayed empty and the
+  reason was only in `elevate.log`.
 ### Changed
 
 - Windows: an account whose saved sign-in is gone at launch (a cleared MSAL or Azure CLI cache, a

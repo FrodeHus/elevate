@@ -270,6 +270,12 @@
 
         <!-- Notices -->
         <StackPanel Grid.Row="4" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <!-- Bootstrap failed (see elevate.log): the error stays until a settings change rebuilds the model, and replaces the role list like the macOS panel. -->
+            <InfoBar x:Name="StartupErrorBar" IsOpen="False" IsClosable="False" Severity="Error" Margin="12,8,12,0" Title="Elevate cannot start">
+                <InfoBar.ActionButton>
+                    <Button Content="Open Settings…" Click="OnSettings" />
+                </InfoBar.ActionButton>
+            </InfoBar>
             <InfoBar x:Name="OfflineBar" IsOpen="False" IsClosable="False" Severity="Warning" Margin="12,8,12,0"
                      Title="You're offline." Message="Countdowns keep running; refresh and activation resume when the network is back." />
             <InfoBar x:Name="NoticeBar" IsOpen="False" Severity="Warning" Margin="12,8,12,0" Closed="OnNoticeClosed" />
