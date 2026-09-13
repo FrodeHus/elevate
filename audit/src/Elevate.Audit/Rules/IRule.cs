@@ -13,7 +13,7 @@ public interface IRule
 /// <summary>A permanent privileged assignment and one principal that holds it, directly (<see cref="Via"/> empty) or through groups.</summary>
 public sealed record EntraHolder(EntraAssignmentRecord Assignment, PrincipalRecord Principal, IReadOnlyList<GroupRef> Via);
 
-public sealed record AzureHolder(AzureAssignmentRecord Assignment, PrincipalRecord Principal, IReadOnlyList<GroupRef> Via, Severity Severity);
+public sealed record AzureHolder(AzureAssignmentRecord Assignment, PrincipalRecord Principal, IReadOnlyList<GroupRef> Via);
 
 /// <summary>The snapshot with indexes and the shared lookups every rule needs. Built once per run.</summary>
 public sealed class RuleContext
@@ -126,22 +126,18 @@ public sealed class RuleContext
     /// <summary>Renders "" for a direct holder or " through A ← B" for one reached through nested groups.</summary>
     public static string Through(IReadOnlyList<GroupRef> via) => via.Count == 0 ? string.Empty : $" through {string.Join(" ← ", via.Select(v => v.DisplayName))}";
 
+    /// <summary>Permanent privileged Entra assignments (not the per-member echoes of a group assignment), excluding group-member echoes.</summary>
+    public IEnumerable<EntraAssignmentRecord> PermanentPrivilegedEntraAssignments() =>
+        Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && IsPrivilegedEntra(a.RoleDefinitionId));
+
     /// <summary>Permanent privileged Entra assignments (not the per-member echoes of a group assignment) and who holds them.</summary>
     public IEnumerable<EntraHolder> PermanentEntraHolders()
     {
-        foreach (var a in Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && IsPrivilegedEntra(a.RoleDefinitionId)))
+        foreach (var a in PermanentPrivilegedEntraAssignments())
         {
-            var principal = PrincipalRecordOf(a.PrincipalId);
-            if (principal.Type == PrincipalType.Group)
+            foreach (var holder in ExpandHolder(a.PrincipalId, (p, via) => new EntraHolder(a, p, via)))
             {
-                foreach (var m in Expansion.Expand(a.PrincipalId))
-                {
-                    yield return new EntraHolder(a, PrincipalRecordOf(m.PrincipalId), m.Via);
-                }
-            }
-            else
-            {
-                yield return new EntraHolder(a, principal, []);
+                yield return holder;
             }
         }
     }
@@ -149,13 +145,33 @@ public sealed class RuleContext
     /// <summary>The group principals of permanent privileged Entra assignments, one per assignment.</summary>
     public IEnumerable<(EntraAssignmentRecord Assignment, GroupRecord? Group, PrincipalRecord Principal)> PermanentEntraGroupAssignments()
     {
-        foreach (var a in Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && IsPrivilegedEntra(a.RoleDefinitionId)))
+        foreach (var a in PermanentPrivilegedEntraAssignments())
         {
             var principal = PrincipalRecordOf(a.PrincipalId);
             if (principal.Type == PrincipalType.Group)
             {
                 yield return (a, Groups.GetValueOrDefault(a.PrincipalId), principal);
             }
+        }
+    }
+
+    /// <summary>
+    /// The holder shape shared by <see cref="PermanentEntraHolders"/> and <see cref="PermanentAzureHolders"/>:
+    /// a group principal expands to its members (each with the path that reaches it), anything else holds directly.
+    /// </summary>
+    private IEnumerable<THolder> ExpandHolder<THolder>(string principalId, Func<PrincipalRecord, IReadOnlyList<GroupRef>, THolder> factory)
+    {
+        var principal = PrincipalRecordOf(principalId);
+        if (principal.Type == PrincipalType.Group)
+        {
+            foreach (var m in Expansion.Expand(principalId))
+            {
+                yield return factory(PrincipalRecordOf(m.PrincipalId), m.Via);
+            }
+        }
+        else
+        {
+            yield return factory(principal, []);
         }
     }
 
@@ -192,22 +208,14 @@ public sealed class RuleContext
     {
         foreach (var a in PermanentAzureAssignments())
         {
-            if (AzureSeverity(a.RoleDefinitionId) is not { } severity)
+            if (AzureSeverity(a.RoleDefinitionId) is null)
             {
                 continue;
             }
 
-            var principal = PrincipalRecordOf(a.PrincipalId);
-            if (principal.Type == PrincipalType.Group)
+            foreach (var holder in ExpandHolder(a.PrincipalId, (p, via) => new AzureHolder(a, p, via)))
             {
-                foreach (var m in Expansion.Expand(a.PrincipalId))
-                {
-                    yield return new AzureHolder(a, PrincipalRecordOf(m.PrincipalId), m.Via, severity);
-                }
-            }
-            else
-            {
-                yield return new AzureHolder(a, principal, [], severity);
+                yield return holder;
             }
         }
     }

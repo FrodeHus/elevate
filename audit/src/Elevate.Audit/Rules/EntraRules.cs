@@ -68,7 +68,7 @@ public sealed class EntraGroupNotPimRule : IRule
     {
         ArgumentNullException.ThrowIfNull(context);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var a in context.Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && context.IsPrivilegedEntra(a.RoleDefinitionId)))
+        foreach (var a in context.PermanentPrivilegedEntraAssignments())
         {
             if (!context.Groups.TryGetValue(a.PrincipalId, out var group) || !group.IsAssignableToRole || !seen.Add(group.Id))
             {
@@ -107,7 +107,7 @@ public sealed class EntraGroupNotAssignableRule : IRule
     {
         ArgumentNullException.ThrowIfNull(context);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var a in context.Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase) && context.IsPrivilegedEntra(a.RoleDefinitionId)))
+        foreach (var a in context.PermanentPrivilegedEntraAssignments())
         {
             if (!context.Groups.TryGetValue(a.PrincipalId, out var group) || group.IsAssignableToRole || !seen.Add(group.Id))
             {
