@@ -47,6 +47,9 @@ The Graph scopes and why each one is needed:
 | `GroupMember.Read.All` | Expanding the members of role-assigned groups, including nested groups. |
 | `User.ReadBasic.All` | Names and sign-in names of the people found, instead of bare object ids. |
 
+Every read is Microsoft Graph v1.0 except the members of a group, which are read on the beta
+endpoint: v1.0 `/groups/{id}/members` has a documented known issue that omits service principals.
+
 All of them are read scopes; several require an administrator to consent. Since the person
 running a standing-access audit is a privileged administrator, you consent for yourself at the
 first sign-in. The consent screen is Microsoft's, and names Microsoft's tool, not Elevate.
@@ -146,6 +149,9 @@ A sample report from a fictional tenant is at
   Reader, Privileged Role Administrator or Security Reader (section 3).
 - **The Azure section says "skipped"** — the account sees no subscriptions, or the ARM sign-in
   was cancelled. Grant Reader, or pass `--skip-azure` to silence it.
+- **ENTRA-GROUP-NOT-PIM on a group you believe is onboarded** — the rule also fires for a
+  role-assignable group with no PIM for Groups assignments at all, because Graph returns an empty
+  result both for an un-onboarded group and for an onboarded one with nothing assigned.
 - **A group shows as "not onboarded" although it is** — the account cannot read that group's
   PIM data; for role-assignable groups that needs Global Reader or Privileged Role Administrator
   at directory scope.

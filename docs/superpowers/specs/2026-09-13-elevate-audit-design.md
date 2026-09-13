@@ -162,10 +162,12 @@ For every distinct group principal seen in a permanent privileged assignment
 (`groups?$filter=isAssignableToRole eq true&$select=id,displayName,isAssignableToRole,securityEnabled,mailEnabled,groupTypes,visibility`):
 
 - `groups/{id}?$select=…` for metadata when not already fetched.
-- `groups/{id}/members?$select=id,displayName,userPrincipalName,userType`
+- `groups/{id}/members?$select=id,displayName,userPrincipalName,userType,accountEnabled,servicePrincipalType&$top=999`
   walked breadth-first with a visited set of group ids. This yields the
   **membership path** (`alex ← Tier0-Admins ← Platform-Team`) and terminates
-  on cycles. `transitiveMembers` is not used for the path because it flattens;
+  on cycles. Members are the one read taken on the Graph **beta** endpoint, because v1.0
+  `/groups/{id}/members` has a documented known issue that omits service principals (and the
+  `$expand=members` workaround caps at 20 objects). `transitiveMembers` is not used for the path because it flattens;
   it is called once per top-level group only as a cross-check count in
   verbose mode.
 - Members are classified by `@odata.type`: `user`, `group`,
