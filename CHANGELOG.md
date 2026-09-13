@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- macOS, Windows and CLI: the "Cached tokens may be stale" hint after an Azure or group activation
+  now appears only for accounts signed in with the Azure CLI or Azure PowerShell app, where Elevate
+  shares the tool's token cache. For an account signed in through an app registration Elevate cannot
+  tell whether the Azure CLI, Azure PowerShell or kubelogin were ever used as that account, so the
+  hint no longer asserts that their cached tokens exist.
 - Windows: the deactivation review uses the same pre-flight verdicts as macOS. A role whose
   assignment has not been confirmed active shows "Awaiting active assignment confirmation", one
   without a verifiable identity or original activation interval says so, a replaced or expired

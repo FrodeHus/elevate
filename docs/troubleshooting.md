@@ -76,7 +76,11 @@ A red message on the row states Entra's reason. The usual ones:
 The Azure CLI, Azure PowerShell and kubelogin cache the token they got before the activation. That
 token does not carry the new Azure role assignment or group membership, and the tools keep using it
 until it expires, so a command right after activating is refused as if nothing had happened.
-Elevate shows a hint after an Azure or group activation, in the panel and in the CLI, with the fix:
+Elevate shows a hint after an Azure or group activation, in the panel and in the CLI, with the fix.
+The hint appears only for accounts signed in with the Azure CLI or Azure PowerShell app, where
+Elevate shares the tool's own token cache and the stale token is certain; an account signed in
+through an app registration has its own cache, so Elevate cannot tell whether you use those tools
+as that account and stays quiet. If you do, the same commands apply:
 
 - Azure CLI: `az login` again (`az account get-access-token` has no flag that forces a fresh
   token; it hands back the cached one). `az account clear` first if the sign-in reuses the cache.

@@ -31,18 +31,26 @@ public static class TokenCacheHint
 
     /// <summary>
     /// Ids of the accounts whose cached tokens the outcomes make stale: those with an Azure resource
-    /// role or a group membership that just became active. Entra directory roles are read from Graph
-    /// with the app's own token and do not qualify. Distinct, in outcome order.
+    /// role or a group membership that just became active, signed in through the Azure CLI or Azure
+    /// PowerShell app (<see cref="SignInMethod.SharesToolTokenCache"/>), where Elevate shares the
+    /// tool's own cache and the stale token is a certainty. An app registration keeps its own cache,
+    /// so nothing says the tools were ever used as that account, and the hint would be a guess.
+    /// Entra directory roles are read from Graph with the app's own token and never qualify.
+    /// <paramref name="methodFor"/> resolves an identity id to its sign-in method, null when unknown.
+    /// Distinct, in outcome order.
     /// </summary>
-    public static IReadOnlyList<string> AffectedAccounts(IEnumerable<ActivationOutcome> outcomes)
+    public static IReadOnlyList<string> AffectedAccounts(IEnumerable<ActivationOutcome> outcomes, Func<string, SignInMethod?> methodFor)
     {
         ArgumentNullException.ThrowIfNull(outcomes);
+        ArgumentNullException.ThrowIfNull(methodFor);
         var ids = new List<string>();
         foreach (var outcome in outcomes)
         {
-            if (outcome.Result is ActivationResult.Activated && Qualifies(outcome.RoleKey) && !ids.Contains(outcome.RoleKey.IdentityId))
+            var id = outcome.RoleKey.IdentityId;
+            if (outcome.Result is ActivationResult.Activated && Qualifies(outcome.RoleKey) && !ids.Contains(id)
+                && methodFor(id)?.SharesToolTokenCache == true)
             {
-                ids.Add(outcome.RoleKey.IdentityId);
+                ids.Add(id);
             }
         }
 

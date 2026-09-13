@@ -155,7 +155,7 @@ extension AppModel {
 
     /// Raises the hint for each account the outcomes affect, unless it was dismissed for that account.
     func noteTokenHint(_ outcomes: [ActivationOutcome]) {
-        for id in TokenCacheHint.affectedAccounts(outcomes)
+        for id in TokenCacheHint.affectedAccounts(outcomes, method: { identity($0)?.signInMethod })
         where !settings.dismissedTokenHintAccounts.contains(id) && !tokenHintAccounts.contains(id) {
             tokenHintAccounts.append(id)
         }

@@ -21,6 +21,9 @@ public class TokenCacheHintTests
     private static ActivationOutcome Pending(RoleKey key) =>
         new(key, new ActivationResult.PendingApproval(new ActiveAssignment(key, "p", Now, null, AssignmentStatus.PendingApproval)));
 
+    /// <summary>Every account signed in through the Azure CLI app, so the tool cache is shared.</summary>
+    private static SignInMethod? Cli(string _) => SignInMethod.AzureCLI;
+
     [Fact]
     public void AzureAndGroupActivationsQualifyEntraDoesNot()
     {
@@ -42,14 +45,34 @@ public class TokenCacheHintTests
             new ActivationOutcome(Azure("d"), new ActivationResult.Failed(new PimException(PimErrorKind.Forbidden, "no"))),
         };
 
-        TokenCacheHint.AffectedAccounts(outcomes).Should().Equal("a", "b");
+        TokenCacheHint.AffectedAccounts(outcomes, Cli).Should().Equal("a", "b");
+    }
+
+    [Fact]
+    public void OnlyAccountsSharingTheToolTokenCacheAreAffected()
+    {
+        var methods = new Dictionary<string, SignInMethod>
+        {
+            ["cli"] = SignInMethod.AzureCLI,
+            ["ps"] = SignInMethod.AzurePowerShell,
+            ["app"] = SignInMethod.OwnApp,
+            ["custom"] = SignInMethod.Custom("11111111-1111-1111-1111-111111111111"),
+        };
+        var outcomes = new[] { Activated(Azure("app")), Activated(Azure("cli")), Activated(Group("custom")), Activated(Group("ps")), Activated(Azure("gone")) };
+
+        // An app registration has its own cache: Elevate cannot tell whether the tools were ever used as that account.
+        TokenCacheHint.AffectedAccounts(outcomes, id => methods.GetValueOrDefault(id)).Should().Equal("cli", "ps");
+        SignInMethod.AzureCLI.SharesToolTokenCache.Should().BeTrue();
+        SignInMethod.AzurePowerShell.SharesToolTokenCache.Should().BeTrue();
+        SignInMethod.OwnApp.SharesToolTokenCache.Should().BeFalse();
+        methods["custom"].SharesToolTokenCache.Should().BeFalse();
     }
 
     [Fact]
     public void NothingQualifyingMeansNoAccounts()
     {
-        TokenCacheHint.AffectedAccounts([Activated(Entra()), Pending(Group())]).Should().BeEmpty();
-        TokenCacheHint.AffectedAccounts([]).Should().BeEmpty();
+        TokenCacheHint.AffectedAccounts([Activated(Entra()), Pending(Group())], Cli).Should().BeEmpty();
+        TokenCacheHint.AffectedAccounts([], Cli).Should().BeEmpty();
     }
 
     [Fact]
