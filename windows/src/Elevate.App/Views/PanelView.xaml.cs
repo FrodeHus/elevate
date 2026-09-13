@@ -185,6 +185,16 @@ public sealed partial class PanelView : UserControl
             UpdateBar.IsOpen = false;
         }
 
+        if (model.StartupError is { } fatal)
+        {
+            StartupErrorBar.Message = fatal;
+            StartupErrorBar.IsOpen = true;
+        }
+        else
+        {
+            StartupErrorBar.IsOpen = false;
+        }
+
         if (model.TokenHint is { } hint)
         {
             TokenHintBar.Message = $"{TokenCacheHint.Message(hint.Account)} {TokenCacheHint.Advice} Close to hide this for the account.";
@@ -197,21 +207,25 @@ public sealed partial class PanelView : UserControl
 
         SyncPivot(model.PanelTab);
 
+        // Same precedence as the macOS panel: first run wins, then a startup failure stands in for the
+        // body (the error bar above is what the user sees), then the empty state, then the list.
         var setup = !model.IsConfigured && model.Identities.Count == 0;
-        var noAccounts = !setup && model.Identities.Count == 0;
+        var failed = !setup && model.StartupError is not null;
+        var noAccounts = !setup && !failed && model.Identities.Count == 0;
+        var bodyHidden = setup || failed || noAccounts;
         SetupView.Visibility = setup ? Visibility.Visible : Visibility.Collapsed;
         NoAccountsView.Visibility = noAccounts ? Visibility.Visible : Visibility.Collapsed;
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
-        List.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
-        Pivots.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
-        if (!setup && !noAccounts)
+        List.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
+        Pivots.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
+        if (!bodyHidden)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
-        DrawProfiles(model, hidden: setup || noAccounts);
+        DrawProfiles(model, hidden: bodyHidden);
 
         BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
