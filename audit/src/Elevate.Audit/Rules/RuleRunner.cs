@@ -7,6 +7,7 @@ public static class RuleRunner
     /// <summary>Every rule, in report order. Tasks 11–13 add theirs here.</summary>
     public static IReadOnlyList<IRule> All { get; } =
     [
+        new EntraUserPermanentRule(), new EntraGroupPermanentRule(), new EntraGroupNotPimRule(), new EntraGroupNotAssignableRule(),
     ];
 
     public static IReadOnlyList<Finding> Run(Snapshot snapshot, AuditOptions options, IEnumerable<IRule>? rules = null)
