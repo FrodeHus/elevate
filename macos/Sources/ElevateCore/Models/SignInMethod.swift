@@ -39,6 +39,10 @@ public enum SignInMethod: Hashable, Sendable {
     }
 
     public var usesMSAL: Bool { self == .ownApp }
+
+    /// Whether the account signs in as the Azure CLI or Azure PowerShell app, whose token cache the
+    /// tool itself reads: an activation through Elevate then provably leaves that tool a stale token.
+    public var sharesToolTokenCache: Bool { self == .azureCLI || self == .azurePowerShell }
     public var isCustom: Bool { if case .custom = self { true } else { false } }
 
     /// The case of this method without its associated data, for comparisons like managed

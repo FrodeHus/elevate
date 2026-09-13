@@ -24,14 +24,19 @@ public enum TokenCacheHint {
     }
 
     /// Ids of the accounts whose cached tokens the outcomes make stale: those with an Azure resource
-    /// role or a group membership that just became active. Entra directory roles are read from Graph
-    /// with the app's own token and do not qualify. Distinct, in outcome order.
-    public static func affectedAccounts(_ outcomes: [ActivationOutcome]) -> [String] {
+    /// role or a group membership that just became active, signed in through the Azure CLI or Azure
+    /// PowerShell app (`SignInMethod.sharesToolTokenCache`), where Elevate shares the tool's own
+    /// cache and the stale token is a certainty. An app registration keeps its own cache, so nothing
+    /// says the tools were ever used as that account, and the hint would be a guess. Entra directory
+    /// roles are read from Graph with the app's own token and never qualify. `method` resolves an
+    /// identity id to its sign-in method, nil when unknown. Distinct, in outcome order.
+    public static func affectedAccounts(_ outcomes: [ActivationOutcome], method: (String) -> SignInMethod?) -> [String] {
         var ids: [String] = []
         for outcome in outcomes {
-            guard case .activated = outcome.result, qualifies(outcome.roleKey),
-                  !ids.contains(outcome.roleKey.identityId) else { continue }
-            ids.append(outcome.roleKey.identityId)
+            let id = outcome.roleKey.identityId
+            guard case .activated = outcome.result, qualifies(outcome.roleKey), !ids.contains(id),
+                  method(id)?.sharesToolTokenCache == true else { continue }
+            ids.append(id)
         }
         return ids
     }

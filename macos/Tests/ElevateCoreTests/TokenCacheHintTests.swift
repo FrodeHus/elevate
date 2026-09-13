@@ -24,15 +24,30 @@ import Foundation
         #expect(!TokenCacheHint.qualifies(entra()))
     }
 
+    /// Every account signed in through the Azure CLI app, so the tool cache is shared.
+    func cli(_: String) -> SignInMethod? { .azureCLI }
+
     @Test func affectedAccountsListsEachAccountOnceForActivatedAzureOrGroupRoles() {
         let outcomes = [activated(entra("a")), activated(azure("a")), activated(group("a")), activated(group("b")),
                         pending(azure("c")), ActivationOutcome(roleKey: azure("d"), result: .failed(.forbidden("no")))]
-        #expect(TokenCacheHint.affectedAccounts(outcomes) == ["a", "b"])
+        #expect(TokenCacheHint.affectedAccounts(outcomes, method: cli) == ["a", "b"])
+    }
+
+    @Test func onlyAccountsSharingTheToolTokenCacheAreAffected() {
+        let methods: [String: SignInMethod] = ["cli": .azureCLI, "ps": .azurePowerShell, "app": .ownApp,
+                                               "custom": .custom(clientId: "11111111-1111-1111-1111-111111111111")]
+        let outcomes = [activated(azure("app")), activated(azure("cli")), activated(group("custom")), activated(group("ps")), activated(azure("gone"))]
+        // An app registration has its own cache: Elevate cannot tell whether the tools were ever used as that account.
+        #expect(TokenCacheHint.affectedAccounts(outcomes) { methods[$0] } == ["cli", "ps"])
+        #expect(SignInMethod.azureCLI.sharesToolTokenCache)
+        #expect(SignInMethod.azurePowerShell.sharesToolTokenCache)
+        #expect(!SignInMethod.ownApp.sharesToolTokenCache)
+        #expect(!methods["custom"]!.sharesToolTokenCache)
     }
 
     @Test func nothingQualifyingMeansNoAccounts() {
-        #expect(TokenCacheHint.affectedAccounts([activated(entra()), pending(group())]).isEmpty)
-        #expect(TokenCacheHint.affectedAccounts([]).isEmpty)
+        #expect(TokenCacheHint.affectedAccounts([activated(entra()), pending(group())], method: cli).isEmpty)
+        #expect(TokenCacheHint.affectedAccounts([], method: cli).isEmpty)
     }
 
     @Test func wordingNamesTheAccountAndTheExactCommands() {

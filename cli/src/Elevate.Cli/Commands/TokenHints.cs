@@ -14,7 +14,7 @@ internal static class TokenHints
     {
         var session = context.Session;
         var dismissed = session.Settings.DismissedTokenHintAccounts;
-        foreach (var id in TokenCacheHint.AffectedAccounts(outcomes))
+        foreach (var id in TokenCacheHint.AffectedAccounts(outcomes, id => session.Identity(id)?.SignInMethod))
         {
             if (dismissed.Contains(id))
             {

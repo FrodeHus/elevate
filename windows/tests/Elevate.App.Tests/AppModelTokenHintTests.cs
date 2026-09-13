@@ -3,6 +3,7 @@ using Elevate.App.Tests.Support;
 using Elevate.Core.Coordination;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
+using Elevate.Core.Tests.Support;
 using FluentAssertions;
 
 namespace Elevate.App.Tests;
@@ -18,8 +19,12 @@ public class AppModelTokenHintTests
     [Fact]
     public async Task AnAzureOrGroupActivationRaisesTheHintOnceUntilDismissedForTheAccount()
     {
-        var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
-        using var test = await TestModel.BootstrappedAsync(state);
+        // Signed in as the Azure CLI app: Elevate shares the CLI's token cache, so the hint is certain.
+        var identity = Sample.Identity(method: SignInMethod.AzureCLI);
+        var state = new AppState { Identities = [identity], Tenants = [Sample.Tenant()] };
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(identity);
+        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens);
         var model = test.Model;
 
         model.NoteTokenHint([Activated(Sample.EntraKey)]);
@@ -36,5 +41,16 @@ public class AppModelTokenHintTests
 
         model.NoteTokenHint([Activated(Sample.AzureKey)]);
         model.TokenHint.Should().BeNull("the account dismissed it");
+    }
+
+    [Fact]
+    public async Task AnAppRegistrationAccountNeverGetsTheHint()
+    {
+        var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
+        using var test = await TestModel.BootstrappedAsync(state);
+        var model = test.Model;
+
+        model.NoteTokenHint([Activated(Sample.GroupKey), Activated(Sample.AzureKey)]);
+        model.TokenHint.Should().BeNull("an app registration has its own token cache; Elevate cannot know whether the tools were ever used as this account");
     }
 }
