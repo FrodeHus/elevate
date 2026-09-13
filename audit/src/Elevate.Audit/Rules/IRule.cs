@@ -117,6 +117,9 @@ public sealed class RuleContext
 
     public static FindingEvidence Evidence(AzureAssignmentRecord a) => new(a.Id, a.StartDateTime, a.EndDateTime, a.AssignmentType, a.FromSchedule ? "Schedule" : "Classic");
 
+    /// <summary>Renders "" for a direct holder or " through A ← B" for one reached through nested groups.</summary>
+    public static string Through(IReadOnlyList<GroupRef> via) => via.Count == 0 ? string.Empty : $" through {string.Join(" ← ", via.Select(v => v.DisplayName))}";
+
     /// <summary>Permanent privileged Entra assignments (not the per-member echoes of a group assignment) and who holds them.</summary>
     public IEnumerable<EntraHolder> PermanentEntraHolders()
     {

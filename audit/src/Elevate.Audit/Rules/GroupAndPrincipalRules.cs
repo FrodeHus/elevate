@@ -40,20 +40,18 @@ public sealed class GuestPermanentRule : IRule
         {
             var role = context.EntraRole(h.Assignment.RoleDefinitionId);
             yield return new Finding(Code, Severity.High, RuleContext.ToFinding(h.Principal), role, RuleContext.EntraScope(h.Assignment), h.Via,
-                $"Guest {h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{Through(h.Via)}. Guests should hold privileged roles only as eligible, if at all.",
-                h.Via.Count == 0 ? PortalLinks.EntraRoles : PortalLinks.Group(h.Via[0].Id), RuleContext.Evidence(h.Assignment));
+                $"Guest {h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{RuleContext.Through(h.Via)}. Guests should hold privileged roles only as eligible, if at all.",
+                h.Via.Count == 0 ? PortalLinks.EntraRoles : PortalLinks.GroupPim(h.Via[0].Id), RuleContext.Evidence(h.Assignment));
         }
 
         foreach (var h in context.PermanentAzureHolders().Where(h => h.Principal.IsGuest))
         {
             var role = context.AzureFindingRole(h.Assignment.RoleDefinitionId);
             yield return new Finding(Code, Severity.High, RuleContext.ToFinding(h.Principal), role, context.AzureScope(h.Assignment.Scope), h.Via,
-                $"Guest {h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{Through(h.Via)}. Guests should hold privileged roles only as eligible, if at all.",
-                PortalLinks.AzureScope(h.Assignment.Scope), RuleContext.Evidence(h.Assignment));
+                $"Guest {h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{RuleContext.Through(h.Via)}. Guests should hold privileged roles only as eligible, if at all.",
+                h.Via.Count == 0 ? PortalLinks.AzureScope(h.Assignment.Scope) : PortalLinks.GroupPim(h.Via[0].Id), RuleContext.Evidence(h.Assignment));
         }
     }
-
-    internal static string Through(IReadOnlyList<GroupRef> via) => via.Count == 0 ? string.Empty : $" through {string.Join(" ← ", via.Select(v => v.DisplayName))}";
 }
 
 public sealed class ServicePrincipalPermanentRule : IRule
@@ -69,16 +67,16 @@ public sealed class ServicePrincipalPermanentRule : IRule
         {
             var role = context.EntraRole(h.Assignment.RoleDefinitionId);
             yield return new Finding(Code, Severity.Info, RuleContext.ToFinding(h.Principal), role, RuleContext.EntraScope(h.Assignment), h.Via,
-                $"{h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{GuestPermanentRule.Through(h.Via)}. {RemedyTail}",
-                PortalLinks.EntraRoles, RuleContext.Evidence(h.Assignment));
+                $"{h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{RuleContext.Through(h.Via)}. {RemedyTail}",
+                h.Via.Count == 0 ? PortalLinks.EntraRoles : PortalLinks.GroupPim(h.Via[0].Id), RuleContext.Evidence(h.Assignment));
         }
 
         foreach (var h in context.PermanentAzureHolders().Where(h => h.Principal.Type == PrincipalType.ServicePrincipal))
         {
             var role = context.AzureFindingRole(h.Assignment.RoleDefinitionId);
             yield return new Finding(Code, Severity.Info, RuleContext.ToFinding(h.Principal), role, context.AzureScope(h.Assignment.Scope), h.Via,
-                $"{h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{GuestPermanentRule.Through(h.Via)}. {RemedyTail}",
-                PortalLinks.AzureScope(h.Assignment.Scope), RuleContext.Evidence(h.Assignment));
+                $"{h.Principal.DisplayName ?? h.Principal.Id} holds {role.DisplayName} permanently{RuleContext.Through(h.Via)}. {RemedyTail}",
+                h.Via.Count == 0 ? PortalLinks.AzureScope(h.Assignment.Scope) : PortalLinks.GroupPim(h.Via[0].Id), RuleContext.Evidence(h.Assignment));
         }
     }
 }

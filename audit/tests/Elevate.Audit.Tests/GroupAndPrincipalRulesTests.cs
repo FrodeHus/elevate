@@ -50,6 +50,8 @@ public class GroupAndPrincipalRulesTests
         findings.Should().HaveCount(3);
         findings.Where(f => f.Principal.Id == "guest1").Select(f => f.Role.System).Should().BeEquivalentTo([RoleSystem.Entra, RoleSystem.Azure]);
         findings.Single(f => f.Principal.Id == "guest2").Via.Should().ContainSingle().Which.DisplayName.Should().Be("Tier 0 Admins");
+        findings.Single(f => f.Principal.Id == "guest2").PortalUrl.Should().Contain("aadgroup");
+        findings.Where(f => f.Principal.Id == "guest1").Should().OnlyContain(f => !f.PortalUrl.Contains("aadgroup"));
         findings.Should().OnlyContain(f => f.Severity == Severity.High && f.Principal.IsGuest);
     }
 
