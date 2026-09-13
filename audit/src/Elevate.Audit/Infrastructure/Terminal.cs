@@ -10,7 +10,7 @@ public sealed class Terminal
         Quiet = quiet;
         var colors = noColor || Environment.GetEnvironmentVariable("NO_COLOR") is { Length: > 0 } ? ColorSystemSupport.NoColors : ColorSystemSupport.Detect;
         Stdout = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Out = new AnsiConsoleOutput(Console.Out), Interactive = InteractionSupport.No });
-        Stderr = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Out = new AnsiConsoleOutput(Console.Error) });
+        Stderr = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Out = new AnsiConsoleOutput(Console.Error), Interactive = InteractionSupport.No });
     }
 
     public bool Quiet { get; }

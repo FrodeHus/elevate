@@ -56,6 +56,24 @@ public class TerminalRendererTests
     }
 
     [Fact]
+    public void Render_SplitsPanelsBySeverityWithinSameRuleCode()
+    {
+        var (console, writer) = PlainConsole();
+        var snapshot = SnapshotBuilder.Contoso()
+            .User("u-owner", "Owner User", "owner@contoso.com")
+            .User("u-contrib", "Contrib User", "contrib@contoso.com")
+            .AzureAssigned("ra-owner", "/subscriptions/sub1", "8e3af657-a8ff-443c-a75c-2fe8c4bcb635", "u-owner", "User")
+            .AzureAssigned("ra-contrib", "/subscriptions/sub1", "b24988ac-6180-42a0-ab88-20f7382dd24c", "u-contrib", "User")
+            .Build();
+
+        TerminalRenderer.Render(AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "x", []), console, summaryOnly: false);
+        var text = writer.ToString();
+
+        text.Should().Contain("AZURE-PERMANENT · high · 1");
+        text.Should().Contain("AZURE-PERMANENT · medium · 1");
+    }
+
+    [Fact]
     public void Render_WithNoFindings_SaysSo()
     {
         var (console, writer) = PlainConsole();

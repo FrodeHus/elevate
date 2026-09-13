@@ -40,6 +40,11 @@ public static class TerminalRenderer
             header.AddRow("[grey]Ignored[/]", Markup.Escape(string.Join(", ", report.Options.Ignored)));
         }
 
+        if (report.Skipped.Count > 0)
+        {
+            header.AddRow("[grey]Skipped[/]", Markup.Escape(string.Join(", ", report.Skipped.Select(s => s.Source))));
+        }
+
         console.Write(new Panel(header).Header("elevate-audit").Border(BoxBorder.Rounded));
 
         if (report.Skipped.Count > 0)
@@ -53,9 +58,9 @@ public static class TerminalRenderer
             console.Write(new Panel(skipped).Header("[yellow]Skipped[/]").Border(BoxBorder.Rounded));
         }
 
-        foreach (var group in report.Findings.GroupBy(f => f.Id))
+        foreach (var group in report.Findings.GroupBy(f => (f.Id, f.Severity)))
         {
-            var severity = group.First().Severity;
+            var severity = group.Key.Severity;
             var table = new Table().Border(TableBorder.Rounded).Expand();
             table.AddColumn("Principal");
             table.AddColumn("Role");
@@ -73,7 +78,7 @@ public static class TerminalRenderer
                     Markup.Escape(f.Remedy));
             }
 
-            console.Write(new Panel(table).Header($"{Colour(severity)}{Markup.Escape(group.Key)}[/] · {Markup.Escape(severity.ToString().ToLowerInvariant())} · {group.Count()}").Border(BoxBorder.Rounded));
+            console.Write(new Panel(table).Header($"{Colour(severity)}{Markup.Escape(group.Key.Id)}[/] · {Markup.Escape(severity.ToString().ToLowerInvariant())} · {group.Count()}").Border(BoxBorder.Rounded));
         }
 
         console.WriteLine(SummaryLine(report));
