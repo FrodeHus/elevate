@@ -138,6 +138,17 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     /// </summary>
     public HashSet<TenantKey> TenantsAwaitingSignIn { get; } = [];
 
+    /// <summary>
+    /// Accounts kept in the list without a usable saved sign-in: the token cache no longer knew
+    /// them at launch. Session only. Their tenants and configured roles stay, refreshes skip them,
+    /// and "Sign in again" clears the flag; signing out removes the account. See
+    /// <see cref="NeedsSignIn"/> and <see cref="RetrySignInAsync"/>.
+    /// </summary>
+    internal HashSet<string> SignInNeeded { get; } = [];
+
+    /// <summary>Accounts whose "Sign in again" is in progress, so the row can show it and refuse a second click.</summary>
+    public HashSet<string> SignInInFlight { get; } = [];
+
     internal bool Bootstrapped { get; private set; }
 
     internal DateTimeOffset LastRefresh { get; set; } = DateTimeOffset.MinValue;
@@ -327,6 +338,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     internal void ForgetIdentity(string identityId)
     {
         State.RemoveIdentity(identityId);
+        SignInNeeded.Remove(identityId);
         foreach (var key in Roles.Keys.Where(k => k.IdentityId == identityId).ToList())
         {
             Roles.Remove(key);
@@ -444,9 +456,11 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             LogError($"Saved state could not be read: {e.Message}");
         }
 
-        // Reconcile with the token caches: every identity, own-app or first-party, is real only
-        // while its provider still knows the account. A failed read must not be mistaken for "no
-        // account", which would sign real accounts out on a transient error: fail open and keep them.
+        // Reconcile with the token caches: an identity, own-app or first-party, whose provider no
+        // longer knows the account must sign in again. The account, its tenants and its configured
+        // roles stay; a lost token may be transient (a cleared cache, a revoked session) and is not
+        // the user asking to remove the account. A failed read must not be mistaken for "no
+        // account", which would flag real accounts on a transient error: fail open and keep them as is.
         foreach (var identity in State.Identities)
         {
             _ = _firstParty.Provider(identity.SignInMethod);
@@ -466,8 +480,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         if (known is not null)
         {
             var ids = known.Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
-            var dropped = new List<string>();
-            foreach (var identity in State.Identities.ToList())
+            var needsSignIn = new List<string>();
+            foreach (var identity in State.Identities)
             {
                 // Own-app accounts are only reconcilable when the own-app provider exists.
                 if (identity.SignInMethod.UsesMsal && _ownApp is null)
@@ -477,15 +491,16 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
                 if (!ids.Contains(identity.Id))
                 {
-                    State.RemoveIdentity(identity.Id);
-                    dropped.Add(identity.Upn);
+                    SignInNeeded.Add(identity.Id);
+                    needsSignIn.Add(identity.Upn);
                 }
             }
 
-            if (dropped.Count > 0)
+            if (needsSignIn.Count > 0)
             {
-                Notice = $"{string.Join(", ", dropped)} was signed out because its saved sign-in is gone; add the account again.";
-                LogError($"Signed out (no saved sign-in): {string.Join(", ", dropped)}");
+                var upns = string.Join(", ", needsSignIn);
+                Notice = $"{upns} needs to sign in again: its saved sign-in is gone. Use Sign in on the account, or sign it out to remove it.";
+                LogError($"Sign-in needed (no saved sign-in): {upns}");
             }
         }
 

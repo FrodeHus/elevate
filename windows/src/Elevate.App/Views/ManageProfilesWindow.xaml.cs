@@ -264,9 +264,12 @@ public sealed partial class ManageProfilesWindow : Window
         var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
         if (profile.Entries.Count == 0)
         {
+            // A managed profile's entries appear as the tenants they name load; there is no Add roles.
             RoleGroups.Children.Add(new TextBlock
             {
-                Text = "No roles yet. \"Add roles…\" picks from every account and tenant.",
+                Text = managed
+                    ? "No roles resolved yet. They appear once the tenants they name have loaded."
+                    : "No roles yet. \"Add roles…\" picks from every account and tenant.",
                 FontSize = 12,
                 Foreground = secondary,
                 TextWrapping = TextWrapping.Wrap,
