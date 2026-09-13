@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace Elevate.Audit.Tests;
 
+[Collection("console")]
 public class CommandTreeTests
 {
     [Fact]
@@ -11,7 +12,7 @@ public class CommandTreeTests
     {
         var root = Program.BuildRootCommand();
 
-        root.Subcommands.Select(c => c.Name).Should().Contain(["version"]);
+        root.Subcommands.Select(c => c.Name).Should().Contain(["version", "update"]);
     }
 
     [Fact]

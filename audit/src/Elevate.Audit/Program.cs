@@ -30,6 +30,11 @@ public static class Program
         {
             return ExitCodes.Interrupted;
         }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            Console.Error.WriteLine($"Unexpected error: {e.Message}");
+            return ExitCodes.Failure;
+        }
     }
 
     private static void TryUseUtf8()
@@ -49,6 +54,8 @@ public static class Program
     {
         var root = new RootCommand("Finds standing privileged access in a Microsoft Entra tenant that belongs in PIM.");
         root.Subcommands.Add(VersionCommand.Create());
+        root.Subcommands.Add(UpdateCommand.Create());
+        ScanCommand.AddTo(root);
         return root;
     }
 }
