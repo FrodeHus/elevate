@@ -142,6 +142,43 @@ public class GroupCollectorTests
     }
 
     [Fact]
+    public async Task Collect_WhenAGroupsMembersAreForbidden_KeepsTheGroupWithNoMembers()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?", """{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[]}""");
+        stub.On("GET", "/groups/g1/members", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}""", 403);
+        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1"], CancellationToken.None);
+
+        var g1 = data.Groups.Should().ContainSingle().Which;
+        g1.Id.Should().Be("g1");
+        g1.DirectMembers.Should().BeEmpty();
+        data.UnreadableGroups.Should().Be(1);
+        data.GroupsUnavailableReason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1?", """{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[]}""");
+        stub.On("GET", "/groups/g1/members",
+            """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
+        stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
+
+        data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
+        data.Groups.Should().BeEmpty("the group whose members refused the same way is not recorded either");
+        data.UnreadableGroups.Should().Be(0);
+        stub.RequestsMatching("/groups/g2").Should().BeEmpty("the walk stops instead of asking for every group in the tenant");
+    }
+
+    [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissing_StopsWalkingAndReportsWhy()
     {
         var stub = new StubHttpClient();

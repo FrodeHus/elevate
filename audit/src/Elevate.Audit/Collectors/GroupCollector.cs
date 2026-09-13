@@ -76,9 +76,15 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
                 continue; // deleted between calls, or one group this account cannot read
             }
 
-            var members = await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupMembers(id), _scopes, ct).ConfigureAwait(false);
-            var direct = new List<GroupMemberRecord>(members.Count);
-            foreach (var m in members)
+            var members = await GetGroupMembersAsync(id, ct).ConfigureAwait(false);
+            if (members is null && _groupsUnavailable is not null)
+            {
+                break; // the scope is missing tenant-wide; asking for every other group's members would repeat the same 403
+            }
+
+            var memberList = members ?? [];
+            var direct = new List<GroupMemberRecord>(memberList.Count);
+            foreach (var m in memberList)
             {
                 var type = Wire.PrincipalTypeOf(m.OdataType);
                 direct.Add(new GroupMemberRecord(m.Id, type));
@@ -154,6 +160,30 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
         catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {
             // Deleted, or a nested group the signed-in account cannot read; its parent still lists it as a member.
+            _unreadableGroups++;
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Same classification as <see cref="GetGroupAsync"/>: a tenant-wide missing scope latches
+    /// <see cref="_groupsUnavailable"/> so the caller stops asking, while one group refusing its
+    /// members is counted in <see cref="_unreadableGroups"/> and the group is still recorded, with
+    /// no members.
+    /// </summary>
+    private async Task<IReadOnlyList<Wire.WirePrincipal>?> GetGroupMembersAsync(string id, CancellationToken ct)
+    {
+        try
+        {
+            return await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupMembers(id), _scopes, ct).ConfigureAwait(false);
+        }
+        catch (PimException e) when (IsMissingScope(e))
+        {
+            _groupsUnavailable = e.UserMessage;
+            return null;
+        }
+        catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
+        {
             _unreadableGroups++;
             return null;
         }
