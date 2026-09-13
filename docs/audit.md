@@ -165,6 +165,11 @@ A sample report from a fictional tenant is at
   access to those groups, so their members are missing from the walk.
 - **The `groups` source is skipped tenant-wide** — the scope needed to read group membership is
   missing entirely for this account, not just for individual groups.
+- **Degraded-mode group output** — when the account cannot read groups tenant-wide, the report
+  lists a `groups` skipped source, and the few groups read in the same batch before the failure was
+  detected still appear, but with no members; their `ENTRA-GROUP-NOT-PIM` and `NOT-ASSIGNABLE`
+  findings are based on metadata alone (role-assignability, PIM onboarding), and member findings for
+  those groups are missing entirely.
 - **`--verbose` prints a walk/transitiveMembers count mismatch** — for a role-assigned group, the
   tool's own membership walk found a different number of members than Graph's `transitiveMembers`
   reports; this is informational and does not by itself indicate a missing finding.

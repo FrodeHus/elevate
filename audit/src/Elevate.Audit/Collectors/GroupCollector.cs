@@ -172,7 +172,7 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             }
         }
 
-        if (verbose is not null)
+        if (verbose is not null && _groupsUnavailable is null)
         {
             await CrossCheckTransitiveMembersAsync(topLevelIds, groups, ct).ConfigureAwait(false);
         }
@@ -256,12 +256,14 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
     /// <summary>
     /// Spec §4.2: <c>transitiveMembers</c> flattens the path so it is never used for findings, only as a
     /// verbose-mode sanity check that the breadth-first walk (limited to groups it could read) found the
-    /// same number of user/service-principal members as Graph's own flattened count.
+    /// same number of user/service-principal members as Graph's own flattened count. Only called when
+    /// <see cref="_groupsUnavailable"/> is unset (see <see cref="CollectAsync"/>): once group reads are
+    /// known to be refused tenant-wide, these calls would only 403 again.
     /// </summary>
     private async Task CrossCheckTransitiveMembersAsync(IEnumerable<string> topLevelIds, Dictionary<string, GroupRecord> groups, CancellationToken ct)
     {
         var expansion = new GroupExpansion(groups);
-        foreach (var id in topLevelIds)
+        foreach (var id in topLevelIds.OrderBy(x => x, StringComparer.Ordinal))
         {
             if (!groups.TryGetValue(id, out var group))
             {

@@ -90,7 +90,7 @@ public static class TerminalRenderer
     {
         if (report.Hidden > 0)
         {
-            console.WriteLine($"({report.Hidden} findings below --min-severity {report.Options.MinSeverity} hidden)");
+            console.WriteLine($"({RenderText.Findings(report.Hidden)} below --min-severity {report.Options.MinSeverity} hidden)");
         }
     }
 

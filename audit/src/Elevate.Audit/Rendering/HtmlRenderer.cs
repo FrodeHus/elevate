@@ -41,7 +41,7 @@ public static class HtmlRenderer
         b.Append("</div>\n");
         if (report.Hidden > 0)
         {
-            b.Append("<p class=\"muted\">").Append(E($"{report.Hidden} findings below --min-severity {report.Options.MinSeverity} hidden")).Append("</p>\n");
+            b.Append("<p class=\"muted\">").Append(E($"{RenderText.Findings(report.Hidden)} below --min-severity {report.Options.MinSeverity} hidden")).Append("</p>\n");
         }
 
         if (report.Skipped.Count > 0)

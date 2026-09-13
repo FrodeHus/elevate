@@ -160,6 +160,34 @@ public class GroupCollectorTests
         stub.RequestsMatching("transitiveMembers").Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Once <c>_groupsUnavailable</c> is latched tenant-wide, the verbose cross-check would only 403
+    /// again for every group, so it must not run at all.
+    /// </summary>
+    [Fact]
+    public async Task Collect_WithVerbose_WhenGroupsAreUnavailableTenantWide_NeverRequestsTransitiveMembers()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        var ids = Enumerable.Range(1, 5).Select(i => $"g{i}").ToList();
+        stub.On("GET", "/groups/g1?",
+            """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
+        foreach (var id in ids.Skip(1))
+        {
+            stub.On("GET", $"/groups/{id}?", $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":false,"groupTypes":[]}""");
+            stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+            stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+            stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+        }
+        var lines = new List<string>();
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId, lines.Add).CollectAsync(ids, CancellationToken.None);
+
+        data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
+        stub.RequestsMatching("transitiveMembers").Should().BeEmpty();
+        lines.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Collect_WhenAGroupsMembersAreForbidden_KeepsTheGroupWithNoMembers()
     {

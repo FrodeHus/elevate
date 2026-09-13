@@ -12,6 +12,12 @@ public sealed record ReportSummary(int High, int Medium, int Low, int Info)
 
 public sealed record ReportOptions(bool AllRoles, IReadOnlyList<string> Ignored, string MinSeverity, bool SkipAzure);
 
+/// <summary>Shared pluralisation for renderer text (the terminal and HTML hidden-count notes).</summary>
+internal static class RenderText
+{
+    public static string Findings(int count) => count == 1 ? "1 finding" : $"{count} findings";
+}
+
 /// <summary>The JSON document `--json` writes. Field names are a stability contract (golden-tested).</summary>
 public sealed record AuditReport(
     ReportTool Tool,

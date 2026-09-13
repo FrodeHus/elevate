@@ -132,6 +132,20 @@ public class TerminalRendererTests
     }
 
     [Fact]
+    public void Render_WhenExactlyOneFindingIsHidden_UsesTheSingularNoun()
+    {
+        var (console, writer) = PlainConsole();
+        var snapshot = SnapshotBuilder.Contoso().User("u1", "Alex Rivera", "alex.rivera@contoso.com").Eligible("e1", "u1", "rd-ga").Build();
+        var options = new AuditOptions(MinSeverity: Severity.Medium);
+        var findings = RuleRunner.Run(snapshot, options);
+        var report = AuditReport.From(snapshot, findings, RuleRunner.Visible(findings, options), options, "sample", ClientIds.GraphReadScopeNames);
+
+        TerminalRenderer.Render(report, console, summaryOnly: false);
+
+        Plain(writer.ToString()).Should().Contain("(1 finding below --min-severity medium hidden)");
+    }
+
+    [Fact]
     public void Render_WithNoHiddenFindings_PrintsNoHiddenNote()
     {
         var (console, writer) = PlainConsole();
