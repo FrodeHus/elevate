@@ -18,7 +18,7 @@ public sealed class StubHttpClient : IHttpClient
     }
 
     public IReadOnlyList<HttpRequestData> RequestsMatching(string urlContains) =>
-        Requests.Where(r => r.Url.AbsoluteUri.Contains(urlContains, StringComparison.Ordinal)).ToList();
+        Requests.Where(r => Unescaped(r.Url).Contains(urlContains, StringComparison.Ordinal)).ToList();
 
     public void On(string method, string urlContains, string body, int status = 200) =>
         On(method, urlContains, _ => new HttpResponseData(status, new Dictionary<string, string> { ["Content-Type"] = "application/json" }, Encoding.UTF8.GetBytes(body)));
@@ -35,9 +35,15 @@ public sealed class StubHttpClient : IHttpClient
             _requests.Add(request);
             var route = _routes.LastOrDefault(r =>
                 string.Equals(r.Method, request.Method, StringComparison.OrdinalIgnoreCase)
-                && request.Url.AbsoluteUri.Contains(r.UrlContains, StringComparison.Ordinal));
+                && Unescaped(request.Url).Contains(r.UrlContains, StringComparison.Ordinal));
             return Task.FromResult(route?.Respond(request)
                 ?? new HttpResponseData(599, new Dictionary<string, string>(), Encoding.UTF8.GetBytes($"no stub for {request.Method} {request.Url}")));
         }
     }
+
+    /// <summary>
+    /// Matches against the decoded URL: OData filters such as <c>groupId eq 'g1'</c> are registered with
+    /// literal spaces and quotes, while <see cref="Uri.AbsoluteUri"/> percent-encodes them.
+    /// </summary>
+    private static string Unescaped(Uri url) => Uri.UnescapeDataString(url.AbsoluteUri);
 }
