@@ -48,9 +48,9 @@ public class AppModelProfileTests
         var now = DateTimeOffset.UtcNow;
         var original = Sample.Assignment(Sample.EntraKey) with { StartDateTime = now.AddMinutes(-2) };
         model.Active[Sample.EntraKey] = original;
-        model.DeactivationRefusal(original, now).Should().Contain("5-minute minimum");
+        model.DeactivationRefusal(original, now).Should().Be("Can be deactivated in 180 s (minimum activation period)");
         model.Active[Sample.EntraKey] = original with { AssignmentId = "replacement" };
-        model.DeactivationRefusal(original).Should().Contain("changed");
+        model.DeactivationRefusal(original).Should().Be("Assignment replaced");
         (await model.DeactivateAssignmentAsync(original)).Should().Be("Offline");
         test.Http.Requests.Where(r => r.Method != "GET").Should().BeEmpty();
         model.Active[Sample.EntraKey].AssignmentId.Should().Be("replacement");

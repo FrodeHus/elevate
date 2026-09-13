@@ -177,6 +177,59 @@ public class ProfileDeactivationTests
     }
 
     [Fact]
+    public async Task PreviewBlocksUnverifiableAndUnconfirmedEntriesAndDisablesAnAllBlockedPass()
+    {
+        var active = Assignment();
+        var pending = active with { Status = AssignmentStatus.PendingApproval, EndDateTime = null };
+        using var test = await ModelAsync(active);
+        var model = test.Model;
+        model.Active[active.RoleKey] = active;
+        model.DeactivationDisposition(pending).Should()
+            .Be(ProfileRun.Disposition.Blocked("Original activation interval could not be verified; deactivate this role individually"));
+        model.DeactivationRefusal(pending).Should().Be("Original activation interval could not be verified; deactivate this role individually");
+        model.CanDeactivateAny([pending]).Should().BeFalse();
+
+        var waiting = Assignment("other-role", "s2");
+        model.Active[waiting.RoleKey] = waiting with { Status = AssignmentStatus.PendingProvisioning };
+        model.DeactivationRefusal(waiting).Should().Be("Awaiting active assignment confirmation");
+        model.Active.Remove(waiting.RoleKey);
+        model.DeactivationRefusal(waiting).Should().Be("Already inactive or expired");
+        // A skipped entry still completes on a pass, so it keeps the button live; blocked ones alone do not.
+        model.CanDeactivateAny([pending, waiting]).Should().BeTrue();
+        model.CanDeactivateAny([pending]).Should().BeFalse();
+
+        model.DeactivationRefusal(active).Should().BeNull();
+        model.DeactivationDisposition(active).Should().Be(ProfileRun.Disposition.Ready);
+        model.CanDeactivateAny([pending, active]).Should().BeTrue();
+        model.CanDeactivateAny([]).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PreviewLayersAppStateOverTheAssignmentDisposition()
+    {
+        var active = Assignment();
+        using var test = await ModelAsync(active);
+        var model = test.Model;
+        model.Active[active.RoleKey] = active;
+        model.InFlight.Add(active.RoleKey);
+        model.DeactivationRefusal(active).Should().Be("Operation in progress");
+        model.CanDeactivateAny([active]).Should().BeFalse();
+        model.InFlight.Remove(active.RoleKey);
+
+        var run = new ProfileRun(Guid.NewGuid(), Guid.NewGuid(), "Ops", DateTimeOffset.UtcNow, [new(active, "Reader", Completed: true)]);
+        model.State.ProfileRuns.Add(run);
+        model.DeactivationDisposition(active).Should().Be(ProfileRun.Disposition.Completed);
+        model.DeactivationRefusal(active).Should().Be("Already handled · skipped");
+        model.CanDeactivateAny([active]).Should().BeFalse();
+        model.State.ProfileRuns.Clear();
+
+        var foreign = active with { RoleKey = active.RoleKey with { IdentityId = "someone-else" } };
+        model.Active[foreign.RoleKey] = foreign;
+        model.DeactivationRefusal(foreign).Should().Be("Account unavailable");
+        model.CanDeactivateAny([foreign]).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task FreshPreexistingAssignmentIsSkippedByProfileActivation()
     {
         var assignment = Assignment();

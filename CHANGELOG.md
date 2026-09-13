@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: the deactivation review uses the same pre-flight verdicts as macOS. A role whose
+  assignment has not been confirmed active shows "Awaiting active assignment confirmation", one
+  without a verifiable identity or original activation interval says so, a replaced or expired
+  assignment reads "Assignment replaced" or "Already inactive or expired", and the minimum period
+  line becomes "Can be deactivated in N s (minimum activation period)". The **Deactivate** button
+  is disabled while every remaining role is blocked instead of only when offline.
+
 ## [1.6.4] - 2026-09-12
 
 ### Added
