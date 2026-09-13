@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7fb" />
+    <meta
+      name="description"
+      content="elevate-audit finds permanent privileged role assignments, nested group members and PIM-managed groups with standing members, so you can move them to PIM. Read-only, no app registration."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Elevate Audit — find the access that should be PIM" />
+    <meta property="og:description" content="A read-only companion to Elevate. Sign in once, get a list of standing privileged access, nested groups resolved." />
+    <meta property="og:url" content="https://elevate.reothor.no/audit.html" />
+    <meta property="og:image" content="https://elevate.reothor.no/assets/social-preview.png" />
+    <link rel="canonical" href="https://elevate.reothor.no/audit.html" />
+    <link rel="icon" type="image/png" href="assets/icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Elevate Audit — standing access, found</title>
+    <style>
+      .audit-main { padding-block: 64px 96px; }
+      .audit-main h1 { font-size: clamp(40px, 6vw, 72px); margin-bottom: 16px; }
+      .audit-lede { color: var(--muted); font-size: 20px; max-width: 46rem; }
+      .audit-main h2 { font-size: 28px; margin: 64px 0 16px; }
+      .audit-main p, .audit-main li { max-width: 46rem; line-height: 1.6; }
+      .audit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+      .audit-card { border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; background: var(--mist); }
+      .audit-card h3 { font-size: 17px; margin-bottom: 6px; }
+      .audit-card p { color: var(--muted); font-size: 15px; margin: 0; }
+      .audit-table { overflow-x: auto; margin-top: 16px; }
+      .audit-table table { width: 100%; border-collapse: collapse; font-size: 15px; }
+      .audit-table th, .audit-table td { text-align: left; vertical-align: top; padding: 10px 12px; border-top: 1px solid var(--line); }
+      .audit-table th { color: var(--muted); font-weight: 600; border-top: 0; }
+      .audit-main pre { background: var(--navy); color: #e8eef7; border-radius: 16px; padding: 20px 24px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
+      .audit-main code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .audit-main p code, .audit-main li code, .audit-table code { background: var(--mist); border-radius: 6px; padding: 1px 6px; font-size: 0.92em; }
+      .audit-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 28px; }
+      .audit-note { border-left: 3px solid var(--blue); padding-left: 16px; color: var(--muted); }
+      @media (max-width: 440px) {
+        .nav-links a:last-child { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav class="nav-glass" aria-label="Main navigation">
+        <a class="brand" href="index.html"
+          ><img src="assets/icon.png" width="32" height="32" alt="" /><span>Elevate</span></a
+        >
+        <div class="nav-links">
+          <a href="#what">What it finds</a><a href="#permissions">Permissions</a><a href="#install">Install</a><a href="audit-sample.html">Sample report</a>
+        </div>
+        <a class="button button-small" href="#install">Get elevate-audit <span aria-hidden="true">↓</span></a>
+      </nav>
+    </header>
+
+    <main id="main" class="audit-main wrap">
+      <p class="hero-intro">A companion to Elevate, for the administrator.</p>
+      <h1>Find the access that should have been PIM.</h1>
+      <p class="audit-lede">
+        <code>elevate-audit</code> signs in as you, reads your tenant, and lists every permanent
+        privileged assignment that could be eligibility instead: people, groups, the people inside
+        nested groups, PIM-managed groups with standing members, and Azure Owners and Contributors.
+        Read-only. No app registration. Nothing leaves your machine.
+      </p>
+      <div class="audit-actions">
+        <a class="button" href="#install">Install <span aria-hidden="true">↓</span></a>
+        <a class="text-link" href="audit-sample.html">See a sample report <span aria-hidden="true">→</span></a>
+        <a class="text-link" href="https://github.com/FrodeHus/elevate/blob/main/docs/audit.md">Read the guide <span aria-hidden="true">↗</span></a>
+      </div>
+
+      <h2 id="what">What it finds</h2>
+      <div class="audit-grid">
+        <div class="audit-card"><h3>Permanent Entra roles</h3><p>Users with a permanent active privileged role, instead of an eligible one.</p></div>
+        <div class="audit-card"><h3>Groups, unrolled</h3><p>Role-assigned groups and every person inside them, through nested groups, with the path that gets them there.</p></div>
+        <div class="audit-card"><h3>PIM for Groups leftovers</h3><p>Groups already managed by PIM that still have permanent members or owners.</p></div>
+        <div class="audit-card"><h3>Azure RBAC</h3><p>Permanent Owner, Contributor and User Access Administrator assignments at every scope, group principals expanded.</p></div>
+        <div class="audit-card"><h3>Guests and workload identities</h3><p>Guests holding privileged roles, and service principals that PIM cannot help with, listed separately.</p></div>
+        <div class="audit-card"><h3>Hygiene</h3><p>Eligibilities without an end date, groups not onboarded to PIM, and a Global Administrator count outside two to five.</p></div>
+      </div>
+      <p class="audit-note" style="margin-top: 24px;">
+        A currently activated PIM assignment is not standing access and never appears. By default only
+        privileged roles are reported; <code>--all-roles</code> widens it.
+      </p>
+
+      <h2 id="how">How it works</h2>
+      <pre><code>$ elevate-audit --html report.html
+Opening the browser to sign in to Microsoft Graph…
+Reading directory roles… Expanding groups… Reading Azure role assignments…
+╭─ ENTRA-GROUP-PERMANENT · high · 3 ─────────────────────────────────────────────╮
+│ Principal              Role                  Scope      Via                     │
+│ Tier 0 Admins (group)  Global Administrator  Directory  direct                  │
+│ Sam Chen               Global Administrator  Directory  Tier 0 Admins           │
+│ Casey Wong             Global Administrator  Directory  Tier 0 Admins ← Platform Team │
+╰────────────────────────────────────────────────────────────────────────────────╯
+24 findings: 12 high, 5 medium, 5 low, 2 info.
+HTML report written to report.html.</code></pre>
+      <p>
+        The terminal shows one panel per rule and severity, like the Global Administrator group above.
+        <code>--html</code> writes a self-contained report styled like this page, for the team that owns
+        the roles or for a change ticket; <code>--json</code> gives scripts the same data. The exit code
+        is <code>2</code> when there are high findings, so a pipeline can track the number going down.
+      </p>
+
+      <h2 id="permissions">Permissions, and why there is no app to register</h2>
+      <p>
+        The tool signs in with two public clients Microsoft already publishes:
+        <strong>Microsoft Graph Command Line Tools</strong> for Microsoft Graph, and the
+        <strong>Azure CLI</strong> client for Azure Resource Manager, the same way Elevate's Azure CLI
+        sign-in method works. Consent is dynamic: at the first sign-in you, as the administrator running
+        the audit, approve exactly these read-only Microsoft Graph scopes.
+      </p>
+      <div class="audit-table">
+        <table>
+          <thead><tr><th>Scope</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td><code>User.Read</code></td><td>The tenant name and your account, for the report header.</td></tr>
+            <tr><td><code>RoleManagement.Read.Directory</code></td><td>Role definitions, active assignments and eligibilities.</td></tr>
+            <tr><td><code>PrivilegedAssignmentSchedule.Read.AzureADGroup</code></td><td>Active memberships of PIM-managed groups.</td></tr>
+            <tr><td><code>PrivilegedEligibilitySchedule.Read.AzureADGroup</code></td><td>Eligible memberships of PIM-managed groups.</td></tr>
+            <tr><td><code>GroupMember.Read.All</code></td><td>Expanding role-assigned groups, nested groups included.</td></tr>
+            <tr><td><code>User.ReadBasic.All</code></td><td>Names instead of object ids.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Tokens stay in memory for one run and are never written to disk. Nothing is written to your tenant.
+        If your organization blocks Microsoft's Graph PowerShell client, pass any public client you own with
+        <code>--client-id</code>; the guide explains
+        <a href="https://github.com/FrodeHus/elevate/blob/main/docs/audit.md#5-a-tenant-that-blocks-the-graph-powershell-app">what to register</a>.
+        The Elevate app registration is never involved, and its permissions do not change.
+      </p>
+
+      <h2 id="install">Install</h2>
+      <p>macOS and Linux with Homebrew:</p>
+      <pre><code>brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate
+brew trust frodehus/elevate
+brew install frodehus/elevate/elevate-audit</code></pre>
+      <p>
+        Windows: <code>winget install Reothor.Elevate.Audit</code> once the manifest is published. On any
+        platform, the <a href="https://github.com/FrodeHus/elevate/releases/latest">latest release</a> has
+        <code>elevate-audit-&lt;version&gt;-&lt;platform&gt;</code> archives with SHA-256 checksums; unpack the
+        binary anywhere on your PATH.
+      </p>
+      <p>
+        You need a role that can read PIM tenant-wide: Global Reader, Privileged Role Administrator or
+        Security Reader, and Reader on the Azure scopes you want covered. Details, options and the rule
+        reference are in <a href="https://github.com/FrodeHus/elevate/blob/main/docs/audit.md">docs/audit.md</a>.
+      </p>
+    </main>
+
+    <footer class="site-footer wrap">
+      <div class="footer-top">
+        <a class="brand" href="index.html"
+          ><img src="assets/icon.png" width="28" height="28" alt="" /><span>Elevate</span></a
+        >
+        <p>Entra and Azure access, closer to your work.</p>
+        <a class="text-link" href="https://github.com/FrodeHus/elevate">Give Elevate a star <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="footer-bottom">
+        <span>Made by <a href="https://github.com/FrodeHus">Frode Hus</a>. Open source under the
+          <a href="https://github.com/FrodeHus/elevate/blob/main/LICENSE">MIT license</a>.</span>
+        <div>
+          <a href="index.html">Product page</a>
+          <a href="terms.html">Terms of Service</a>
+          <a href="privacy.html">Privacy Statement</a>
+          <a href="https://github.com/FrodeHus/elevate/issues">Feedback</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
