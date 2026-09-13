@@ -11,5 +11,5 @@ public static class PortalLinks
 
     public static string User(string userId) => $"https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/{Uri.EscapeDataString(userId)}";
 
-    public static string AzureScope(string scope) => $"https://portal.azure.com/#@/resource{scope}/users";
+    public static string AzureScope(string tenantId, string scope) => $"https://portal.azure.com/#@{tenantId}/resource{scope}/users";
 }

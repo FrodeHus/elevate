@@ -32,6 +32,7 @@ public sealed class RuleContext
 
     public Snapshot Snapshot { get; }
     public AuditOptions Options { get; }
+    public string TenantId => Snapshot.Tenant.Id;
     public IReadOnlyDictionary<string, PrincipalRecord> Principals { get; }
     public IReadOnlyDictionary<string, RoleDefinitionRecord> EntraRoles { get; }
     public IReadOnlyDictionary<string, GroupRecord> Groups { get; }

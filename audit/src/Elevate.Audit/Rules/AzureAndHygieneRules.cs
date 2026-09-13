@@ -23,13 +23,13 @@ public sealed class AzurePermanentRule : IRule
             {
                 yield return new Finding(Code, severity, RuleContext.ToFinding(principal), role, scope, [],
                     $"Make the group's {role.DisplayName} assignment on {scope.DisplayName} eligible in PIM for Azure resources, or govern the group's membership with PIM for Groups.",
-                    PortalLinks.AzureScope(a.Scope), RuleContext.Evidence(a));
+                    PortalLinks.AzureScope(context.TenantId, a.Scope), RuleContext.Evidence(a));
                 foreach (var m in context.Expansion.Expand(a.PrincipalId).Where(m => m.Type == PrincipalType.User))
                 {
                     var member = context.PrincipalRecordOf(m.PrincipalId);
                     yield return new Finding(Code, severity, RuleContext.ToFinding(member), role, scope, m.Via,
                         $"{member.DisplayName ?? member.Id} holds {role.DisplayName} on {scope.DisplayName} permanently through {string.Join(" ← ", m.Via.Select(v => v.DisplayName))}.",
-                        PortalLinks.AzureScope(a.Scope), RuleContext.Evidence(a));
+                        PortalLinks.AzureScope(context.TenantId, a.Scope), RuleContext.Evidence(a));
                 }
             }
             else
@@ -42,7 +42,7 @@ public sealed class AzurePermanentRule : IRule
                     ? $"Remove the permanent {role.DisplayName} assignment on {scope.DisplayName} and make {name} eligible for it in PIM."
                     : $"Remove the permanent {role.DisplayName} assignment on {scope.DisplayName} or make {name} eligible for it in PIM; PIM eligibility does not apply to workload identities.";
                 yield return new Finding(Code, severity, RuleContext.ToFinding(principal), role, scope, [], remedy,
-                    PortalLinks.AzureScope(a.Scope), RuleContext.Evidence(a));
+                    PortalLinks.AzureScope(context.TenantId, a.Scope), RuleContext.Evidence(a));
             }
         }
     }
@@ -72,7 +72,7 @@ public sealed class EligibleNoEndRule : IRule
 
         foreach (var e in context.Snapshot.AzureEligibilities.Where(e => e.EndDateTime is null && context.AzureSeverity(e.RoleDefinitionId) is not null))
         {
-            yield return new Finding(Code, Severity.Low, context.Principal(e.PrincipalId), context.AzureFindingRole(e.RoleDefinitionId), context.AzureScope(e.Scope), [], remedy, PortalLinks.AzureScope(e.Scope), RuleContext.Evidence(e));
+            yield return new Finding(Code, Severity.Low, context.Principal(e.PrincipalId), context.AzureFindingRole(e.RoleDefinitionId), context.AzureScope(e.Scope), [], remedy, PortalLinks.AzureScope(context.TenantId, e.Scope), RuleContext.Evidence(e));
         }
     }
 }
@@ -92,7 +92,7 @@ public sealed class GlobalAdminCountRule : IRule
             yield break;
         }
 
-        var people = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var principals = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var records = context.Snapshot.EntraAssignments.Where(a => a.IsPermanent && !string.Equals(a.MemberType, "Group", StringComparison.OrdinalIgnoreCase))
             .Concat(context.Snapshot.EntraEligibilities)
             .Where(a => gaRoleIds.Contains(a.RoleDefinitionId) && a.DirectoryScopeId == "/");
@@ -101,18 +101,18 @@ public sealed class GlobalAdminCountRule : IRule
             var principal = context.PrincipalRecordOf(a.PrincipalId);
             if (principal.Type == PrincipalType.Group)
             {
-                foreach (var m in context.Expansion.Expand(a.PrincipalId).Where(m => m.Type == PrincipalType.User))
+                foreach (var m in context.Expansion.Expand(a.PrincipalId).Where(m => m.Type is PrincipalType.User or PrincipalType.ServicePrincipal))
                 {
-                    people.Add(m.PrincipalId);
+                    principals.Add(m.PrincipalId);
                 }
             }
-            else if (principal.Type == PrincipalType.User)
+            else if (principal.Type is PrincipalType.User or PrincipalType.ServicePrincipal)
             {
-                people.Add(principal.Id);
+                principals.Add(principal.Id);
             }
         }
 
-        if (people.Count is >= 2 and <= 5)
+        if (principals.Count is >= 2 and <= 5)
         {
             yield break;
         }
@@ -126,9 +126,9 @@ public sealed class GlobalAdminCountRule : IRule
             context.EntraRole(roleId),
             new FindingScope("/", "Directory", ScopeKind.Directory),
             [],
-            people.Count < 2
-                ? $"{people.Count} person can become Global Administrator. Microsoft recommends at least two (for break-glass) and at most five."
-                : $"{people.Count} people can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles.",
+            principals.Count < 2
+                ? $"{principals.Count} principal can become Global Administrator. Microsoft recommends at least two (for break-glass) and at most five."
+                : $"{principals.Count} principals can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles.",
             PortalLinks.EntraRoles,
             new FindingEvidence("global-administrator-count", null, null, null, null));
     }
