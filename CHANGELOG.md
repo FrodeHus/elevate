@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Windows: expiry notifications are now scheduled with Windows instead of being timed inside the app,
+  so the "expires in 5 minutes" and "expired" toasts still appear after Elevate is quit or crashes, as
+  they do on macOS. **Extend** and **Activate again** launch Elevate when it is not running. The
+  in-app timer remains as a fallback when the system schedule is unavailable.
 - macOS, Windows and CLI: the "Cached tokens may be stale" hint after an Azure or group activation
   now appears only for accounts signed in with the Azure CLI or Azure PowerShell app, where Elevate
   shares the tool's token cache. For an account signed in through an app registration Elevate cannot

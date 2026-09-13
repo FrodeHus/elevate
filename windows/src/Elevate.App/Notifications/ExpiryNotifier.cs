@@ -1,32 +1,36 @@
-using System.Text.Json;
-using Elevate.Core;
 using Elevate.Core.Models;
 using Microsoft.UI.Dispatching;
+using Microsoft.Win32;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
+using Windows.Data.Xml.Dom;
+using Windows.UI.Notifications;
 
 namespace Elevate.App.Notifications;
 
 /// <summary>
-/// Expiry toasts through the Windows App SDK notification manager: one "expires in 5 minutes"
-/// toast with an Extend button and one "expired" toast with Activate again, per active assignment.
-/// The manager cannot schedule a toast for later, so the timing is kept in-process: this is a
-/// tray app that runs for as long as a role is active. Port of the macOS <c>ExpiryNotifier</c>.
+/// Expiry toasts: one "expires in 5 minutes" toast with an Extend button and one "expired" toast
+/// with Activate again, per active assignment. The toasts are handed to Windows as
+/// <see cref="ScheduledToastNotification"/>s so they fire even when Elevate is not running, the
+/// way <c>UNTimeIntervalNotificationTrigger</c> does on macOS; a click then launches the app
+/// through the COM activator <see cref="AppNotificationManager.Register"/> set up. When the OS
+/// schedule is unavailable the timing falls back to an in-process timer. Port of the macOS
+/// <c>ExpiryNotifier</c>.
 /// </summary>
 public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 {
-    public const string Group = "elevate-expiry";
-    public static readonly TimeSpan LeadTime = TimeSpan.FromMinutes(5);
-    public static readonly TimeSpan ExpiredDelay = TimeSpan.FromSeconds(5);
-
-    /// <summary>A timed toast. Role toasts carry a key and a button; package expiries (<c>Key</c> null) are plain.</summary>
-    private sealed record Planned(DateTimeOffset FireAt, string Tag, string Title, string Body, string Button, RoleKey? Key);
+    public const string Group = ExpiryPlan.Group;
+    public static readonly TimeSpan LeadTime = ExpiryPlan.LeadTime;
+    public static readonly TimeSpan ExpiredDelay = ExpiryPlan.ExpiredDelay;
 
     private readonly Lock _gate = new();
     private readonly DispatcherQueue _dispatcher;
-    private readonly List<Planned> _planned = [];
+    /// <summary>Toasts the in-process timer owns: everything when scheduling is unavailable, else only what the OS refused.</summary>
+    private readonly List<PlannedToast> _planned = [];
     private Timer? _timer;
     private bool _registered;
+    private ToastNotifier? _scheduler;
+    private bool _fallbackLogged;
 
     public ExpiryNotifier(DispatcherQueue dispatcher)
     {
@@ -52,6 +56,9 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
         }
     }
 
+    /// <summary>Whether expiry toasts are handed to the OS schedule (true) or timed in-process (false).</summary>
+    public bool SchedulesWithSystem => _scheduler is not null;
+
     /// <summary>
     /// Hooks the activation handler and registers the app with the notification platform. Must run
     /// before anything shows a toast, and before the app handles a toast launch.
@@ -67,6 +74,60 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
         manager.NotificationInvoked += (_, args) => Handle(args.Arguments);
         manager.Register();
         _registered = true;
+        _scheduler = CreateScheduler();
+    }
+
+    /// <summary>
+    /// The toast notifier for the app entry <see cref="AppNotificationManager.Register"/> created.
+    /// The SDK derives the AUMID from the executable path and does not expose it, so it is read
+    /// back from the registry through the COM activator it registered for this executable.
+    /// </summary>
+    private static ToastNotifier? CreateScheduler()
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exe))
+            {
+                App.Log("Toasts: process path unknown; timing expiry toasts in-process");
+                return null;
+            }
+
+            using var classes = Registry.CurrentUser.OpenSubKey(@"Software\Classes");
+            using var aumids = classes?.OpenSubKey("AppUserModelId");
+            if (classes is null || aumids is null)
+            {
+                App.Log("Toasts: no AppUserModelId registrations; timing expiry toasts in-process");
+                return null;
+            }
+
+            var entries = aumids.GetSubKeyNames().Select(id =>
+            {
+                using var key = aumids.OpenSubKey(id);
+                return new AppUserModelEntry(id, key?.GetValue("CustomActivator") as string);
+            });
+            var aumid = NotificationAppId.Find(exe, entries, clsid =>
+            {
+                using var server = classes.OpenSubKey(@"CLSID\" + clsid + @"\LocalServer32");
+                return server?.GetValue(null) as string;
+            });
+            if (aumid is null)
+            {
+                App.Log("Toasts: no notification app id registered for " + exe + "; timing expiry toasts in-process");
+                return null;
+            }
+
+            var notifier = ToastNotificationManager.CreateToastNotifier(aumid);
+            // Prove the schedule is reachable now rather than on the first refresh.
+            _ = notifier.GetScheduledToastNotifications();
+            App.Log("Toasts: scheduling expiry toasts with Windows as " + aumid);
+            return notifier;
+        }
+        catch (Exception e)
+        {
+            App.Log("Toasts: OS scheduling unavailable (" + e.Message + "); timing expiry toasts in-process");
+            return null;
+        }
     }
 
     /// <summary>A toast launch (the app was not running): opens the activation window for the toast's role.</summary>
@@ -78,31 +139,12 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 
     private void Handle(IDictionary<string, string> arguments)
     {
-        if (!arguments.TryGetValue("action", out var action) || action is not ("extend" or "again" or "open"))
+        if (ExpiryPlan.RoleFor(arguments) is not { } key)
         {
             return;
         }
 
-        if (!arguments.TryGetValue("key", out var json))
-        {
-            return;
-        }
-
-        RoleKey? key;
-        try
-        {
-            key = Json.Deserialize<RoleKey>(json);
-        }
-        catch (JsonException)
-        {
-            return;
-        }
-
-        if (key is null)
-        {
-            return;
-        }
-
+        App.Log($"Toast action '{arguments[ExpiryPlan.ActionArgument]}' for {key.TenantId}");
         _dispatcher.TryEnqueue(() => OnExtend?.Invoke(key));
     }
 
@@ -111,33 +153,7 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
         IReadOnlyDictionary<RoleKey, string> names,
         IReadOnlyDictionary<TenantKey, string> tenantNames)
     {
-        ArgumentNullException.ThrowIfNull(assignments);
-        ArgumentNullException.ThrowIfNull(names);
-        ArgumentNullException.ThrowIfNull(tenantNames);
-
-        var planned = new List<Planned>();
-        foreach (var a in assignments.Where(a => a.Status.Kind == AssignmentStatusKind.Active))
-        {
-            if (a.EndDateTime is not { } end)
-            {
-                continue;
-            }
-
-            var id = a.AssignmentId ?? Guid.NewGuid().ToString("N");
-            var name = names.GetValueOrDefault(a.RoleKey) ?? "PIM role";
-            var tenant = tenantNames.GetValueOrDefault(a.RoleKey.TenantKey) ?? a.RoleKey.TenantId;
-            planned.Add(new Planned(end - LeadTime, "expiry-" + id, $"{name} expires in 5 minutes", tenant, "Extend", a.RoleKey));
-            planned.Add(new Planned(end + ExpiredDelay, "expired-" + id, $"{name} expired", tenant, "Activate again", a.RoleKey));
-        }
-
-        lock (_gate)
-        {
-            // Role toasts only; the package expiries keep their own entries.
-            _planned.RemoveAll(p => p.Key is not null);
-            _planned.AddRange(planned.Where(p => p.FireAt > DateTimeOffset.UtcNow.AddSeconds(1)));
-            Arm();
-        }
-
+        Replace(ExpiryPlan.ForRoles(assignments, names, tenantNames), ExpiryPlan.IsRoleTag, p => p.IsRoleToast);
         return Task.CompletedTask;
     }
 
@@ -148,18 +164,86 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
     /// </summary>
     public Task SetPackageExpiriesAsync(IReadOnlyList<PackageExpiry> expiries)
     {
-        ArgumentNullException.ThrowIfNull(expiries);
-        var planned = expiries
-            .Select(e => new Planned(e.At + ExpiredDelay, "package-expired-" + e.Id, $"{e.PackageName} expired", $"Access package in {e.TenantName}", string.Empty, null))
-            .ToList();
+        Replace(ExpiryPlan.ForPackages(expiries), ExpiryPlan.IsPackageTag, p => !p.IsRoleToast);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Developer switch: one Extend toast for a stand-in role, <paramref name="delay"/> from now.</summary>
+    public void ScheduleTestToast(TimeSpan delay)
+    {
+        var key = new RoleKey("dev-identity", "dev-tenant", new EntraDirectoryScope("dev-role", "/"));
+        var toast = new PlannedToast(DateTimeOffset.UtcNow + delay, "test-toast", "Test role expires in 5 minutes", "Developer toast", ExpiryPlan.ExtendButton, key);
+        Replace([toast], tag => tag == "test-toast", p => p.Tag == "test-toast");
+    }
+
+    /// <summary>
+    /// Replaces one family of toasts (role or package) with <paramref name="wanted"/>. With the OS
+    /// schedule, the family's stale entries are removed and the new ones added; whatever the OS
+    /// refuses, and everything when the schedule is unavailable, goes to the in-process timer. A
+    /// toast lives in exactly one of the two, so nothing fires twice.
+    /// </summary>
+    private void Replace(IReadOnlyList<PlannedToast> wanted, Func<string, bool> ownsTag, Func<PlannedToast, bool> inFamily)
+    {
+        var pending = ExpiryPlan.Pending(wanted, DateTimeOffset.UtcNow);
+        var forTimer = _scheduler is null ? pending : ScheduleWithSystem(pending, ownsTag);
         lock (_gate)
         {
-            _planned.RemoveAll(p => p.Key is null);
-            _planned.AddRange(planned.Where(p => p.FireAt > DateTimeOffset.UtcNow.AddSeconds(1)));
+            _planned.RemoveAll(p => inFamily(p));
+            _planned.AddRange(forTimer);
             Arm();
         }
+    }
 
-        return Task.CompletedTask;
+    /// <summary>Reconciles the OS schedule with <paramref name="wanted"/>; returns the toasts it could not schedule.</summary>
+    private List<PlannedToast> ScheduleWithSystem(IReadOnlyList<PlannedToast> wanted, Func<string, bool> ownsTag)
+    {
+        var notifier = _scheduler!;
+        try
+        {
+            var existing = notifier.GetScheduledToastNotifications()
+                .Where(s => s.Group == Group)
+                .ToList();
+            var changes = ExpiryPlan.Reconcile(existing.Select(s => new ScheduledEntry(s.Tag, s.DeliveryTime)), wanted, ownsTag);
+            foreach (var stale in existing.Where(s => changes.Remove.Contains(s.Tag, StringComparer.Ordinal)))
+            {
+                notifier.RemoveFromSchedule(stale);
+            }
+
+            var refused = new List<PlannedToast>();
+            foreach (var toast in changes.Add)
+            {
+                try
+                {
+                    var document = new XmlDocument();
+                    document.LoadXml(Build(toast).Payload);
+                    notifier.AddToSchedule(new ScheduledToastNotification(document, toast.FireAt) { Tag = toast.Tag, Group = Group });
+                }
+                catch (Exception e)
+                {
+                    LogFallbackOnce("Toasts: could not schedule " + toast.Tag + " (" + e.Message + "); timing it in-process");
+                    refused.Add(toast);
+                }
+            }
+
+            return refused;
+        }
+        catch (Exception e)
+        {
+            // The schedule itself failed: nothing was changed, so the whole set is timed in-process.
+            LogFallbackOnce("Toasts: OS schedule failed (" + e.Message + "); timing expiry toasts in-process");
+            return wanted.ToList();
+        }
+    }
+
+    private void LogFallbackOnce(string message)
+    {
+        if (_fallbackLogged)
+        {
+            return;
+        }
+
+        _fallbackLogged = true;
+        App.Log(message);
     }
 
     public Task NotifyAsync(string title, string body)
@@ -195,7 +279,7 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 
     private void Fire()
     {
-        List<Planned> due;
+        List<PlannedToast> due;
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
@@ -206,26 +290,31 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
 
         foreach (var toast in due)
         {
-            if (toast.Key is null)
-            {
-                // A package expiry has no action: nothing in Elevate can renew it.
-                Show(new AppNotificationBuilder().AddText(toast.Title).AddText(toast.Body).SetTag(toast.Tag).SetGroup(Group).BuildNotification());
-                continue;
-            }
-
-            var keyJson = Json.Serialize(toast.Key);
-            var action = toast.Button == "Extend" ? "extend" : "again";
-            var builder = new AppNotificationBuilder()
-                .AddText(toast.Title)
-                .AddText(toast.Body)
-                .AddArgument("action", "open")
-                .AddArgument("key", keyJson)
-                .AddButton(new AppNotificationButton(toast.Button).AddArgument("action", action).AddArgument("key", keyJson))
-                .AddButton(new AppNotificationButton("Dismiss").AddArgument("action", "dismiss"))
-                .SetTag(toast.Tag)
-                .SetGroup(Group);
-            Show(builder.BuildNotification());
+            Show(Build(toast));
         }
+    }
+
+    /// <summary>The toast content: the same text, buttons and arguments whether shown now or scheduled.</summary>
+    private static AppNotification Build(PlannedToast toast)
+    {
+        var builder = new AppNotificationBuilder()
+            .AddText(toast.Title)
+            .AddText(toast.Body)
+            .SetTag(toast.Tag)
+            .SetGroup(Group);
+        if (toast.Key is null)
+        {
+            // A package expiry has no action: nothing in Elevate can renew it.
+            return builder.BuildNotification();
+        }
+
+        var keyJson = ExpiryPlan.EncodeKey(toast.Key);
+        return builder
+            .AddArgument(ExpiryPlan.ActionArgument, ExpiryPlan.OpenAction)
+            .AddArgument(ExpiryPlan.KeyArgument, keyJson)
+            .AddButton(new AppNotificationButton(toast.Button).AddArgument(ExpiryPlan.ActionArgument, toast.Action!).AddArgument(ExpiryPlan.KeyArgument, keyJson))
+            .AddButton(new AppNotificationButton("Dismiss").AddArgument(ExpiryPlan.ActionArgument, "dismiss"))
+            .BuildNotification();
     }
 
     private static void Show(AppNotification notification)
@@ -244,10 +333,13 @@ public sealed class ExpiryNotifier : IExpiryNotifier, IDisposable
     {
         _timer?.Dispose();
         _timer = null;
+        // Scheduled toasts stay with the OS on purpose: they are the point of scheduling.
+        _scheduler = null;
         if (_registered)
         {
             try
             {
+                // Unregister (not UnregisterAll) keeps the COM activator, so a scheduled toast can still launch the app.
                 AppNotificationManager.Default.Unregister();
             }
             catch (Exception)
