@@ -12,8 +12,9 @@ struct AppModelTokenHintTests {
     }
 
     @Test func anAzureOrGroupActivationRaisesTheHintOnceUntilDismissedForTheAccount() async {
+        // Signed in as the Azure CLI app: Elevate shares the CLI's token cache, so the hint is certain.
         var state = AppState()
-        state.identities = [Sample.identity()]
+        state.identities = [Sample.identity(method: .azureCLI)]
         state.tenants = [Sample.tenant()]
         let model = await makeModel(state: state)
 
@@ -29,6 +30,17 @@ struct AppModelTokenHintTests {
 
         model.noteTokenHint([activated(Sample.azureKey)])
         #expect(model.tokenHint == nil, "the account dismissed it")
+        cleanup(model)
+    }
+
+    @Test func anAppRegistrationAccountNeverGetsTheHint() async {
+        var state = AppState()
+        state.identities = [Sample.identity()]
+        state.tenants = [Sample.tenant()]
+        let model = await makeModel(state: state)
+
+        model.noteTokenHint([activated(Sample.groupKey), activated(Sample.azureKey)])
+        #expect(model.tokenHint == nil, "an app registration has its own token cache; Elevate cannot know whether the tools were ever used as this account")
         cleanup(model)
     }
 }

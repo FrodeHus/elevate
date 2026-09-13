@@ -268,7 +268,7 @@ public sealed partial class AppModel
     internal void NoteTokenHint(IReadOnlyList<ActivationOutcome> outcomes)
     {
         var dismissed = Settings.DismissedTokenHintAccounts;
-        foreach (var id in TokenCacheHint.AffectedAccounts(outcomes))
+        foreach (var id in TokenCacheHint.AffectedAccounts(outcomes, id => Identity(id)?.SignInMethod))
         {
             if (!dismissed.Contains(id) && !_tokenHintAccounts.Contains(id))
             {

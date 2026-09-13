@@ -68,6 +68,12 @@ public readonly record struct SignInMethod
 
     public bool UsesMsal => Kind == SignInMethodKind.OwnApp;
 
+    /// <summary>
+    /// Whether the account signs in as the Azure CLI or Azure PowerShell app, whose token cache the
+    /// tool itself reads: an activation through Elevate then provably leaves that tool a stale token.
+    /// </summary>
+    public bool SharesToolTokenCache => Kind is SignInMethodKind.AzureCLI or SignInMethodKind.AzurePowerShell;
+
     public bool IsCustom => Kind == SignInMethodKind.Custom;
 
     /// <summary>
