@@ -125,8 +125,15 @@ public partial class App : Application
                 _notifier?.HandleLaunch(toast);
             }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
-            // `--show <settings|add-account|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window.
+            // `--show <settings|add-account|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window,
+            // `--test-toast <seconds>` schedules one Extend toast that far out (quit the app to prove the OS delivers it).
             var args = Environment.GetCommandLineArgs();
+            var testToast = Array.IndexOf(args, "--test-toast");
+            if (testToast >= 0 && testToast + 1 < args.Length && int.TryParse(args[testToast + 1], out var seconds))
+            {
+                _notifier?.ScheduleTestToast(TimeSpan.FromSeconds(seconds));
+            }
+
             if (args.Contains("--flyout", StringComparer.OrdinalIgnoreCase))
             {
                 _flyout?.Show(_tray?.IconRect);
