@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the "expires in 5 minutes" and "expired" toasts still appear after Elevate is quit or crashes, as
   they do on macOS. **Extend** and **Activate again** launch Elevate when it is not running. The
   in-app timer remains as a fallback when the system schedule is unavailable.
+- Windows: the tenant menu's "Open admin consent link…" is now offered for every account signed in
+  with the Entra app registration method, not only after discovery fell back to manual roles or
+  groups became unavailable, so an administrator can re-consent after a scope is added before
+  anything fails, as on macOS since 1.6.1.
 
 ## [1.6.4] - 2026-09-12
 
