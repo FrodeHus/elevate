@@ -93,8 +93,9 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             var response = await graph.GetAsync(identity, tenantId, GraphUrls.Group(id), _scopes, ct).ConfigureAwait(false);
             return JsonSerializer.Deserialize<WireGroup>(response.Body, GraphJson.Options);
         }
-        catch (PimException e) when (e.Status == 404)
+        catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {
+            // Deleted, or a nested group the signed-in account cannot read; its parent still lists it as a member.
             return null;
         }
     }

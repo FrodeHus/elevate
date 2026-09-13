@@ -69,4 +69,27 @@ public class GroupCollectorTests
         data.Groups.Should().OnlyContain(g => g.PimStatus == PimStatus.Unknown);
         stub.RequestsMatching("privilegedAccess/group").Should().HaveCount(1);
     }
+
+    [Fact]
+    public async Task Collect_WhenANestedGroupCannotBeRead_SkipsItAndKeepsWalking()
+    {
+        var stub = new StubHttpClient();
+        stub.On("GET", "/groups?$filter=isAssignableToRole", """{"value":[]}""");
+        stub.On("GET", "/groups/g1/members", """
+            {"value":[
+              {"@odata.type":"#microsoft.graph.user","id":"u1","displayName":"Sam Chen","userPrincipalName":"sam.chen@contoso.com","userType":"Member","accountEnabled":true},
+              {"@odata.type":"#microsoft.graph.group","id":"g9","displayName":"Restricted Group"}
+            ]}
+            """);
+        stub.On("GET", "/groups/g1?", """{"id":"g1","displayName":"Tier 0 Admins","isAssignableToRole":true,"groupTypes":[]}""");
+        stub.On("GET", "/groups/g9?", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}""", 403);
+        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g1'", """{"value":[]}""");
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1"], CancellationToken.None);
+
+        data.Groups.Select(g => g.Id).Should().BeEquivalentTo(["g1"], "the unreadable nested group is skipped, not collected");
+        var g1 = data.Groups.Single(g => g.Id == "g1");
+        g1.DirectMembers.Select(m => (m.Id, m.Type)).Should().Contain(("g9", PrincipalType.Group), "the parent still lists it as a member");
+    }
 }
