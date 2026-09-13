@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Elevate.Audit.Auth;
 using Elevate.Audit.Model;
 using Elevate.Audit.Rendering;
@@ -21,8 +22,12 @@ public class TerminalRendererTests
             Out = new AnsiConsoleOutput(writer),
         });
         console.Profile.Width = 200;
+        console.Profile.Capabilities.Ansi = false;
         return (console, writer);
     }
+
+    /// <summary>Strips ANSI CSI escape sequences, belt-and-braces against Spectre emitting them despite a plain profile.</summary>
+    private static string Plain(string text) => Regex.Replace(text, "\\u001B\\[[0-9;?]*[ -/]*[@-~]", string.Empty);
 
     private static AuditReport Sample()
     {
@@ -36,7 +41,7 @@ public class TerminalRendererTests
         var (console, writer) = PlainConsole();
 
         TerminalRenderer.Render(Sample(), console, summaryOnly: false);
-        var text = writer.ToString();
+        var text = Plain(writer.ToString());
 
         text.Should().Contain("Contoso").And.Contain("alex.rivera@contoso.com");
         text.Should().Contain("Skipped").And.Contain("management groups");
@@ -52,7 +57,7 @@ public class TerminalRendererTests
 
         TerminalRenderer.Render(Sample(), console, summaryOnly: true);
 
-        writer.ToString().Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("13 high").And.Contain("5 medium");
+        Plain(writer.ToString()).Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("13 high").And.Contain("5 medium");
     }
 
     [Fact]
@@ -67,10 +72,29 @@ public class TerminalRendererTests
             .Build();
 
         TerminalRenderer.Render(AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "x", []), console, summaryOnly: false);
-        var text = writer.ToString();
+        var text = Plain(writer.ToString());
 
         text.Should().Contain("AZURE-PERMANENT · high · 1");
         text.Should().Contain("AZURE-PERMANENT · medium · 1");
+    }
+
+    [Fact]
+    public void Render_WithNoColor_EmitsNoAnsiEscapes()
+    {
+        var writer = new StringWriter();
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.No,
+            ColorSystem = ColorSystemSupport.NoColors,
+            Interactive = InteractionSupport.No,
+            Out = new AnsiConsoleOutput(writer),
+        });
+        console.Profile.Width = 200;
+
+        TerminalRenderer.Render(Sample(), console, summaryOnly: false);
+        var text = writer.ToString();
+
+        text.Should().NotContain("\u001B");
     }
 
     [Fact]
@@ -81,6 +105,6 @@ public class TerminalRendererTests
 
         TerminalRenderer.Render(AuditReport.From(snapshot, [], new AuditOptions(), "x", []), console, summaryOnly: false);
 
-        writer.ToString().Should().Contain("No standing privileged access found");
+        Plain(writer.ToString()).Should().Contain("No standing privileged access found");
     }
 }
