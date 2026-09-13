@@ -30,6 +30,24 @@ public partial class HtmlRendererTests
     }
 
     [Fact]
+    public void Render_SectionIdsAreUnique()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        var ids = Regex.Matches(html, "id=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
+        ids.Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Render_ARuleWithTwoSeverities_YieldsTwoSections()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        html.Should().Contain("id=\"azure-permanent-high\"");
+        html.Should().Contain("id=\"azure-permanent-medium\"");
+    }
+
+    [Fact]
     public void Render_WhenMinSeverityHidesFindings_MentionsItUnderTheCards()
     {
         var snapshot = SampleSnapshot.Build();

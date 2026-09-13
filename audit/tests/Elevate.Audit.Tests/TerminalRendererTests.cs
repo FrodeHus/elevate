@@ -45,7 +45,11 @@ public class TerminalRendererTests
         var text = Plain(writer.ToString());
 
         text.Should().Contain("Contoso").And.Contain("alex.rivera@contoso.com");
-        text.Should().Contain("Skipped").And.Contain("management groups");
+        text.Should().Contain("management groups");
+        var headerRow = Regex.Match(text, @"Skipped\s+azure-management-groups");
+        headerRow.Success.Should().BeTrue("the header panel lists the skipped source on its own row");
+        text.IndexOf("Skipped", headerRow.Index + headerRow.Length, StringComparison.Ordinal).Should()
+            .BeGreaterThan(-1, "the dedicated Skipped panel (with source and reason) follows the header");
         text.Should().Contain("ENTRA-GROUP-PERMANENT").And.Contain("Tier 0 Admins ← Platform Team");
         text.Should().Contain("GA-COUNT");
         text.Should().Contain(TerminalRenderer.SummaryLine(Sample()));
