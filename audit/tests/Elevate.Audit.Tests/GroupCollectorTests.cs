@@ -100,6 +100,48 @@ public class GroupCollectorTests
     }
 
     [Fact]
+    public async Task Collect_WithVerbose_WhenTransitiveMembersDisagreesWithTheWalk_LogsTheMismatch()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/groups/g1/transitiveMembers", """
+            {"value":[
+              {"@odata.type":"#microsoft.graph.user","id":"u1"},
+              {"@odata.type":"#microsoft.graph.servicePrincipal","id":"sp1"},
+              {"@odata.type":"#microsoft.graph.servicePrincipal","id":"sp-extra"}
+            ]}
+            """);
+        stub.On("GET", "/groups/g2/transitiveMembers", """{"value":[{"@odata.type":"#microsoft.graph.servicePrincipal","id":"sp1"}]}""");
+        var lines = new List<string>();
+
+        await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId, lines.Add).CollectAsync(["g1"], CancellationToken.None);
+
+        lines.Should().ContainSingle().Which.Should().Be("Tier 0 Admins: walk found 2 members, transitiveMembers reports 3");
+    }
+
+    [Fact]
+    public async Task Collect_WithVerbose_WhenTransitiveMembersAgrees_LogsNothing()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/groups/g1/transitiveMembers", """{"value":[{"@odata.type":"#microsoft.graph.user","id":"u1"},{"@odata.type":"#microsoft.graph.servicePrincipal","id":"sp1"}]}""");
+        stub.On("GET", "/groups/g2/transitiveMembers", """{"value":[{"@odata.type":"#microsoft.graph.servicePrincipal","id":"sp1"}]}""");
+        var lines = new List<string>();
+
+        await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId, lines.Add).CollectAsync(["g1"], CancellationToken.None);
+
+        lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Collect_WithoutVerbose_NeverRequestsTransitiveMembers()
+    {
+        var stub = Tenant();
+
+        await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1"], CancellationToken.None);
+
+        stub.RequestsMatching("transitiveMembers").Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissing_StopsWalkingAndReportsWhy()
     {
         var stub = new StubHttpClient();

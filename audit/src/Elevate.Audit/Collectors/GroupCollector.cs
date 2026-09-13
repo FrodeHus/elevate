@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Elevate.Audit.Auth;
 using Elevate.Audit.Model;
+using Elevate.Audit.Rules;
 using Elevate.Core.Models;
 using Elevate.Core.Providers;
 using Elevate.Core.Support;
@@ -19,7 +20,7 @@ public sealed record GroupData(
 /// members with a visited set (so nested groups are attributed and cycles terminate), each with its
 /// PIM for Groups schedule instances.
 /// </summary>
-public sealed class GroupCollector(GraphTransport graph, Identity identity, string tenantId)
+public sealed class GroupCollector(GraphTransport graph, Identity identity, string tenantId, Action<string>? verbose = null)
 {
     internal sealed record WireGroup(string Id, string? DisplayName, bool? IsAssignableToRole, IReadOnlyList<string>? GroupTypes);
 
@@ -33,6 +34,7 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
     public async Task<GroupData> CollectAsync(IEnumerable<string> seedGroupIds, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(seedGroupIds);
+        var seedIds = seedGroupIds as ICollection<string> ?? seedGroupIds.ToList();
         var known = new Dictionary<string, WireGroup>(StringComparer.OrdinalIgnoreCase);
         var queue = new Queue<string>();
         foreach (var g in await graph.ListAllAsync<WireGroup>(identity, tenantId, GraphUrls.RoleAssignableGroups, _scopes, ct).ConfigureAwait(false))
@@ -41,8 +43,10 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             queue.Enqueue(g.Id);
         }
 
-        foreach (var id in seedGroupIds)
+        var topLevelIds = new HashSet<string>(known.Keys, StringComparer.OrdinalIgnoreCase);
+        foreach (var id in seedIds)
         {
+            topLevelIds.Add(id);
             queue.Enqueue(id);
         }
 
@@ -95,7 +99,37 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
                 eligible);
         }
 
+        if (verbose is not null)
+        {
+            await CrossCheckTransitiveMembersAsync(topLevelIds, groups, ct).ConfigureAwait(false);
+        }
+
         return new GroupData(groups.Values.ToList(), principals.Values.ToList(), _pimUnavailable, _groupsUnavailable, _unreadableGroups);
+    }
+
+    /// <summary>
+    /// Spec §4.2: <c>transitiveMembers</c> flattens the path so it is never used for findings, only as a
+    /// verbose-mode sanity check that the breadth-first walk (limited to groups it could read) found the
+    /// same number of user/service-principal members as Graph's own flattened count.
+    /// </summary>
+    private async Task CrossCheckTransitiveMembersAsync(IEnumerable<string> topLevelIds, Dictionary<string, GroupRecord> groups, CancellationToken ct)
+    {
+        var expansion = new GroupExpansion(groups);
+        foreach (var id in topLevelIds)
+        {
+            if (!groups.TryGetValue(id, out var group))
+            {
+                continue;
+            }
+
+            var walked = expansion.Expand(id).Count;
+            var members = await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupTransitiveMembers(id), _scopes, ct).ConfigureAwait(false);
+            var flattened = members.Count(m => Wire.PrincipalTypeOf(m.OdataType) is PrincipalType.User or PrincipalType.ServicePrincipal);
+            if (walked != flattened)
+            {
+                verbose!($"{group.DisplayName}: walk found {walked} members, transitiveMembers reports {flattened}");
+            }
+        }
     }
 
     private async Task<WireGroup?> GetGroupAsync(string id, CancellationToken ct)

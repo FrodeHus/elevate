@@ -19,7 +19,8 @@ public sealed class Scanner(
     AuditOptions options,
     string toolVersion,
     Action<string> note,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null,
+    Action<string>? verbose = null)
 {
     private sealed record WireOrganization(string Id, string? DisplayName);
 
@@ -51,7 +52,7 @@ public sealed class Scanner(
             .ToList();
 
         note("Expanding groups…");
-        var groups = await new GroupCollector(graph, identity, tenantId).CollectAsync(seeds, ct).ConfigureAwait(false);
+        var groups = await new GroupCollector(graph, identity, tenantId, verbose).CollectAsync(seeds, ct).ConfigureAwait(false);
         foreach (var p in groups.Principals)
         {
             principals.TryAdd(p.Id, p);

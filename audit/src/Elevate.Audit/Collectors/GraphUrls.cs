@@ -27,6 +27,9 @@ public static class GraphUrls
 
     public static Uri GroupMembers(string id) => Beta($"/groups/{Escape(id)}/members?$select=id,displayName,userPrincipalName,userType,accountEnabled,servicePrincipalType&$top=999");
 
+    /// <summary>Flattened membership, used only as a verbose-mode cross-check count against the breadth-first walk (which yields the membership path and is used for findings).</summary>
+    public static Uri GroupTransitiveMembers(string id) => Graph($"/groups/{Escape(id)}/transitiveMembers?$select=id&$top=999");
+
     /// <summary>Reads <c>userType</c> and <c>accountEnabled</c> back for users whose projection omitted them; keep the id count small, the filter goes in the URL.</summary>
     public static Uri UsersByIds(IEnumerable<string> ids)
     {
