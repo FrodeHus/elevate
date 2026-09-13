@@ -41,4 +41,8 @@
     <ProjectReference Include="..\..\..\windows\src\Elevate.Core\Elevate.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\AzurePrivilegedRoles.json" LogicalName="Elevate.Audit.Resources.AzurePrivilegedRoles.json" />
+  </ItemGroup>
+
 </Project>
