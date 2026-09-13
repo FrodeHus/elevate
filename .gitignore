@@ -27,3 +27,9 @@ cli/**/obj/
 cli/dist/
 cli/winget/manifests/
 cli/.vs/
+
+# Audit CLI
+audit/**/bin/
+audit/**/obj/
+audit/dist/
+audit/.vs/
