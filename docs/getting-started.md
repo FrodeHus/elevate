@@ -82,7 +82,8 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
 
 - **Entra app registration** (on Windows: **Your app registration**) uses the client ID from
   Settings — your own, your company's, or the shared Elevate app. Each tenant needs an
-  administrator to consent once; the panel offers a consent link when that has not happened yet.
+  administrator to consent once; the tenant menu offers **Open admin consent link…** for every
+  account signed in this way, so consent can be granted or renewed before anything fails.
   On macOS the caption under the option describes how this build signs in: through Microsoft's
   sign-in window on a signed build, through your browser on an unsigned one. On Windows the
   Windows account picker opens, with the browser as fallback.

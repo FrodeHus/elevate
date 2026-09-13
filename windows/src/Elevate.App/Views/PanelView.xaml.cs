@@ -185,6 +185,16 @@ public sealed partial class PanelView : UserControl
             UpdateBar.IsOpen = false;
         }
 
+        if (model.StartupError is { } fatal)
+        {
+            StartupErrorBar.Message = fatal;
+            StartupErrorBar.IsOpen = true;
+        }
+        else
+        {
+            StartupErrorBar.IsOpen = false;
+        }
+
         if (model.TokenHint is { } hint)
         {
             TokenHintBar.Message = $"{TokenCacheHint.Message(hint.Account)} {TokenCacheHint.Advice} Close to hide this for the account.";
@@ -197,21 +207,25 @@ public sealed partial class PanelView : UserControl
 
         SyncPivot(model.PanelTab);
 
+        // Same precedence as the macOS panel: first run wins, then a startup failure stands in for the
+        // body (the error bar above is what the user sees), then the empty state, then the list.
         var setup = !model.IsConfigured && model.Identities.Count == 0;
-        var noAccounts = !setup && model.Identities.Count == 0;
+        var failed = !setup && model.StartupError is not null;
+        var noAccounts = !setup && !failed && model.Identities.Count == 0;
+        var bodyHidden = setup || failed || noAccounts;
         SetupView.Visibility = setup ? Visibility.Visible : Visibility.Collapsed;
         NoAccountsView.Visibility = noAccounts ? Visibility.Visible : Visibility.Collapsed;
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
-        List.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
-        Pivots.Visibility = setup || noAccounts ? Visibility.Collapsed : Visibility.Visible;
-        if (!setup && !noAccounts)
+        List.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
+        Pivots.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
+        if (!bodyHidden)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
-        DrawProfiles(model, hidden: setup || noAccounts);
+        DrawProfiles(model, hidden: bodyHidden);
 
         BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
@@ -691,6 +705,14 @@ public sealed partial class PanelView : UserControl
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
+            if (group.NeedsSignIn)
+            {
+                var again = Item("Sign in again", () => RetrySignIn(identityId));
+                again.IsEnabled = group.SignInEnabled;
+                menu.Items.Add(again);
+                menu.Items.Add(new MenuFlyoutSeparator());
+            }
+
             menu.Items.Add(Item("Discover tenants…", () => App.Current.OpenDiscoverTenants(identityId)));
             menu.Items.Add(Item("Add tenant…", () => App.Current.OpenAddTenant(identityId)));
             if (group.TenantKey is { } soleKey && _model.Tenant(soleKey) is { } sole)
@@ -736,8 +758,10 @@ public sealed partial class PanelView : UserControl
         }
 
         menu.Items.Add(open);
-        if ((tenant.DiscoveryMode == DiscoveryMode.ManualRoles || tenant.GroupsUnavailableReason is not null)
-            && model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
+        // Offered for every Entra-app-registration account, not only after discovery fell back:
+        // an administrator may need to re-consent after a scope is added, before anything fails.
+        // AdminConsentUrl is null for the first-party (Azure CLI / PowerShell) and custom methods.
+        if (model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
         {
             menu.Items.Add(Item("Open admin consent link…", () => _ = Windows.System.Launcher.LaunchUriAsync(url)));
         }
@@ -754,6 +778,24 @@ public sealed partial class PanelView : UserControl
         var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
         remove.IsEnabled = tenant.Source != TenantSource.Home;
         menu.Items.Add(remove);
+    }
+
+    /// <summary>The account row's Sign in button: re-runs the account's own sign-in method and clears the flag.</summary>
+    private void OnSignInAgainClick(object sender, RoutedEventArgs e)
+    {
+        if (Group(sender) is { IdentityId: { } identityId })
+        {
+            RetrySignIn(identityId);
+        }
+    }
+
+    private void RetrySignIn(string identityId)
+    {
+        if (_model is { } model && model.Identity(identityId) is { } identity)
+        {
+            // The model reports the outcome through Notice; nothing to await here.
+            _ = model.RetrySignInAsync(identity);
+        }
     }
 
     // Signing out and removing a tenant run at once and have no undo: each says what is forgotten

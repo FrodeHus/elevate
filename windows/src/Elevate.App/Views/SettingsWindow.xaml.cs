@@ -121,6 +121,8 @@ public sealed partial class SettingsWindow : Window
         HotKeyError.Visibility = _model.HotKeyError is null ? Visibility.Collapsed : Visibility.Visible;
         UpdateMessage.Text = _model.UpdateCheckMessage ?? string.Empty;
         UpdateMessage.Visibility = _model.UpdateCheckMessage is null ? Visibility.Collapsed : Visibility.Visible;
+        BootstrapError.Message = _model.StartupError ?? string.Empty;
+        BootstrapError.IsOpen = _model.StartupError is not null;
     }
 
     private async void OnCheckUpdates(object sender, RoutedEventArgs e)

@@ -370,6 +370,9 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     private bool _hasError;
     private bool _busy;
     private string? _signInHelp;
+    private bool _needsSignIn;
+    private bool _signInEnabled;
+    private string? _signInTooltip;
 
     public string Title { get => _title; set => Set(ref _title, value); }
 
@@ -414,6 +417,17 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public bool Busy { get => _busy; set => Set(ref _busy, value); }
 
+    /// <summary>
+    /// The account is kept without a usable saved sign-in: the row offers Sign in in place of the
+    /// active count, and the status glyph explains. See <see cref="AppModel.NeedsSignIn"/>.
+    /// </summary>
+    public bool NeedsSignIn { get => _needsSignIn; set => Set(ref _needsSignIn, value); }
+
+    /// <summary>False while the organization withholds the account's sign-in method, or a sign-in is already running.</summary>
+    public bool SignInEnabled { get => _signInEnabled; set => Set(ref _signInEnabled, value); }
+
+    public string? SignInTooltip { get => _signInTooltip; set => Set(ref _signInTooltip, value); }
+
     private bool _accessPackages;
 
     /// <summary>The tenant's token carries the entitlement scope: the header shows the box glyph and the menu the item.</summary>
@@ -422,7 +436,10 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     // Derived, for x:Bind.
     public string ActiveText => ActiveCount > 0 ? $"{ActiveCount} active" : string.Empty;
 
-    public Visibility ActiveVisibility => ActiveCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+    // The Sign in button takes the active count's place: the count is stale while the account cannot refresh.
+    public Visibility ActiveVisibility => ActiveCount > 0 && !NeedsSignIn ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility SignInVisibility => NeedsSignIn ? Visibility.Visible : Visibility.Collapsed;
 
     private int _pendingCount;
 
@@ -479,6 +496,9 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         Issues = other.Issues;
         HasError = other.HasError;
         Busy = other.Busy;
+        NeedsSignIn = other.NeedsSignIn;
+        SignInEnabled = other.SignInEnabled;
+        SignInTooltip = other.SignInTooltip;
         AccessPackages = other.AccessPackages;
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
     }
@@ -636,7 +656,7 @@ public static class PanelListBuilder
                 group.IsHome = soleTenant.Source == TenantSource.Home;
             }
 
-            return group;
+            return MarkSignInNeeded(model, identity, group);
         }
 
         var caption = new List<string> { identity.Upn };
@@ -663,6 +683,33 @@ public static class PanelListBuilder
             group.Issues = [new TenantIssue("Entra roles are view-only", reason)];
         }
 
+        return MarkSignInNeeded(model, identity, group);
+    }
+
+    /// <summary>Shown by the account row's status glyph and read by its Sign in button's tooltip.</summary>
+    public const string SignInNeededHelp =
+        "The saved sign-in for this account is gone. Sign in again to keep its tenants and roles, or sign out to remove it.";
+
+    /// <summary>
+    /// An account kept without a saved sign-in: the retry lives on the row itself, because the
+    /// flagged account is exactly the one the user must act on and a menu item alone is easy to
+    /// miss. The status glyph turns red and carries the explanation.
+    /// </summary>
+    private static PanelGroup MarkSignInNeeded(AppModel model, Identity identity, PanelGroup group)
+    {
+        if (!model.NeedsSignIn(identity.Id))
+        {
+            return group;
+        }
+
+        var allowed = model.IsMethodAllowed(identity.SignInMethod);
+        var signingIn = model.SignInInFlight.Contains(identity.Id);
+        group.NeedsSignIn = true;
+        group.SignInEnabled = allowed && !signingIn;
+        group.SignInTooltip = allowed ? $"Sign in again as {identity.Upn}" : AppModel.DisallowedMethodCaption;
+        group.Busy = group.Busy || signingIn;
+        group.Issues = [new TenantIssue("Sign-in needed", SignInNeededHelp), .. group.Issues];
+        group.HasError = true;
         return group;
     }
 
