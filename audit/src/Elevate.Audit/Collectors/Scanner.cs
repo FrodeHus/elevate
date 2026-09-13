@@ -63,7 +63,7 @@ public sealed class Scanner(
             .ToList();
 
         note("Expanding groups…");
-        var groups = await new GroupCollector(graph, identity, tenantId, verbose).CollectAsync(seeds, ct).ConfigureAwait(false);
+        var groups = await new GroupCollector(graph, identity, tenantId, verbose, note).CollectAsync(seeds, ct).ConfigureAwait(false);
         foreach (var p in groups.Principals)
         {
             principals.TryAdd(p.Id, p);

@@ -24,13 +24,48 @@ public sealed record GroupData(
 /// <summary>
 /// Every role-assignable group plus every group reached from a seed, breadth-first through direct
 /// members with a visited set (so nested groups are attributed and cycles terminate), each with its
-/// PIM for Groups schedule instances.
+/// PIM for Groups schedule instances. Each breadth-first level is processed in bounded-concurrency
+/// waves (see <see cref="MaxConcurrency"/>) rather than one group at a time, since a tenant with a deep
+/// or wide group hierarchy is otherwise dominated by network round trips.
 /// </summary>
-public sealed class GroupCollector(GraphTransport graph, Identity identity, string tenantId, Action<string>? verbose = null)
+/// <param name="progress">
+/// Optional progress note, invoked from the single thread that drives <see cref="CollectAsync"/> (never
+/// concurrently) every <see cref="ProgressEvery"/> groups recorded.
+/// </param>
+public sealed class GroupCollector(GraphTransport graph, Identity identity, string tenantId, Action<string>? verbose = null, Action<string>? progress = null)
 {
     internal sealed record WireGroup(string Id, string? DisplayName, bool? IsAssignableToRole, IReadOnlyList<string>? GroupTypes, bool? SecurityEnabled, bool? MailEnabled, string? Visibility);
 
     internal sealed record WireGroupPim(string Id, string? PrincipalId, string? GroupId, string? AccessId, string? AssignmentType, DateTimeOffset? StartDateTime, DateTimeOffset? EndDateTime);
+
+    private enum FetchStatus { Ok, Unreadable, TenantUnavailable }
+
+    /// <summary>
+    /// The outcome of processing one group id, produced by a task that may run concurrently with up to
+    /// <see cref="MaxConcurrency"/> - 1 siblings. It carries no shared mutable state; everything it found
+    /// is merged into the collector's dictionaries and counters by the single thread driving the wave
+    /// loop in <see cref="CollectAsync"/>, so nothing here needs to be thread-safe on its own.
+    /// </summary>
+    private sealed record GroupOutcome(
+        string Id,
+        GroupRecord? Record,
+        IReadOnlyList<string> NestedGroupIds,
+        IReadOnlyList<PrincipalRecord> Principals,
+        bool Unreadable,
+        string? TenantWideMessage,
+        string? PimUnavailableMessage)
+    {
+        public static GroupOutcome TenantWide(string id, string message) => new(id, null, [], [], false, message, null);
+
+        public static GroupOutcome UnreadableGroup(string id) => new(id, null, [], [], true, null, null);
+
+        public static GroupOutcome Skipped(string id) => new(id, null, [], [], false, null, null);
+    }
+
+    /// <summary>Up to this many groups are fetched from Graph at once per breadth-first level.</summary>
+    private const int MaxConcurrency = 4;
+
+    private const int ProgressEvery = 25;
 
     private readonly IReadOnlyList<string> _scopes = ClientIds.GraphReadScopes;
     private string? _pimUnavailable;
@@ -58,60 +93,75 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
 
         var groups = new Dictionary<string, GroupRecord>(StringComparer.OrdinalIgnoreCase);
         var principals = new Dictionary<string, PrincipalRecord>(StringComparer.OrdinalIgnoreCase);
-        while (queue.TryDequeue(out var id))
+        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lastProgressAt = 0;
+
+        while (queue.Count > 0)
         {
-            if (groups.ContainsKey(id))
+            var wave = new List<string>(MaxConcurrency);
+            while (wave.Count < MaxConcurrency && queue.TryDequeue(out var candidate))
+            {
+                // A group can be enqueued more than once (nested in a cycle, or listed by more than one
+                // parent); `claimed` is only ever touched here, on the single thread driving the wave
+                // loop, so this is an ordinary set membership check, not a race.
+                if (claimed.Add(candidate))
+                {
+                    wave.Add(candidate);
+                }
+            }
+
+            if (wave.Count == 0)
             {
                 continue;
             }
 
-            var meta = known.TryGetValue(id, out var k) ? k : await GetGroupAsync(id, ct).ConfigureAwait(false);
-            if (meta is null)
+            var outcomes = await Task.WhenAll(wave.Select(id => ProcessGroupAsync(id, known, ct))).ConfigureAwait(false);
+
+            // Every outcome in this wave was fetched concurrently, so if any of them reveals the scope is
+            // missing tenant-wide we cannot tell which of the others "happened before" it: the whole
+            // wave's findings are dropped (same as the metadata path stopping before recording a group)
+            // and no further waves are dispatched.
+            var tenantWide = outcomes.FirstOrDefault(o => o.TenantWideMessage is not null);
+            if (tenantWide is not null)
             {
-                if (_groupsUnavailable is not null)
+                _groupsUnavailable = tenantWide.TenantWideMessage;
+                break;
+            }
+
+            foreach (var outcome in outcomes)
+            {
+                if (outcome.Unreadable)
                 {
-                    break; // the scope is missing tenant-wide; asking for every other group would repeat the same 403
+                    _unreadableGroups++;
                 }
 
-                continue; // deleted between calls, or one group this account cannot read
-            }
+                _pimUnavailable ??= outcome.PimUnavailableMessage;
 
-            var members = await GetGroupMembersAsync(id, ct).ConfigureAwait(false);
-            if (members is null && _groupsUnavailable is not null)
-            {
-                break; // the scope is missing tenant-wide; asking for every other group's members would repeat the same 403
-            }
-
-            var memberList = members ?? [];
-            var direct = new List<GroupMemberRecord>(memberList.Count);
-            foreach (var m in memberList)
-            {
-                var type = Wire.PrincipalTypeOf(m.OdataType);
-                direct.Add(new GroupMemberRecord(m.Id, type));
-                switch (type)
+                if (outcome.Record is not { } record)
                 {
-                    case PrincipalType.Group:
-                        queue.Enqueue(m.Id);
-                        break;
-                    case PrincipalType.User or PrincipalType.ServicePrincipal:
-                        principals.TryAdd(m.Id, Wire.ToRecord(m));
-                        break;
+                    continue;
+                }
+
+                groups[outcome.Id] = record;
+                foreach (var p in outcome.Principals)
+                {
+                    principals.TryAdd(p.Id, p);
+                }
+
+                foreach (var nested in outcome.NestedGroupIds)
+                {
+                    queue.Enqueue(nested);
                 }
             }
 
-            var (status, assigned, eligible) = await PimAsync(id, ct).ConfigureAwait(false);
-            groups[id] = new GroupRecord(
-                id,
-                meta.DisplayName ?? id,
-                meta.IsAssignableToRole ?? false,
-                meta.GroupTypes?.Contains("DynamicMembership", StringComparer.OrdinalIgnoreCase) == true,
-                status,
-                direct,
-                assigned,
-                eligible,
-                meta.SecurityEnabled ?? true,
-                meta.MailEnabled ?? false,
-                meta.Visibility);
+            if (progress is not null)
+            {
+                while (groups.Count - lastProgressAt >= ProgressEvery)
+                {
+                    lastProgressAt += ProgressEvery;
+                    progress($"Expanded {groups.Count} groups…");
+                }
+            }
         }
 
         if (verbose is not null)
@@ -119,7 +169,80 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             await CrossCheckTransitiveMembersAsync(topLevelIds, groups, ct).ConfigureAwait(false);
         }
 
-        return new GroupData(groups.Values.ToList(), principals.Values.ToList(), _pimUnavailable, _groupsUnavailable, _unreadableGroups);
+        return new GroupData(
+            groups.Values.OrderBy(g => g.Id, StringComparer.Ordinal).ToList(),
+            principals.Values.ToList(),
+            _pimUnavailable,
+            _groupsUnavailable,
+            _unreadableGroups);
+    }
+
+    /// <summary>Fetches and assembles everything for one group id, without touching any shared state.</summary>
+    private async Task<GroupOutcome> ProcessGroupAsync(string id, IReadOnlyDictionary<string, WireGroup> known, CancellationToken ct)
+    {
+        WireGroup? meta;
+        if (known.TryGetValue(id, out var k))
+        {
+            meta = k;
+        }
+        else
+        {
+            var (fetched, status, message) = await GetGroupAsync(id, ct).ConfigureAwait(false);
+            switch (status)
+            {
+                case FetchStatus.TenantUnavailable:
+                    return GroupOutcome.TenantWide(id, message!);
+                case FetchStatus.Unreadable:
+                    return GroupOutcome.UnreadableGroup(id);
+            }
+
+            meta = fetched;
+            if (meta is null)
+            {
+                return GroupOutcome.Skipped(id); // deleted between calls
+            }
+        }
+
+        var (members, membersStatus, membersMessage) = await GetGroupMembersAsync(id, ct).ConfigureAwait(false);
+        if (membersStatus == FetchStatus.TenantUnavailable)
+        {
+            return GroupOutcome.TenantWide(id, membersMessage!);
+        }
+
+        var memberList = members ?? [];
+        var direct = new List<GroupMemberRecord>(memberList.Count);
+        var nested = new List<string>();
+        var resolved = new List<PrincipalRecord>();
+        foreach (var m in memberList)
+        {
+            var type = Wire.PrincipalTypeOf(m.OdataType);
+            direct.Add(new GroupMemberRecord(m.Id, type));
+            switch (type)
+            {
+                case PrincipalType.Group:
+                    nested.Add(m.Id);
+                    break;
+                case PrincipalType.User or PrincipalType.ServicePrincipal:
+                    resolved.Add(Wire.ToRecord(m));
+                    break;
+            }
+        }
+
+        var (pimStatus, assigned, eligible, pimUnavailableMessage) = await PimAsync(id, ct).ConfigureAwait(false);
+        var record = new GroupRecord(
+            id,
+            meta.DisplayName ?? id,
+            meta.IsAssignableToRole ?? false,
+            meta.GroupTypes?.Contains("DynamicMembership", StringComparer.OrdinalIgnoreCase) == true,
+            pimStatus,
+            direct,
+            assigned,
+            eligible,
+            meta.SecurityEnabled ?? true,
+            meta.MailEnabled ?? false,
+            meta.Visibility);
+
+        return new GroupOutcome(id, record, nested, resolved, membersStatus == FetchStatus.Unreadable, null, pimUnavailableMessage);
     }
 
     /// <summary>
@@ -147,56 +270,51 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
         }
     }
 
-    private async Task<WireGroup?> GetGroupAsync(string id, CancellationToken ct)
+    private async Task<(WireGroup? Meta, FetchStatus Status, string? Message)> GetGroupAsync(string id, CancellationToken ct)
     {
         try
         {
             var response = await graph.GetAsync(identity, tenantId, GraphUrls.Group(id), _scopes, ct).ConfigureAwait(false);
-            return JsonSerializer.Deserialize<WireGroup>(response.Body, GraphJson.Options);
+            return (JsonSerializer.Deserialize<WireGroup>(response.Body, GraphJson.Options), FetchStatus.Ok, null);
         }
         catch (PimException e) when (IsMissingScope(e))
         {
             // GroupMember.Read.All is missing or restricted: every other group would refuse the same way.
-            _groupsUnavailable = e.UserMessage;
-            return null;
+            return (null, FetchStatus.TenantUnavailable, e.UserMessage);
         }
         catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {
             // Deleted, or a nested group the signed-in account cannot read; its parent still lists it as a member.
-            _unreadableGroups++;
-            return null;
+            return (null, FetchStatus.Unreadable, null);
         }
     }
 
     /// <summary>
-    /// Same classification as <see cref="GetGroupAsync"/>: a tenant-wide missing scope latches
-    /// <see cref="_groupsUnavailable"/> so the caller stops asking, while one group refusing its
-    /// members is counted in <see cref="_unreadableGroups"/> and the group is still recorded, with
-    /// no members.
+    /// Same classification as <see cref="GetGroupAsync"/>: a tenant-wide missing scope stops the caller
+    /// from asking further, while one group refusing its members is counted as unreadable and the group
+    /// is still recorded, with no members.
     /// </summary>
-    private async Task<IReadOnlyList<Wire.WirePrincipal>?> GetGroupMembersAsync(string id, CancellationToken ct)
+    private async Task<(IReadOnlyList<Wire.WirePrincipal>? Members, FetchStatus Status, string? Message)> GetGroupMembersAsync(string id, CancellationToken ct)
     {
         try
         {
-            return await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupMembers(id), _scopes, ct).ConfigureAwait(false);
+            return (await graph.ListAllAsync<Wire.WirePrincipal>(identity, tenantId, GraphUrls.GroupMembers(id), _scopes, ct).ConfigureAwait(false), FetchStatus.Ok, null);
         }
         catch (PimException e) when (IsMissingScope(e))
         {
-            _groupsUnavailable = e.UserMessage;
-            return null;
+            return (null, FetchStatus.TenantUnavailable, e.UserMessage);
         }
         catch (PimException e) when (e.Status == 404 || e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {
-            _unreadableGroups++;
-            return null;
+            return (null, FetchStatus.Unreadable, null);
         }
     }
 
-    private async Task<(PimStatus Status, IReadOnlyList<GroupPimRecord> Assigned, IReadOnlyList<GroupPimRecord> Eligible)> PimAsync(string id, CancellationToken ct)
+    private async Task<(PimStatus Status, IReadOnlyList<GroupPimRecord> Assigned, IReadOnlyList<GroupPimRecord> Eligible, string? PimUnavailableMessage)> PimAsync(string id, CancellationToken ct)
     {
         if (_pimUnavailable is not null)
         {
-            return (PimStatus.Unknown, [], []);
+            return (PimStatus.Unknown, [], [], null);
         }
 
         try
@@ -204,16 +322,15 @@ public sealed class GroupCollector(GraphTransport graph, Identity identity, stri
             var assigned = await graph.ListAllAsync<WireGroupPim>(identity, tenantId, GraphUrls.GroupPimAssignments(id), _scopes, ct).ConfigureAwait(false);
             var eligible = await graph.ListAllAsync<WireGroupPim>(identity, tenantId, GraphUrls.GroupPimEligibilities(id), _scopes, ct).ConfigureAwait(false);
             var status = assigned.Count + eligible.Count > 0 ? PimStatus.Onboarded : PimStatus.Unknown;
-            return (status, assigned.Select(Map).ToList(), eligible.Select(Map).ToList());
+            return (status, assigned.Select(Map).ToList(), eligible.Select(Map).ToList(), null);
         }
         catch (PimException e) when (IsMissingScope(e))
         {
-            _pimUnavailable = e.UserMessage;
-            return (PimStatus.Unknown, [], []);
+            return (PimStatus.Unknown, [], [], e.UserMessage);
         }
         catch (PimException e) when (e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired || e.Status == 404)
         {
-            return (PimStatus.NotOnboarded, [], []);
+            return (PimStatus.NotOnboarded, [], [], null);
         }
     }
 

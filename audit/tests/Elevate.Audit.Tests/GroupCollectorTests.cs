@@ -178,6 +178,13 @@ public class GroupCollectorTests
         data.GroupsUnavailableReason.Should().BeNull();
     }
 
+    /// <summary>
+    /// g1 and g2 are both top-level seeds, so bounded concurrency (<see cref="GroupCollector"/> fetches
+    /// up to 4 groups per wave) dispatches them together: g2's own calls may still go out even though g1
+    /// reveals the tenant-wide condition. What must hold is that nothing from that wave is trusted or
+    /// recorded once any member of it hits the missing-scope 403 — g2 is stubbed to succeed on its own
+    /// merits, and is still discarded.
+    /// </summary>
     [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy()
     {
@@ -187,15 +194,18 @@ public class GroupCollectorTests
         stub.On("GET", "/groups/g1/members",
             """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
         stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
+        stub.On("GET", "/groups/g2/members", """{"value":[]}""");
+        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
+        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
 
         var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
 
         data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
-        data.Groups.Should().BeEmpty("the group whose members refused the same way is not recorded either");
+        data.Groups.Should().BeEmpty("the whole wave is discarded once any group in it reveals the tenant-wide condition, even a sibling that otherwise succeeded");
         data.UnreadableGroups.Should().Be(0);
-        stub.RequestsMatching("/groups/g2").Should().BeEmpty("the walk stops instead of asking for every group in the tenant");
     }
 
+    /// <summary>Same rationale as <see cref="Collect_WhenTheGroupScopeIsMissingOnMembers_StopsWalkingAndReportsWhy"/>, for the metadata read.</summary>
     [Fact]
     public async Task Collect_WhenTheGroupScopeIsMissing_StopsWalkingAndReportsWhy()
     {
@@ -204,12 +214,55 @@ public class GroupCollectorTests
         stub.On("GET", "/groups/g1?",
             """{"error":{"code":"UnknownError","message":"{\"errorCode\":\"PermissionScopeNotGranted\",\"message\":\"Authorization failed due to missing permission scope GroupMember.Read.All.\"}"}}""", 403);
         stub.On("GET", "/groups/g2?", """{"id":"g2","displayName":"Platform Team","isAssignableToRole":false,"groupTypes":[]}""");
+        stub.On("GET", "/groups/g2/members", """{"value":[]}""");
+        stub.On("GET", "assignmentScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
+        stub.On("GET", "eligibilityScheduleInstances?$filter=groupId eq 'g2'", """{"value":[]}""");
 
         var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(["g1", "g2"], CancellationToken.None);
 
         data.GroupsUnavailableReason.Should().Contain("GroupMember.Read.All");
-        data.Groups.Should().BeEmpty();
+        data.Groups.Should().BeEmpty("the whole wave is discarded once any group in it reveals the tenant-wide condition, even a sibling that otherwise succeeded");
         data.UnreadableGroups.Should().Be(0, "a tenant-wide refusal is reported once, not counted per group");
-        stub.RequestsMatching("/groups/g2").Should().BeEmpty("the walk stops instead of asking for every group in the tenant");
+    }
+
+    [Fact]
+    public async Task Collect_WithSixGroups_CollectsAllOfThemRegardlessOfWaveOrder()
+    {
+        var stub = new StubHttpClient();
+        var ids = Enumerable.Range(1, 6).Select(i => $"g{i}").ToList();
+        stub.On("GET", "/groups?$filter=isAssignableToRole",
+            $$"""{"value":[{{string.Join(",", ids.Select(id => $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":true,"groupTypes":[]}"""))}}]}""");
+        foreach (var id in ids)
+        {
+            stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+            stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+            stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+        }
+
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync([], CancellationToken.None);
+
+        data.Groups.Select(g => g.Id).Should().BeEquivalentTo(ids);
+        data.Groups.Select(g => g.Id).Should().BeInAscendingOrder(StringComparer.Ordinal, "output is sorted for determinism regardless of how the waves complete");
+    }
+
+    [Fact]
+    public async Task Collect_With30Groups_EmitsAProgressNoteAfterTheFirst25()
+    {
+        var stub = new StubHttpClient();
+        var ids = Enumerable.Range(1, 30).Select(i => $"g{i}").ToList();
+        stub.On("GET", "/groups?$filter=isAssignableToRole",
+            $$"""{"value":[{{string.Join(",", ids.Select(id => $$"""{"id":"{{id}}","displayName":"Group {{id}}","isAssignableToRole":true,"groupTypes":[]}"""))}}]}""");
+        foreach (var id in ids)
+        {
+            stub.On("GET", $"/groups/{id}/members", """{"value":[]}""");
+            stub.On("GET", $"assignmentScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+            stub.On("GET", $"eligibilityScheduleInstances?$filter=groupId eq '{id}'", """{"value":[]}""");
+        }
+
+        var notes = new List<string>();
+        var data = await new GroupCollector(TestIdentity.Graph(stub), TestIdentity.Alex, TestIdentity.TenantId, progress: notes.Add).CollectAsync([], CancellationToken.None);
+
+        data.Groups.Should().HaveCount(30);
+        notes.Should().Contain(n => n.Contains("Expanded", StringComparison.Ordinal) && n.Contains("groups", StringComparison.Ordinal));
     }
 }
