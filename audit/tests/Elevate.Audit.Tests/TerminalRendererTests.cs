@@ -20,6 +20,7 @@ public class TerminalRendererTests
             ColorSystem = ColorSystemSupport.NoColors,
             Interactive = InteractionSupport.No,
             Out = new AnsiConsoleOutput(writer),
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
         });
         console.Profile.Width = 200;
         console.Profile.Capabilities.Ansi = false;
@@ -88,6 +89,7 @@ public class TerminalRendererTests
             ColorSystem = ColorSystemSupport.NoColors,
             Interactive = InteractionSupport.No,
             Out = new AnsiConsoleOutput(writer),
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
         });
         console.Profile.Width = 200;
 

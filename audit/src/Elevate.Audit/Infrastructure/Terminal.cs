@@ -11,8 +11,9 @@ public sealed class Terminal
         var plain = noColor || Environment.GetEnvironmentVariable("NO_COLOR") is { Length: > 0 };
         var colors = plain ? ColorSystemSupport.NoColors : ColorSystemSupport.Detect;
         var ansi = plain ? AnsiSupport.No : AnsiSupport.Detect;
-        Stdout = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Ansi = ansi, Out = new AnsiConsoleOutput(Console.Out), Interactive = InteractionSupport.No });
-        Stderr = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Ansi = ansi, Out = new AnsiConsoleOutput(Console.Error), Interactive = InteractionSupport.No });
+        var enrichment = new ProfileEnrichment { UseDefaultEnrichers = false };
+        Stdout = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Ansi = ansi, Out = new AnsiConsoleOutput(Console.Out), Interactive = InteractionSupport.No, Enrichment = enrichment });
+        Stderr = AnsiConsole.Create(new AnsiConsoleSettings { ColorSystem = colors, Ansi = ansi, Out = new AnsiConsoleOutput(Console.Error), Interactive = InteractionSupport.No, Enrichment = enrichment });
     }
 
     public bool Quiet { get; }
