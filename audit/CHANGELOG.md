@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rebuilds and re-signs the apps and the CLI, and an app release no longer republishes the audit
   tool. The download URLs move to the `audit-v` release; the Homebrew formula and the winget
   manifest follow.
+- `elevate-audit update` looks for `audit-v` releases only, so the app releases that used to carry
+  an audit archive are never offered as an upgrade.
 
 ## [1.6.7] - 2026-09-14
 
