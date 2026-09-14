@@ -83,4 +83,110 @@ public class ReportAreasTests
         ReportAreas.Plural(1, "person", "people").Should().Be("1 person");
         ReportAreas.Plural(3, "person", "people").Should().Be("3 people");
     }
+
+    private static readonly GroupRef Top = new("g1", "Tier 0 Admins");
+
+    [Fact]
+    public void Sentence_Entra_CountsDirectPeopleAndGroupGrants()
+    {
+        var f = new[]
+        {
+            F("ENTRA-USER-PERMANENT", Severity.High, principalId: "u1"),
+            F("ENTRA-USER-PERMANENT", Severity.High, principalId: "u1"), // same person, two roles
+            F("ENTRA-USER-PERMANENT", Severity.High, principalId: "u2"),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, PrincipalType.Group, "g1"),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, principalId: "u3", via: [Top]),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, principalId: "u4", via: [Top]),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, principalId: "u4", via: [Top]),
+        };
+        ReportAreas.Sentence(ReportAreas.Entra, f, []).Should().Be("2 people hold a permanent role directly. 1 group grants roles to 2 more people.");
+        ReportAreas.Sentence(ReportAreas.Entra, f.Take(3).ToList(), []).Should().Be("2 people hold a permanent role directly.");
+        ReportAreas.Sentence(ReportAreas.Entra, f.Skip(3).ToList(), []).Should().Be("1 group grants roles to 2 people.");
+        ReportAreas.Sentence(ReportAreas.Entra, [], []).Should().Be("No permanent Entra role assignments.");
+        ReportAreas.Sentence(ReportAreas.Entra, [F("ENTRA-GROUP-NOT-ASSIGNABLE", Severity.Medium, PrincipalType.Group, "g9")], []).Should().Be("1 finding to review.");
+    }
+
+    [Fact]
+    public void Sentence_OtherAreas()
+    {
+        ReportAreas.Sentence(ReportAreas.PimGroups, [F("GROUP-MEMBER-PERMANENT", Severity.High, principalId: "u1"), F("GROUP-MEMBER-PERMANENT", Severity.High, principalId: "u2")], [])
+            .Should().Be("2 permanent members remain in groups PIM already manages.");
+        ReportAreas.Sentence(ReportAreas.PimGroups, [], []).Should().Be("Every PIM-managed group has only eligible members.");
+
+        var azure = new[]
+        {
+            F("AZURE-PERMANENT", Severity.High, principalId: "u1") with { Scope = new FindingScope("/subscriptions/a", "Prod", ScopeKind.Subscription) },
+            F("AZURE-PERMANENT", Severity.High, principalId: "u2") with { Scope = new FindingScope("/subscriptions/a", "Prod", ScopeKind.Subscription) },
+            F("AZURE-PERMANENT", Severity.Medium, principalId: "u3") with { Scope = new FindingScope("/subscriptions/b", "Dev", ScopeKind.Subscription) },
+            F("AZURE-PERMANENT", Severity.High, principalId: "u4", via: [Top]) with { Scope = new FindingScope("/subscriptions/b", "Dev", ScopeKind.Subscription) },
+        };
+        ReportAreas.Sentence(ReportAreas.Azure, azure, []).Should().Be("3 permanent privileged assignments across 2 scopes.");
+        ReportAreas.Sentence(ReportAreas.Azure, [], []).Should().Be("No permanent privileged Azure assignments.");
+
+        ReportAreas.Sentence(ReportAreas.Guests, [F("GUEST-PERMANENT", Severity.High, principalId: "u1")], []).Should().Be("1 guest holds a permanent privileged role.");
+        ReportAreas.Sentence(ReportAreas.Guests, [], []).Should().Be("No guest holds a permanent privileged role.");
+
+        ReportAreas.Sentence(ReportAreas.Workload, [F("SP-PERMANENT", Severity.Info, PrincipalType.ServicePrincipal, "sp1"), F("SP-PERMANENT", Severity.Info, PrincipalType.ServicePrincipal, "sp2")], [])
+            .Should().Be("2 service principals hold permanent roles. Review whether they need them.");
+        ReportAreas.Sentence(ReportAreas.Workload, [], []).Should().Be("No service principal holds a permanent privileged role.");
+
+        var ga = F("GA-COUNT", Severity.Medium, PrincipalType.Unknown, "tenant") with { Remedy = "7 principals can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles." };
+        ReportAreas.Sentence(ReportAreas.Hygiene, [F("ELIGIBLE-NO-END", Severity.Low), F("ELIGIBLE-NO-END", Severity.Low), ga], [])
+            .Should().Be("2 eligibilities never expire. 7 principals can become Global Administrator (permanent or eligible).");
+        ReportAreas.Sentence(ReportAreas.Hygiene, [ga], []).Should().Be("7 principals can become Global Administrator (permanent or eligible).");
+        ReportAreas.Sentence(ReportAreas.Hygiene, [], []).Should().Be("Eligibilities expire and the Global Administrator count is within range.");
+
+        ReportAreas.Sentence(ReportAreas.Other, [F("FUTURE", Severity.Low)], []).Should().Be("1 finding to review.");
+    }
+
+    [Fact]
+    public void Sentence_Coverage_AndNotScanned()
+    {
+        ReportAreas.Sentence(ReportAreas.Coverage, [], []).Should().Be("Every source was read.");
+        ReportAreas.Sentence(ReportAreas.Coverage, [], [new SkippedSource("azure-management-groups", "Not readable."), new SkippedSource("groups", "2 nested group(s) could not be read.")])
+            .Should().Be("Not readable. 2 nested group(s) could not be read.");
+        ReportAreas.Sentence(ReportAreas.Azure, [], [new SkippedSource("azure", "skipped with --skip-azure")]).Should().Be("skipped with --skip-azure");
+    }
+
+    [Fact]
+    public void Verdict_CountsDistinctPeopleAndWorkloadIdentities_AcrossStandingRulesOnly()
+    {
+        var f = new[]
+        {
+            F("ENTRA-USER-PERMANENT", Severity.High, principalId: "u1"),
+            F("AZURE-PERMANENT", Severity.High, principalId: "u1"),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, PrincipalType.Group, "g1"),
+            F("ENTRA-GROUP-PERMANENT", Severity.High, principalId: "u2", via: [Top]),
+            F("GUEST-PERMANENT", Severity.High, principalId: "u2", via: [Top]),
+            F("SP-PERMANENT", Severity.Info, PrincipalType.ServicePrincipal, "sp1"),
+            F("AZURE-PERMANENT", Severity.High, PrincipalType.ServicePrincipal, "sp1"),
+            F("ELIGIBLE-NO-END", Severity.Low, principalId: "u9"),
+            F("GA-COUNT", Severity.Medium, PrincipalType.Unknown, "tenant"),
+        };
+        var v = ReportAreas.VerdictFor("Contoso", f, []);
+        v.Head.Should().Be("2 people and 1 workload identity hold standing privileged access in Contoso.");
+        v.Tail.Should().BeNull();
+
+        ReportAreas.VerdictFor("Contoso", f.Take(4).ToList(), []).Head.Should().Be("2 people hold standing privileged access in Contoso.");
+        ReportAreas.VerdictFor("Contoso", [f[0]], []).Head.Should().Be("1 person holds standing privileged access in Contoso.");
+        ReportAreas.VerdictFor("Contoso", [f[5]], []).Head.Should().Be("1 workload identity holds standing privileged access in Contoso.");
+        ReportAreas.VerdictFor("Contoso", [f[7], f[8]], []).Head.Should().Be("No standing privileged access was found in Contoso.");
+    }
+
+    [Fact]
+    public void Verdict_Tail_OneClausePerDistinctSkippedSource()
+    {
+        var skipped = new[]
+        {
+            new SkippedSource("azure-management-groups", "a"),
+            new SkippedSource("groups", "b"),
+            new SkippedSource("groups", "c"),
+            new SkippedSource("weird", "d"),
+        };
+        ReportAreas.VerdictFor("Contoso", [], skipped).Tail.Should()
+            .Be("Azure management groups were not scanned, so the Azure section under-counts; some groups could not be read, so the Entra and Guests sections under-count; the weird source was skipped.");
+        ReportAreas.VerdictFor("Contoso", [], [new SkippedSource("azure", "x")]).Tail.Should().Be("Azure was not scanned.");
+        ReportAreas.SkippedClause("pim-for-groups").Should().Be("PIM for Groups was not scanned");
+        ReportAreas.SkippedClause("principals").Should().Be("some principals could not be resolved to names");
+    }
 }
