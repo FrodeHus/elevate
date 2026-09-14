@@ -174,8 +174,10 @@ filtered list, as today.
 Roll-ups are a rendering concern of `HtmlRenderer` only; `Finding` and the
 JSON do not change.
 
-**Which findings roll up.** `ENTRA-GROUP-PERMANENT` and
-`GROUP-MEMBER-PERMANENT`. For `ENTRA-GROUP-PERMANENT` the key is (group
+**Which findings roll up.** `ENTRA-GROUP-PERMANENT`, `AZURE-PERMANENT` and
+`GROUP-MEMBER-PERMANENT` (`AZURE-PERMANENT` emits the same group-plus-members
+shape when a group holds an Azure role; its direct user and service-principal
+findings stay as rows). For `ENTRA-GROUP-PERMANENT` and `AZURE-PERMANENT` the key is (group
 principal id, role id, scope id): the group-level finding (principal type
 Group, empty `Via`) is the card, and every finding with the same rule, role
 and scope whose `Via[0].Id` equals the group id is a member of that card. For
@@ -197,7 +199,7 @@ member's). Then a two-column body:
   count. A group with 10 or fewer direct people lists them inline (name,
   `guest` pill where applicable); a larger group shows "N people, listed
   below". The outline is a trie built from the members' `Via` lists: node
-  identity is the group id, order is first-seen.
+  identity is the group id within its parent, so a group reachable through two parents appears under each parent that reaches people through it; order is first-seen.
 - **Nesting diagram** (inline SVG): the same trie without people, laid out
   left to right in tiers (depth = tier), each node a 140×46 rounded rect
   with the group name (ellipsised past 18 characters, full name in a
