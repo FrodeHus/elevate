@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-14
+
 ### Changed
 
 - Released on its own: `elevate-audit` now has its own version number, tag (`audit-v<x.y.z>`),
@@ -35,5 +37,6 @@ The last audit build inside an app release, before the tool's own numbering bega
 - Every "Start here" item now carries a pill naming its area, so "User Access Administrator on
   Production" reads as Azure RBAC rather than an Entra role, and the pill links to that section.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.7...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/audit-v1.0.0...HEAD
+[1.0.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...audit-v1.0.0
 [1.6.7]: https://github.com/FrodeHus/elevate/releases/tag/v1.6.7
