@@ -206,14 +206,16 @@ copy of the app workflow with its own version line. Its tags are
 `audit-v<x.y.z>` (release.yml runs for `v*`, release-audit.yml for `audit-v*`,
 and neither pattern matches the other's tags), its notes live in
 `audit/CHANGELOG.md`, and its release is titled "Elevate Audit x.y.z". The
-version numbers of the two lines are unrelated from here on; the audit tool
-continues from 1.6.7, the last app release it shipped inside.
+version numbers of the two lines are unrelated: the audit tool starts its own
+numbering at 1.0.0, having last shipped inside app release 1.6.7, and the same
+number on both lines is fine since the tags, releases, changelogs, formulas and
+winget ids never collide.
 
 1. Make sure `audit/CHANGELOG.md` has its notes under `## [Unreleased]`. A pull
    request that touches `audit/` must add to that file (the Changelog check
    enforces it), not to the root `CHANGELOG.md`.
-2. Actions → Release audit → *Run workflow*, enter the version (`1.6.8`,
-   `v1.6.8` and `audit-v1.6.8` are all accepted) and run it on `main`. That run
+2. Actions → Release audit → *Run workflow*, enter the version (`1.0.0`,
+   `v1.0.0` and `audit-v1.0.0` are all accepted) and run it on `main`. That run
    checks that the latest Audit CI run on `main` passed, runs
    `scripts/cut-changelog.sh --file audit/CHANGELOG.md --tag-prefix audit-v`,
    commits "Audit changelog: x.y.z" to `main` and pushes `audit-vx.y.z`.
