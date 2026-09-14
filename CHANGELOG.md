@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-09-14
+
 ### Changed
 
 - elevate-audit: the HTML report opens with an executive summary — a one-sentence verdict and one
@@ -606,7 +608,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.6...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.7...HEAD
+[1.6.7]: https://github.com/FrodeHus/elevate/compare/v1.6.6...v1.6.7
 [1.6.6]: https://github.com/FrodeHus/elevate/compare/v1.6.5...v1.6.6
 [1.6.5]: https://github.com/FrodeHus/elevate/compare/v1.6.4...v1.6.5
 [1.6.4]: https://github.com/FrodeHus/elevate/compare/v1.6.3...v1.6.4
