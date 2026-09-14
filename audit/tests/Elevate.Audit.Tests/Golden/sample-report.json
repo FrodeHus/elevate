@@ -128,9 +128,13 @@
         {
           "id": "g-platform",
           "displayName": "Platform Team"
+        },
+        {
+          "id": "g-oncall",
+          "displayName": "Platform On-call"
         }
       ],
-      "remedy": "Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team. Make the membership or the group's assignment eligible.",
+      "remedy": "Casey Wong holds Global Administrator permanently through Tier 0 Admins ← Platform Team ← Platform On-call. Make the membership or the group's assignment eligible.",
       "portalUrl": "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0",
       "evidence": {
         "assignmentId": "a-tier0-ga",
