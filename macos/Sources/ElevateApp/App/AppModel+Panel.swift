@@ -78,8 +78,33 @@ extension AppModel {
 
     /// The "Active now" summary shows only the current tab's kinds; the tab labels carry the other counts.
     var activeAssignmentsOrdered: [ActiveAssignment] {
+        summaryOrdered(active.values)
+    }
+
+    /// Rows for the "Active now" section: the ordered active list, then assignments deactivated
+    /// moments ago so their row can show the confirmation before it leaves.
+    var activeRowsOrdered: [ActiveAssignment] {
+        let items = activeAssignmentsOrdered
+        let lingering = recentlyDeactivated.values.filter { a in !items.contains { $0.roleKey == a.roleKey } }
+        return items + summaryOrdered(lingering)
+    }
+
+    /// Keeps `assignment`'s row in "Active now" for a moment after its deactivation succeeded.
+    /// Held by the model, not the view: the section may not exist yet when the row is retained,
+    /// and a view task hung off a conditional section never runs inside the panel's lazy stack.
+    func retainDeactivatedRow(_ assignment: ActiveAssignment) {
+        let key = assignment.roleKey
+        recentlyDeactivated[key] = assignment
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, self.recentlyDeactivated[key] == assignment else { return }
+            self.recentlyDeactivated[key] = nil
+        }
+    }
+
+    private func summaryOrdered(_ assignments: some Sequence<ActiveAssignment>) -> [ActiveAssignment] {
         let kinds = Self.kinds(for: panelTab)
-        let ordered = ActiveSummary.order(active.values.filter { kinds.contains($0.roleKey.scope.kind) })
+        let ordered = ActiveSummary.order(assignments.filter { kinds.contains($0.roleKey.scope.kind) })
         guard isFiltering else { return ordered }
         return ordered.filter { a in
             if let r = role(for: a.roleKey) { return matchesFilter(r) }

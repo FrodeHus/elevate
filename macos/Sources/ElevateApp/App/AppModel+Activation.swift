@@ -60,7 +60,10 @@ extension AppModel {
             return false
         }
         let generation = configGeneration
-        for r in requests { progress[r.roleKey] = nil; deactivationProgress[r.roleKey] = nil; inFlight.insert(r.roleKey) }
+        for r in requests {
+            progress[r.roleKey] = nil; deactivationProgress[r.roleKey] = nil; recentlyDeactivated[r.roleKey] = nil
+            inFlight.insert(r.roleKey)
+        }
         defer { for r in requests { inFlight.remove(r.roleKey) } }
         var deactivated: Set<RoleKey> = []
         var skipped: Set<RoleKey> = []
@@ -309,6 +312,7 @@ extension AppModel {
             guard generation == configGeneration else { return .blocked("Configuration changed during deactivation") }
             active[key] = nil
             deactivationProgress[key] = .succeeded
+            retainDeactivatedRow(a)
             if key.scope.kind == .group { refreshRolesAfterGroupChange([key.tenantKey]) }
             await rescheduleNotifications()
             return .succeeded
