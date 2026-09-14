@@ -1493,6 +1493,12 @@ td {
   .nav-links a:first-child {
     display: none;
   }
+  .nav-links[data-links="4"] a:first-child {
+    display: flex;
+  }
+  .nav-links[data-links="4"] a:last-child {
+    display: none;
+  }
   .hero-description {
     max-width: 330px;
   }

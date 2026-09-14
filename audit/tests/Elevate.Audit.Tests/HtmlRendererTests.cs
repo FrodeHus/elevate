@@ -13,7 +13,7 @@ public partial class HtmlRendererTests
     private static AuditReport Sample()
     {
         var snapshot = SampleSnapshot.Build();
-        return AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "sample", ClientIds.GraphReadScopeNames);
+        return AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "sample", ClientIds.GraphReadScopeNames);
     }
 
     [Fact]
@@ -30,11 +30,42 @@ public partial class HtmlRendererTests
     }
 
     [Fact]
+    public void Render_SectionIdsAreUnique()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        var ids = Regex.Matches(html, "id=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
+        ids.Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Render_ARuleWithTwoSeverities_YieldsTwoSections()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        html.Should().Contain("id=\"azure-permanent-high\"");
+        html.Should().Contain("id=\"azure-permanent-medium\"");
+    }
+
+    [Fact]
+    public void Render_WhenMinSeverityHidesFindings_MentionsItUnderTheCards()
+    {
+        var snapshot = SampleSnapshot.Build();
+        var options = new AuditOptions(MinSeverity: Severity.Medium);
+        var findings = RuleRunner.Run(snapshot, options);
+        var report = AuditReport.From(snapshot, findings, RuleRunner.Visible(findings, options), options, "sample", ClientIds.GraphReadScopeNames);
+
+        var html = HtmlRenderer.Render(report);
+
+        html.Should().Contain("7 findings below --min-severity medium hidden");
+    }
+
+    [Fact]
     public void Render_EscapesUntrustedText()
     {
         var snapshot = SnapshotBuilder.Contoso().User("u1", "<b>Evil</b>", "evil@contoso.com").Assigned("a1", "u1", "rd-ga").Build();
 
-        var html = HtmlRenderer.Render(AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "x", []));
+        var html = HtmlRenderer.Render(AuditReport.From(snapshot, RuleRunner.Run(snapshot, new AuditOptions()), RuleRunner.Run(snapshot, new AuditOptions()), new AuditOptions(), "x", []));
 
         html.Should().Contain("&lt;b&gt;Evil&lt;/b&gt;").And.NotContain("<b>Evil</b>");
     }

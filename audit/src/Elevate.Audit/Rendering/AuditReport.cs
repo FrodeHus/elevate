@@ -12,6 +12,12 @@ public sealed record ReportSummary(int High, int Medium, int Low, int Info)
 
 public sealed record ReportOptions(bool AllRoles, IReadOnlyList<string> Ignored, string MinSeverity, bool SkipAzure);
 
+/// <summary>Shared pluralisation for renderer text (the terminal and HTML hidden-count notes).</summary>
+internal static class RenderText
+{
+    public static string Findings(int count) => count == 1 ? "1 finding" : $"{count} findings";
+}
+
 /// <summary>The JSON document `--json` writes. Field names are a stability contract (golden-tested).</summary>
 public sealed record AuditReport(
     ReportTool Tool,
@@ -22,12 +28,18 @@ public sealed record AuditReport(
     IReadOnlyList<string> ScopesRequested,
     IReadOnlyList<SkippedSource> Skipped,
     ReportSummary Summary,
+    int Hidden,
     IReadOnlyList<Finding> Findings)
 {
-    public static AuditReport From(Snapshot snapshot, IReadOnlyList<Finding> findings, AuditOptions options, string toolVersion, IReadOnlyList<string> scopesRequested)
+    /// <summary>
+    /// <paramref name="findings"/> is every finding (the summary is never filtered by <c>--min-severity</c>);
+    /// <paramref name="visible"/> is what <c>--min-severity</c> lets through and becomes <see cref="Findings"/>.
+    /// </summary>
+    public static AuditReport From(Snapshot snapshot, IReadOnlyList<Finding> findings, IReadOnlyList<Finding> visible, AuditOptions options, string toolVersion, IReadOnlyList<string> scopesRequested)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(findings);
+        ArgumentNullException.ThrowIfNull(visible);
         ArgumentNullException.ThrowIfNull(options);
         return new AuditReport(
             new ReportTool(AppInfo.Name, toolVersion),
@@ -42,6 +54,7 @@ public sealed record AuditReport(
                 findings.Count(f => f.Severity == Severity.Medium),
                 findings.Count(f => f.Severity == Severity.Low),
                 findings.Count(f => f.Severity == Severity.Info)),
-            findings);
+            findings.Count - visible.Count,
+            visible);
     }
 }

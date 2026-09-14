@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and package the CLI for one platform. Two steps, so a code-signing step can run between
+# Build and package elevate-audit for one platform. Two steps, so a code-signing step can run between
 # them in the release workflow:
 #
 #   audit/package.sh publish <version> <rid>   publishes one self-contained file to audit/dist/<rid>/

@@ -4,7 +4,7 @@ namespace Elevate.Audit.Rules;
 
 public static class RuleRunner
 {
-    /// <summary>Every rule, in report order. Tasks 11–13 add theirs here.</summary>
+    /// <summary>All ten rules, in report order.</summary>
     public static IReadOnlyList<IRule> All { get; } =
     [
         new EntraUserPermanentRule(), new EntraGroupPermanentRule(), new EntraGroupNotPimRule(), new EntraGroupNotAssignableRule(),

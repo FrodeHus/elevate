@@ -39,7 +39,7 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # The CLI must run on Linux, macOS and Windows: the tests run on all three, and each runner
+  # The auditor must run on Linux, macOS and Windows: the tests run on all three, and each runner
   # publishes the self-contained binary for its own platform and starts it once.
   test:
     name: Build and test (${{ matrix.name }})

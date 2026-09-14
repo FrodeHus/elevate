@@ -36,7 +36,7 @@ public class AzureAndHygieneRulesTests
         findings.Single(f => f.Principal.Id == "g1").Should().BeEquivalentTo(new { Severity = Severity.Medium, Scope = new { DisplayName = "rg-app", Kind = ScopeKind.ResourceGroup } });
         findings.Single(f => f.Principal.Id == "u3").Via.Select(v => v.DisplayName).Should().Equal("Cloud Ops");
         findings.Should().NotContain(f => f.Principal.Id == "u2", "an Activated schedule instance behind the classic assignment means it is a PIM activation");
-        findings[0].PortalUrl.Should().StartWith("https://portal.azure.com/#@/resource/subscriptions/sub1");
+        findings[0].PortalUrl.Should().StartWith("https://portal.azure.com/#@11111111-1111-1111-1111-111111111111/resource/subscriptions/sub1", "the portal link must scope to the tenant, not the default directory");
     }
 
     [Fact]
@@ -103,10 +103,28 @@ public class AzureAndHygieneRulesTests
             .Assigned("a1", "u1", "rd-ga").Eligible("e2", "u2", "rd-ga").Eligible("e3", "u3", "rd-ga")
             .Build();
 
-        Run(one).Should().ContainSingle(f => f.Id == "GA-COUNT").Which.Remedy.Should().Contain("1 ");
-        Run(six).Should().ContainSingle(f => f.Id == "GA-COUNT").Which.Remedy.Should().Contain("6 ");
+        Run(one).Should().ContainSingle(f => f.Id == "GA-COUNT").Which.Remedy.Should().Contain("1 principal can become Global Administrator");
+        Run(six).Should().ContainSingle(f => f.Id == "GA-COUNT").Which.Remedy.Should().Contain("6 principals can become Global Administrator");
         Run(three).Should().NotContain(f => f.Id == "GA-COUNT");
         Run(one).Single(f => f.Id == "GA-COUNT").Should().BeEquivalentTo(new { Severity = Severity.Medium, Principal = new { Id = "11111111-1111-1111-1111-111111111111", DisplayName = "Contoso" } });
+        Run(one).Single(f => f.Id == "GA-COUNT").Remedy.Should().NotContain("person").And.NotContain("people");
+    }
+
+    [Fact]
+    public void GlobalAdminCount_CountsServicePrincipals_DirectAndThroughGroups()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .User("u1", "A", "a@contoso.com").User("u2", "B", "b@contoso.com").User("u3", "C", "c@contoso.com").User("u4", "D", "d@contoso.com")
+            .ServicePrincipal("sp1", "Deploy Bot")
+            .ServicePrincipal("sp2", "Nested Bot")
+            .Group("g1", "GA Group", members: [("sp2", PrincipalType.ServicePrincipal)])
+            .Assigned("a1", "u1", "rd-ga").Assigned("a2", "u2", "rd-ga").Assigned("a3", "u3", "rd-ga").Assigned("a4", "u4", "rd-ga").Assigned("a5", "sp1", "rd-ga")
+            .Assigned("a6", "g1", "rd-ga")
+            .Build();
+
+        var finding = Run(snapshot).Should().ContainSingle(f => f.Id == "GA-COUNT").Subject;
+
+        finding.Remedy.Should().Contain("6 principals can become Global Administrator", "u1, u2, u3, u4, sp1 and sp2 (through the group) are all distinct principals");
     }
 
     [Fact]

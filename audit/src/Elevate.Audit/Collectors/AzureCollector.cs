@@ -38,7 +38,9 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
         {
             managementGroups = await ListAllAsync<WireManagementGroup>(GraphUrls.ManagementGroups, ct).ConfigureAwait(false);
         }
-        catch (PimException e) when (e.Kind is PimErrorKind.PolicyViolation or PimErrorKind.Forbidden)
+        // An account with no management-group access gets ARM's 403 for "not authorized", which Core
+        // maps to PolicyViolation, not Forbidden (that's reserved for Graph's permission-scope shape).
+        catch (PimException e) when (e.Kind is PimErrorKind.PolicyViolation)
         {
             notes.Add("Azure management groups are not readable by this account; scanned subscriptions only.");
         }

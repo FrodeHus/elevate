@@ -36,6 +36,7 @@
     "info": 2,
     "total": 25
   },
+  "hidden": 0,
   "findings": [
     {
       "id": "AZURE-PERMANENT",
@@ -61,7 +62,7 @@
       },
       "via": [],
       "remedy": "Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users",
       "evidence": {
         "assignmentId": "ra-alex-owner",
         "memberType": "Classic"
@@ -90,7 +91,7 @@
       },
       "via": [],
       "remedy": "Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users",
       "evidence": {
         "assignmentId": "ra-deploy-owner",
         "memberType": "Classic"
@@ -439,7 +440,8 @@
       "evidence": {
         "assignmentId": "gp-sam-owner",
         "startDateTime": "2025-01-01T00:00:00+00:00",
-        "assignmentType": "assigned"
+        "assignmentType": "assigned",
+        "memberType": "owner"
       }
     },
     {
@@ -497,7 +499,7 @@
       },
       "via": [],
       "remedy": "Make the group's Contributor assignment on rg-payments eligible in PIM for Azure resources, or govern the group's membership with PIM for Groups.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
       "evidence": {
         "assignmentId": "ra-cloudops-contrib",
         "memberType": "Classic"
@@ -532,7 +534,7 @@
         }
       ],
       "remedy": "Jordan Lee holds Contributor on rg-payments permanently through Cloud Ops.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/resourceGroups/rg-payments/users",
       "evidence": {
         "assignmentId": "ra-cloudops-contrib",
         "memberType": "Classic"
@@ -622,7 +624,7 @@
         "kind": "directory"
       },
       "via": [],
-      "remedy": "6 people can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles.",
+      "remedy": "7 principals can become Global Administrator (permanent or eligible). Microsoft recommends at most five; move the rest to narrower roles.",
       "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
       "evidence": {
         "assignmentId": "global-administrator-count"
@@ -714,7 +716,7 @@
       },
       "via": [],
       "remedy": "Give the eligibility an end date so it is reviewed, or cover it with an access review.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users",
       "evidence": {
         "assignmentId": "ae-jordan-owner",
         "startDateTime": "2025-01-01T00:00:00+00:00",
@@ -840,7 +842,7 @@
       },
       "via": [],
       "remedy": "Deploy Bot holds Owner permanently. PIM eligibility does not apply to workload identities; review whether the workload identity needs the role at all, scope it down, or replace it with a narrower custom role.",
-      "portalUrl": "https://portal.azure.com/#@/resource/subscriptions/sub1/users",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users",
       "evidence": {
         "assignmentId": "ra-deploy-owner",
         "memberType": "Classic"
