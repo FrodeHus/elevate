@@ -216,12 +216,29 @@
       "pimStatus": "unknown",
       "directMembers": [
         {
-          "id": "u-casey",
-          "type": "user"
+          "id": "g-oncall",
+          "type": "group"
         },
         {
           "id": "g-tier0",
           "type": "group"
+        }
+      ],
+      "pimAssignments": [],
+      "pimEligibilities": [],
+      "securityEnabled": true,
+      "mailEnabled": false
+    },
+    {
+      "id": "g-oncall",
+      "displayName": "Platform On-call",
+      "isAssignableToRole": false,
+      "isDynamic": false,
+      "pimStatus": "unknown",
+      "directMembers": [
+        {
+          "id": "u-casey",
+          "type": "user"
         }
       ],
       "pimAssignments": [],

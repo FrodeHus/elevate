@@ -133,10 +133,28 @@ what that registration was consented for.
 
 ## 6. Reading the report
 
-The HTML report opens with the counts per severity and a **Start here** list of the high
-findings, each with a one-line remedy and a link to the right portal blade. Then one section per
-rule and severity; group findings fold the membership path under "through N groups". The
-appendix lists the assignment ids for auditors and the scopes the tool requested.
+The HTML report opens with a one-sentence verdict — how many people and workload identities
+hold standing privileged access, and whether anything was skipped — and one tile per area:
+Entra roles, PIM for Groups, Azure RBAC, Guests, Workload identities, Hygiene and Coverage. Each
+tile shows a state (Critical, Attention, Review, Clean or Not scanned), the counts per severity,
+and one line in plain words; click it to jump to the area. An area marked **under-counts** has a
+partially skipped source behind it, listed under Coverage.
+
+**Start here** lists the high findings, grouped so one action fixes many: a role-assigned group
+appears once, with the number of people it reaches, instead of once per member.
+
+Then one collapsible section per area, and inside it one block per rule and severity. Group
+findings are rolled up into one card per group: who it grants what to, the remedy, a membership
+outline showing the nested groups with counts, a small diagram of how the groups nest, and the
+full list of people reached. Direct findings stay as table rows. The Coverage section lists every
+source and whether it was read. The appendix holds the options used, the scopes requested and the
+assignment ids for auditors.
+
+With JavaScript on, a toolbar adds search across people, groups, roles and scopes, severity
+filters, and expand or collapse all; long tables show the first
+50 rows with a "Show all" button. With JavaScript off the report is the same page without the
+toolbar, every row visible. The report loads nothing from the network either way, and prints
+with every section open and every filter cleared.
 
 Remedies are the standard PIM moves: convert a permanent assignment to eligible, onboard a group
 to PIM for Groups, replace a dynamic or non-role-assignable group with a static role-assignable

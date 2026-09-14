@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Elevate.Audit.Infrastructure;
 using Elevate.Audit.Model;
 
@@ -31,6 +32,9 @@ public sealed record AuditReport(
     int Hidden,
     IReadOnlyList<Finding> Findings)
 {
+    /// <summary>Every finding, before <c>--min-severity</c>; the HTML summary reads this. Never serialised.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<Finding> AllFindings { get; init; } = Findings;
     /// <summary>
     /// <paramref name="findings"/> is every finding (the summary is never filtered by <c>--min-severity</c>);
     /// <paramref name="visible"/> is what <c>--min-severity</c> lets through and becomes <see cref="Findings"/>.
@@ -55,6 +59,7 @@ public sealed record AuditReport(
                 findings.Count(f => f.Severity == Severity.Low),
                 findings.Count(f => f.Severity == Severity.Info)),
             findings.Count - visible.Count,
-            visible);
+            visible)
+        { AllFindings = findings };
     }
 }
