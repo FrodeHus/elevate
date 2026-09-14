@@ -2,8 +2,8 @@
 
 All notable changes to `elevate-audit` are documented here. The tool is versioned and released
 separately from the Elevate app and CLI: its tags are `audit-v<x.y.z>` and its releases are
-titled "Elevate Audit x.y.z". Up to 1.6.7 it shipped inside the app releases, and its notes lived
-in the root [CHANGELOG.md](../CHANGELOG.md).
+titled "Elevate Audit x.y.z". Its own numbering starts at 1.0.0; before that it shipped inside the
+app releases up to Elevate 1.6.7, and its notes lived in the root [CHANGELOG.md](../CHANGELOG.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `elevate-audit update` looks for `audit-v` releases only, so the app releases that used to carry
   an audit archive are never offered as an upgrade.
 
-## [1.6.7] - 2026-09-14
+## Shipped with Elevate [1.6.7] - 2026-09-14
+
+The last audit build inside an app release, before the tool's own numbering began at 1.0.0.
 
 ### Changed
 
