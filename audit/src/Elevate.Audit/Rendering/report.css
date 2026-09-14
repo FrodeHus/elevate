@@ -55,6 +55,8 @@ h3 { margin: 0; font-size: 17px; }
 .start { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .start li { border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; display: grid; gap: 4px; }
 .start .who { font-weight: 600; }
+.start .pill.area { justify-self: start; color: var(--blue); background: #e0ecff; }
+.start .pill.area:hover { text-decoration: none; background: var(--blue); color: #fff; }
 .start .what { color: var(--muted); font-size: 14px; }
 details.area { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 32px; }
 details.area > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; cursor: pointer; list-style: none; }
