@@ -121,7 +121,7 @@ Each tile is an `<a href="#<section id>">` containing:
   - Coverage: the skipped reasons joined, or "Every source was read."
   - Not scanned tiles show the skipped reason instead.
 
-Counts on tiles use the unfiltered `Summary` semantics: they are computed
+The verdict and the tile counts use the unfiltered `Summary` semantics: they are computed
 from every finding, not the `--min-severity`-filtered list, matching the
 existing rule that the summary is never filtered. Sections below render the
 filtered list, as today.
