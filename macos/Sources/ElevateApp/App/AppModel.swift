@@ -20,6 +20,8 @@ final class AppModel {
     var tenantErrors: [TenantKey: String] = [:]
     var progress: [RoleKey: ActivationOutcome.Result] = [:]
     var deactivationProgress: [RoleKey: DeactivationPhase] = [:]
+    /// Assignments deactivated moments ago, kept so their "Active now" row can confirm in place.
+    var recentlyDeactivated: [RoleKey: ActiveAssignment] = [:]
     var profileDeactivationProgress: [UUID: [RoleKey: DeactivationPhase]] = [:]
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     var inFlight: Set<RoleKey> = []
@@ -322,6 +324,7 @@ final class AppModel {
         }
         configGeneration += 1
         deactivationProgress.removeAll()
+        recentlyDeactivated.removeAll()
         for identity in ownApp { forgetIdentity(identity.id) }
         lastRefresh = .distantPast
         selection = []; busy = []; inFlight = []
@@ -351,6 +354,7 @@ final class AppModel {
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
         deactivationProgress = deactivationProgress.filter { $0.key.identityId != identityId }
+        recentlyDeactivated = recentlyDeactivated.filter { $0.key.identityId != identityId }
         profileDeactivationProgress.removeAll()
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
         tenantsAwaitingSignIn = tenantsAwaitingSignIn.filter { $0.identityId != identityId }

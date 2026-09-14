@@ -5,31 +5,18 @@ import ElevateCore
 struct ActiveSection: View {
     @Environment(AppModel.self) private var model
 
-    @State private var visibleItems: [ActiveAssignment] = []
-
     var body: some View {
-        let items = model.activeAssignmentsOrdered
-        Group {
-            if !visibleItems.isEmpty {
-                Section {
-                    if !model.collapsedActive {
-                        ForEach(visibleItems) { a in ActiveRow(assignment: a) }
-                    }
-                } header: {
-                    ActiveHeader(count: items.count)
+        // Rows come straight from the model, including ones just deactivated: a view-held copy
+        // synced by a task never populated inside the panel's LazyVStack, which does not realise
+        // an empty conditional (or a zero-height sibling), so the section stayed hidden.
+        let rows = model.activeRowsOrdered
+        if !rows.isEmpty {
+            Section {
+                if !model.collapsedActive {
+                    ForEach(rows) { a in ActiveRow(assignment: a) }
                 }
-            }
-        }
-        .task(id: items) {
-            // Preserve row identity long enough for its working icon to morph after confirmation.
-            let retained = visibleItems.filter { old in
-                !items.contains(where: { $0.roleKey == old.roleKey })
-                    && model.deactivationProgress[old.roleKey] == .succeeded
-            }
-            visibleItems = items + retained
-            if !retained.isEmpty {
-                try? await Task.sleep(for: .seconds(3))
-                if !Task.isCancelled { visibleItems = items }
+            } header: {
+                ActiveHeader(count: model.activeAssignmentsOrdered.count)
             }
         }
     }
