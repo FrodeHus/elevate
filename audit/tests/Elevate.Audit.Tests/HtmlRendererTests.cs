@@ -84,6 +84,12 @@ public partial class HtmlRendererTests
         Golden.Check("site/audit-sample.html", HtmlRenderer.Render(Sample()));
     }
 
+    [Fact]
+    public void Script_IsEmbedded_AndSelfContained()
+    {
+        HtmlRenderer.Script.Should().Contain("'use strict'").And.NotContain("fetch(").And.NotContain("import ");
+    }
+
     private static string RootBlock(string css) => RootBlockPattern().Match(css).Value;
 
     [GeneratedRegex(@":root\s*\{[^}]*\}")]

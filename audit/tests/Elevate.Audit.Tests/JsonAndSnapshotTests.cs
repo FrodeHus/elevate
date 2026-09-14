@@ -48,4 +48,17 @@ public class JsonAndSnapshotTests
         var missing = () => SnapshotFile.Load(Path.Combine(dir.FullName, "nope.json"));
         missing.Should().Throw<AuditException>().WithMessage("*not found*");
     }
+
+    [Fact]
+    public void AllFindings_CarriesEveryFinding_AndIsNotSerialised()
+    {
+        var snapshot = SampleSnapshot.Build();
+        var options = new AuditOptions(MinSeverity: Severity.High);
+        var all = RuleRunner.Run(snapshot, options);
+        var report = AuditReport.From(snapshot, all, RuleRunner.Visible(all, options), options, "x", []);
+
+        report.AllFindings.Should().BeSameAs(all);
+        report.Findings.Count.Should().BeLessThan(all.Count);
+        System.Text.Json.JsonSerializer.Serialize(report, AuditJson.Options).Should().NotContain("allFindings");
+    }
 }

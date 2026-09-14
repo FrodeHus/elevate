@@ -9,15 +9,20 @@ namespace Elevate.Audit.Rendering;
 public static class HtmlRenderer
 {
     internal const string StylesheetResource = "Elevate.Audit.Resources.report.css";
+    internal const string ScriptResource = "Elevate.Audit.Resources.report.js";
 
-    private static readonly Lazy<string> StylesheetText = new(() =>
-    {
-        using var stream = typeof(HtmlRenderer).Assembly.GetManifestResourceStream(StylesheetResource) ?? throw new InvalidOperationException("report.css missing from the bundle");
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        return reader.ReadToEnd();
-    });
+    private static readonly Lazy<string> StylesheetText = new(() => ReadResource(StylesheetResource, "report.css"));
+    private static readonly Lazy<string> ScriptText = new(() => ReadResource(ScriptResource, "report.js"));
 
     public static string Stylesheet => StylesheetText.Value;
+    public static string Script => ScriptText.Value;
+
+    private static string ReadResource(string name, string file)
+    {
+        using var stream = typeof(HtmlRenderer).Assembly.GetManifestResourceStream(name) ?? throw new InvalidOperationException($"{file} missing from the bundle");
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
 
     public static string Render(AuditReport report)
     {

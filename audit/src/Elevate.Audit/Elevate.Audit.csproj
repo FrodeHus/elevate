@@ -44,6 +44,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\AzurePrivilegedRoles.json" LogicalName="Elevate.Audit.Resources.AzurePrivilegedRoles.json" />
     <EmbeddedResource Include="Rendering\report.css" LogicalName="Elevate.Audit.Resources.report.css" />
+    <EmbeddedResource Include="Rendering\report.js" LogicalName="Elevate.Audit.Resources.report.js" />
   </ItemGroup>
 
 </Project>
