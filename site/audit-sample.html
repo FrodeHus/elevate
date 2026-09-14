@@ -19,6 +19,7 @@
     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: #fff; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; line-height: 1.5; }
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 4px; }
@@ -48,7 +49,6 @@ h3 { margin: 0; font-size: 17px; }
 .pill.low { background: #e0ecff; color: var(--blue); }
 .pill.clean, .pill.read { background: #dcfae6; color: #067647; }
 .muted { color: var(--muted); }
-.notice { background: var(--mist); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-top: 24px; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; margin-top: 24px; position: sticky; top: 12px; z-index: 2; box-shadow: 0 6px 24px rgba(16, 29, 50, 0.06); }
 .search { display: flex; align-items: center; flex: 1 1 240px; }
 .search input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 14px; background: var(--mist); color: var(--ink); }
@@ -59,7 +59,8 @@ h3 { margin: 0; font-size: 17px; }
 .sep { width: 1px; height: 24px; background: var(--line); }
 .section-title { display: flex; align-items: center; gap: 12px; margin-top: 40px; }
 .section-title p { margin: 4px 0 0; }
-.start { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.start-wrap { margin-top: 16px; }
+.start { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .start li { border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; display: grid; gap: 4px; }
 .start .who { font-weight: 600; }
 .start .what { color: var(--muted); font-size: 14px; }
@@ -125,7 +126,6 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
   a { color: inherit; }
   summary .caret { display: none; }
   details > summary { list-style: none; }
-  [hidden] { display: none; }
 }
 
 </style>
@@ -153,7 +153,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 </div></header>
 <main class="wrap">
 <section class="section-title" id="start-here"><div><h2>Start here</h2><p class="muted">The high findings, grouped so one action fixes many.</p></div></section>
-<ol class="start">
+<div class="start-wrap"><ol class="start">
 <li data-search="alex rivera alex.rivera@contoso.com owner production" data-severity="high"><span class="who">Alex Rivera · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production and make Alex Rivera eligible for it in PIM. <a href="https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users">Open in portal</a></span></li>
 <li data-search="deploy bot owner production" data-severity="high"><span class="who">Deploy Bot · Owner on Production</span><span class="what">Remove the permanent Owner assignment on Production or make Deploy Bot eligible for it in PIM; PIM eligibility does not apply to workload identities. <a href="https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users">Open in portal</a></span></li>
 <li data-search="tier 0 admins global administrator directory casey wong casey.wong@contoso.com global administrator directory tier 0 admins platform team platform on-call sam chen sam.chen@contoso.com global administrator directory tier 0 admins" data-severity="high"><span class="who">Tier 0 Admins · Global Administrator on Directory <span class="muted">· 2 people through 2 nested groups</span></span><span class="what">Make Tier 0 Admins&#39;s Global Administrator assignment eligible, or keep it active and make the group&#39;s members eligible through PIM for Groups. <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/g-tier0">Open in portal</a></span></li>
@@ -163,7 +163,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
 <li data-search="priya natarajan priya.natarajan_fabrikam.com#ext#@contoso.com security administrator directory" data-severity="high"><span class="who">Priya Natarajan <span class="pill">guest</span> · Security Administrator on Directory</span><span class="what">Remove the permanent Security Administrator assignment and make Priya Natarajan eligible for it in PIM. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
 <li data-search="tier 0 admins tier 0 admins (owner) tier 0 admins sam chen sam.chen@contoso.com tier 0 admins (owner) tier 0 admins" data-severity="high"><span class="who">Tier 0 Admins · Tier 0 Admins (owner) on Tier 0 Admins <span class="muted">· 1 person</span></span><span class="what">Tier 0 Admins is managed by PIM for Groups, but Sam Chen is a permanent owner. Convert the assignment to eligible. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/members/resourceId/g-tier0/resourceType/Security/provider/aadgroup">Open in portal</a></span></li>
 <li data-search="priya natarajan priya.natarajan_fabrikam.com#ext#@contoso.com security administrator directory" data-severity="high"><span class="who">Priya Natarajan <span class="pill">guest</span> · Security Administrator on Directory</span><span class="what">Guest Priya Natarajan holds Security Administrator permanently. Guests should hold privileged roles only as eligible, if at all. <a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles">Open in portal</a></span></li>
-</ol>
+</ol></div>
 <details class="area" open><summary id="entra"><svg class="caret" viewBox="0 0 20 20" fill="none" stroke="#526176" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6l4 4-4 4"/></svg><h2>Entra roles</h2><span class="pill high">9 high</span><span class="pill medium">2 medium</span></summary>
 <p class="area-desc">Permanent active directory role assignments, held directly or through groups.</p>
 <details class="rule" id="entra-group-permanent-high" data-severity="high" open><summary><svg class="caret" viewBox="0 0 20 20" fill="none" stroke="#526176" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6l4 4-4 4"/></svg><h3>ENTRA-GROUP-PERMANENT</h3><span class="pill high">high</span><span class="desc">A group holds a permanent active Entra role</span><span class="count">3 groups &#183; 4 people</span></summary>
@@ -337,15 +337,14 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
   bar.innerHTML =
     '<label class="search"><span class="visually-hidden">Search findings</span><input type="search" placeholder="Search people, groups, roles, scopes"></label>' +
     ['high', 'medium', 'low', 'info'].map(function (s) {
-      var on = s === 'high' || s === 'medium';
-      return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-severity="' + s + '" aria-pressed="' + on + '"><span class="dot ' + s + '"></span>' + s + '</button>';
+      return '<button type="button" class="chip on" data-severity="' + s + '" aria-pressed="true"><span class="dot ' + s + '"></span>' + s + '</button>';
     }).join('') +
     '<span class="sep"></span>' +
     '<button type="button" class="chip" data-open="1">Expand all</button>' +
     '<button type="button" class="chip" data-open="0">Collapse all</button>';
   main.insertBefore(bar, main.firstChild);
   var input = bar.querySelector('input');
-  var off = { low: true, info: true };
+  var off = {};
 
   // "No findings match." note per area, inserted here so the no-script page carries no hidden markup.
   q('details.area').forEach(function (area) {
@@ -391,7 +390,7 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
     q('details.area').forEach(function (area) {
       var rules = q('details.rule', area);
       var any = rules.some(function (r) { return !r.hidden; });
-      area.querySelector('.nomatch').hidden = any || rules.length === 0;
+      area.querySelector('.nomatch').hidden = !term || any || rules.length === 0;
       if (term && any) { area.open = true; }
     });
   }
@@ -423,8 +422,15 @@ footer { margin-block: 48px 64px; color: var(--muted); font-size: 13px; }
   addEventListener('hashchange', openHash);
   openHash();
   addEventListener('beforeprint', function () {
+    off = {};
+    q('.chip[data-severity]', bar).forEach(function (chip) {
+      chip.classList.add('on');
+      chip.setAttribute('aria-pressed', 'true');
+    });
+    input.value = '';
+    q('[data-capped]').forEach(function (r) { r.removeAttribute('data-capped'); });
+    apply();
     q('details').forEach(function (x) { x.open = true; });
-    q('[data-capped]').forEach(function (r) { r.hidden = false; });
   });
 
   apply();

@@ -151,10 +151,10 @@ source and whether it was read. The appendix holds the options used, the scopes 
 assignment ids for auditors.
 
 With JavaScript on, a toolbar adds search across people, groups, roles and scopes, severity
-filters (High and Medium on by default), and expand or collapse all; long tables show the first
+filters, and expand or collapse all; long tables show the first
 50 rows with a "Show all" button. With JavaScript off the report is the same page without the
 toolbar, every row visible. The report loads nothing from the network either way, and prints
-with every section open.
+with every section open and every filter cleared.
 
 Remedies are the standard PIM moves: convert a permanent assignment to eligible, onboard a group
 to PIM for Groups, replace a dynamic or non-role-assignable group with a static role-assignable

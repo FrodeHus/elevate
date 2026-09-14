@@ -49,15 +49,17 @@ public static class HtmlRenderer
         b.Append("<main class=\"wrap\">\n");
         StartHere(b, report);
         var byArea = report.Findings.GroupBy(f => ReportAreas.Of(f.Id)).ToDictionary(g => g.Key, g => (IReadOnlyList<Finding>)g.ToList());
+        var byAreaAll = report.AllFindings.GroupBy(f => ReportAreas.Of(f.Id)).ToDictionary(g => g.Key, g => (IReadOnlyList<Finding>)g.ToList());
         foreach (var area in ReportAreas.Ordered)
         {
             var findings = byArea.GetValueOrDefault(area) ?? [];
-            if (area == ReportAreas.Other && findings.Count == 0)
+            var all = byAreaAll.GetValueOrDefault(area) ?? [];
+            if (area == ReportAreas.Other && all.Count == 0)
             {
                 continue;
             }
 
-            Area(b, area, findings, report.Skipped);
+            Area(b, area, findings, all, report.Skipped, report.Options.MinSeverity);
         }
 
         Coverage(b, report.Skipped);
@@ -145,7 +147,7 @@ public static class HtmlRenderer
     {
         var n = skipped.Count;
         b.Append("<a class=\"tile\" href=\"#coverage\"><div class=\"head\"><span class=\"name\">Coverage</span>")
-         .Append(n == 0 ? "<span class=\"pill clean\">Complete</span>" : $"<span class=\"pill skipped\">{n} skipped</span>").Append("</div><div class=\"counts\">");
+         .Append(n == 0 ? "<span class=\"pill clean\">Complete</span>" : $"<span class=\"pill skipped\">{n.ToString(CultureInfo.InvariantCulture)} skipped</span>").Append("</div><div class=\"counts\">");
         if (n > 0)
         {
             b.Append("<span><span class=\"n skipped\">").Append(n.ToString(CultureInfo.InvariantCulture)).Append("</span> <span class=\"unit\">skipped</span></span>");
@@ -164,7 +166,7 @@ public static class HtmlRenderer
             return;
         }
 
-        b.Append("<p class=\"muted\">The high findings, grouped so one action fixes many.</p></div></section>\n<ol class=\"start\">\n");
+        b.Append("<p class=\"muted\">The high findings, grouped so one action fixes many.</p></div></section>\n<div class=\"start-wrap\"><ol class=\"start\">\n");
         foreach (var group in high.GroupBy(f => f.Id))
         {
             if (GroupRollup.RollsUp(group.Key))
@@ -191,7 +193,7 @@ public static class HtmlRenderer
             }
         }
 
-        b.Append("</ol>\n");
+        b.Append("</ol></div>\n");
     }
 
     private static void StartItem(StringBuilder b, Finding f)
@@ -206,7 +208,7 @@ public static class HtmlRenderer
         b.Append("<span class=\"what\">").Append(E(f.Remedy)).Append(" <a href=\"").Append(E(f.PortalUrl)).Append("\">Open in portal</a></span></li>\n");
     }
 
-    private static void Area(StringBuilder b, ReportArea area, IReadOnlyList<Finding> findings, IReadOnlyList<SkippedSource> skipped)
+    private static void Area(StringBuilder b, ReportArea area, IReadOnlyList<Finding> findings, IReadOnlyList<Finding> all, IReadOnlyList<SkippedSource> skipped, string minSeverity)
     {
         var open = findings.Any(f => f.Severity == Severity.High);
         b.Append("<details class=\"area\"").Append(open ? " open" : string.Empty).Append("><summary id=\"").Append(area.Id).Append("\">").Append(Caret).Append("<h2>").Append(E(area.Name)).Append("</h2>");
@@ -239,12 +241,21 @@ public static class HtmlRenderer
         b.Append("</p>\n");
         if (findings.Count == 0)
         {
-            b.Append("<p class=\"area-desc\">").Append(E(ReportAreas.Sentence(area, findings, skipped))).Append("</p>\n");
+            b.Append("<p class=\"area-desc\">").Append(E(ReportAreas.Sentence(area, all, skipped))).Append("</p>\n");
+            if (all.Count > 0)
+            {
+                b.Append("<p class=\"area-desc\">").Append(E($"{RenderText.Findings(all.Count)} hidden by --min-severity {minSeverity} or --ignore.")).Append("</p>\n");
+            }
         }
 
         foreach (var group in findings.GroupBy(f => (f.Id, f.Severity)))
         {
             Rule(b, group.Key.Id, group.Key.Severity, group.ToList(), skipped);
+        }
+
+        if (findings.Count > 0 && all.Count > findings.Count)
+        {
+            b.Append("<p class=\"area-desc\">").Append(E($"{RenderText.Findings(all.Count - findings.Count)} hidden by --min-severity {minSeverity} or --ignore.")).Append("</p>\n");
         }
 
         b.Append("</details>\n");
@@ -354,7 +365,7 @@ public static class HtmlRenderer
     private static void Coverage(StringBuilder b, IReadOnlyList<SkippedSource> skipped)
     {
         b.Append("<details class=\"area\"").Append(skipped.Count > 0 ? " open" : string.Empty).Append("><summary id=\"coverage\">").Append(Caret).Append("<h2>Coverage</h2>")
-         .Append(skipped.Count == 0 ? "<span class=\"pill clean\">Complete</span>" : $"<span class=\"pill skipped\">{skipped.Count} skipped</span>").Append("</summary>\n<p class=\"area-desc\">").Append(E(ReportAreas.Coverage.Description)).Append("</p>\n");
+         .Append(skipped.Count == 0 ? "<span class=\"pill clean\">Complete</span>" : $"<span class=\"pill skipped\">{skipped.Count.ToString(CultureInfo.InvariantCulture)} skipped</span>").Append("</summary>\n<p class=\"area-desc\">").Append(E(ReportAreas.Coverage.Description)).Append("</p>\n");
         b.Append("<div class=\"table-scroll\"><table><thead><tr><th>Source</th><th>State</th><th>What it means</th></tr></thead><tbody>\n");
         var azureSkipped = ReportAreas.Has(skipped, "azure");
         foreach (var (source, name, note) in CoverageSources)

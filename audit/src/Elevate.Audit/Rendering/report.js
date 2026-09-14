@@ -14,15 +14,14 @@
   bar.innerHTML =
     '<label class="search"><span class="visually-hidden">Search findings</span><input type="search" placeholder="Search people, groups, roles, scopes"></label>' +
     ['high', 'medium', 'low', 'info'].map(function (s) {
-      var on = s === 'high' || s === 'medium';
-      return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-severity="' + s + '" aria-pressed="' + on + '"><span class="dot ' + s + '"></span>' + s + '</button>';
+      return '<button type="button" class="chip on" data-severity="' + s + '" aria-pressed="true"><span class="dot ' + s + '"></span>' + s + '</button>';
     }).join('') +
     '<span class="sep"></span>' +
     '<button type="button" class="chip" data-open="1">Expand all</button>' +
     '<button type="button" class="chip" data-open="0">Collapse all</button>';
   main.insertBefore(bar, main.firstChild);
   var input = bar.querySelector('input');
-  var off = { low: true, info: true };
+  var off = {};
 
   // "No findings match." note per area, inserted here so the no-script page carries no hidden markup.
   q('details.area').forEach(function (area) {
@@ -68,7 +67,7 @@
     q('details.area').forEach(function (area) {
       var rules = q('details.rule', area);
       var any = rules.some(function (r) { return !r.hidden; });
-      area.querySelector('.nomatch').hidden = any || rules.length === 0;
+      area.querySelector('.nomatch').hidden = !term || any || rules.length === 0;
       if (term && any) { area.open = true; }
     });
   }
@@ -100,8 +99,15 @@
   addEventListener('hashchange', openHash);
   openHash();
   addEventListener('beforeprint', function () {
+    off = {};
+    q('.chip[data-severity]', bar).forEach(function (chip) {
+      chip.classList.add('on');
+      chip.setAttribute('aria-pressed', 'true');
+    });
+    input.value = '';
+    q('[data-capped]').forEach(function (r) { r.removeAttribute('data-capped'); });
+    apply();
     q('details').forEach(function (x) { x.open = true; });
-    q('[data-capped]').forEach(function (r) { r.hidden = false; });
   });
 
   apply();

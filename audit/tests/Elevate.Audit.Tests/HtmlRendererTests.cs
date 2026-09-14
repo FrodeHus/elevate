@@ -74,6 +74,20 @@ public partial class HtmlRendererTests
     }
 
     [Fact]
+    public void Render_FilteredEmptyArea_ShowsHiddenCount_NotTheCleanSentence()
+    {
+        var snapshot = SampleSnapshot.Build();
+        var options = new AuditOptions(MinSeverity: Severity.High);
+        var findings = RuleRunner.Run(snapshot, options);
+        var report = AuditReport.From(snapshot, findings, RuleRunner.Visible(findings, options), options, "sample", ClientIds.GraphReadScopeNames);
+
+        var html = HtmlRenderer.Render(report);
+
+        html.Should().Contain("6 findings hidden by --min-severity high or --ignore.");
+        html.Should().NotContain("Eligibilities expire and the Global Administrator count is within range.");
+    }
+
+    [Fact]
     public void Render_Areas_AreDetailsWithSummaryIds_HighAreasOpen()
     {
         var html = HtmlRenderer.Render(Sample());
@@ -184,6 +198,20 @@ public partial class HtmlRendererTests
     }
 
     [Fact]
+    public void Stylesheet_HiddenAttribute_AlwaysWins()
+    {
+        HtmlRenderer.Stylesheet.Should().Contain("[hidden] { display: none !important; }");
+    }
+
+    [Fact]
+    public void Render_StartHere_WrapsTheListSoTheCapNoteLandsInsideIt()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        html.Should().Contain("<div class=\"start-wrap\"><ol class=\"start\">");
+    }
+
+    [Fact]
     public void Stylesheet_TokensMatchTheProductPage()
     {
         var site = File.ReadAllText(Path.Combine(Repo.Root, "site", "styles.css"));
@@ -201,6 +229,41 @@ public partial class HtmlRendererTests
     public void Script_IsEmbedded_AndSelfContained()
     {
         HtmlRenderer.Script.Should().Contain("'use strict'").And.NotContain("fetch(").And.NotContain("import ");
+    }
+
+    [Fact]
+    public void Render_LargeTenant_KeepsEveryRowInMarkup_AndCapsNothingServerSide()
+    {
+        var builder = SnapshotBuilder.Contoso();
+        var groupMembers = new List<(string Id, PrincipalType Type)>();
+        for (var i = 0; i < 60; i++)
+        {
+            var id = $"u{i}";
+            builder.User(id, $"Person {i}", $"p{i}@contoso.com");
+            groupMembers.Add((id, PrincipalType.User));
+        }
+
+        builder.Group("g-big", "Big Group", members: groupMembers.ToArray());
+        builder.Assigned("a-big", "g-big", "rd-ga");
+        for (var i = 0; i < 12; i++)
+        {
+            var id = $"d{i}";
+            builder.User(id, $"Direct {i}", $"d{i}@contoso.com");
+            builder.Assigned($"a{i}", id, "rd-ga");
+        }
+
+        var snapshot = builder.Build();
+        var findings = RuleRunner.Run(snapshot, new AuditOptions());
+        var report = AuditReport.From(snapshot, findings, findings, new AuditOptions(), "x", []);
+
+        var html = HtmlRenderer.Render(report);
+
+        Regex.Matches(html, "<tr data-search=").Count.Should().BeGreaterThanOrEqualTo(60, "every member row must stay in the markup, not be capped server-side");
+        Regex.Matches(html, "Person ").Count.Should().BeGreaterThanOrEqualTo(60);
+        html.Should().Contain("60 people, listed below");
+        groupMembers.Count.Should().BeGreaterThan(GroupRollup.MaxInlinePeople, "the outline only rolls up to a count once the group has more direct people than it inlines");
+        Regex.Matches(html, "<li data-search=").Count.Should().BeGreaterThan(10, "the 12 direct high findings plus the rolled-up group card exceed the Start-here cap");
+        Regex.IsMatch(html, "<[a-z]+[^>]*\\shidden[\\s>]").Should().BeFalse("capping is a script-only concern; the server never emits hidden");
     }
 
     private static string RootBlock(string css) => RootBlockPattern().Match(css).Value;

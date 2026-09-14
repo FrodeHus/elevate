@@ -1,3 +1,4 @@
+using System.Globalization;
 using Elevate.Audit.Model;
 
 namespace Elevate.Audit.Rendering;
@@ -95,7 +96,7 @@ public static class ReportAreas
     };
 
     /// <summary>"1 person" / "3 people".</summary>
-    public static string Plural(int count, string one, string many) => count == 1 ? $"1 {one}" : $"{count} {many}";
+    public static string Plural(int count, string one, string many) => count == 1 ? $"1 {one}" : $"{count.ToString(CultureInfo.InvariantCulture)} {many}";
 
     internal static bool Has(IReadOnlyList<SkippedSource> skipped, string source) =>
         skipped.Any(s => string.Equals(s.Source, source, StringComparison.OrdinalIgnoreCase));

@@ -236,9 +236,9 @@ toolbar itself. With scripts off: no toolbar, every table row visible, every
 The script:
 
 1. **Toolbar**, inserted before Start here, `position: sticky; top: 12px`:
-   a search input, four severity chips (High and Medium on by default, Low
-   and Info off; the off ones hide rule blocks and Start-here items of that
-   severity), and Expand all / Collapse all.
+   a search input, four severity chips (all four on by default; the off ones
+   hide rule blocks and Start-here items of that severity), and Expand all /
+   Collapse all.
 2. **Search** matches case-insensitively against a `data-search` attribute
    the renderer writes on every findings row, card and Start-here item
    (lower-cased principal name, UPN, role, scope and `Via` names joined by
