@@ -134,4 +134,79 @@ public class GroupRollupTests
         cards[0].NestedGroups.Should().Be(0);
         cards[0].Tree.People.Should().ContainSingle();
     }
+
+    [Fact]
+    public void Outline_ListsGroupsWithCounts_InlinesSmallGroups_AndSummarisesLargeOnes()
+    {
+        var card = GroupRollup.Build("ENTRA-GROUP-PERMANENT", Fixture()).Cards[0];
+
+        var html = GroupRollup.Outline(card);
+
+        html.Should().StartWith("<ul class=\"tree\">").And.EndWith("</ul>");
+        html.Should().Contain("Global Administrator");
+        html.Should().Contain("Tier 0 Admins").And.Contain("5 people direct · 2 nested groups");
+        html.Should().Contain("Person top0"); // 5 direct people are inlined
+        html.Should().NotContain("Person plat0"); // 40 are not
+        html.Should().Contain("40 people, listed below");
+        html.Should().Contain("Shared Pool");
+        System.Text.RegularExpressions.Regex.Matches(html, "<ul").Count.Should().Be(System.Text.RegularExpressions.Regex.Matches(html, "</ul>").Count);
+        System.Text.RegularExpressions.Regex.IsMatch(html, "<ul[^>]*>\\s*<ul").Should().BeFalse("nested lists live inside an <li>");
+    }
+
+    [Fact]
+    public void Outline_MarksGuests_AndEscapes()
+    {
+        var evil = new GroupRef("g-x", "<Evil>");
+        var (cards, _) = GroupRollup.Build("ENTRA-GROUP-PERMANENT", [Group(evil), Person("u1", [evil], guest: true)]);
+
+        var html = GroupRollup.Outline(cards[0]);
+
+        html.Should().Contain("&lt;Evil&gt;").And.NotContain("<Evil>");
+        html.Should().Contain("<span class=\"pill\">guest</span>");
+    }
+
+    [Fact]
+    public void Diagram_DrawsRoleAndEveryGroup_WithPeopleCounts()
+    {
+        var card = GroupRollup.Build("ENTRA-GROUP-PERMANENT", Fixture()).Cards[0];
+
+        var svg = GroupRollup.Diagram(card);
+
+        svg.Should().NotBeNull();
+        svg.Should().StartWith("<svg").And.EndWith("</svg>");
+        svg.Should().Contain("Global Administrator").And.Contain("Tier 0 Admins").And.Contain("Platform Team").And.Contain("Ops Leads");
+        System.Text.RegularExpressions.Regex.Matches(svg!, "<rect").Count.Should().Be(6, "role + 5 group nodes");
+        System.Text.RegularExpressions.Regex.Matches(svg!, "<path").Count.Should().Be(5, "one edge per non-root node plus role→group");
+        svg.Should().Contain("5 people").And.Contain("40 people").And.Contain("25 people");
+        svg.Should().NotContain("Person ");
+        svg.Should().Contain("viewBox=\"0 0 ");
+    }
+
+    [Fact]
+    public void Diagram_IsOmitted_WithoutNesting_OrAboveTheGroupCap()
+    {
+        var flat = GroupRollup.Build("ENTRA-GROUP-PERMANENT", [Group(Top), Person("u1", [Top])]).Cards[0];
+        GroupRollup.Diagram(flat).Should().BeNull();
+
+        var big = new List<Finding> { Group(Top) };
+        for (var i = 0; i < GroupRollup.MaxDiagramGroups; i++)
+        {
+            big.Add(Person($"u{i}", [Top, new GroupRef($"g{i}", $"Group {i}")]));
+        }
+
+        GroupRollup.Diagram(GroupRollup.Build("ENTRA-GROUP-PERMANENT", big).Cards[0]).Should().BeNull("13 groups exceed the cap of 12");
+        big.RemoveAt(big.Count - 1);
+        GroupRollup.Diagram(GroupRollup.Build("ENTRA-GROUP-PERMANENT", big).Cards[0]).Should().NotBeNull("12 groups are within the cap");
+    }
+
+    [Fact]
+    public void Diagram_EllipsisesLongNames_AndKeepsTheFullNameInATitle()
+    {
+        var longName = new GroupRef("g-long", "A Very Long Group Name Indeed");
+        var card = GroupRollup.Build("ENTRA-GROUP-PERMANENT", [Group(Top), Person("u1", [Top, longName])]).Cards[0];
+
+        var svg = GroupRollup.Diagram(card)!;
+
+        svg.Should().Contain("A Very Long Group…").And.Contain("<title>A Very Long Group Name Indeed</title>");
+    }
 }
