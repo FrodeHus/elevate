@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS: the "Active now" section was missing from the panel since 1.6.3. The bulk profile
+  deactivation change kept a copy of the rows in the view and filled it from a task that never ran
+  inside the panel's lazy list, so the section stayed hidden even with roles active. The rows now
+  come straight from the model, which also holds a just-deactivated row for the moment its icon
+  confirms.
+- Windows: signing an account out, or changing the client id, now also clears its remembered
+  deactivation errors and in-progress phases, so a stale "deactivation refused" message cannot
+  reappear on a row after the same account is signed in again.
+
 ## [1.6.5] - 2026-09-13
 
 ### Added
