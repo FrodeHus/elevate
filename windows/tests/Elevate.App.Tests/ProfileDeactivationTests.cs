@@ -243,3 +243,23 @@ public class ProfileDeactivationTests
         test.Http.Requests.Where(r => r.Method == "POST").Should().BeEmpty();
     }
 }
+
+public class DeactivationStateClearingTests
+{
+    [Fact]
+    public async Task ForgettingAnIdentityDropsItsDeactivationErrorsAndPhases()
+    {
+        using var test = await TestModel.BootstrappedAsync(new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] }, online: true);
+        var model = test.Model;
+        var other = new RoleKey("id-2", Sample.TenantId, new EntraDirectoryScope("role-def", "/"));
+        model.DeactivationErrors[Sample.EntraKey] = "Denied";
+        model.DeactivationErrors[other] = "Kept";
+        model.DeactivationPhases[Sample.EntraKey] = ActivationIconPhase.Working;
+        model.DeactivationPhases[other] = ActivationIconPhase.Working;
+
+        model.ForgetIdentity(Sample.IdentityId);
+
+        model.DeactivationErrors.Keys.Should().Equal(other);
+        model.DeactivationPhases.Keys.Should().Equal(other);
+    }
+}
