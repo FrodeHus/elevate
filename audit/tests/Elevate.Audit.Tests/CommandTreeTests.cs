@@ -33,4 +33,12 @@ public class CommandTreeTests
 
         stdout.ToString().Should().StartWith("elevate-audit ");
     }
+
+    [Fact]
+    public void FormatUnexpectedError_CollapsesAMultiLineMessageToOneLine()
+    {
+        var message = Program.FormatUnexpectedError(new InvalidOperationException("line one\nline two\r\nline three"));
+
+        message.Should().Be("Unexpected error: line one line two line three");
+    }
 }

@@ -21,6 +21,7 @@ public static class TerminalRenderer
         ArgumentNullException.ThrowIfNull(console);
         if (summaryOnly)
         {
+            // --quiet must stay exactly one line; the hidden count still shows up in JSON/HTML.
             console.WriteLine(SummaryLine(report));
             return;
         }
@@ -82,6 +83,15 @@ public static class TerminalRenderer
         }
 
         console.WriteLine(SummaryLine(report));
+        WriteHiddenNote(report, console);
+    }
+
+    private static void WriteHiddenNote(AuditReport report, IAnsiConsole console)
+    {
+        if (report.Hidden > 0)
+        {
+            console.WriteLine($"({RenderText.Findings(report.Hidden)} below --min-severity {report.Options.MinSeverity} hidden)");
+        }
     }
 
     private static string Colour(Severity severity) => severity switch

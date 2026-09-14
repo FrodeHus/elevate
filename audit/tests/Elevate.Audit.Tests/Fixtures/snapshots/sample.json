@@ -204,7 +204,9 @@
           "startDateTime": "2025-01-01T00:00:00+00:00",
           "isPermanent": false
         }
-      ]
+      ],
+      "securityEnabled": true,
+      "mailEnabled": false
     },
     {
       "id": "g-platform",
@@ -223,7 +225,9 @@
         }
       ],
       "pimAssignments": [],
-      "pimEligibilities": []
+      "pimEligibilities": [],
+      "securityEnabled": true,
+      "mailEnabled": false
     },
     {
       "id": "g-legacy",
@@ -238,7 +242,9 @@
         }
       ],
       "pimAssignments": [],
-      "pimEligibilities": []
+      "pimEligibilities": [],
+      "securityEnabled": true,
+      "mailEnabled": false
     },
     {
       "id": "g-helpdesk",
@@ -253,7 +259,9 @@
         }
       ],
       "pimAssignments": [],
-      "pimEligibilities": []
+      "pimEligibilities": [],
+      "securityEnabled": true,
+      "mailEnabled": false
     },
     {
       "id": "g-cloudops",
@@ -268,7 +276,9 @@
         }
       ],
       "pimAssignments": [],
-      "pimEligibilities": []
+      "pimEligibilities": [],
+      "securityEnabled": true,
+      "mailEnabled": false
     }
   ],
   "principals": [

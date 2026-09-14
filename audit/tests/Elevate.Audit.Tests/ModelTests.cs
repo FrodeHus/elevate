@@ -37,4 +37,13 @@ public class ModelTests
         Severities.Parse("MEDIUM").Should().Be(Severity.Medium);
         Severities.TryParse("urgent", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public void Severity_RejectsNumericStrings()
+    {
+        // Enum.TryParse alone would accept "0" as the underlying ordinal for Severity.Info; only names are valid input.
+        Severities.TryParse("0", out _).Should().BeFalse();
+        Severities.TryParse("3", out _).Should().BeFalse();
+        Severities.TryParse("-1", out _).Should().BeFalse();
+    }
 }

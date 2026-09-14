@@ -113,6 +113,29 @@ public class EntraRulesTests
     }
 
     [Fact]
+    public void GroupNotOnboarded_WithOnlyAnActivatedAssignment_IsNotFlagged()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .User("u1", "Sam Chen", "sam.chen@contoso.com")
+            .Group("g1", "Tier 0 Admins", pim: PimStatus.NotOnboarded)
+            .Assigned("a1", "g1", "rd-ga", type: AssignmentType.Activated, end: DateTimeOffset.Parse("2026-09-13T16:00:00Z"))
+            .Build();
+
+        Run(snapshot).Should().NotContain(f => (f.Id == "ENTRA-GROUP-NOT-PIM" || f.Id == "ENTRA-GROUP-NOT-ASSIGNABLE"), "an Activated instance is a PIM activation, not standing access");
+    }
+
+    [Fact]
+    public void GroupNotAssignable_WithOnlyAnActivatedAssignment_IsNotFlagged()
+    {
+        var snapshot = SnapshotBuilder.Contoso()
+            .Group("g1", "Legacy Ops", assignable: false, pim: PimStatus.NotOnboarded)
+            .Assigned("a1", "g1", "rd-ga", type: AssignmentType.Activated, end: DateTimeOffset.Parse("2026-09-13T16:00:00Z"))
+            .Build();
+
+        Run(snapshot).Should().NotContain(f => (f.Id == "ENTRA-GROUP-NOT-PIM" || f.Id == "ENTRA-GROUP-NOT-ASSIGNABLE"));
+    }
+
+    [Fact]
     public void DynamicGroup_RemedyMentionsIt()
     {
         var snapshot = SnapshotBuilder.Contoso()

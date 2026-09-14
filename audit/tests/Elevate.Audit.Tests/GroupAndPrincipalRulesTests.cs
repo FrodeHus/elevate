@@ -29,7 +29,9 @@ public class GroupAndPrincipalRulesTests
         findings.Should().HaveCount(2);
         findings.Should().OnlyContain(f => f.Severity == Severity.High && f.Role.System == RoleSystem.Group && f.Scope.Kind == ScopeKind.Group);
         findings.Single(f => f.Principal.Id == "u2").Role.DisplayName.Should().Be("Tier 0 Admins (owner)");
+        findings.Single(f => f.Principal.Id == "u2").Evidence.MemberType.Should().Be("owner");
         findings.Single(f => f.Principal.Id == "u1").PortalUrl.Should().Contain("aadgroup");
+        findings.Single(f => f.Principal.Id == "u1").Evidence.MemberType.Should().Be("member");
     }
 
     [Fact]
