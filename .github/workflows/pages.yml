@@ -8,6 +8,8 @@ on:
         "site/**",
         "scripts/check-site.py",
         "scripts/consent.test.mjs",
+        "scripts/cut-changelog.sh",
+        "scripts/tests/**",
         ".github/workflows/pages.yml",
       ]
   pull_request:
@@ -34,6 +36,9 @@ jobs:
           node --check site/consent.mjs
       - name: Check consent result states
         run: node --test scripts/consent.test.mjs
+      # Not site code, but this is the workflow that runs the repository scripts' tests.
+      - name: Check the changelog cut script
+        run: scripts/tests/cut-changelog.test.sh
 
   package:
     name: Package product page

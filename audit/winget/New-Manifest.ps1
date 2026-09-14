@@ -36,8 +36,8 @@ New-Item -ItemType Directory -Force -Path $target | Out-Null
 $values = @{
     VERSION      = $Version
     RELEASE_DATE = $ReleaseDate
-    X64_URL      = "https://github.com/$Repository/releases/download/v$Version/elevate-audit-$Version-win-x64.zip"
-    ARM64_URL    = "https://github.com/$Repository/releases/download/v$Version/elevate-audit-$Version-win-arm64.zip"
+    X64_URL      = "https://github.com/$Repository/releases/download/audit-v$Version/elevate-audit-$Version-win-x64.zip"
+    ARM64_URL    = "https://github.com/$Repository/releases/download/audit-v$Version/elevate-audit-$Version-win-arm64.zip"
     X64_SHA256   = $X64Sha256.ToUpperInvariant()
     ARM64_SHA256 = $Arm64Sha256.ToUpperInvariant()
 }

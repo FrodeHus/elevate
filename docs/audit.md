@@ -24,8 +24,11 @@ brew install frodehus/elevate/elevate-audit
 
 Windows: `winget install Reothor.Elevate.Audit` once the manifest is published; until then, or on
 any platform, download `elevate-audit-<version>-<platform>.tar.gz` (`.zip` on Windows) from the
-[latest release](https://github.com/FrodeHus/elevate/releases/latest), unpack it anywhere on your
-PATH, and verify it with `sha256sum -c elevate-audit-<version>-checksums.txt`.
+[latest audit release](https://github.com/FrodeHus/elevate/releases?q=audit-v), unpack it anywhere
+on your PATH, and verify it with `sha256sum -c elevate-audit-<version>-checksums.txt`. The audit
+tool is versioned and released separately from the Elevate app and CLI: its releases are the
+`audit-v` tags, titled "Elevate Audit", and its changelog is
+[audit/CHANGELOG.md](../audit/CHANGELOG.md).
 
 ## 2. What it asks for
 

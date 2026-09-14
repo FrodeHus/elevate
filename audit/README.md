@@ -34,6 +34,10 @@ dotnet test audit/Elevate.Audit.sln
 Golden files (`audit/tests/Elevate.Audit.Tests/Golden/`, `Fixtures/snapshots/sample.json`,
 `site/audit-sample.html`) are regenerated with `ELEVATE_AUDIT_UPDATE_GOLDEN=1 dotnet test audit/Elevate.Audit.sln`.
 
+Notable changes go in [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`. The tool is versioned
+and released separately from the app, under `audit-v<x.y.z>` tags; see
+[docs/releasing.md](../docs/releasing.md#releasing-the-audit-tool).
+
 ## Layout
 
 `src/Elevate.Audit` — `Auth` (two MSAL public clients, in memory), `Collectors` (Graph and ARM
