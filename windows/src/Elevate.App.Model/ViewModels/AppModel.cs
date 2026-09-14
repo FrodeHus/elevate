@@ -316,6 +316,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         DecisionInFlight.Clear();
         ApprovalErrors.Clear();
         AccessPackageErrors.Clear();
+        DeactivationErrors.Clear();
+        DeactivationPhases.Clear();
         PendingExtend = null;
         SelectMode = false;
         Persist();
@@ -348,6 +350,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         RemoveWhere(Progress, k => k.IdentityId == identityId);
         RemoveWhere(TenantErrors, k => k.IdentityId == identityId);
         RemoveWhere(AccessPackageErrors, k => k.IdentityId == identityId);
+        RemoveWhere(DeactivationErrors, k => k.IdentityId == identityId);
+        RemoveWhere(DeactivationPhases, k => k.IdentityId == identityId);
         TenantsAwaitingSignIn.RemoveWhere(k => k.IdentityId == identityId);
         DropApprovals(k => k.IdentityId == identityId);
         DropPolicies(k => k.IdentityId == identityId);
