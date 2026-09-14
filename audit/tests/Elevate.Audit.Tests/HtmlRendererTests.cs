@@ -212,6 +212,17 @@ public partial class HtmlRendererTests
     }
 
     [Fact]
+    public void Render_StartHere_ItemsCarryAnAreaPill_LinkingToTheirSection()
+    {
+        var html = HtmlRenderer.Render(Sample());
+
+        html.Should().Contain("Owner on Production</span><a class=\"pill area\" href=\"#azure\">Azure RBAC</a>");
+        html.Should().Contain("· 2 people through 2 nested groups</span></span><a class=\"pill area\" href=\"#entra\">Entra roles</a>");
+        var items = System.Text.RegularExpressions.Regex.Matches(html, "<li data-search=\"[^\"]*\" data-severity=\"high\">").Count;
+        System.Text.RegularExpressions.Regex.Matches(html, "<a class=\"pill area\" href=\"#[a-z-]+\">").Count.Should().Be(items, "every Start here item names its area");
+    }
+
+    [Fact]
     public void Stylesheet_TokensMatchTheProductPage()
     {
         var site = File.ReadAllText(Path.Combine(Repo.Root, "site", "styles.css"));

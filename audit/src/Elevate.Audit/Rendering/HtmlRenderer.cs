@@ -176,6 +176,7 @@ public static class HtmlRenderer
                 {
                     b.Append("<li data-search=\"").Append(E(Search(card))).Append("\" data-severity=\"high\"><span class=\"who\">").Append(E(card.Group.DisplayName)).Append(" · ").Append(E(card.Role.DisplayName)).Append(" on ").Append(E(card.Scope.DisplayName))
                      .Append(" <span class=\"muted\">· ").Append(E(ReportAreas.Plural(card.People, "person", "people"))).Append(card.NestedGroups > 0 ? E($" through {ReportAreas.Plural(card.NestedGroups, "nested group", "nested groups")}") : string.Empty).Append("</span></span>");
+                    AreaPill(b, group.Key);
                     b.Append("<span class=\"what\">").Append(E(card.Remedy)).Append(" <a href=\"").Append(E(card.PortalUrl)).Append("\">Open in portal</a></span></li>\n");
                 }
 
@@ -200,6 +201,7 @@ public static class HtmlRenderer
     {
         b.Append("<li data-search=\"").Append(E(Search(f))).Append("\" data-severity=\"high\"><span class=\"who\">").Append(E(f.Principal.DisplayName)).Append(f.Principal.IsGuest ? " <span class=\"pill\">guest</span>" : string.Empty)
          .Append(" · ").Append(E(f.Role.DisplayName)).Append(" on ").Append(E(f.Scope.DisplayName)).Append("</span>");
+        AreaPill(b, f.Id);
         if (f.Via.Count > 0)
         {
             b.Append("<span class=\"path\">via ").Append(E(string.Join(" ← ", f.Via.Select(v => v.DisplayName)))).Append("</span>");
@@ -394,6 +396,13 @@ public static class HtmlRenderer
         }
 
         b.Append("</tbody></table></div></details></details>\n");
+    }
+
+    /// <summary>The area a Start here item belongs to, as a pill linking to that section, so "Owner on Production" reads as Azure and not Entra.</summary>
+    private static void AreaPill(StringBuilder b, string ruleCode)
+    {
+        var area = ReportAreas.Of(ruleCode);
+        b.Append("<a class=\"pill area\" href=\"#").Append(area.Id).Append("\">").Append(E(area.Name)).Append("</a>");
     }
 
     private static string RuleDescription(string code) => code.ToUpperInvariant() switch
