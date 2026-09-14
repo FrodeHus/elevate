@@ -1,28 +1,28 @@
 class ElevateAudit < Formula
   desc "Finds standing privileged access in a Microsoft Entra tenant that belongs in PIM"
   homepage "https://github.com/FrodeHus/elevate"
-  version "1.6.6"
+  version "1.6.7"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-audit-#{version}-osx-arm64.tar.gz"
-      sha256 "1c3158b7b886cc8312e4eb4799a2bfdac87565f820ac4135d2704fe434b845b3"
+      sha256 "c7d500aec654f8a22cc56f225a726fdd9224d1ffdd98e7f894c1fdbba8b03932"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-audit-#{version}-osx-x64.tar.gz"
-      sha256 "23205e5f74f3f258f3a4ddc6dafc2b0cb6cb1fc73605954f1c7cf7e354961b7d"
+      sha256 "f5210e922427f0cb56ae4a13206934a8a3a9ea9a79cdbcc47d2154aa52e681c5"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-audit-#{version}-linux-arm64.tar.gz"
-      sha256 "b83a08af527e8c78e55ddd7e0a000f6c942f55fa5c29986c2bb95277d0b93562"
+      sha256 "5dd98bb194d65f0e62d14e66cc2491911a1c70169693019d88f4b31f522ee226"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-audit-#{version}-linux-x64.tar.gz"
-      sha256 "8007fab92cdad899e00f1e90d3080ba9f9ac62399988397c18666fb17c0d303b"
+      sha256 "5472858dca00c8debdfa5c54030031830e4cdfa09b6668eda03f37b7d4121b2e"
     end
   end
 
