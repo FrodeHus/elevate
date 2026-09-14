@@ -1,6 +1,6 @@
 name: Changelog
 
-# A pull request that changes the apps or the shared role data must also add to the Unreleased
+# A pull request that changes the apps, the audit tool or the shared role data must also add to the Unreleased
 # section of CHANGELOG.md, or the release run fails at "Cut the changelog" with nothing to say
 # (as 1.2.7 did after three panel PRs merged without notes). Housekeeping — CI, docs, the cask
 # bump, the changelog cut itself — is exempt by path; anything else can opt out with the
@@ -33,7 +33,7 @@ jobs:
             echo "Labelled \"no changelog\"; skipping." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
           fi
           changed="$(git diff --name-only "$BASE" "$HEAD")"
-          if ! grep -Eq '^(macos/|windows/|cli/|shared/)' <<<"$changed"; then
+          if ! grep -Eq '^(macos/|windows/|cli/|shared/|audit/)' <<<"$changed"; then
             echo "No app or shared changes; nothing to note." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
           fi
           # The Unreleased body is everything between its heading and the next "## " heading.

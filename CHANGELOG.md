@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- elevate-audit: the HTML report opens with an executive summary — a one-sentence verdict and one
+  tile per area (Entra roles, PIM for Groups, Azure RBAC, Guests, Workload identities, Hygiene,
+  Coverage) that links to its section — instead of four severity counts. Sections are collapsible,
+  group findings roll up into one card per group with a membership outline, a nesting diagram and
+  the people reached, and a small inline script adds search, severity filters, expand/collapse and
+  50-row caps. The page is complete with JavaScript off and still loads nothing from the network.
+- elevate-audit: every "Start here" item now carries a pill naming its area, so "User Access
+  Administrator on Production" reads as Azure RBAC rather than an Entra role, and the pill links to
+  that section.
+
 ## [1.6.6] - 2026-09-14
 
 ### Fixed
