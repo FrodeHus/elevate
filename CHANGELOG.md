@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: every release now opens the `microsoft/winget-pkgs` pull requests for `Reothor.Elevate`
+  and `Reothor.Elevate.CLI` itself (and the audit tool's release its `Reothor.Elevate.Audit`
+  one), so `winget install` and `winget upgrade` follow the GitHub releases after Microsoft's
+  review.
+
 ## [1.7.0] - 2026-09-15
 
 ### Changed

@@ -759,7 +759,7 @@ jobs:
             echo
             echo '    brew install frodehus/elevate/elevate-cli'
             echo
-            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` once the manifest is submitted; until then download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` (the manifest goes to winget-pkgs with each release and is published once Microsoft's checks pass, usually within a day or two), or download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
             if [ "$MAC_SIGNED" != "1" ]; then
@@ -769,7 +769,7 @@ jobs:
             echo
             echo "## elevate-audit"
             echo
-            echo 'The read-only companion that lists standing privileged access to move to PIM is versioned and released on its own, under the `audit-v` tags: `brew install frodehus/elevate/elevate-audit`, `winget install Reothor.Elevate.Audit` once the manifest is submitted, or the archives of the [latest audit release](https://github.com/'"${{ github.repository }}"'/releases?q=audit-v). See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
+            echo 'The read-only companion that lists standing privileged access to move to PIM is versioned and released on its own, under the `audit-v` tags: `brew install frodehus/elevate/elevate-audit`, `winget install Reothor.Elevate.Audit`, or the archives of the [latest audit release](https://github.com/'"${{ github.repository }}"'/releases?q=audit-v). See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
             echo
             echo "## Enterprise"
             echo
@@ -805,6 +805,24 @@ jobs:
           "dist/Elevate-enterprise-kit-$VERSION.zip"
           "dist/Elevate-enterprise-kit-$VERSION.zip.sha256"
           --title "Elevate $VERSION" --notes-file notes.md
+
+      # The winget manifests, generated and validated by the windows and cli jobs, go to
+      # microsoft/winget-pkgs as one pull request per package, from the fork of the account behind
+      # WINGET_TOKEN. Skipped, with a notice, when the token is not set.
+      - uses: actions/download-artifact@v8
+        with:
+          name: winget-manifest
+          path: winget/app
+      - uses: actions/download-artifact@v8
+        with:
+          name: winget-cli-manifest
+          path: winget/cli
+      - name: Submit the winget manifests
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          ./scripts/submit-winget.sh "winget/app/r/Reothor/Elevate/$VERSION" Reothor.Elevate "$VERSION"
+          ./scripts/submit-winget.sh "winget/cli/r/Reothor/Elevate/CLI/$VERSION" Reothor.Elevate.CLI "$VERSION"
 
       - name: Configure the deploy key
         env:

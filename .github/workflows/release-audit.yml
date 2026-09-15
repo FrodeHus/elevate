@@ -308,7 +308,7 @@ jobs:
             echo '    brew trust frodehus/elevate'
             echo '    brew install frodehus/elevate/elevate-audit'
             echo
-            echo 'Windows: `winget install Reothor.Elevate.Audit` once the manifest is submitted; until then download `elevate-audit-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate-audit.exe` on your PATH.'
+            echo 'Windows: `winget install Reothor.Elevate.Audit` (the manifest goes to winget-pkgs with each release and is published once Microsoft's checks pass, usually within a day or two), or download `elevate-audit-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate-audit.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-audit-'"$VERSION"'-checksums.txt`. See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
             echo
@@ -328,6 +328,17 @@ jobs:
           dist/elevate-audit-$VERSION-*.sha256
           "dist/elevate-audit-$VERSION-checksums.txt"
           --title "Elevate Audit $VERSION" --notes-file notes.md --latest=false
+
+      # The winget manifest, generated and validated by the audit job, goes to microsoft/winget-pkgs
+      # from the fork of the account behind WINGET_TOKEN. Skipped, with a notice, when it is not set.
+      - uses: actions/download-artifact@v8
+        with:
+          name: winget-audit-manifest
+          path: winget/audit
+      - name: Submit the winget manifest
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: ./scripts/submit-winget.sh "winget/audit/r/Reothor/Elevate/Audit/$VERSION" Reothor.Elevate.Audit "$VERSION"
 
       - name: Configure the deploy key
         env:

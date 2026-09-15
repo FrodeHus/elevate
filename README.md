@@ -123,9 +123,9 @@ the [issue tracker](https://github.com/FrodeHus/elevate/issues); what changed in
 
 ## Roadmap
 
-- **Windows: winget submission** — the MSI and the CLI are code-signed, so the prepared
-  `Reothor.Elevate` and `Reothor.Elevate.CLI` manifests can now go to `microsoft/winget-pkgs`;
-  see [windows/README.md](windows/README.md#install).
+- **Windows: winget** — the first `Reothor.Elevate`, `Reothor.Elevate.CLI` and
+  `Reothor.Elevate.Audit` submissions are in `microsoft/winget-pkgs` review; every release
+  after that opens its update pull requests automatically.
 
 ## License
 
