@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows: the app's own executable and assemblies inside the MSI are code-signed as well. 1.7.0
+  signed the MSI and the bundled CLI, but the installed `Elevate.exe` was unsigned and Settings >
+  About still said "Unsigned".
+
 ## [1.7.0] - 2026-09-15
 
 ### Changed
