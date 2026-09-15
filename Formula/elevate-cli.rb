@@ -11,22 +11,22 @@ class ElevateCli < Formula
   on_macos do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-osx-arm64.tar.gz"
-      sha256 "3e75064114ec3eba401923ace8d75ff30658b9c65471ee301029c08aac58d2ad"
+      sha256 "e099a2766009ff6344aadce526eda27368a275483bd1c43bed60bebb9b2bf1d3"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-osx-x64.tar.gz"
-      sha256 "aa72f691d3462efc3e454326c3a20c237cdea1598cf9770404bbf7f32864fe32"
+      sha256 "a8a2af5c0b8561334eadd1ad5d4272fb35cf77a61eb326b2fbd8eea19b34209f"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-linux-arm64.tar.gz"
-      sha256 "829e86ce197d09e1f0274d9623f45142843e1eeb197b0bcec409f6d37e2b53b9"
+      sha256 "ace0f6b4a7bc35c691e0ece5b63b8aefa4294ce6425a100aacc18d48c04b5d2c"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-linux-x64.tar.gz"
-      sha256 "2952e20451a067ddd4856791c623f7adba9972fee9031bd46d6575cef49bf16f"
+      sha256 "4784dab92abdd931fce59a3e964594e0082de78de000d5a7eb8673da72277d29"
     end
   end
 
