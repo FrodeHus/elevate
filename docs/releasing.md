@@ -131,8 +131,8 @@ first, then `macos`, `windows` and the three `cli` matrix legs in parallel, and
 1. Restores the .NET 10 SDK from `windows/global.json`, runs the test suites and
    installs WiX 5.0.2.
 2. Builds the x64 and arm64 MSIs with `windows/installer/build.ps1`, signing
-   them with Azure Artifact Signing when the secrets below are set, else
-   unsigned.
+   `elevate.exe` and the MSIs with the Certum certificate when the secrets
+   below are set, else unsigned.
 3. Generates and validates the winget manifest, uploads it as the
    `winget-manifest` artifact, and uploads the MSIs and their hashes as the
    `windows` artifact.
@@ -150,7 +150,7 @@ for `osx-arm64` and `osx-x64`, `windows-latest` for `win-x64` and `win-arm64`):
    same ones applied to the helper bundled in the macOS pkg), then submits it
    to the notary service (a bare binary cannot be stapled; Gatekeeper checks
    the ticket online). Windows: with the
-   Azure Artifact Signing secrets, signs each `elevate.exe` with `signtool`.
+   Certum secrets, signs each `elevate.exe` with `signtool`.
    Without secrets the binaries ship unsigned; Homebrew and winget downloads
    carry no quarantine flag, so only a browser download meets Gatekeeper or
    SmartScreen.
@@ -193,9 +193,9 @@ named `elevate-audit-<version>-<rid>`, a `Reothor.Elevate.Audit` winget manifest
    included only for unsigned builds.
 
 Neither winget manifest is submitted automatically: winget moderation requires
-signed installers, so submission waits for Azure Artifact Signing. Once releases
-are signed, download the `winget-manifest` and `winget-cli-manifest` artifacts
-and run `wingetcreate submit` on them.
+signed installers, so submission waits for the first signed release. Once
+releases are signed, download the `winget-manifest` and `winget-cli-manifest`
+artifacts and run `wingetcreate submit` on them.
 
 ## Optional signing secrets
 
@@ -346,12 +346,29 @@ first release that includes the CLI.
 
 ## Windows signing secrets
 
-Without them the Windows job publishes unsigned MSIs. With all six, the same job
-signs them with Azure Artifact Signing (formerly Trusted Signing):
-`AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`,
-`AZURE_TRUSTED_SIGNING_PROFILE`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
-`AZURE_SUBSCRIPTION_ID`. That needs a paid subscription, the
-`Microsoft.CodeSigning` provider, an *organization* Public Trust identity
-validation (individual validation is US/Canada only) and a certificate profile,
-plus an app registration holding the *Artifact Signing Certificate Profile
-Signer* role for the workflow's OIDC login.
+Without them the Windows, CLI and audit jobs publish unsigned Windows binaries.
+With all three, they sign `elevate.exe`, `elevate-audit.exe` and the MSIs with a
+Certum code-signing certificate whose key lives in Certum's cloud HSM
+(SimplySign). Azure Artifact Signing was the first choice but is closed to
+individuals outside the USA and Canada and to organizations outside the EU and
+the UK.
+
+| Secret | What it is |
+|---|---|
+| `CERTUM_USERNAME` | The SimplySign account name (the e-mail address the certificate was activated with) |
+| `CERTUM_OTP_URI` | The `otpauth://totp/...` URI behind the QR code shown when pairing the SimplySign mobile app; the app's Edit view reveals it. It is the TOTP seed, as sensitive as the signing key: keep it only here and in the mobile app |
+| `CERTUM_KEY_ID` | The certificate's SHA-1 thumbprint, as `Get-ChildItem Cert:\CurrentUser\My` shows it on a machine with an open SimplySign session. Not secret, kept with the others for one place to look |
+
+The presence of `CERTUM_OTP_URI` switches the jobs to the signed path. Each
+Windows job runs `scripts/Connect-SimplySign.ps1`, which installs SimplySign
+Desktop on the runner, generates the current TOTP code from the seed, pastes the
+account name and the code into the app's login dialog (there is no command-line
+login) and waits for the certificate to appear in the user's store; `signtool`
+then selects it by thumbprint and timestamps with Certum's RFC 3161 server. The
+build fails, rather than shipping unsigned, if the session cannot be opened.
+Repeated rejected codes lock the Certum account, so the script gives up after
+three.
+
+Signing consecutive releases with the same certificate is what builds
+SmartScreen reputation; a new certificate starts from zero, so renew the same
+one rather than buying afresh.

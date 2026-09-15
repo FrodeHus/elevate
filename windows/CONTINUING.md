@@ -74,7 +74,7 @@ work added these:
 - **The update check reads the releases list**, not `releases/latest`, and keeps the first published `v*` release that carries an MSI: both platforms share one tag, but a macOS-only hotfix without an MSI must not offer itself to Windows users.
 - **`BuildInfo`** takes the version from the assembly's informational version (`installer/build.ps1` sets it from the tag) and the signing state from the executable's Authenticode signature; "Unsigned" for the current releases.
 - **Windows App SDK 1.8** (1.8.260804001), self-contained in the MSI; .NET itself is framework-dependent (`Microsoft.DotNet.Runtime.10`).
-- **The winget manifest is generated, not committed, and not submitted.** Releases are unsigned; winget moderation needs signed installers, so submission waits for Azure Artifact Signing (issue #17).
+- **The winget manifest is generated, not committed, and not submitted.** Releases are unsigned until the Certum secrets are set; winget moderation needs signed installers, so submission waits for the first signed release (issue #17).
 
 ## Gotchas
 
@@ -95,5 +95,5 @@ work added these:
 
 ## What is left
 
-- **Issue #17, code signing and winget submission**: needs an Azure Artifact Signing account (paid subscription, organization identity validation, certificate profile, a signer app registration), the `AZURE_*` repository secrets, then `wingetcreate submit` of the `winget-manifest` artifact. `docs/releasing.md` describes the steps; none of it is code. Releases are shared with macOS since 1.2.0: one `v*` tag, one release, `.github/workflows/release.yml`.
+- **Issue #17, code signing and winget submission**: the workflow signs with a Certum SimplySign certificate once the `CERTUM_USERNAME`, `CERTUM_OTP_URI` and `CERTUM_KEY_ID` repository secrets exist (`docs/releasing.md`, "Windows signing secrets"); `scripts/Connect-SimplySign.ps1` opens the cloud session on the runner. Then `wingetcreate submit` of the `winget-manifest` artifact. Releases are shared with macOS since 1.2.0: one `v*` tag, one release, `.github/workflows/release.yml`.
 - The Windows design canvas in `docs/design` predates the profiles row, the Approvals group and the new windows; refresh it when the next visual change lands.

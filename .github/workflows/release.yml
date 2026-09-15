@@ -450,44 +450,39 @@ jobs:
         # v5: later majors require accepting the Open Source Maintenance Fee EULA.
         run: dotnet tool install --global wix --version 5.0.2
 
+      # Windows signing: a Certum code-signing certificate held in Certum's cloud (SimplySign).
+      # scripts/Connect-SimplySign.ps1 opens the session on the runner from the account name and
+      # the TOTP seed, after which signtool finds the certificate by thumbprint like any other.
       - name: Detect signing secrets
         id: signing
         shell: pwsh
         env:
-          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
         run: |
-          if ($env:ENDPOINT) {
+          if ($env:OTP_URI) {
             "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append
             "signed=1" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
-            Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned MSIs."
+            Write-Host "Certum signing secrets not configured; publishing unsigned MSIs."
             "signed=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
-      - name: Azure login for signing
-        if: env.SIGN == '1'
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Trusted Signing client
+      - name: Open the SimplySign session
         if: env.SIGN == '1'
         shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
-          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
-          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
-          "AZURE_TRUSTED_SIGNING_DLIB=$($dlib.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          ./scripts/Connect-SimplySign.ps1
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
           $signtool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Build MSIs
         shell: pwsh
         env:
-          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
           $sign = $env:SIGN -eq '1'
           ./windows/installer/build.ps1 -Version $env:VERSION -Sign:$sign
@@ -592,39 +587,36 @@ jobs:
             rm -f "notarize-$rid.zip"
           done
 
-      # Windows: Azure Artifact Signing, the same secrets and client as the MSIs.
+      # Windows: the Certum certificate, the same secrets and session script as the MSIs.
       - name: Detect Windows signing secrets
         if: matrix.name == 'windows'
         shell: pwsh
         env:
-          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
         run: |
-          if ($env:ENDPOINT) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned Windows binaries." }
+          if ($env:OTP_URI) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Certum signing secrets not configured; publishing unsigned Windows binaries." }
 
-      - name: Azure login for signing
+      - name: Open the SimplySign session
         if: matrix.name == 'windows' && env.SIGN == '1'
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: ./scripts/Connect-SimplySign.ps1
 
       - name: Sign (Windows)
         if: matrix.name == 'windows' && env.SIGN == '1'
         shell: pwsh
         env:
-          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
-          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
-          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
-          $metadata = Join-Path $env:RUNNER_TEMP "signing.json"
-          @{ Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT; CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT; CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_PROFILE } | ConvertTo-Json | Set-Content $metadata
           foreach ($rid in "${{ matrix.rids }}".Split(' ')) {
-            & $signtool.FullName sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib.FullName /dmdf $metadata "cli/dist/$rid/elevate.exe"
+            & $signtool.FullName sign /v /fd SHA256 /sha1 $env:CERTUM_KEY_ID /tr http://time.certum.pl /td SHA256 "cli/dist/$rid/elevate.exe"
             if ($LASTEXITCODE -ne 0) { throw "signtool failed for $rid" }
+            & $signtool.FullName verify /pa /v "cli/dist/$rid/elevate.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $rid" }
           }
 
       - name: Archive
@@ -733,39 +725,36 @@ jobs:
             rm -f "notarize-$rid.zip"
           done
 
-      # Windows: Azure Artifact Signing, the same secrets and client as the MSIs.
+      # Windows: the Certum certificate, the same secrets and session script as the MSIs.
       - name: Detect Windows signing secrets
         if: matrix.name == 'windows'
         shell: pwsh
         env:
-          ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
         run: |
-          if ($env:ENDPOINT) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Azure Trusted Signing secrets not configured; publishing unsigned Windows binaries." }
+          if ($env:OTP_URI) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Certum signing secrets not configured; publishing unsigned Windows binaries." }
 
-      - name: Azure login for signing
+      - name: Open the SimplySign session
         if: matrix.name == 'windows' && env.SIGN == '1'
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: ./scripts/Connect-SimplySign.ps1
 
       - name: Sign (Windows)
         if: matrix.name == 'windows' && env.SIGN == '1'
         shell: pwsh
         env:
-          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
         run: |
-          nuget install Microsoft.Trusted.Signing.Client -OutputDirectory signing -ExcludeVersion
-          $dlib = Get-ChildItem -Recurse signing -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
-          $metadata = Join-Path $env:RUNNER_TEMP "signing.json"
-          @{ Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT; CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT; CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_PROFILE } | ConvertTo-Json | Set-Content $metadata
           foreach ($rid in "${{ matrix.rids }}".Split(' ')) {
-            & $signtool.FullName sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib.FullName /dmdf $metadata "audit/dist/$rid/elevate-audit.exe"
+            & $signtool.FullName sign /v /fd SHA256 /sha1 $env:CERTUM_KEY_ID /tr http://time.certum.pl /td SHA256 "audit/dist/$rid/elevate-audit.exe"
             if ($LASTEXITCODE -ne 0) { throw "signtool failed for $rid" }
+            & $signtool.FullName verify /pa /v "audit/dist/$rid/elevate-audit.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $rid" }
           }
 
       - name: Archive
@@ -898,7 +887,7 @@ jobs:
             echo "Download the MSI for your architecture below and run it. It installs for the current user (no admin rights) into %LOCALAPPDATA%\\Programs\\Elevate and needs the .NET 10 runtime: \`winget install Microsoft.DotNet.Runtime.10\`."
             echo
             if [ "$WIN_SIGNED" = "1" ]; then
-              echo "Signed with Azure Artifact Signing."
+              echo 'Code-signed (Certum). SmartScreen can still show "Windows protected your PC" for a new release until the publisher has built reputation; choose **More info**, then **Run anyway**.'
             else
               echo 'This build is not code-signed. Windows SmartScreen shows "Windows protected your PC" the first time you run the installer: choose **More info**, then **Run anyway**. Verify the download against the SHA-256 first with `(Get-FileHash .\Elevate-'"$VERSION"'-x64.msi).Hash`.'
             fi

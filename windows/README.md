@@ -127,8 +127,8 @@ winget validate --manifest winget/manifests/r/Reothor/Elevate/1.0.0
 `installer/build.ps1` publishes the app framework-dependent with the Windows App SDK self-contained,
 and also publishes the CLI (`../cli/src/Elevate.Cli`) self-contained per architecture, signing
 `elevate.exe` when `-Sign` is given, and passes it to WiX as `CliDir`. It builds the per-user MSI
-with WiX v5 (`installer/Elevate.wxs`) and signs the MSI with Azure Trusted Signing when `-Sign` is
-given and the signing variables are set. The MSI's `Cli` component installs `elevate.exe` under
+with WiX v5 (`installer/Elevate.wxs`) and signs the MSI with the Certum certificate named by
+`CERTUM_KEY_ID` when `-Sign` is given (the SimplySign session must already be open). The MSI's `Cli` component installs `elevate.exe` under
 `cli\` and adds that subfolder to the user's PATH (HKCU; the package is per-user, so the machine
 PATH is out of reach).
 `winget/New-Manifest.ps1` fills the templates in `winget/templates` with the release URLs and
@@ -139,9 +139,8 @@ hashes.
 Releases are shared with the macOS app: tag `v<version>` on `main` and the
 [release workflow](../.github/workflows/release.yml) builds both apps, publishes one GitHub
 release with the DMG, both MSIs and their SHA-256 files, and attaches the generated winget
-manifest as a workflow artifact. The Windows MSIs are unsigned unless the Azure Artifact Signing
-secrets are configured, and the manifest is not submitted to `microsoft/winget-pkgs` until they
-are. The full procedure is in [docs/releasing.md](../docs/releasing.md).
+manifest as a workflow artifact. The Windows MSIs are unsigned unless the Certum signing secrets
+are configured, and the manifest is not submitted to `microsoft/winget-pkgs` until they are. The full procedure is in [docs/releasing.md](../docs/releasing.md).
 
 ### Deactivating a profile run
 
