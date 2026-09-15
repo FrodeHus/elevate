@@ -20,17 +20,19 @@ terminal needs to be restarted). If you also installed the standalone CLI with w
 .NET 10 runtime (`winget install Microsoft.DotNet.Runtime.10`); the Windows App SDK runtime is
 bundled. Windows 11 (build 22000) or newer.
 
-Releases are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" the first
-time the installer runs: choose **More info**, then **Run anyway**. Check the download against the
-SHA-256 in the release notes first:
+The MSI, the app and the bundled CLI are code-signed with a Certum certificate; the publisher
+shows as "Open Source Developer Frode Hus". SmartScreen can still show "Windows protected your
+PC" for a new release until the publisher has built reputation: confirm the publisher name in the
+dialog, then choose **More info** and **Run anyway**. The SHA-256 in the release notes is there
+for an independent check:
 
 ```powershell
 (Get-FileHash .\Elevate-<version>-x64.msi).Hash
 ```
 
 Upgrade by running a newer MSI; uninstall from Settings > Apps, which removes the app, the CLI
-and the PATH entry. A winget package (`Reothor.Elevate`) is prepared but not submitted, because
-winget moderation requires signed installers; see [Release](#release).
+and the PATH entry. A winget package (`Reothor.Elevate`) is prepared and awaits submission to
+`microsoft/winget-pkgs`; see [Release](#release).
 
 ## Use
 
@@ -139,8 +141,10 @@ hashes.
 Releases are shared with the macOS app: tag `v<version>` on `main` and the
 [release workflow](../.github/workflows/release.yml) builds both apps, publishes one GitHub
 release with the DMG, both MSIs and their SHA-256 files, and attaches the generated winget
-manifest as a workflow artifact. The Windows MSIs are unsigned unless the Certum signing secrets
-are configured, and the manifest is not submitted to `microsoft/winget-pkgs` until they are. The full procedure is in [docs/releasing.md](../docs/releasing.md).
+manifest as a workflow artifact. The MSIs and `elevate.exe` are signed with the Certum
+certificate (the secrets are in place; without them the workflow would build unsigned and say so
+in the release notes). The manifest is submitted to `microsoft/winget-pkgs` by hand. The full
+procedure is in [docs/releasing.md](../docs/releasing.md).
 
 ### Deactivating a profile run
 

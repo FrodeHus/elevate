@@ -13,7 +13,7 @@ A separate read-only companion, `elevate-audit`, finds the *standing* privileged
 | App | Status | Docs |
 |---|---|---|
 | [macOS](macos/) — SwiftUI menu bar app, macOS 26 | Usable: Entra roles, Azure roles, PIM for Groups, approvals, access packages, profiles and shortcuts, sign-in methods | [macos/README.md](macos/README.md) |
-| [Windows](windows/) — WinUI 3 tray app, Windows 11 | Usable: the same features, unsigned MSI for now | [windows/README.md](windows/README.md) |
+| [Windows](windows/) — WinUI 3 tray app, Windows 11 | Usable: the same features, code-signed MSI | [windows/README.md](windows/README.md) |
 | [CLI](cli/) — `elevate` for Linux, macOS and Windows | Usable: activation, profiles, approvals, access packages, tenants and settings from the terminal, JSON output and exit codes for scripts | [cli/README.md](cli/README.md) |
 | [Audit](audit/) — `elevate-audit` for Linux, macOS and Windows | Usable: read-only report of standing privileged access, terminal, JSON or HTML output | [docs/audit.md](docs/audit.md) |
 
@@ -123,8 +123,9 @@ the [issue tracker](https://github.com/FrodeHus/elevate/issues); what changed in
 
 ## Roadmap
 
-- **Windows: code signing and winget submission** — releases are unsigned until Azure Artifact
-  Signing is set up; see [windows/README.md](windows/README.md).
+- **Windows: winget submission** — the MSI and the CLI are code-signed, so the prepared
+  `Reothor.Elevate` and `Reothor.Elevate.CLI` manifests can now go to `microsoft/winget-pkgs`;
+  see [windows/README.md](windows/README.md#install).
 
 ## License
 

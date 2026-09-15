@@ -19,8 +19,8 @@ app, click **Add account…** and sign in — they are never asked for a client 
   `Microsoft.DotNet.Runtime.10` first, or make it a dependency of the app below.
 
 The MSI installs per user into `%LOCALAPPDATA%\Programs\Elevate` and needs no administrator
-rights, so it is deployed as a Win32 app in the **user** install context. Releases are not
-code-signed yet; see [windows/README.md](../../windows/README.md#install).
+rights, so it is deployed as a Win32 app in the **user** install context. The MSI is code-signed
+(publisher "Open Source Developer Frode Hus"); see [windows/README.md](../../windows/README.md#install).
 
 The keys you can push are in [keys.md](keys.md). Push only what you want to take away from users:
 every key you send is locked.

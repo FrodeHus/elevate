@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Windows: the release workflow signs the MSIs, `elevate.exe` and `elevate-audit.exe` with a
   Certum code-signing certificate (SimplySign) instead of Azure Artifact Signing, which is not
-  offered to individuals outside the USA and Canada. Releases stay unsigned until the secrets are
-  in place.
+  offered to individuals outside the USA and Canada. The publisher shows as "Open Source
+  Developer Frode Hus"; SmartScreen may still warn on a new release until reputation builds.
 
 ## [1.6.7] - 2026-09-14
 
