@@ -1,0 +1,51 @@
+name: Signing check
+
+# Opens the Certum SimplySign session on a hosted runner and signs a throwaway file, publishing
+# nothing: a way to prove the login automation and the CERTUM_* secrets before a release depends
+# on them, and to diagnose them when a release fails. Manual only; each run is a login against
+# the Certum account, and repeated failures lock it.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}"
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    name: Open the session and sign
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Require the secrets
+        shell: pwsh
+        env:
+          OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+        run: if (-not $env:OTP_URI) { throw "CERTUM_OTP_URI is not set; nothing to check." }
+
+      - name: Open the SimplySign session
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: ./scripts/Connect-SimplySign.ps1
+
+      # signtool signs PowerShell scripts with Authenticode too, so no build is needed.
+      - name: Sign and verify a throwaway file
+        shell: pwsh
+        env:
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $file = Join-Path $env:RUNNER_TEMP "signing-check.ps1"
+          "Write-Host 'Elevate signing check'" | Set-Content $file
+          & $signtool.FullName sign /v /fd SHA256 /sha1 $env:CERTUM_KEY_ID /tr http://time.certum.pl /td SHA256 $file
+          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed" }
+          & $signtool.FullName verify /pa /v $file
+          if ($LASTEXITCODE -ne 0) { throw "signtool verify failed" }
+          $signature = Get-AuthenticodeSignature $file
+          "Signer: $($signature.SignerCertificate.Subject)" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Timestamp: $($signature.TimeStamperCertificate.Subject)" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY

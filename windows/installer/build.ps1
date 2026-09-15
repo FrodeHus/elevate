@@ -5,8 +5,8 @@
 .DESCRIPTION
   For every architecture: publishes the app and the CLI, then `wix build` of Elevate.wxs into
   out\Elevate-<version>-<arch>.msi with a .sha256 next to it; the MSI installs both and puts the
-  folder on the user's PATH. Signs the MSI and elevate.exe with signtool through Azure Trusted
-  Signing when the signing variables are set (see -Sign). Needs the .NET 10 SDK and WiX v5
+  folder on the user's PATH. Signs the MSI and elevate.exe with signtool and the Certum
+  code-signing certificate when -Sign is given. Needs the .NET 10 SDK and WiX v5
   (`dotnet tool install --global wix --version 5.0.2`).
 
 .PARAMETER Version
@@ -16,10 +16,10 @@
   x64, arm64, or both (the default).
 
 .PARAMETER Sign
-  Sign the MSIs with Azure Trusted Signing. Requires the environment variables
-  AZURE_TRUSTED_SIGNING_ENDPOINT, AZURE_TRUSTED_SIGNING_ACCOUNT, AZURE_TRUSTED_SIGNING_PROFILE and an
-  Azure identity (AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_CLIENT_SECRET or a logged-in az CLI),
-  plus the Microsoft.Trusted.Signing.Client dlib on the path given by AZURE_TRUSTED_SIGNING_DLIB.
+  Sign elevate.exe and the MSIs with signtool, using the certificate whose SHA-1 thumbprint is in
+  CERTUM_KEY_ID. The certificate must be in the current user's store with its private key
+  reachable: a Certum SimplySign session opened by scripts/Connect-SimplySign.ps1 (or by hand in
+  SimplySign Desktop), or any other CSP-backed certificate. Timestamped by Certum's RFC 3161 server.
 #>
 [CmdletBinding()]
 param(
@@ -46,17 +46,13 @@ if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
 # The UI extension provides the exit dialog with the launch checkbox; its major version must match the tool's.
 wix extension add --global "WixToolset.UI.wixext/$WixVersion" 2>&1 | Out-Null
 
-function Sign-File([string]$Path, [string]$Arch) {
+function Sign-File([string]$Path) {
     Write-Host "== Signing $Path"
-    $dlib = $env:AZURE_TRUSTED_SIGNING_DLIB
-    $metadata = Join-Path $out "signing-$Arch.json"
-    @{
-        Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT
-        CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT
-        CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_PROFILE
-    } | ConvertTo-Json | Set-Content -Path $metadata -Encoding ascii
-    signtool sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib /dmdf $metadata $Path
+    if (-not $env:CERTUM_KEY_ID) { throw "CERTUM_KEY_ID (the signing certificate's SHA-1 thumbprint) is not set." }
+    signtool sign /v /fd SHA256 /sha1 $env:CERTUM_KEY_ID /tr http://time.certum.pl /td SHA256 $Path
     if ($LASTEXITCODE -ne 0) { throw "signtool failed for $Path" }
+    signtool verify /pa /v $Path
+    if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $Path" }
 }
 
 foreach ($arch in $Architectures) {
@@ -82,7 +78,7 @@ foreach ($arch in $Architectures) {
         $reported = (& (Join-Path $cliDir "elevate.exe") --version).Trim()
         if ($reported -ne $Version) { throw "elevate --version printed '$reported', expected '$Version'" }
     }
-    if ($Sign) { Sign-File (Join-Path $cliDir "elevate.exe") $arch }
+    if ($Sign) { Sign-File (Join-Path $cliDir "elevate.exe") }
 
     $msi = Join-Path $out "Elevate-$Version-$arch.msi"
     Write-Host "== Building $msi"
@@ -90,7 +86,7 @@ foreach ($arch in $Architectures) {
         -d "CliDir=$cliDir" -ext WixToolset.UI.wixext -b $installer -o $msi
     if ($LASTEXITCODE -ne 0) { throw "wix build failed for $arch" }
 
-    if ($Sign) { Sign-File $msi $arch }
+    if ($Sign) { Sign-File $msi }
 
     $hash = (Get-FileHash -Algorithm SHA256 $msi).Hash.ToLowerInvariant()
     "$hash *$(Split-Path -Leaf $msi)" | Set-Content -Path "$msi.sha256" -Encoding ascii
