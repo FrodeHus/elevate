@@ -635,7 +635,7 @@ jobs:
           $x64 = (Get-Content "cli/dist/elevate-cli-$env:VERSION-win-x64.zip.sha256").Split(' ')[0]
           $arm64 = (Get-Content "cli/dist/elevate-cli-$env:VERSION-win-arm64.zip.sha256").Split(' ')[0]
           ./cli/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
-          winget validate --manifest "cli/winget/manifests/r/Reothor/Elevate.CLI/$env:VERSION"
+          winget validate --manifest "cli/winget/manifests/r/Reothor/Elevate/CLI/$env:VERSION"
 
       - name: Upload archives
         uses: actions/upload-artifact@v7

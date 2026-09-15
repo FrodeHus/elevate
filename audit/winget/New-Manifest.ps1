@@ -4,9 +4,9 @@
 
 .DESCRIPTION
   Fills the three templates in this directory (version, installer, locale) and writes them to
-  manifests\r\Reothor\Elevate.Audit\<version>\, the layout microsoft/winget-pkgs expects. elevate-audit
-  is a portable package: winget unpacks the zip and puts `elevate-audit` on the PATH through its
-  links directory. Validate the result with `winget validate manifests\r\Reothor\Elevate.Audit\<version>`.
+  manifests\r\Reothor\Elevate\Audit\<version>\, the layout microsoft/winget-pkgs expects: every
+  dot-separated segment of the identifier is a directory level. elevate-audit is a portable package: winget unpacks the zip and puts `elevate-audit` on the PATH through its
+  links directory. Validate the result with `winget validate manifests\r\Reothor\Elevate\Audit\<version>`.
 
 .PARAMETER Version
   The release version, e.g. 1.3.0.
@@ -30,7 +30,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$target = Join-Path $PSScriptRoot "manifests\r\Reothor\Elevate.Audit\$Version"
+$target = Join-Path $PSScriptRoot "manifests\r\Reothor\Elevate\Audit\$Version"
 New-Item -ItemType Directory -Force -Path $target | Out-Null
 
 $values = @{
