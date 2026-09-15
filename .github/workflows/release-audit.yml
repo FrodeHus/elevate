@@ -1,0 +1,362 @@
+name: Release audit
+
+# The audit tool's own release line, independent of the app's. Pushing `audit-v<version>` builds
+# the six elevate-audit archives (Linux, macOS and Windows, x64 and arm64) from that commit,
+# publishes a GitHub Release "Elevate Audit <version>" — never marked as the repository's latest
+# release, which stays the app's — with the archives, a checksums file and the changelog section
+# for that version, and commits the Homebrew formula to main. The tagged commit must be on main
+# and its audit/CHANGELOG.md must already have the section for that version; the check job
+# refuses anything else before a build starts.
+#
+# Running the workflow by hand with a version does the steps before the tag as well: it checks
+# that the Audit CI run on main is green, moves the Unreleased entries of audit/CHANGELOG.md
+# under the new version, commits that to main and pushes the tag. That tag push starts a second
+# run of this workflow, which builds and publishes; the manual run ends after the tag. Both
+# pushes use the RELEASE_DEPLOY_KEY deploy key, as release.yml does.
+#
+# The tag prefix keeps the two release lines apart: release.yml runs for `v*`, this one for
+# `audit-v*`, and neither pattern matches the other's tags.
+
+on:
+  push:
+    tags: ["audit-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Audit tool version to release, e.g. 1.6.8 or audit-v1.6.8"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prepare:
+    name: Cut changelog and tag
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # Every tag is audit-v<x.y.z>; accept the version typed with either prefix or none.
+      - name: Check the version and the tag
+        run: |
+          # The typed input stays in $VERSION (an env var, never expanded into the script).
+          TYPED="$VERSION"
+          VERSION="${VERSION#audit-}"
+          VERSION="${VERSION#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be x.y.z, vx.y.z or audit-vx.y.z, got '$TYPED'"; exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if git ls-remote --exit-code --tags origin "refs/tags/audit-v$VERSION" >/dev/null; then
+            echo "::error::Tag audit-v$VERSION already exists"; exit 1
+          fi
+
+      # "main is green": the latest Audit CI run on main must have finished and passed.
+      - name: Check that main is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run="$(gh run list --workflow audit.yml --branch main --event push --limit 1 --json status,conclusion,headSha,url --jq '.[0]')"
+          if [ -z "$run" ] || [ "$run" = "null" ]; then echo "audit.yml: no run on main yet"; exit 0; fi
+          status="$(jq -r .status <<<"$run")"; conclusion="$(jq -r .conclusion <<<"$run")"; url="$(jq -r .url <<<"$run")"
+          if [ "$status" != "completed" ]; then echo "::error::audit.yml is still $status on main: $url"; exit 1; fi
+          if [ "$conclusion" != "success" ]; then echo "::error::audit.yml last ended with $conclusion on main: $url"; exit 1; fi
+          echo "audit.yml: success ($(jq -r .headSha <<<"$run" | cut -c1-7))"
+
+      - name: Cut the changelog
+        run: ./scripts/cut-changelog.sh --file audit/CHANGELOG.md --tag-prefix audit-v "$VERSION" "$(date -u +%Y-%m-%d)" "${{ github.repository }}"
+
+      - name: Configure the deploy key
+        env:
+          KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::RELEASE_DEPLOY_KEY is not set"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/release_key && chmod 600 ~/.ssh/release_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/release_key -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+          git remote set-url origin "git@github.com:${{ github.repository }}.git"
+
+      - name: Commit the changelog and push the tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add audit/CHANGELOG.md
+          git commit -m "Audit changelog: $VERSION"
+          git tag -a "audit-v$VERSION" -m "Elevate Audit $VERSION"
+          git push origin HEAD:main
+          git push origin "audit-v$VERSION"
+          echo "Pushed audit-v$VERSION; the tag run builds and publishes the release." >> "$GITHUB_STEP_SUMMARY"
+
+  # Everything after this job signs and notarizes with the release certificates, publishes the
+  # release and pushes to main with the deploy key. Only a commit that already reached main,
+  # carrying the changelog section the manual run cuts, may get there.
+  check:
+    name: Check the tag
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check that the tag is on main and has a changelog section
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main && rc=0 || rc=$?
+          if [ "$rc" -eq 1 ]; then
+            echo "::error::$TAG points at $(git rev-parse --short "$GITHUB_SHA"), which is not on main; only tags on main are released"
+            exit 1
+          elif [ "$rc" -ne 0 ]; then
+            echo "::error::git merge-base failed with status $rc"; exit "$rc"
+          fi
+          if ! grep -q "^## \[${TAG#audit-v}\]" audit/CHANGELOG.md; then
+            echo "::error::audit/CHANGELOG.md at $TAG has no \"## [${TAG#audit-v}]\" section; run scripts/cut-changelog.sh --file audit/CHANGELOG.md --tag-prefix audit-v first"
+            exit 1
+          fi
+
+  # One self-contained single-file binary per platform, built on that platform's runner so the
+  # macOS and Windows binaries can be signed with the same secrets as the apps. Each archive holds
+  # just the executable; the .sha256 next to it feeds the formula and the manifest.
+  audit:
+    name: Audit (${{ matrix.name }})
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux, rids: "linux-x64 linux-arm64" }
+          - { os: macos-26, name: macos, rids: "osx-arm64 osx-x64" }
+          - { os: windows-latest, name: windows, rids: "win-x64 win-arm64" }
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: audit/global.json
+
+      - name: Version
+        shell: bash
+        run: echo "VERSION=${TAG#audit-v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: dotnet test audit/Elevate.Audit.sln -c Release
+
+      - name: Publish
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./audit/package.sh publish "$VERSION" "$rid"
+          done
+
+      # macOS: Developer ID signature with hardened runtime and a notarization ticket, the same
+      # secrets as the app. A bare binary cannot be stapled; Gatekeeper checks the ticket online.
+      - name: Detect macOS signing secrets
+        if: matrix.name == 'macos'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+        run: |
+          if [ -n "$P12" ]; then echo "HAVE_CERT=1" >> "$GITHUB_ENV"; else echo "Developer ID secrets not configured; publishing unsigned macOS binaries."; fi
+
+      - name: Sign and notarize (macOS)
+        if: matrix.name == 'macos' && env.HAVE_CERT == '1'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "$P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security list-keychains -d user -s build.keychain $(security list-keychains -d user | tr -d '"')
+          security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm -f cert.p12
+          for rid in ${{ matrix.rids }}; do
+            bin="audit/dist/$rid/elevate-audit"
+            codesign --force --options runtime --timestamp --entitlements cli/elevate.entitlements -s "Developer ID Application" "$bin"
+            codesign --verify --strict --verbose=2 "$bin"
+            ditto -c -k --keepParent "$bin" "notarize-$rid.zip"
+            xcrun notarytool submit "notarize-$rid.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            rm -f "notarize-$rid.zip"
+          done
+
+      # Windows: the Certum certificate, the same secrets and session script as the app release.
+      - name: Detect Windows signing secrets
+        if: matrix.name == 'windows'
+        shell: pwsh
+        env:
+          OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+        run: |
+          if ($env:OTP_URI) { "SIGN=1" | Out-File -FilePath $env:GITHUB_ENV -Append } else { Write-Host "Certum signing secrets not configured; publishing unsigned Windows binaries." }
+
+      - name: Open the SimplySign session
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: ./scripts/Connect-SimplySign.ps1
+
+      - name: Sign (Windows)
+        if: matrix.name == 'windows' && env.SIGN == '1'
+        shell: pwsh
+        env:
+          CERTUM_KEY_ID: ${{ secrets.CERTUM_KEY_ID }}
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          foreach ($rid in "${{ matrix.rids }}".Split(' ')) {
+            & $signtool.FullName sign /v /fd SHA256 /sha1 $env:CERTUM_KEY_ID /tr http://time.certum.pl /td SHA256 "audit/dist/$rid/elevate-audit.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $rid" }
+            & $signtool.FullName verify /pa /v "audit/dist/$rid/elevate-audit.exe"
+            if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $rid" }
+          }
+
+      - name: Archive
+        shell: bash
+        run: |
+          for rid in ${{ matrix.rids }}; do
+            ./audit/package.sh archive "$VERSION" "$rid"
+          done
+          ls -la audit/dist
+
+      - name: winget manifest (audit)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $x64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-x64.zip.sha256").Split(' ')[0]
+          $arm64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-arm64.zip.sha256").Split(' ')[0]
+          ./audit/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
+          winget validate --manifest "audit/winget/manifests/r/Reothor/Elevate.Audit/$env:VERSION"
+
+      - name: Upload archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-${{ matrix.name }}
+          path: |
+            audit/dist/elevate-audit-*.tar.gz
+            audit/dist/elevate-audit-*.zip
+            audit/dist/elevate-audit-*.sha256
+          if-no-files-found: error
+
+      # Like the app's manifest: kept as an artifact until releases are signed, then submitted by hand.
+      - name: Manifest artifact (audit)
+        if: matrix.name == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: winget-audit-manifest
+          path: audit/winget/manifests
+
+  publish:
+    name: Publish release
+    needs: audit
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: audit-*
+          path: dist
+          merge-multiple: true
+
+      - name: Version and checksums
+        run: |
+          echo "VERSION=${TAG#audit-v}" >> "$GITHUB_ENV"
+          # One checksums file for the six archives, the usual shape for `sha256sum -c`.
+          (cd dist && for f in elevate-audit-*.sha256; do printf '%s  %s\n' "$(cut -d' ' -f1 "$f")" "${f%.sha256}"; done) > "dist/elevate-audit-${TAG#audit-v}-checksums.txt"
+          cat "dist/elevate-audit-${TAG#audit-v}-checksums.txt"
+
+      - name: Release notes
+        run: |
+          {
+            # The changelog section for this version.
+            awk -v v="$VERSION" '
+              /^## \[/ { on = (index($0, "## [" v "]") == 1); if (on) { next } }
+              on { print }
+            ' audit/CHANGELOG.md | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'
+            echo
+            echo "## Install"
+            echo
+            echo 'The read-only companion that lists standing privileged access to move to PIM. One self-contained `elevate-audit` binary per platform, no runtime to install.'
+            echo
+            echo 'macOS and Linux with Homebrew (the fully qualified name is required: this tap is not a homebrew- named repository):'
+            echo
+            echo '    brew tap FrodeHus/elevate https://github.com/FrodeHus/elevate'
+            echo '    brew trust frodehus/elevate'
+            echo '    brew install frodehus/elevate/elevate-audit'
+            echo
+            echo 'Windows: `winget install Reothor.Elevate.Audit` once the manifest is submitted; until then download `elevate-audit-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate-audit.exe` on your PATH.'
+            echo
+            echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-audit-'"$VERSION"'-checksums.txt`. See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
+            echo
+            echo 'The Elevate app and CLI are released separately, under the `v` tags; this release carries the audit tool only.'
+          } > notes.md
+          cat notes.md
+
+      # --latest=false: the repository's "latest release" (releases/latest, the README badge, the
+      # app's update check) stays the app's release, whichever line published most recently.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$TAG"
+          dist/elevate-audit-$VERSION-*.tar.gz
+          dist/elevate-audit-$VERSION-*.zip
+          dist/elevate-audit-$VERSION-*.sha256
+          "dist/elevate-audit-$VERSION-checksums.txt"
+          --title "Elevate Audit $VERSION" --notes-file notes.md --latest=false
+
+      - name: Configure the deploy key
+        env:
+          KEY: ${{ secrets.RELEASE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::RELEASE_DEPLOY_KEY is not set"; exit 1; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/release_key && chmod 600 ~/.ssh/release_key
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          echo "GIT_SSH_COMMAND=ssh -i ~/.ssh/release_key -o IdentitiesOnly=yes" >> "$GITHUB_ENV"
+          git remote set-url origin "git@github.com:${{ github.repository }}.git"
+
+      # The deploy key bypasses the pull-request requirement on main, so the formula lands
+      # directly. A retry covers a commit that reached main while this run was building.
+      - name: Update the formula on main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B release-audit-formula origin/main
+            ./scripts/update-audit-formula.sh "$VERSION" "${{ github.repository }}" dist
+            if git diff --quiet -- Formula/elevate-audit.rb; then
+              echo "Formula already up to date."
+              exit 0
+            fi
+            git add Formula/elevate-audit.rb
+            git commit -m "Formula: Elevate Audit $VERSION"
+            if git push origin HEAD:main; then exit 0; fi
+            echo "Push rejected (attempt $attempt); refetching main."
+          done
+          echo "::error::Could not push the formula update to main"; exit 1

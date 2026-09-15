@@ -37,22 +37,22 @@ class ElevateAudit < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/$REPO/releases/download/v#{version}/elevate-audit-#{version}-osx-arm64.tar.gz"
+      url "https://github.com/$REPO/releases/download/audit-v#{version}/elevate-audit-#{version}-osx-arm64.tar.gz"
       sha256 "$OSX_ARM"
     end
     on_intel do
-      url "https://github.com/$REPO/releases/download/v#{version}/elevate-audit-#{version}-osx-x64.tar.gz"
+      url "https://github.com/$REPO/releases/download/audit-v#{version}/elevate-audit-#{version}-osx-x64.tar.gz"
       sha256 "$OSX_X64"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/$REPO/releases/download/v#{version}/elevate-audit-#{version}-linux-arm64.tar.gz"
+      url "https://github.com/$REPO/releases/download/audit-v#{version}/elevate-audit-#{version}-linux-arm64.tar.gz"
       sha256 "$LINUX_ARM"
     end
     on_intel do
-      url "https://github.com/$REPO/releases/download/v#{version}/elevate-audit-#{version}-linux-x64.tar.gz"
+      url "https://github.com/$REPO/releases/download/audit-v#{version}/elevate-audit-#{version}-linux-x64.tar.gz"
       sha256 "$LINUX_X64"
     end
   end

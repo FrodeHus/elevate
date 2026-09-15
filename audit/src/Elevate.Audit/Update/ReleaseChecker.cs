@@ -4,16 +4,24 @@ using Elevate.Core.Networking;
 
 namespace Elevate.Audit.Update;
 
-/// <summary>The newest published release that ships an elevate-audit archive. Same shape as the CLI's checker, different asset prefix.</summary>
+/// <summary>
+/// The newest published audit release that ships an elevate-audit archive. Same shape as the
+/// CLI's checker, but over the audit tool's own release line: tags are <c>audit-v&lt;x.y.z&gt;</c>,
+/// and the app's <c>v</c> releases are skipped even though those up to 1.6.7 carried audit
+/// archives, so an old app release is never offered as an upgrade.
+/// </summary>
 public sealed class ReleaseChecker(IHttpClient http, Uri? url = null)
 {
     public const string AssetPrefix = "elevate-audit-";
+
+    public const string TagPrefix = "audit-v";
 
     public static readonly Uri ReleasesUrl = new("https://api.github.com/repos/FrodeHus/elevate/releases?per_page=20");
 
     public sealed record Release(string Tag, Uri Url)
     {
-        public string Version => Tag.StartsWith('v') || Tag.StartsWith('V') ? Tag[1..] : Tag;
+        /// <summary>"1.2.3" for the tag "audit-v1.2.3".</summary>
+        public string Version => StripPrefix(Tag);
     }
 
     private sealed record Asset(string? Name);
@@ -51,7 +59,7 @@ public sealed class ReleaseChecker(IHttpClient http, Uri? url = null)
         }
 
         var release = releases?.FirstOrDefault(r =>
-            r.Tag_name is { } tag && tag.StartsWith('v')
+            r.Tag_name is { } tag && tag.StartsWith(TagPrefix, StringComparison.Ordinal)
             && r.Html_url is not null && r.Draft != true && r.Prerelease != true
             && r.Assets?.Any(a => a.Name?.StartsWith(AssetPrefix, StringComparison.OrdinalIgnoreCase) == true) == true);
         return release is null ? null : new Release(release.Tag_name!, release.Html_url!);
@@ -62,7 +70,7 @@ public sealed class ReleaseChecker(IHttpClient http, Uri? url = null)
     {
         static Version Parse(string text)
         {
-            var core = text.TrimStart('v', 'V');
+            var core = StripPrefix(text);
             var cut = core.IndexOfAny(['-', '+']);
             if (cut >= 0)
             {
@@ -79,5 +87,12 @@ public sealed class ReleaseChecker(IHttpClient http, Uri? url = null)
         }
 
         return Parse(tag) > Parse(current);
+    }
+
+    /// <summary>"1.2.3" for "audit-v1.2.3", "v1.2.3" or "1.2.3".</summary>
+    private static string StripPrefix(string tag)
+    {
+        var core = tag.StartsWith(TagPrefix, StringComparison.Ordinal) ? tag[TagPrefix.Length..] : tag;
+        return core.TrimStart('v', 'V');
     }
 }

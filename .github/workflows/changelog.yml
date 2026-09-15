@@ -1,8 +1,10 @@
 name: Changelog
 
-# A pull request that changes the apps, the audit tool or the shared role data must also add to the Unreleased
-# section of CHANGELOG.md, or the release run fails at "Cut the changelog" with nothing to say
-# (as 1.2.7 did after three panel PRs merged without notes). Housekeeping — CI, docs, the cask
+# A pull request that changes the apps or the shared role data must also add to the Unreleased
+# section of CHANGELOG.md, and one that changes the audit tool to the Unreleased section of
+# audit/CHANGELOG.md, or the release run fails at "Cut the changelog" with nothing to say (as
+# 1.2.7 did after three panel PRs merged without notes). The audit tool has its own changelog
+# because it is released on its own, under audit-v tags. Housekeeping — CI, docs, the cask
 # bump, the changelog cut itself — is exempt by path; anything else can opt out with the
 # "no changelog" label.
 
@@ -23,7 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Require an Unreleased entry for app changes
+      - name: Require an Unreleased entry for app and audit changes
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -33,13 +35,24 @@ jobs:
             echo "Labelled \"no changelog\"; skipping." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
           fi
           changed="$(git diff --name-only "$BASE" "$HEAD")"
-          if ! grep -Eq '^(macos/|windows/|cli/|shared/|audit/)' <<<"$changed"; then
-            echo "No app or shared changes; nothing to note." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
-          fi
           # The Unreleased body is everything between its heading and the next "## " heading.
-          unreleased() { git show "$1:CHANGELOG.md" | awk '/^## \[Unreleased\]/{f=1; next} /^## /{f=0} f' | grep -v '^[[:space:]]*$' || true; }
-          if [ "$(unreleased "$BASE")" = "$(unreleased "$HEAD")" ]; then
-            echo "::error file=CHANGELOG.md::This pull request changes the app but adds nothing under \"## [Unreleased]\" in CHANGELOG.md. Add a line there (Added / Changed / Fixed), or label the pull request \"no changelog\" if there is genuinely nothing to tell users."
-            exit 1
+          # A file missing at a commit reads as empty.
+          unreleased() { git show "$1:$2" 2>/dev/null | awk '/^## \[Unreleased\]/{f=1; next} /^## /{f=0} f' | grep -v '^[[:space:]]*$' || true; }
+          require() {
+            local file="$1" what="$2"
+            if [ "$(unreleased "$BASE" "$file")" = "$(unreleased "$HEAD" "$file")" ]; then
+              echo "::error file=$file::This pull request changes $what but adds nothing under \"## [Unreleased]\" in $file. Add a line there (Added / Changed / Fixed), or label the pull request \"no changelog\" if there is genuinely nothing to tell users."
+              exit 1
+            fi
+            echo "$file: Unreleased section changed; thank you." | tee -a "$GITHUB_STEP_SUMMARY"
+          }
+          noted=0
+          if grep -Eq '^(macos/|windows/|cli/|shared/)' <<<"$changed"; then
+            require CHANGELOG.md "the app"; noted=1
           fi
-          echo "Unreleased section changed; thank you." | tee -a "$GITHUB_STEP_SUMMARY"
+          if grep -Eq '^audit/' <<<"$changed"; then
+            require audit/CHANGELOG.md "the audit tool"; noted=1
+          fi
+          if [ "$noted" = 0 ]; then
+            echo "No app, audit or shared changes; nothing to note." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

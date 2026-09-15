@@ -120,7 +120,9 @@ All suites must pass before a pull request is merged.
   fixtures, screenshots or issue text. Client ids are configured at runtime in Settings.
 - Keep documentation next to the change: user-visible behaviour in `README.md`,
   `macos/README.md`, `windows/README.md` or `cli/README.md`, notable changes in
-  [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`.
+  [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`. The audit tool has its own
+  changelog, [audit/CHANGELOG.md](audit/CHANGELOG.md), because it is released on its own; a
+  change under `audit/` goes there instead.
 
 ## Pull requests
 
@@ -147,5 +149,6 @@ Commit the regenerated JSON together with a note of when it was refreshed.
 Releases are tag-driven: pushing a `v*` tag builds both apps and the CLI from that commit,
 publishes one GitHub Release with the DMG, the pkg and MSIs (which carry the CLI), the standalone
 CLI archives, and updates the Homebrew cask and the deprecated formula. All three share the
-version number. Maintainers only — the full procedure, including the optional signing secrets, is
+version number. The audit tool is released separately, from `audit-v*` tags, with its own version
+and changelog. Maintainers only — the full procedure, including the optional signing secrets, is
 in [docs/releasing.md](docs/releasing.md).
