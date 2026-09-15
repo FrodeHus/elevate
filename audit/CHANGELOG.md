@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- winget manifest: the release-notes link points at the `audit-v` tag, not the app's `v` tag.
+
 ## [1.0.1] - 2026-09-15
 
 ### Changed
