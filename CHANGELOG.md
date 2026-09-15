@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-15
+
 ### Changed
 
 - Windows: the release workflow signs the MSIs, `elevate.exe` and `elevate-audit.exe` with a
@@ -615,7 +617,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.6.7...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...v1.7.0
 [1.6.7]: https://github.com/FrodeHus/elevate/compare/v1.6.6...v1.6.7
 [1.6.6]: https://github.com/FrodeHus/elevate/compare/v1.6.5...v1.6.6
 [1.6.5]: https://github.com/FrodeHus/elevate/compare/v1.6.4...v1.6.5
