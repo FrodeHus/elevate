@@ -86,8 +86,10 @@ main() {
   fi
   gh api -X POST "repos/$fork/merge-upstream" -f branch=master >/dev/null 2>&1 || true
 
-  if [ -n "$(gh pr list --repo "$UPSTREAM" --head "$owner:$branch" --state open --json number -q '.[0].number')" ]; then
-    echo "A pull request from $owner:$branch is already open; nothing to do."
+  local open_pr
+  open_pr="$(gh api "repos/$UPSTREAM/pulls?state=open&head=$owner:$branch" -q '.[0].html_url')"
+  if [ -n "$open_pr" ]; then
+    echo "A pull request from $owner:$branch is already open ($open_pr); nothing to do."
     exit 0
   fi
 
