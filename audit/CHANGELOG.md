@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: `elevate-audit.exe` is code-signed with the project's Certum certificate (publisher
+  "Open Source Developer Frode Hus"), like the app and the CLI.
+
 ## [1.0.0] - 2026-09-14
 
 ### Changed
