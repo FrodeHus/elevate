@@ -5,8 +5,8 @@
 .DESCRIPTION
   For every architecture: publishes the app and the CLI, then `wix build` of Elevate.wxs into
   out\Elevate-<version>-<arch>.msi with a .sha256 next to it; the MSI installs both and puts the
-  folder on the user's PATH. Signs the MSI and elevate.exe with signtool and the Certum
-  code-signing certificate when -Sign is given. Needs the .NET 10 SDK and WiX v5
+  folder on the user's PATH. Signs the app's executable and assemblies, elevate.exe and the MSI
+  with signtool and the Certum code-signing certificate when -Sign is given. Needs the .NET 10 SDK and WiX v5
   (`dotnet tool install --global wix --version 5.0.2`).
 
 .PARAMETER Version
@@ -63,6 +63,12 @@ foreach ($arch in $Architectures) {
     dotnet publish $project -c $Configuration -r "win-$arch" -p:Platform=$arch --self-contained false `
         -p:Version=$Version -p:WindowsAppSDKSelfContained=true -o $publishDir
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for $arch" }
+    # The MSI's signature covers the package, not the files it installs: sign the app's own
+    # executable and assemblies too, so the installed Elevate.exe carries the publisher and Settings
+    # > About can show it. The Windows App SDK and .NET files next to them are Microsoft-signed.
+    if ($Sign) {
+        foreach ($file in Get-ChildItem $publishDir -Include "Elevate.exe", "Elevate*.dll" -Recurse) { Sign-File $file.FullName }
+    }
 
     # The CLI: self-contained single file (the csproj's publish settings), signed before it goes
     # into the package so the MSI carries a signed elevate.exe.
