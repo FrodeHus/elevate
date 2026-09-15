@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-15
+
 ### Changed
 
 - Windows: `elevate-audit.exe` is code-signed with the project's Certum certificate (publisher
@@ -42,6 +44,7 @@ The last audit build inside an app release, before the tool's own numbering bega
 - Every "Start here" item now carries a pill naming its area, so "User Access Administrator on
   Production" reads as Azure RBAC rather than an Entra role, and the pill links to that section.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/audit-v1.0.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/audit-v1.0.1...HEAD
+[1.0.1]: https://github.com/FrodeHus/elevate/compare/audit-v1.0.0...audit-v1.0.1
 [1.0.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...audit-v1.0.0
 [1.6.7]: https://github.com/FrodeHus/elevate/releases/tag/v1.6.7
