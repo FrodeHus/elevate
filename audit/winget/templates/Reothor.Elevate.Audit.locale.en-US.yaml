@@ -27,7 +27,7 @@ Tags:
 - privileged-identity-management
 - rbac
 - security
-ReleaseNotesUrl: https://github.com/FrodeHus/elevate/releases/tag/v{{VERSION}}
+ReleaseNotesUrl: https://github.com/FrodeHus/elevate/releases/tag/audit-v{{VERSION}}
 Documentations:
 - DocumentLabel: Guide
   DocumentUrl: https://github.com/FrodeHus/elevate/blob/main/docs/audit.md
