@@ -1,6 +1,6 @@
 cask "elevate" do
-  version "1.6.7"
-  sha256 "bdc58333b86673375491bdef039bc7ff25fc5279c888bf9b99498656a3cce287"
+  version "1.7.0"
+  sha256 "3a89f35697be6bb3cb9723bcb75c7199cba87dd1dd4139c5c0bda648de1a2c78"
 
   url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/Elevate-#{version}.pkg"
   name "Elevate"
