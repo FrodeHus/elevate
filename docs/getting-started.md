@@ -26,10 +26,10 @@ Pick your platform:
   [latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it; the steps,
   including the .NET runtime it needs, are in [windows/README.md](../windows/README.md#install).
   The MSI installs the app and the `elevate` command for the current user, no admin rights needed.
-  Releases are not code-signed yet, so SmartScreen asks once: choose **More info**, then **Run
-  anyway**, after checking the file against the SHA-256 in the release notes. Elevate then lives
-  in the notification area: left-click the icon for the flyout, right-click for Open, Settings and
-  Quit.
+  The MSI is code-signed (publisher "Open Source Developer Frode Hus"). SmartScreen may still
+  ask once while a new release builds reputation: check that the publisher name is shown, then
+  choose **More info** and **Run anyway**. Elevate then lives in the notification area:
+  left-click the icon for the flyout, right-click for Open, Settings and Quit.
 - **The CLI on Linux, macOS or Windows.** Homebrew, a single binary from the release, or the
   copy bundled with the macOS package and the Windows MSI; see
   [cli/README.md](../cli/README.md#install). The rest of this guide describes the apps; the CLI

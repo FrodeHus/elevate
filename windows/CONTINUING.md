@@ -74,7 +74,7 @@ work added these:
 - **The update check reads the releases list**, not `releases/latest`, and keeps the first published `v*` release that carries an MSI: both platforms share one tag, but a macOS-only hotfix without an MSI must not offer itself to Windows users.
 - **`BuildInfo`** takes the version from the assembly's informational version (`installer/build.ps1` sets it from the tag) and the signing state from the executable's Authenticode signature; "Unsigned" for the current releases.
 - **Windows App SDK 1.8** (1.8.260804001), self-contained in the MSI; .NET itself is framework-dependent (`Microsoft.DotNet.Runtime.10`).
-- **The winget manifest is generated, not committed, and not submitted.** Releases are unsigned until the Certum secrets are set; winget moderation needs signed installers, so submission waits for the first signed release (issue #17).
+- **The winget manifest is generated, not committed, and not submitted.** Releases are signed with the Certum certificate since the secrets went in on 2026-09-15; the manifest still has to be submitted by hand with `wingetcreate submit` (issue #17).
 
 ## Gotchas
 

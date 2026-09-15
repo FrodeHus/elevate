@@ -38,8 +38,9 @@ rebuild and re-sign the apps, and an app release does not republish it. See
    frodehus/elevate/elevate && elevate --version` on a Mac;
    `sudo installer -pkg Elevate-x.y.z.pkg -target /` on a Mac, then `which
    elevate` shows `/usr/local/bin/elevate`; run one MSI on a Windows machine,
-   confirm SmartScreen's "Run anyway" opens the app, and `elevate --version`
-   in a new terminal.
+   confirm the installer and the app show the Certum signature ("Open Source
+   Developer Frode Hus" in the file's Digital Signatures tab and in Settings >
+   About), and `elevate --version` in a new terminal.
 
 Pushing a `v*` tag by hand still works and skips step 2, as long as the tag
 points at a commit on `main` whose `CHANGELOG.md` already has the `## [x.y.z]`
