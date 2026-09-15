@@ -39,6 +39,8 @@ jobs:
       # Not site code, but this is the workflow that runs the repository scripts' tests.
       - name: Check the changelog cut script
         run: scripts/tests/cut-changelog.test.sh
+      - name: Check the winget submission script
+        run: scripts/tests/submit-winget.test.sh
 
   package:
     name: Package product page

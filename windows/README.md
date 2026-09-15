@@ -2,7 +2,7 @@
 
 The Windows 11 counterpart of the macOS menu bar app: a system-tray flyout for just-in-time
 Microsoft Entra and Azure PIM role activation, built with WinUI 3 on .NET 10, installed from a
-per-user MSI downloaded from the GitHub releases (a winget package is prepared for later).
+per-user MSI downloaded from the GitHub releases or installed with winget.
 
 UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the
 flyout, windows, tray states and tokens; open the file in a browser, it follows the OS theme).
@@ -31,8 +31,9 @@ for an independent check:
 ```
 
 Upgrade by running a newer MSI; uninstall from Settings > Apps, which removes the app, the CLI
-and the PATH entry. A winget package (`Reothor.Elevate`) is prepared and awaits submission to
-`microsoft/winget-pkgs`; see [Release](#release).
+and the PATH entry. Or install and upgrade with winget: `winget install Reothor.Elevate` (each
+release is submitted to `microsoft/winget-pkgs` and published once Microsoft's checks pass, so
+the newest version may lag the GitHub release by a day or two); see [Release](#release).
 
 ## Use
 
@@ -143,8 +144,8 @@ Releases are shared with the macOS app: tag `v<version>` on `main` and the
 release with the DMG, both MSIs and their SHA-256 files, and attaches the generated winget
 manifest as a workflow artifact. The MSIs and `elevate.exe` are signed with the Certum
 certificate (the secrets are in place; without them the workflow would build unsigned and say so
-in the release notes). The manifest is submitted to `microsoft/winget-pkgs` by hand. The full
-procedure is in [docs/releasing.md](../docs/releasing.md).
+in the release notes). The manifest is submitted to `microsoft/winget-pkgs` by the publish job
+(`scripts/submit-winget.sh`). The full procedure is in [docs/releasing.md](../docs/releasing.md).
 
 ### Deactivating a profile run
 

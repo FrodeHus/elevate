@@ -22,7 +22,7 @@ brew trust frodehus/elevate
 brew install frodehus/elevate/elevate-audit
 ```
 
-Windows: `winget install Reothor.Elevate.Audit` once the manifest is published; until then, or on
+Windows: `winget install Reothor.Elevate.Audit` (each release is submitted to winget and published once Microsoft's checks pass); otherwise, or on
 any platform, download `elevate-audit-<version>-<platform>.tar.gz` (`.zip` on Windows) from the
 [latest audit release](https://github.com/FrodeHus/elevate/releases?q=audit-v), unpack it anywhere
 on your PATH, and verify it with `sha256sum -c elevate-audit-<version>-checksums.txt`. The audit
