@@ -245,7 +245,7 @@ jobs:
           $x64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-x64.zip.sha256").Split(' ')[0]
           $arm64 = (Get-Content "audit/dist/elevate-audit-$env:VERSION-win-arm64.zip.sha256").Split(' ')[0]
           ./audit/winget/New-Manifest.ps1 -Version $env:VERSION -X64Sha256 $x64 -Arm64Sha256 $arm64 -Repository $env:GITHUB_REPOSITORY
-          winget validate --manifest "audit/winget/manifests/r/Reothor/Elevate.Audit/$env:VERSION"
+          winget validate --manifest "audit/winget/manifests/r/Reothor/Elevate/Audit/$env:VERSION"
 
       - name: Upload archives
         uses: actions/upload-artifact@v7
