@@ -90,13 +90,16 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
   Windows account picker opens, with the browser as fallback.
 - **Azure CLI app** and **Azure PowerShell app** are Microsoft's own apps. No consent, Azure
   resource roles only. Use the PowerShell one when your tenant blocks the Azure CLI.
-- **Company app (client ID)** (on Windows: **Custom client ID**) is for an existing
-  public-client registration that lists only `http://localhost`, such as a company-wide PIM app.
-  Type its ID; Elevate reads what it was granted after sign-in. For a second copy of the Elevate
-  registration, use **Use a different registration** below instead (macOS).
+- **Other app (browser sign-in)** is for any existing public-client registration that lists
+  `http://localhost`, such as a company-wide PIM app. Type its ID; what it can do depends on its
+  permissions, which Elevate reads after sign-in. For a second copy of the Elevate registration,
+  use **Use a different registration** below instead (macOS).
 - On macOS, choosing **Entra app registration** also offers **Use a different registration**,
   which pins that one account to a client ID of its own instead of the one in Settings. See
   [Using a second registration for some accounts](entra-app-registration.md#8-using-a-second-registration-for-some-accounts).
+- On macOS, an account added with the Azure CLI app, the Azure PowerShell app or an other app
+  registration can be upgraded to an Entra app registration later, from its account menu
+  (**Upgrade to Entra app registration…**), without losing its tenants or roles.
 
 Click **Continue**. Microsoft sign-in opens and returns you to Elevate. The account appears in
 the panel with its home tenant and, after a moment, the roles you are eligible for. The same

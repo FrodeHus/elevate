@@ -15,8 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   When the organization manages the client ID, such an account can only move to the managed
   registration. See
   [Using a second registration for some accounts](docs/entra-app-registration.md#8-using-a-second-registration-for-some-accounts).
+- macOS: an account added with the Azure CLI app, the Azure PowerShell app or **Other app
+  (browser sign-in)** can be upgraded to an Entra app registration from its account menu
+  (**Upgrade to Entra app registration…**), so Elevate can also read and activate Entra roles and
+  PIM for Groups for it — keeping its tenants, roles and profiles. The change commits only after
+  the same account signs in with the new registration.
 
 ### Changed
+
+- Renamed the "Company app (client ID)" sign-in method to **Other app (browser sign-in)** on
+  macOS and Windows. The stored value (`custom:<id>`) and the managed-configuration key
+  (`custom`) are unchanged.
 
 - macOS: changing the client ID in Settings no longer removes accounts. Accounts that use the
   Settings registration keep their tenants, roles and profiles and show **Sign in**; accounts with

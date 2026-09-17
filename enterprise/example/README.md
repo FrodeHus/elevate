@@ -19,7 +19,7 @@ how you manage the machine.
 |---|---|---|
 | `ClientId` | `11111111-2222-3333-4444-555555555555` | Users never enter a client id; setup skips that step and the Settings field is disabled. |
 | `DisableUpdateCheck` | `true` | No daily GitHub check, no update banner — Contoso ships Elevate through its MDM. |
-| `AllowedSignInMethods` | `["ownApp"]` | Only Contoso's own app registration; the Azure CLI, Azure PowerShell and custom-client options are hidden from Add account and from `elevate login --method`. |
+| `AllowedSignInMethods` | `["ownApp"]` | Only Contoso's own app registration; the Azure CLI, Azure PowerShell and Other app (browser sign-in) options are hidden from Add account and from `elevate login --method`. |
 | `AllowedTenants` | `["contoso.com", "fabrikam.com"]` | Only the corporate tenant and the subsidiary can be added or discovered. An account's own home tenant is always allowed. |
 | `PinnedTenants` | `["contoso.com", "fabrikam.com"]` | Both tenants are tracked automatically for every account that can reach them, so a new hire sees them without adding anything. |
 | `ManagedProfiles` | the "Prod incident" profile | Published to every machine: runnable and bindable to the hot key, but not editable, renamable, pinnable or deletable. |

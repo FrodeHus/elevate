@@ -244,3 +244,10 @@ accounts with their own registration yet; such an account shows "This account us
 registration, which this version of Elevate does not support yet."
 
 Copy diagnostics never includes any client ID, including one an account pins.
+
+**Upgrading an account that is not an Entra app registration yet:** the same account menu offers
+**Upgrade to Entra app registration…** for an account added with the Azure CLI app, the Azure
+PowerShell app or **Other app (browser sign-in)**. It works the same way as **Change app
+registration…** above — choose the Settings registration or a different one, then **Sign in and
+switch** — and keeps the account's tenants, roles and profiles; nothing changes until the same
+account signs in with the new registration.

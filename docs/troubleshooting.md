@@ -35,8 +35,9 @@ The account was added with the Azure CLI or Azure PowerShell app. Microsoft gran
 Graph PIM permissions, so Elevate never reads or activates Entra roles or group memberships for
 it and never shows permission errors for them either. Azure resource roles work normally.
 
-To get Entra roles for that account, sign it out and add it again with **Entra app registration**
-or a **Company app (client ID)**.
+To get Entra roles for that account, upgrade it to an Entra app registration from its account
+menu on macOS (**Upgrade to Entra app registration…**), which keeps its tenants and roles — or
+sign it out and add it again with **Entra app registration** or **Other app (browser sign-in)**.
 
 ## Azure is off in a tenant
 
