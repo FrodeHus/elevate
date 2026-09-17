@@ -35,15 +35,18 @@ func makeSettings(managed: ManagedConfiguration = .none) -> AppSettings {
 /// Pass `directory` to put the state file (and the managed profile cache beside it) somewhere the
 /// test chose, e.g. to give a second model the first one's cache.
 ///
-/// `ownAppViaLoopback` overrides what `BuildInfo.signingState` would say (it describes the test
-/// host, not a build under test): pass true to model an unsigned build, where the own-app
-/// registration signs in through the loopback flow instead of MSAL.
+/// `ownAppViaLoopback` stands in for what `BuildInfo.signingState` would say. That describes the
+/// test host, not a build under test, and an unsigned test host is ad-hoc, so leaving it to the
+/// signing state would reconcile own-app accounts against the real login keychain whenever the
+/// settings pick up a client id (e.g. migrated from a legacy bundle id on a developer Mac). It is
+/// false by default (MSAL transport); pass true to model an unsigned build, where the own-app
+/// registration signs in through the loopback flow instead.
 @MainActor
 func makeModel(state: AppState = AppState(), http: StubHTTPClient = StubHTTPClient(),
                online: Bool = false, network: NetworkMonitor? = nil, settings: AppSettings? = nil,
                managed: ManagedConfiguration = .none,
                tokens: FakeTokenProvider = FakeTokenProvider(),
-               ownAppViaLoopback: Bool? = nil, notifier: any ExpiryNotifying = NoopNotifier(),
+               ownAppViaLoopback: Bool = false, notifier: any ExpiryNotifying = NoopNotifier(),
                directory: URL? = nil) async -> AppModel {
     let stateDirectory = directory ?? URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("elevate-tests-\(UUID().uuidString)", isDirectory: true)
