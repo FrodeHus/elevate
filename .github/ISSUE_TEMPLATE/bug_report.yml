@@ -59,7 +59,7 @@ body:
       description: How the affected account was added.
       options:
         - Own app registration
-        - Custom client id
+        - Other app (browser sign-in)
         - Azure CLI
         - Azure PowerShell
     validations:

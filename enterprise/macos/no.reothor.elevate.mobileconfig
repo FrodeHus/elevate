@@ -67,7 +67,7 @@
                 <true/>
 
                 <!-- Delete this key to allow every sign-in method.
-                     Allowed names: ownApp, azureCLI, azurePowerShell, custom. -->
+                     Allowed names: ownApp, azureCLI, azurePowerShell, custom (Other app (browser sign-in)). -->
                 <key>AllowedSignInMethods</key>
                 <array>
                   <string>ownApp</string>

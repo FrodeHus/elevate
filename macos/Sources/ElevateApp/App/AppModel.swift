@@ -419,6 +419,7 @@ final class AppModel {
         }
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
         tenantsAwaitingSignIn = tenantsAwaitingSignIn.filter { $0.identityId != identityId }
+        declinedTenants = declinedTenants.filter { $0.identityId != identityId }
         dropApprovals { $0.identityId == identityId }
         dropPolicies { $0.identityId == identityId }
     }

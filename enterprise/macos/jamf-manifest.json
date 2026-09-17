@@ -39,7 +39,7 @@
     "AllowedSignInMethods": {
       "type": "array",
       "title": "Allowed sign-in methods",
-      "description": "The sign-in methods users may add accounts with. Leave out or empty to allow all of them.",
+      "description": "The sign-in methods users may add accounts with (custom is Other app (browser sign-in)). Leave out or empty to allow all of them.",
       "items": {
         "type": "string",
         "title": "Method",

@@ -29,7 +29,7 @@ If you disable or do not configure this policy, the daily check runs.</string>
       <string id="AllowedSignInMethods">Allowed sign-in methods</string>
       <string id="AllowedSignInMethods_Help">Limits which sign-in methods users may add accounts with.
 
-If you enable this policy, add one entry per allowed method, using the names ownApp, azureCLI, azurePowerShell and custom. An unrecognized name is ignored and reported as a warning. Accounts added earlier with a method that is no longer allowed keep working and are shown with a caption.
+If you enable this policy, add one entry per allowed method, using the names ownApp, azureCLI, azurePowerShell and custom (Other app (browser sign-in)). An unrecognized name is ignored and reported as a warning. Accounts added earlier with a method that is no longer allowed keep working and are shown with a caption.
 
 If you disable or do not configure this policy, every sign-in method is available.</string>
 
@@ -69,7 +69,7 @@ If you disable or do not configure this policy, no profile set is fetched.</stri
       </presentation>
       <presentation id="DisableUpdateCheck" />
       <presentation id="AllowedSignInMethods">
-        <listBox refId="AllowedSignInMethods">Allowed methods (ownApp, azureCLI, azurePowerShell, custom):</listBox>
+        <listBox refId="AllowedSignInMethods">Allowed methods (ownApp, azureCLI, azurePowerShell, custom (Other app (browser sign-in))):</listBox>
       </presentation>
       <presentation id="AllowedTenants">
         <listBox refId="AllowedTenants">Tenant ids or verified domains:</listBox>

@@ -35,12 +35,17 @@ struct AppModelRegistrationUpgradeTests {
                                    groupsUnavailableReason: "no consent")
         let model = await modelWithAccount(Sample.identity("new", method: .azureCLI), tenant: tenant, tokens: tokens)
         defer { cleanup(model) }
+        let key = TenantKey(identityId: "new", tenantId: Sample.tenantId)
+        // A limited method can leave a declined-consent-prompt marker and a stale-token hint
+        // behind too; both must be cleared on upgrade, not just the tenant's discovery flags.
+        model.declinedTenants = [key]
+        model.tokenHintAccounts = ["new"]
+        model.signInNeeded = ["new"]
 
         let ok = await model.changeSignInRegistration(model.identity("new")!, to: .ownApp)
 
         #expect(ok)
         #expect(model.identity("new")?.signInMethod == .ownApp)
-        let key = TenantKey(identityId: "new", tenantId: Sample.tenantId)
         let updated = model.tenant(key)
         #expect(updated?.discoveryMode == .automatic)
         #expect(updated?.lastDiscoveryError == nil)
@@ -51,6 +56,8 @@ struct AppModelRegistrationUpgradeTests {
         #expect(model.tenants(for: "new").map(\.tenantId) == [Sample.tenantId])
         #expect(model.state.manualRoles.count == 1)
         #expect(!model.needsSignIn("new"))
+        #expect(!model.declinedTenants.contains(key))
+        #expect(!model.tokenHintAccounts.contains("new"))
     }
 
     @Test func customAccountUpgradesToAPinnedRegistration() async {
