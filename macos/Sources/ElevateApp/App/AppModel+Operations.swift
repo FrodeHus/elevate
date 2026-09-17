@@ -60,7 +60,7 @@ extension AppModel {
     func diagnosticsText() -> String {
         let accounts = state.identities.map { identity in
             DiagnosticsAccount(upn: identity.upn,
-                               method: identity.signInMethod.displayName,
+                               method: identity.signInMethod.isPinned ? "\(identity.signInMethod.displayName) (own client ID)" : identity.signInMethod.displayName,
                                tenantCount: state.tenants(for: identity.id).count)
         }
         let tenants = state.tenants.map { tenant -> DiagnosticsTenant in

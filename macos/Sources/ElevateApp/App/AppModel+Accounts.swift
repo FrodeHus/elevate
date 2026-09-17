@@ -17,6 +17,42 @@ extension AppModel {
     /// The custom client id used last time, for prefilling the add-account dialog.
     var rememberedCustomClientId: String { settings.customClientId }
 
+    /// The last client id typed into "Use a different registration", for prefilling Add account.
+    var rememberedPinnedClientId: String { settings.pinnedClientId }
+
+    /// Whether an account can use an Entra app registration of its own: the organization allows
+    /// the method and has not fixed the client id, and this build has a way to sign in with it.
+    var canPin: Bool {
+        isMethodAllowed(.ownApp) && !settings.isClientIdManaged && (pinnedMSAL != nil || ownAppViaLoopback)
+    }
+
+    /// How Add account and the Change app registration sheet name the Settings registration.
+    var settingsRegistrationLabel: String {
+        if settings.isClientIdManaged { return "managed by your organization" }
+        if usesSharedApp { return "shared Elevate app" }
+        guard let id = effectiveClientId(for: .ownApp) else { return "not configured" }
+        return "\(id.prefix(8))…"
+    }
+
+    func matchesSettingsClientId(_ raw: String) -> Bool {
+        guard let id = effectiveClientId(for: .ownApp) else { return false }
+        return SignInMethod.normalizedClientId(id) == SignInMethod.normalizedClientId(raw)
+    }
+
+    /// Whether any request for the account is running, so its registration must not change now.
+    func isAccountBusy(_ identityId: String) -> Bool {
+        inFlight.contains { $0.identityId == identityId } || busy.contains { $0.identityId == identityId }
+    }
+
+    /// The loopback provider holding `method`'s refresh tokens, or nil when MSAL holds them.
+    func loopbackStore(for method: SignInMethod) -> LoopbackTokenProvider? {
+        switch method {
+        case .ownApp: ownAppLoopbackProvider
+        case .pinnedApp(let id): ownAppViaLoopback ? loopback.provider(clientId: id, reportedMethod: method) : nil
+        default: loopback.provider(for: method)
+        }
+    }
+
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
     ///
     /// `.ownApp` needs a client id and a transport for it: MSAL on a signed build, or — when MSAL
@@ -27,18 +63,19 @@ extension AppModel {
         guard isMethodAllowed(method) else { return false }
         return switch method {
         case .ownApp: isConfigured
+        case .pinnedApp(let id): canPin && AppSettings.isValidClientId(id)
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
     }
 
     /// The client id whose keychain refresh-token store `method` uses, or nil when it has none of
-    /// its own: `.ownApp` on a signed build keeps its tokens in MSAL's cache, not the keychain
-    /// store, so it shares nothing with any loopback method.
+    /// its own: either Entra app registration form on a signed build keeps its tokens in MSAL's
+    /// cache, not the keychain store, so it shares nothing with any loopback method.
     private func loopbackClientId(for method: SignInMethod) -> String? {
         guard method.usesMSAL else { return method.clientId }
-        guard ownAppViaLoopback, settings.isConfigured else { return nil }
-        return settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard ownAppViaLoopback else { return nil }
+        return effectiveClientId(for: method)
     }
 
     // MARK: Accounts
@@ -56,6 +93,7 @@ extension AppModel {
         guard isAvailable(method) else {
             switch method {
             case .ownApp: notice = "Complete initial setup first"
+            case .pinnedApp: notice = canPin ? "Enter the registration's application (client) ID as a GUID" : "Your own app registration is unavailable in this build"
             case .custom: notice = "Enter the custom app's application (client) ID as a GUID"
             default: notice = "That sign-in method is unavailable"
             }
@@ -63,12 +101,13 @@ extension AppModel {
             return false
         }
         if case .custom(let id) = method { settings.customClientId = id }
+        if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
         do {
             let identity = try await tokens.signIn(method: method)
             // The same account under a different method would fight over the same rows and tenants.
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
-                notice = "This account is already added with \(existing.signInMethod.displayName)"
-                logError("Add account: already added with \(existing.signInMethod.displayName)")
+                notice = "This account is already added with \(existing.signInMethod.detailedName)"
+                logError("Add account: already added with \(existing.signInMethod.detailedName)")
                 // Discard the sign-in we just made, but only when it does not share a keychain
                 // item with the account that is already there: refresh tokens are keyed
                 // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
@@ -85,7 +124,7 @@ extension AppModel {
             }
             // The own-app method keeps its refresh token in the Keychain too when it runs through
             // the loopback flow, so its save failures must be surfaced the same way.
-            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            let store = loopbackStore(for: method)
             if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")
@@ -137,7 +176,7 @@ extension AppModel {
                 return false
             }
             signInNeeded.remove(identity.id)
-            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            let store = loopbackStore(for: method)
             if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")

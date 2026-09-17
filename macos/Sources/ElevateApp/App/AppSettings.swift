@@ -20,6 +20,7 @@ final class AppSettings {
     /// happened instead of Microsoft's "this is not the right page" screen for `nativeclient`.
     static let sharedConsentRedirectURI = "https://elevate.reothor.no/consent.html"
     static let customClientIdKey = "customLoopbackClientId"
+    static let pinnedClientIdKey = "pinnedClientId"
     static let panelTabKey = "panelTab"
     static let collapsedActiveKey = "collapsedActive"
     static let collapsedApprovalsKey = "collapsedApprovals"
@@ -63,6 +64,11 @@ final class AppSettings {
     /// from the same company app needs no retyping. Not a configuration value in its own right.
     var customClientId: String {
         didSet { defaults.set(customClientId, forKey: Self.customClientIdKey) }
+    }
+
+    /// Last client id typed into "Use a different registration" in Add account.
+    var pinnedClientId: String {
+        didSet { defaults.set(pinnedClientId, forKey: Self.pinnedClientIdKey) }
     }
 
     /// The panel's last-used tab, so it reopens where the user left it.
@@ -181,6 +187,7 @@ final class AppSettings {
         }
         storedClientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
+        pinnedClientId = defaults.string(forKey: Self.pinnedClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
         collapsedApprovals = defaults.bool(forKey: Self.collapsedApprovalsKey)
