@@ -17,23 +17,36 @@ public enum SignInMethodKind
 /// How an account authenticates. First-party methods need no app registration or admin consent;
 /// <see cref="SignInMethodKind.Custom"/> is any other public-client registration used through the
 /// same loopback browser flow. Port of the Swift <c>SignInMethod</c> enum; stored as a single
-/// string ("ownApp", "azureCLI", "azurePowerShell", or "custom:&lt;client id&gt;").
+/// string ("ownApp", "azureCLI", "azurePowerShell", "ownApp:&lt;client id&gt;", or
+/// "custom:&lt;client id&gt;").
 /// </summary>
 public readonly record struct SignInMethod
 {
     public const string AzureCLIClientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
     public const string AzurePowerShellClientId = "1950a258-227b-4e31-a9cf-717495945fc2";
 
-    private SignInMethod(SignInMethodKind kind, string? customClientId)
+    /// <summary>Shown wherever a pinned account is used before the Windows app and CLI support it.</summary>
+    public const string PinnedUnsupportedMessage =
+        "This account uses its own app registration, which this version of Elevate does not support yet.";
+
+    // One field for the client id of both forms that carry one, so equality covers it.
+    private readonly string? _clientId;
+
+    private SignInMethod(SignInMethodKind kind, string? clientId)
     {
         Kind = kind;
-        CustomClientId = customClientId;
+        _clientId = clientId;
     }
 
     public SignInMethodKind Kind { get; }
 
-    /// <summary>Client id of a custom registration; null for every built-in method.</summary>
-    public string? CustomClientId { get; }
+    /// <summary>Client id of a custom registration; null for every other method.</summary>
+    public string? CustomClientId => Kind == SignInMethodKind.Custom ? _clientId : null;
+
+    /// <summary>Client id of a pinned own-app registration (stored "ownApp:&lt;id&gt;"); null otherwise.</summary>
+    public string? PinnedClientId => Kind == SignInMethodKind.OwnApp ? _clientId : null;
+
+    public bool IsPinned => PinnedClientId is not null;
 
     public static SignInMethod OwnApp => new(SignInMethodKind.OwnApp, null);
     public static SignInMethod AzureCLI => new(SignInMethodKind.AzureCLI, null);
@@ -46,6 +59,16 @@ public readonly record struct SignInMethod
         return new SignInMethod(SignInMethodKind.Custom, clientId);
     }
 
+    /// <summary>An own-app registration of the account's own, independent of the settings client id.</summary>
+    public static SignInMethod PinnedApp(string clientId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+        return new SignInMethod(SignInMethodKind.OwnApp, NormalizeClientId(clientId));
+    }
+
+    /// <summary>Trimmed and lower-cased, matching the Swift side.</summary>
+    public static string NormalizeClientId(string clientId) => clientId.Trim().ToLowerInvariant();
+
     /// <summary>The methods offered as fixed choices; a custom one needs a client id typed by the user.</summary>
     public static IReadOnlyList<SignInMethod> BuiltIn { get; } = [OwnApp, AzureCLI, AzurePowerShell];
 
@@ -57,16 +80,25 @@ public readonly record struct SignInMethod
         _ => "Company app (client ID)",
     };
 
+    /// <summary>Longer caption naming a pinned account's own client id.</summary>
+    public string DetailedName => IsPinned
+        ? $"{DisplayName} ({PinnedClientId![..Math.Min(8, PinnedClientId!.Length)]}…)"
+        : DisplayName;
+
     /// <summary>Client id used through the loopback flow, or null when the own MSAL registration is used.</summary>
     public string? ClientId => Kind switch
     {
-        SignInMethodKind.OwnApp => null,
+        SignInMethodKind.OwnApp => _clientId,
         SignInMethodKind.AzureCLI => AzureCLIClientId,
         SignInMethodKind.AzurePowerShell => AzurePowerShellClientId,
-        _ => CustomClientId,
+        _ => _clientId,
     };
 
-    public bool UsesMsal => Kind == SignInMethodKind.OwnApp;
+    /// <summary>
+    /// Whether the settings registration's MSAL provider serves this method. False for a pinned
+    /// account until the Windows app and CLI support per-account registrations.
+    /// </summary>
+    public bool UsesMsal => Kind == SignInMethodKind.OwnApp && !IsPinned;
 
     /// <summary>
     /// Whether the account signs in as the Azure CLI or Azure PowerShell app, whose token cache the
@@ -100,13 +132,13 @@ public readonly record struct SignInMethod
     /// <summary>The single string this method is persisted as.</summary>
     public string StorageKey => Kind switch
     {
-        SignInMethodKind.OwnApp => "ownApp",
+        SignInMethodKind.OwnApp => IsPinned ? $"ownApp:{_clientId}" : "ownApp",
         SignInMethodKind.AzureCLI => "azureCLI",
         SignInMethodKind.AzurePowerShell => "azurePowerShell",
-        _ => $"custom:{CustomClientId}",
+        _ => $"custom:{_clientId}",
     };
 
-    /// <summary>Parses a stored key. Returns false for an unknown key or an empty custom client id.</summary>
+    /// <summary>Parses a stored key. Returns false for an unknown key or an empty custom or pinned client id.</summary>
     public static bool TryFromStorageKey(string? storageKey, [NotNullWhen(true)] out SignInMethod? method)
     {
         method = storageKey switch
@@ -121,11 +153,24 @@ public readonly record struct SignInMethod
             return true;
         }
 
+        const string pinnedPrefix = "ownApp:";
+        if (storageKey is not null && storageKey.StartsWith(pinnedPrefix, StringComparison.Ordinal))
+        {
+            var id = storageKey[pinnedPrefix.Length..];
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                method = PinnedApp(id);
+                return true;
+            }
+
+            return false;
+        }
+
         const string prefix = "custom:";
         if (storageKey is not null && storageKey.StartsWith(prefix, StringComparison.Ordinal))
         {
             var id = storageKey[prefix.Length..];
-            if (id.Length > 0)
+            if (!string.IsNullOrWhiteSpace(id))
             {
                 method = new SignInMethod(SignInMethodKind.Custom, id);
                 return true;

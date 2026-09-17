@@ -6,8 +6,9 @@ namespace Elevate.Core;
 
 /// <summary>
 /// Reads and writes <see cref="SignInMethod"/> as the single storage string the Swift side uses:
-/// "ownApp", "azureCLI", "azurePowerShell", or "custom:&lt;client id&gt;". A JSON null decodes to
-/// <see cref="SignInMethod.OwnApp"/>, matching Swift's <c>decodeIfPresent ?? .ownApp</c>.
+/// "ownApp", "azureCLI", "azurePowerShell", "ownApp:&lt;client id&gt;", or "custom:&lt;client id&gt;".
+/// A JSON null decodes to <see cref="SignInMethod.OwnApp"/>, matching Swift's
+/// <c>decodeIfPresent ?? .ownApp</c>.
 /// </summary>
 public sealed class SignInMethodJsonConverter : JsonConverter<SignInMethod>
 {

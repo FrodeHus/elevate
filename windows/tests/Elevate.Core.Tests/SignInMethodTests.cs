@@ -86,4 +86,35 @@ public class SignInMethodTests
 
         identity!.SignInMethod.Should().Be(SignInMethod.OwnApp);
     }
+
+    [Fact]
+    public void PinnedAppRoundTripsLowerCased()
+    {
+        var pinned = SignInMethod.PinnedApp(" AAAAAAAA-2222-3333-4444-555555555555 ");
+
+        pinned.Kind.Should().Be(SignInMethodKind.OwnApp);
+        pinned.IsPinned.Should().BeTrue();
+        pinned.PinnedClientId.Should().Be("aaaaaaaa-2222-3333-4444-555555555555");
+        pinned.ClientId.Should().Be("aaaaaaaa-2222-3333-4444-555555555555");
+        pinned.CustomClientId.Should().BeNull();
+        pinned.UsesMsal.Should().BeFalse("the Windows app and CLI do not support pinned accounts yet");
+        pinned.Should().NotBe(SignInMethod.OwnApp);
+        pinned.DisplayName.Should().Be("Entra app registration");
+        pinned.DetailedName.Should().Be("Entra app registration (aaaaaaaa…)");
+        SignInMethod.OwnApp.IsPinned.Should().BeFalse();
+        SignInMethod.OwnApp.DetailedName.Should().Be("Entra app registration");
+        SignInMethod.Custom("abc").PinnedClientId.Should().BeNull();
+
+        var encoded = Json.Serialize(pinned);
+        encoded.Should().Be("\"ownApp:aaaaaaaa-2222-3333-4444-555555555555\"");
+        Json.Deserialize<SignInMethod>(encoded).Should().Be(pinned);
+        Json.Deserialize<SignInMethod>("\"ownApp:AAAAAAAA-2222-3333-4444-555555555555\"").Should().Be(pinned);
+        SignInMethod.TryFromStorageKey("ownApp:", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CustomWithWhitespaceOnlyIdFailsToDecode()
+    {
+        SignInMethod.TryFromStorageKey("custom:   ", out _).Should().BeFalse();
+    }
 }
