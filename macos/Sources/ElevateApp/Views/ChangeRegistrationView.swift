@@ -17,7 +17,8 @@ struct ChangeRegistrationView: View {
 
     private var identity: Identity? { model.identity(identityId) }
     private var chosen: Registration {
-        registration ?? (identity?.signInMethod.isPinned == true ? .different : .settings)
+        // Under a managed client id only the Settings (managed) registration can be chosen.
+        registration ?? (identity?.signInMethod.isPinned == true && model.canPin ? .different : .settings)
     }
     private var target: SignInMethod { chosen == .settings ? .ownApp : .pinned(clientId) }
     private var canContinue: Bool {
@@ -33,7 +34,9 @@ struct ChangeRegistrationView: View {
                 Text("Follow the registration in Settings (\(model.settingsRegistrationLabel))")
                     .tag(Registration.settings)
                     .disabled(!model.isAvailable(.ownApp))
-                Text("Use a different registration").tag(Registration.different)
+                if model.canPin {
+                    Text("Use a different registration").tag(Registration.different)
+                }
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()

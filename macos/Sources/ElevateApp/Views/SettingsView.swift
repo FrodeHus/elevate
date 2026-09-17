@@ -160,11 +160,11 @@ struct SettingsView: View {
         .onChange(of: hotKey) { applyHotKey() }
         .onChange(of: hotKeyProfileId) { applyHotKey() }
         .confirmationDialog("Change client ID?", isPresented: $confirmReplace) {
-            Button("Sign out and change", role: .destructive) { apply() }
+            Button("Change") { apply() }
             // Put the field back, or losing focus would ask again for the same abandoned edit.
             Button("Cancel", role: .cancel) { draft = model.settings.clientId }
         } message: {
-            Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it. They keep their tenants, roles and profiles and need to sign in again. Accounts with their own app registration, and Azure CLI and Azure PowerShell accounts, are unaffected.")
+            Text("\(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use\(model.ownAppIdentityCount == 1 ? "s" : "") it will need to sign in again. They keep their tenants, roles and profiles. Accounts with their own app registration, and Azure CLI and Azure PowerShell accounts, are unaffected.")
         }
         .sharedAppConsentDialog(isPresented: $confirmSharedApp) { applySharedApp() }
     }

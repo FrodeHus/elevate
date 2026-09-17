@@ -26,10 +26,13 @@ final class MSALProviderRegistry: @unchecked Sendable {
         guard let id = method.clientId, !id.isEmpty else {
             throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID")
         }
-        return try providers.withLockUnchecked { cache in
+        if let existing = providers.withLockUnchecked({ $0[id] }) { return existing }
+        // Build MSAL's client outside the lock (it does keychain work); if another caller won the
+        // race meanwhile, keep theirs so every account of this id shares one provider.
+        let created = try MSALTokenProvider(method: method, clientId: id, redirectUri: redirectUri,
+                                            anchor: anchor, gate: gate)
+        return providers.withLockUnchecked { cache in
             if let existing = cache[id] { return existing }
-            let created = try MSALTokenProvider(method: method, clientId: id, redirectUri: redirectUri,
-                                                anchor: anchor, gate: gate)
             cache[id] = created
             return created
         }
