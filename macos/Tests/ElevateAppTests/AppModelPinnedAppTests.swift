@@ -78,6 +78,34 @@ struct AppModelPinnedAppTests {
         #expect(text.contains("Entra app registration (own client ID)"))
     }
 
+    @Test func consentBlockedMessageMatchesForAPinnedAccountToo() async {
+        let http = StubHTTPClient()
+        await http.on("GET", "/me?", body: Data(#"{"id":"user-obj-1"}"#.utf8))
+        await http.on("POST", "roleAssignmentScheduleRequests", status: 403)
+        let model = await makeModel(http: http, ownAppViaLoopback: true)
+        defer { cleanup(model) }
+        model.state.identities = [Sample.identity(method: .pinned(Self.pinnedId))]
+        model.state.upsertTenant(Sample.tenant())
+        let request = ActivationRequest(roleKey: Sample.entraKey, duration: .seconds(3600), justification: "j")
+        _ = await model.activate([request])
+        #expect(model.tenant(Sample.tenantKey)?.discoveryMode == .manualRoles)
+        #expect(model.tenant(Sample.tenantKey)?.lastDiscoveryError == "Activation not permitted in this tenant until an admin consents.")
+    }
+
+    @Test func pinnedDuplicateOfTheSettingsIdSharesItsTokenStoreOnAnUnsignedBuild() async {
+        let settings = makeSettings()
+        settings.clientId = Self.settingsId
+        let tokens = FakeTokenProvider()
+        let model = await makeModel(settings: settings, tokens: tokens, ownAppViaLoopback: true)
+        defer { cleanup(model) }
+        // `FakeTokenProvider.signIn` always returns the identity id "new".
+        model.state.identities = [Sample.identity("new", method: .ownApp)]
+        let added = await model.addAccount(method: .pinned(Self.settingsId))
+        #expect(!added)
+        #expect(model.notice?.contains("already added") == true)
+        #expect(await tokens.signOutCalls.isEmpty)
+    }
+
     @Test func busyAccountsAreReported() async {
         let model = await makeModel(ownAppViaLoopback: true)
         defer { cleanup(model) }

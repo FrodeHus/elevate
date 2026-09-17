@@ -69,9 +69,19 @@ extension AppModel {
         }
     }
 
-    /// The client id whose keychain refresh-token store `method` uses, or nil when it has none of
-    /// its own: either Entra app registration form on a signed build keeps its tokens in MSAL's
-    /// cache, not the keychain store, so it shares nothing with any loopback method.
+    /// Names the token store `method`'s refresh token would be kept in: a loopback keychain item,
+    /// keyed by client id, or an MSAL account, keyed by its normalised client id. Two methods that
+    /// return the same key share one cache slot and one refresh token; nil means `method` has no
+    /// usable store at all (an Entra app registration form on a signed build with no effective
+    /// client id).
+    private func tokenStoreKey(for method: SignInMethod) -> String? {
+        if let id = loopbackClientId(for: method) { return "loopback:\(id)" }
+        guard method.usesMSAL, !ownAppViaLoopback, let id = effectiveClientId(for: method) else { return nil }
+        return "msal:\(SignInMethod.normalizedClientId(id))"
+    }
+
+    /// The client id `method`'s loopback keychain store uses, or nil when it keeps its tokens in
+    /// MSAL's cache instead (either Entra app registration form on a signed build).
     private func loopbackClientId(for method: SignInMethod) -> String? {
         guard method.usesMSAL else { return method.clientId }
         guard ownAppViaLoopback else { return nil }
@@ -108,13 +118,14 @@ extension AppModel {
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.detailedName)"
                 logError("Add account: already added with \(existing.signInMethod.detailedName)")
-                // Discard the sign-in we just made, but only when it does not share a keychain
-                // item with the account that is already there: refresh tokens are keyed
+                // Discard the sign-in we just made, but only when it does not share a token store
+                // with the account that is already there: refresh tokens are keyed
                 // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
-                // `.custom` account over the same Settings client id are the *same* item, and
-                // signing out would delete the existing account's token.
-                let added = loopbackClientId(for: method)
-                if added == nil || added != loopbackClientId(for: existing.signInMethod) {
+                // `.custom` account over the same Settings client id are the *same* keychain item,
+                // and a pinned id equal to the Settings id is the same MSAL account on a signed
+                // build — either way, signing out would delete the existing account's token.
+                let added = tokenStoreKey(for: method)
+                if added == nil || added != tokenStoreKey(for: existing.signInMethod) {
                     try? await tokens.signOut(identity)
                 }
                 return false
