@@ -88,6 +88,14 @@ public sealed class FirstPartyProviderRegistry : IFirstPartyProviders
 
     public ITokenProvider? Provider(SignInMethod method)
     {
+        // Entra app registration accounts (the Settings form and a pinned client id) are never
+        // served here: a pinned id would otherwise get a provider stamping the pinned method,
+        // cached under the same key a Custom account of that id uses.
+        if (method.Kind == SignInMethodKind.OwnApp)
+        {
+            return null;
+        }
+
         if (method.ClientId is not { } clientId || !AppSettings.IsValidClientId(clientId))
         {
             return null;

@@ -487,6 +487,13 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             var needsSignIn = new List<string>();
             foreach (var identity in State.Identities)
             {
+                // Pinned accounts are unsupported here, not signed out: they are never flagged, and
+                // their tenants show the unsupported message when they are read.
+                if (identity.SignInMethod.IsPinned)
+                {
+                    continue;
+                }
+
                 // Own-app accounts are only reconcilable when the own-app provider exists.
                 if (identity.SignInMethod.UsesMsal && _ownApp is null)
                 {
@@ -498,6 +505,13 @@ public sealed partial class AppModel : ObservableObject, IDisposable
                     SignInNeeded.Add(identity.Id);
                     needsSignIn.Add(identity.Upn);
                 }
+            }
+
+            var pinned = State.Identities.Where(i => i.SignInMethod.IsPinned).Select(i => i.Upn).ToList();
+            if (pinned.Count > 0)
+            {
+                Notice = $"{string.Join(", ", pinned)}: {SignInMethod.PinnedUnsupportedMessage}";
+                LogError($"Unsupported own app registration: {string.Join(", ", pinned)}");
             }
 
             if (needsSignIn.Count > 0)
