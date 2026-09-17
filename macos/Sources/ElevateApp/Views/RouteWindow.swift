@@ -10,6 +10,7 @@ struct RouteWindow: View {
         case .configureRoles(let tenantKey): ConfigureRolesView(tenantKey: tenantKey)
         case .addTenant(let identityId): AddTenantView(identityId: identityId)
         case .discoverTenants(let identityId): DiscoverTenantsView(identityId: identityId)
+        case .changeRegistration(let identityId): ChangeRegistrationView(identityId: identityId)
         case .addAccount: AddAccountView()
         case .saveProfile(let keys): SaveProfileView(keys: keys)
         case .runProfile(let id): RunProfileView(profileId: id)

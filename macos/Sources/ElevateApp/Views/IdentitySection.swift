@@ -36,7 +36,7 @@ struct IdentityHeader: View {
     }
 
     private var signInHelp: String {
-        "\(identity.upn), signed in with \(identity.signInMethod.displayName)"
+        "\(identity.upn), signed in with \(identity.signInMethod.detailedName)"
     }
 
     private static let signInNeededHelp =
@@ -105,6 +105,10 @@ struct IdentityHeader: View {
                 }
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
+                if identity.signInMethod.isOwnApp {
+                    Button("Change app registration…") { open(.changeRegistration(identity.id)) }
+                        .disabled(!model.canPin || model.isAccountBusy(identity.id))
+                }
                 if let t = soleTenant {
                     Divider()
                     TenantMenuItems(tenant: t, confirmRemove: $confirmRemoveTenant)

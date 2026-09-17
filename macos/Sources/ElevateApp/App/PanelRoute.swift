@@ -6,6 +6,7 @@ enum PanelRoute: Codable, Hashable {
     case configureRoles(TenantKey)
     case addTenant(String)        // identity id
     case discoverTenants(String)  // identity id
+    case changeRegistration(String)  // identity id
     case addAccount
     case saveProfile([RoleKey])
     case runProfile(UUID)
