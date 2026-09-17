@@ -113,6 +113,8 @@ struct AddAccountView: View {
             } else {
                 "Unavailable — configure a client ID in Settings"
             }
+        case .pinnedApp:
+            "Uses this account's own Entra app registration, independent of the one configured in Settings; needs admin consent in each tenant"
         case .azureCLI:
             "Microsoft's Azure CLI app; no consent needed; Azure resource roles only"
         case .azurePowerShell:

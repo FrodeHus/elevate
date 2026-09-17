@@ -12,24 +12,30 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     private let anchor: AuthAnchorWindow
     /// Shared with the loopback providers so an MSAL webview and a browser flow cannot run at once.
     private let gate: InteractiveGate
+    /// The method stamped on the identities this provider returns: `.ownApp` for the Settings
+    /// registration, `.pinnedApp` for a registration an account was added with.
+    let method: SignInMethod
 
-    init(clientId: String, redirectUri: String, anchor: AuthAnchorWindow, gate: InteractiveGate = InteractiveGate()) throws {
+    init(method: SignInMethod = .ownApp, clientId: String, redirectUri: String, anchor: AuthAnchorWindow,
+         gate: InteractiveGate = InteractiveGate()) throws {
+        precondition(method.isOwnApp, "MSAL serves only Entra app registrations, got \(method)")
         let authority = try MSALAADAuthority(url: URL(string: "https://login.microsoftonline.com/organizations")!)
         let config = MSALPublicClientApplicationConfig(clientId: clientId, redirectUri: redirectUri, authority: authority)
         app = try MSALPublicClientApplication(configuration: config)
         self.anchor = anchor
         self.gate = gate
+        self.method = method
     }
 
     // MARK: TokenProviding
 
     func signIn(method: SignInMethod) async throws -> Identity {
-        guard method == .ownApp else {
-            throw PIMError.unexpected(status: 0, body: "MSAL only signs in with your own app registration")
+        guard method == self.method else {
+            throw PIMError.unexpected(status: 0, body: "MSAL only signs in with an Entra app registration")
         }
         return try await gate.run { [self] in
             let result = try await interactive(account: nil, tenantId: nil, scopes: [GraphScopes.userRead] + EntitlementScopes.all, claims: nil, prompt: .selectAccount)
-            return Self.identity(from: result.account)
+            return Self.identity(from: result.account, method: self.method)
         }
     }
 
@@ -61,7 +67,7 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     }
 
     func identities() async throws -> [Identity] {
-        try app.allAccounts().map(Self.identity(from:))
+        try app.allAccounts().map { Self.identity(from: $0, method: method) }
     }
 
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String {
@@ -116,13 +122,13 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
         }
     }
 
-    static func identity(from account: MSALAccount) -> Identity {
+    static func identity(from account: MSALAccount, method: SignInMethod) -> Identity {
         let claims = account.accountClaims ?? [:]
         return Identity(id: account.identifier ?? account.username ?? UUID().uuidString,
                         upn: account.username ?? "unknown",
                         displayName: (claims["name"] as? String) ?? account.username ?? "unknown",
                         homeTenantId: account.homeAccountId?.tenantId ?? (claims["tid"] as? String) ?? "",
-                        signInMethod: .ownApp)
+                        signInMethod: method)
     }
 
     static func map(_ error: Error?) -> PIMError {

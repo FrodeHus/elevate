@@ -18,10 +18,10 @@ final class LoopbackProviderRegistry: Sendable {
         self.makeStore = makeStore
     }
 
-    /// The provider for a loopback method, or nil for `ownApp`, which carries no client id of its
-    /// own — on unsigned builds it goes through `provider(clientId:reportedMethod:)` instead.
+    /// The provider for a loopback method, or nil for either Entra app registration form, which
+    /// go through `provider(clientId:reportedMethod:)` on unsigned builds and MSAL otherwise.
     func provider(for method: SignInMethod) -> LoopbackTokenProvider? {
-        guard let clientId = method.clientId else { return nil }
+        guard !method.isOwnApp, let clientId = method.clientId else { return nil }
         return provider(clientId: clientId, method: method, reportedMethod: method)
     }
 
