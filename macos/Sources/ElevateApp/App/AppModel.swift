@@ -257,10 +257,16 @@ final class AppModel {
 
     /// Forgets `identity`'s saved sign-in for its current method without a browser window.
     func discardCachedSignIn(_ identity: Identity) async {
-        if let composite = tokens as? CompositeTokenProvider {
+        await discardCachedSignIn(identity, via: tokens)
+    }
+
+    /// Like `discardCachedSignIn(_:)`, through `provider` — a token provider captured before
+    /// `applyClientId` could replace `tokens`.
+    func discardCachedSignIn(_ identity: Identity, via provider: any TokenProviding) async {
+        if let composite = provider as? CompositeTokenProvider {
             await composite.discardCachedSignIn(identity)
         } else {
-            try? await tokens.signOut(identity)
+            try? await provider.signOut(identity)
         }
     }
 
@@ -407,7 +413,10 @@ final class AppModel {
         progress = progress.filter { $0.key.identityId != identityId }
         deactivationProgress = deactivationProgress.filter { $0.key.identityId != identityId }
         recentlyDeactivated = recentlyDeactivated.filter { $0.key.identityId != identityId }
-        profileDeactivationProgress.removeAll()
+        for (runId, phases) in profileDeactivationProgress {
+            let kept = phases.filter { $0.key.identityId != identityId }
+            profileDeactivationProgress[runId] = kept.isEmpty ? nil : kept
+        }
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
         tenantsAwaitingSignIn = tenantsAwaitingSignIn.filter { $0.identityId != identityId }
         dropApprovals { $0.identityId == identityId }

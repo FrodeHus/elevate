@@ -80,6 +80,18 @@ extension AppModel {
         return "msal:\(SignInMethod.normalizedClientId(id))"
     }
 
+    /// Whether a sign-in that returned `signedIn` (instead of the account being waited for) is a
+    /// listed account's own session: same user, and the same token store as that account uses.
+    /// Discarding it would then delete the listed account's fresh token.
+    private func isListedSession(_ signedIn: Identity) -> Bool {
+        guard let listed = state.identities.first(where: { $0.id == signedIn.id }),
+              let key = tokenStoreKey(for: signedIn.signInMethod) else { return false }
+        return key == tokenStoreKey(for: listed.signInMethod)
+    }
+
+    /// Shown when a pinned account is asked to sign in while the organization fixes the client id.
+    static let managedPinnedNotice = "Your organization manages the app registration. Change this account to it with Change app registration, or sign it out."
+
     /// The client id `method`'s loopback keychain store uses, or nil when it keeps its tokens in
     /// MSAL's cache instead (either Entra app registration form on a signed build).
     private func loopbackClientId(for method: SignInMethod) -> String? {
@@ -117,7 +129,7 @@ extension AppModel {
             // The same account under a different method would fight over the same rows and tenants.
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
                 notice = "This account is already added with \(existing.signInMethod.detailedName)"
-                logError("Add account: already added with \(existing.signInMethod.detailedName)")
+                logError("Add account: already added with \(existing.signInMethod.displayName)")
                 // Discard the sign-in we just made, but only when it does not share a token store
                 // with the account that is already there: refresh tokens are keyed
                 // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
@@ -126,7 +138,7 @@ extension AppModel {
                 // build — either way, signing out would delete the existing account's token.
                 let added = tokenStoreKey(for: method)
                 if added == nil || added != tokenStoreKey(for: existing.signInMethod) {
-                    try? await tokens.signOut(identity)
+                    await discardCachedSignIn(identity)
                 }
                 return false
             }
@@ -171,6 +183,11 @@ extension AppModel {
             logError("Sign in again (\(method.displayName)): \(Self.disallowedMethodNotice)")
             return false
         }
+        if case .pinnedApp = method, settings.isClientIdManaged {
+            notice = Self.managedPinnedNotice
+            logError("Sign in again (\(method.displayName)): the app registration is managed by your organization")
+            return false
+        }
         guard isAvailable(method) else {
             notice = method == .ownApp ? "Complete initial setup first" : "That sign-in method is unavailable"
             logError("Sign in again (\(method.displayName)): \(notice ?? "unavailable")")
@@ -180,8 +197,12 @@ extension AppModel {
             let signedIn = try await tokens.signIn(method: method)
             guard signedIn.id == identity.id else {
                 // A different account came back. Its token is keyed by its own id, so discarding it
-                // cannot touch the one we were waiting for.
-                try? await tokens.signOut(signedIn)
+                // cannot touch the one we were waiting for — but it may be another listed account
+                // that has just signed in again (after a Settings client id change many need to),
+                // and its fresh session must stay.
+                if !isListedSession(signedIn) {
+                    await discardCachedSignIn(signedIn)
+                }
                 notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Sign out \(identity.upn) if you no longer need it."
                 logError("Sign in again: got \(signedIn.upn), expected \(identity.upn)")
                 return false
@@ -216,7 +237,8 @@ extension AppModel {
             return false
         }
         guard method != current else { return true }
-        guard !settings.isClientIdManaged else {
+        // Under a managed client id an account may still move *to* the managed registration.
+        if case .pinnedApp = method, settings.isClientIdManaged {
             notice = "The app registration is managed by your organization"
             logError("Change registration: \(notice ?? "")")
             return false
@@ -234,13 +256,16 @@ extension AppModel {
         // browser is up, and re-check it once the user comes back before committing anything.
         let generation = configGeneration
         let oldStoreKey = tokenStoreKey(for: current)
+        // `applyClientId` may replace `tokens` while the browser is up; a session made through
+        // this provider must be discarded through it too, or it is orphaned in the old client's cache.
+        let provider = tokens
         if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
         do {
-            let signedIn = try await tokens.signIn(method: method)
+            let signedIn = try await provider.signIn(method: method)
             guard signedIn.id == identity.id else {
                 // Keep a session that belongs to another account already in the list.
-                if !state.identities.contains(where: { $0.id == signedIn.id }) {
-                    await discardCachedSignIn(signedIn)
+                if !isListedSession(signedIn) {
+                    await discardCachedSignIn(signedIn, via: provider)
                 }
                 notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Nothing was changed."
                 logError("Change registration: got \(signedIn.upn), expected \(identity.upn)")
@@ -252,7 +277,7 @@ extension AppModel {
             guard configGeneration == generation, !isAccountBusy(identity.id), isAvailable(method),
                 let index = state.identities.firstIndex(where: { $0.id == identity.id }) else {
                 if newStoreKey == nil || newStoreKey != oldStoreKey {
-                    await discardCachedSignIn(signedIn)
+                    await discardCachedSignIn(signedIn, via: provider)
                 }
                 notice = "Something changed while you were signing in. Nothing was changed; try again."
                 logError("Change registration: state changed while \(identity.upn) was signing in")
@@ -277,7 +302,7 @@ extension AppModel {
         } catch {
             let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
             notice = message
-            logError("Change registration (\(method.detailedName)): \(message)")
+            logError("Change registration (\(method.displayName)): \(message)")
             return false
         }
     }

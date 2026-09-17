@@ -130,7 +130,7 @@ struct AppModelManagedTenantTests {
             try await model.addTenant(identityId: Sample.identityId, domainOrId: "zzz")
             Issue.record("adding a tenant nobody allowed should throw")
         } catch {
-            #expect(((error as? PIMError)?.userMessage ?? "").contains("not permitted by your organization"))
+            #expect((error as? PIMError)?.userMessage.contains("not permitted by your organization") == true)
         }
     }
 

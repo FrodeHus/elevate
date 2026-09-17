@@ -302,6 +302,78 @@ extension AppModelPinnedAppTests {
         #expect(model.identity("new")?.signInMethod == .ownApp)
         #expect(model.notice?.contains("Something changed") == true)
     }
+
+    @Test func diagnosticsCarryNoPartOfThePinnedIdAfterAFailedChangeOrARefusedAdd() async {
+        let prefix = String(Self.pinnedId.prefix(8))
+        let tokens = FakeTokenProvider()
+        await tokens.setSignInError(.network("Sign-in cancelled"))
+        let model = await modelWithAccount(Sample.identity("new", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        #expect(!(await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.pinnedId))))
+        #expect(!model.errorLog.entries.isEmpty)
+        #expect(!model.diagnosticsText().contains(prefix))
+
+        // A refused duplicate: "new" is listed with a pinned id and signs in again via Settings.
+        await tokens.setSignInError(nil)
+        model.state.identities = [Sample.identity("new", method: .pinned(Self.pinnedId))]
+        #expect(!(await model.addAccount(method: .ownApp)))
+        #expect(model.notice?.contains(prefix) == true)   // the user-facing notice may name it
+        #expect(!model.diagnosticsText().contains(prefix))
+    }
+
+    private static let managedClientId = ManagedConfiguration.load(from: DictionaryManagedSource(["ClientId": settingsId]))
+
+    @Test func aPinnedAccountCanMoveToTheManagedRegistration() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .pinned(Self.pinnedId)), tokens: tokens,
+                                           managed: Self.managedClientId)
+        defer { cleanup(model) }
+        #expect(await model.changeSignInRegistration(model.identity("new")!, to: .ownApp))
+        #expect(model.identity("new")?.signInMethod == .ownApp)
+        // Moving to another pinned registration stays blocked.
+        #expect(!(await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.pinnedId))))
+        #expect(model.notice?.contains("organization") == true)
+    }
+
+    @Test func signingInAPinnedAccountUnderAManagedIdPointsToChangeRegistration() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .pinned(Self.pinnedId)), tokens: tokens,
+                                           managed: Self.managedClientId)
+        defer { cleanup(model) }
+        model.signInNeeded = ["new"]
+        #expect(!(await model.retrySignIn(model.identity("new")!)))
+        #expect(model.notice == AppModel.managedPinnedNotice)
+        #expect(await tokens.storedIdentities.isEmpty)
+        #expect(model.needsSignIn("new"))
+    }
+
+    @Test func aDifferentListedUserKeepsItsSessionOnlyWhenItSharesTheTokenStore() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("id-1", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        // "new" is listed with the target registration: its session is the one just made.
+        model.state.identities.append(Sample.identity("new", method: .pinned(Self.pinnedId)))
+        #expect(!(await model.changeSignInRegistration(model.identity("id-1")!, to: .pinned(Self.pinnedId))))
+        #expect(await tokens.signOutCalls.isEmpty)
+
+        // "new" is listed with another store (Azure CLI): the pinned session is discarded.
+        model.state.identities[1] = Sample.identity("new", method: .azureCLI)
+        #expect(!(await model.changeSignInRegistration(model.identity("id-1")!, to: .pinned(Self.pinnedId))))
+        #expect(await tokens.signOutCalls == ["new"])
+    }
+
+    @Test func droppingAnAccountsRuntimeKeepsOtherAccountsProfileProgress() async {
+        let model = await makeModel(ownAppViaLoopback: true)
+        defer { cleanup(model) }
+        let mine = Sample.key(Sample.azureKey.scope, identityId: "id-1")
+        let theirs = Sample.key(Sample.azureKey.scope, identityId: "id-2")
+        let onlyMine = UUID(), mixed = UUID()
+        model.profileDeactivationProgress = [onlyMine: [mine: .working],
+                                             mixed: [mine: .succeeded, theirs: .failed("x")]]
+        model.dropRuntime("id-1")
+        #expect(model.profileDeactivationProgress[onlyMine] == nil)
+        #expect(model.profileDeactivationProgress[mixed] == [theirs: .failed("x")])
+    }
 }
 
 /// Records the client ids the composite asked the pinned route for.
