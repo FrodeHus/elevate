@@ -232,9 +232,11 @@ account pinned to it, so a later change to Settings does not affect it.
 offers "Follow the registration in Settings" or "Use a different registration", and a **Sign in
 and switch** button. Elevate signs the account in with the chosen registration and keeps its
 tenants, roles and profiles. Nothing changes if you cancel the sign-in, a different account signs
-in instead, or something else changes the account meanwhile.
+in instead, or something else changes the account meanwhile. When your organization manages the client ID,
+an account with its own registration can only be moved to the managed one: the sheet then offers
+just "Follow the registration in Settings", and **Sign in** on that account says so.
 
-Both options are hidden when your organization manages the client ID with the
+In Add account, both options are hidden when your organization manages the client ID with the
 [`ClientId`](enterprise/keys.md#clientid) key.
 
 **Platform support:** this is a macOS feature. The Windows app and the CLI do not support

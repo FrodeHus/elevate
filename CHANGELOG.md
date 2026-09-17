@@ -12,14 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS: an account can now use its own Entra app registration instead of the one in Settings.
   Choose **Use a different registration** in Add account, or **Change app registration…** from an
   existing account's menu to switch later; both keep the account's tenants, roles and profiles.
-  Hidden when the organization manages the client ID. See
+  When the organization manages the client ID, such an account can only move to the managed
+  registration. See
   [Using a second registration for some accounts](docs/entra-app-registration.md#8-using-a-second-registration-for-some-accounts).
 
 ### Changed
 
-- Changing the client ID in Settings no longer removes accounts. Accounts that use the Settings
-  registration keep their tenants, roles and profiles and show **Sign in**; accounts with their
-  own registration, and Azure CLI and Azure PowerShell accounts, are unaffected.
+- macOS: changing the client ID in Settings no longer removes accounts. Accounts that use the
+  Settings registration keep their tenants, roles and profiles and show **Sign in**; accounts with
+  their own registration, and Azure CLI and Azure PowerShell accounts, are unaffected. Windows and
+  the CLI (`elevate config set client-id`) still sign those accounts out and remove them with their
+  tenants and roles; the CLI asks first unless `--yes` is given.
 - Windows and CLI: accounts with their own app registration are not supported yet; such an
   account shows "This account uses its own app registration, which this version of Elevate does
   not support yet."
