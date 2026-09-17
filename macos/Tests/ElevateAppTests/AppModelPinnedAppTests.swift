@@ -190,6 +190,86 @@ extension AppModelPinnedAppTests {
         #expect(model.tenants(for: own.id).isEmpty)
         #expect(!model.needsSignIn(own.id))
     }
+
+    private func modelWithAccount(_ identity: Identity, tokens: FakeTokenProvider,
+                                  managed: ManagedConfiguration = .none) async -> AppModel {
+        let settings = makeSettings(managed: managed)
+        if !settings.isClientIdManaged { settings.clientId = Self.settingsId }
+        let model = await makeModel(settings: settings, tokens: tokens, ownAppViaLoopback: true)
+        model.state = Self.configuredState(for: identity).0
+        model.signInNeeded = []
+        return model
+    }
+
+    @Test func switchingToAPinnedIdCommitsAfterTheSameUserSignsIn() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        let ok = await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.pinnedId))
+        #expect(ok)
+        #expect(model.identity("new")?.signInMethod == .pinned(Self.pinnedId))
+        #expect(model.tenants(for: "new").count == 1)
+        #expect(model.state.manualRoles.count == 1)
+        #expect(!model.needsSignIn("new"))
+        // The old registration's token is discarded (the fake records it as a sign-out).
+        #expect(await tokens.signOutCalls == ["new"])
+        #expect(model.rememberedPinnedClientId == Self.pinnedId)
+    }
+
+    @Test func switchingBackToSettingsWorksToo() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .pinned(Self.pinnedId)), tokens: tokens)
+        defer { cleanup(model) }
+        #expect(await model.changeSignInRegistration(model.identity("new")!, to: .ownApp))
+        #expect(model.identity("new")?.signInMethod == .ownApp)
+    }
+
+    @Test func aDifferentUserChangesNothing() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("id-1", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        let ok = await model.changeSignInRegistration(model.identity("id-1")!, to: .pinned(Self.pinnedId))
+        #expect(!ok)
+        #expect(model.identity("id-1")?.signInMethod == .ownApp)
+        #expect(await tokens.signOutCalls == ["new"])
+        #expect(model.notice?.contains("was expected") == true)
+    }
+
+    @Test func aFailedSignInChangesNothing() async {
+        let tokens = FakeTokenProvider()
+        await tokens.setSignInError(.network("Sign-in cancelled"))
+        let model = await modelWithAccount(Sample.identity("new", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        #expect(!(await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.pinnedId))))
+        #expect(model.identity("new")?.signInMethod == .ownApp)
+        #expect(await tokens.signOutCalls.isEmpty)
+        #expect(model.notice != nil)
+    }
+
+    @Test func theSameEffectiveIdKeepsTheSavedSignIn() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        #expect(await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.settingsId.uppercased())))
+        #expect(model.identity("new")?.signInMethod == .pinned(Self.settingsId))
+        #expect(await tokens.signOutCalls.isEmpty)
+    }
+
+    @Test func noChangeIsANoOpAndBusyOrManagedAccountsAreRefused() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity(method: .pinned(Self.pinnedId)), tokens: tokens)
+        #expect(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .pinned(Self.pinnedId)))
+        #expect(await tokens.storedIdentities.isEmpty)   // no sign-in happened
+        model.inFlight = [Sample.azureKey]
+        #expect(!(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .ownApp)))
+        cleanup(model)
+
+        let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["ClientId": Self.settingsId]))
+        let locked = await modelWithAccount(Sample.identity(method: .ownApp), tokens: tokens, managed: managed)
+        #expect(!(await locked.changeSignInRegistration(locked.identity(Sample.identityId)!, to: .pinned(Self.pinnedId))))
+        #expect(locked.notice?.contains("organization") == true)
+        cleanup(locked)
+    }
 }
 
 /// Records the client ids the composite asked the pinned route for.

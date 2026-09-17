@@ -194,23 +194,92 @@ extension AppModel {
             } else {
                 notice = nil
             }
-            let keys = tenants(for: identity.id).map(\.id)
-            for key in keys { tenantErrors[key] = nil }
-            let generation = configGeneration
-            await withTaskGroup(of: Void.self) { group in
-                for key in keys {
-                    group.addTask {
-                        guard await self.configGeneration == generation else { return }
-                        await self.refresh(key)
-                    }
-                }
-            }
+            await refreshTenants(of: identity.id)
             return true
         } catch {
             let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
             notice = message
             logError("Sign in again (\(method.displayName)): \(message)")
             return false
+        }
+    }
+
+    /// Moves an Entra app registration account to another registration — a pinned client id or
+    /// the Settings one — keeping its tenants, configured roles, profiles and role memory. The
+    /// change is saved only after the same user has signed in with the new registration; a
+    /// cancelled sign-in or a different account changes nothing. Sets `notice` on failure.
+    @discardableResult
+    func changeSignInRegistration(_ identity: Identity, to method: SignInMethod) async -> Bool {
+        let current = identity.signInMethod
+        guard current.isOwnApp, method.isOwnApp else {
+            notice = "Only Entra app registration accounts can change registration"
+            return false
+        }
+        guard method != current else { return true }
+        guard !settings.isClientIdManaged else {
+            notice = "The app registration is managed by your organization"
+            logError("Change registration: \(notice ?? "")")
+            return false
+        }
+        guard isAvailable(method) else {
+            notice = method == .ownApp ? "Configure a client ID in Settings first" : "Enter the application (client) ID as a GUID"
+            logError("Change registration: \(notice ?? "")")
+            return false
+        }
+        guard !isAccountBusy(identity.id) else {
+            notice = "Wait for this account's requests to finish"
+            return false
+        }
+        if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
+        do {
+            let signedIn = try await tokens.signIn(method: method)
+            guard signedIn.id == identity.id else {
+                // Keep a session that belongs to another account already in the list.
+                if !state.identities.contains(where: { $0.id == signedIn.id }) {
+                    try? await tokens.signOut(signedIn)
+                }
+                notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Nothing was changed."
+                logError("Change registration: got \(signedIn.upn), expected \(identity.upn)")
+                return false
+            }
+            guard let index = state.identities.firstIndex(where: { $0.id == identity.id }) else { return false }
+            let old = state.identities[index]
+            state.identities[index].signInMethod = method
+            persist()
+            if effectiveClientId(for: old.signInMethod).map(SignInMethod.normalizedClientId)
+                != effectiveClientId(for: method).map(SignInMethod.normalizedClientId) {
+                await discardCachedSignIn(old)
+            }
+            dropRuntime(identity.id)
+            signInNeeded.remove(identity.id)
+            if let failure = await loopbackStore(for: method)?.persistenceError() {
+                notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
+                logError("Refresh token not saved to the Keychain: \(failure)")
+            } else {
+                notice = nil
+            }
+            await refreshTenants(of: identity.id)
+            return true
+        } catch {
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            notice = message
+            logError("Change registration (\(method.detailedName)): \(message)")
+            return false
+        }
+    }
+
+    /// Reads every tenant of an account again, clearing their errors first.
+    func refreshTenants(of identityId: String) async {
+        let keys = tenants(for: identityId).map(\.id)
+        for key in keys { tenantErrors[key] = nil }
+        let generation = configGeneration
+        await withTaskGroup(of: Void.self) { group in
+            for key in keys {
+                group.addTask {
+                    guard await self.configGeneration == generation else { return }
+                    await self.refresh(key)
+                }
+            }
         }
     }
 
