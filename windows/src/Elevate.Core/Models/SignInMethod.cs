@@ -55,7 +55,7 @@ public readonly record struct SignInMethod
     /// <summary>A custom public-client registration. The client id must not be empty.</summary>
     public static SignInMethod Custom(string clientId)
     {
-        ArgumentException.ThrowIfNullOrEmpty(clientId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
         return new SignInMethod(SignInMethodKind.Custom, clientId);
     }
 
@@ -81,9 +81,19 @@ public readonly record struct SignInMethod
     };
 
     /// <summary>Longer caption naming a pinned account's own client id.</summary>
-    public string DetailedName => IsPinned
-        ? $"{DisplayName} ({PinnedClientId![..Math.Min(8, PinnedClientId!.Length)]}…)"
-        : DisplayName;
+    public string DetailedName
+    {
+        get
+        {
+            if (!IsPinned)
+            {
+                return DisplayName;
+            }
+
+            var id = PinnedClientId!;
+            return $"{DisplayName} ({id[..Math.Min(8, id.Length)]}…)";
+        }
+    }
 
     /// <summary>Client id used through the loopback flow, or null when the own MSAL registration is used.</summary>
     public string? ClientId => Kind switch

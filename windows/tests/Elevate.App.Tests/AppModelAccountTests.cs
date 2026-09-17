@@ -33,6 +33,33 @@ public class AppModelAccountTests
     }
 
     [Fact]
+    public async Task PinnedAppIsNeverAvailableEvenWithAConfiguredClientId()
+    {
+        using var configured = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: ClientId);
+
+        configured.Model.IsAvailable(SignInMethod.PinnedApp(ClientId)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RetryingSignInForAPinnedIdentityRefusesWithoutCallingTheTokenProvider()
+    {
+        var tokens = new FakeTokenProvider();
+        var state = new AppState
+        {
+            Identities = [Sample.Identity("pinned", SignInMethod.PinnedApp(ClientId))],
+            Tenants = [Sample.Tenant("pinned")],
+        };
+        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: new FakeOwnAppProvider(), clientId: ClientId);
+        var identity = test.Model.Identity("pinned")!;
+
+        var ok = await test.Model.RetrySignInAsync(identity);
+
+        ok.Should().BeFalse();
+        test.Model.Notice.Should().Be(SignInMethod.PinnedUnsupportedMessage);
+        tokens.StoredIdentities.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AddingAnAccountAlreadyPresentUnderAnotherMethodIsRefusedAndTheSignInDiscarded()
     {
         var tokens = new FakeTokenProvider();
