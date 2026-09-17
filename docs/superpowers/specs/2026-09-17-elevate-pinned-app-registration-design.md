@@ -74,23 +74,28 @@ Equality checks against `.ownApp` must each be reviewed:
 
 `SignInMethodKind` is unchanged. Add a pinned form of `OwnApp`:
 
-- `SignInMethod.PinnedApp(string clientId)` creates `Kind = OwnApp` with the client ID set
-  (the existing `CustomClientId` property is renamed or generalised to `ClientIdOverride`;
-  `Custom` keeps using it).
-- `IsPinned`: `Kind == OwnApp && ClientIdOverride != null`.
+- `SignInMethod.PinnedApp(string clientId)` creates `Kind = OwnApp` with the client ID set.
+  One private field holds the ID for both forms; `CustomClientId` returns it only for `Custom`,
+  the new `PinnedClientId` only for a pinned `OwnApp`.
+- `IsPinned`: `Kind == OwnApp && PinnedClientId != null`. `ClientId` returns the pinned ID.
+- Until the Windows app and CLI support pinning, `UsesMsal` is false for a pinned account, so
+  their client-ID-change and own-app code paths leave it alone.
 - Parsing and formatting of `ownApp:<id>` match Swift, including lower-casing.
 - `OwnApp` equality stays the unpinned form.
-- The Windows app and CLI must not break on a pinned account: they treat it as "sign-in
-  method not supported in this version" (the account is shown with a notice and skipped)
-  until the parity issues land.
+- The Windows app and CLI must not break on a pinned account: their token providers throw
+  "This account uses its own app registration, which this version of Elevate does not support
+  yet", which surfaces as the account's tenant error, until the parity issues land.
 
 ## Token providers (macOS app)
 
-- New `MSALProviderRegistry`: one `MSALTokenProvider` per client ID, created on first use,
-  all sharing `AppSettings.redirectUri`, the auth anchor and the interactive-sign-in gate. The
-  current `msal` provider becomes the registry entry for the Settings ID.
+- New `MSALProviderRegistry`: one `MSALTokenProvider` per pinned client ID, created on first
+  use, all sharing `AppSettings.redirectUri`, the auth anchor and the interactive-sign-in gate.
+  The Settings `msal` provider stays separate (it stamps `.ownApp`; registry providers stamp
+  `.pinnedApp`). `MSALTokenProvider` takes the method it stamps.
+- `LoopbackProviderRegistry.provider(for:)` returns nil for both own-app forms, so a pinned
+  method never shares a cache slot with a `.custom` method for the same ID.
 - `CompositeTokenProvider` routes:
-  - `.ownApp` → the registry entry for the Settings ID (or `ownAppLoopbackProvider` on unsigned builds)
+  - `.ownApp` → the Settings `msal` provider (or `ownAppLoopbackProvider` on unsigned builds)
   - `.pinnedApp(id)` → `registry.provider(id)`; on unsigned builds
     `loopback.provider(clientId: id, reportedMethod: .pinnedApp(id))`
 - New `AppModel.effectiveClientId(for:)`: the pinned ID or the Settings ID. It replaces the
@@ -111,7 +116,7 @@ For each account:
 2. `dropRuntime(for:)`: remove roles, active assignments, activation and deactivation progress,
    recently deactivated entries, tenant errors, approvals and policies for the account. This is
    `forgetIdentity` without `state.removeIdentity`; `forgetIdentity` calls it.
-3. Add the account to `signInNeeded` and its tenants to `tenantsAwaitingSignIn`.
+3. Add the account to `signInNeeded` (refreshes skip it until it signs in again).
 
 Kept: the `state.identities` entry, the account's tenants with their pinned/hidden flags,
 profile entries and role memory.
@@ -131,8 +136,8 @@ and `.pinnedApp` accounts, and disabled when the account is in `busy` or `inFlig
 
 Commit-on-success:
 1. Validate the new ID; the same method as now is a no-op.
-2. Get the provider for the new method and sign in interactively with the account's UPN as the
-   login hint.
+2. Sign in interactively with the new method (`TokenProviding.signIn(method:)`, which shows the
+   account picker; no login hint, to keep the protocol unchanged).
 3. Cancelled or failed: nothing changes; the error is shown in the sheet.
 4. A different user (`identity.id` differs): sign that session out, show "Signed in as X,
    expected Y", change nothing.
@@ -142,9 +147,9 @@ Commit-on-success:
 
 ### Sign-in after a re-key
 
-`signIn(identity)` (the existing Sign in button) gains the same user check: if the returned
-`identity.id` differs from the account's, sign the new session out, keep the account in
-`signInNeeded` and show "Signed in as X, expected Y".
+`retrySignIn(_:)` (the existing Sign in button) already rejects a different user and keeps the
+account in `signInNeeded`; it only needs the pinned method's loopback store for its Keychain
+warning.
 
 ## Add account dialog
 
@@ -182,7 +187,8 @@ The "Entra app registration" row gets two sub-options:
 
 ## Elsewhere in the app
 
-- Account header and Copy diagnostics show the pinned client ID.
+- The account header shows the shortened pinned client ID (`SignInMethod.detailedName`). Copy
+  diagnostics never carries client IDs, so it says "Entra app registration (own client ID)".
 - Admin-consent links and consent-required messages use `effectiveClientId(for:)`.
 - The shared-app consent dialog appears only when the effective ID is the shared app's.
 - First-launch setup (`SetupView`) is unchanged.
