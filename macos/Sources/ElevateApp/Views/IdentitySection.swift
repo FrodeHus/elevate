@@ -35,12 +35,6 @@ struct IdentityHeader: View {
         return t.source == .home ? "\(identity.upn) · \(t.displayName) · home" : "\(identity.upn) · \(t.displayName)"
     }
 
-    /// A pinned account can still move to the managed registration when the organization fixes
-    /// the client id; moving to a pinned registration then stays blocked.
-    private var canChangeRegistration: Bool {
-        model.canPin || (identity.signInMethod.isPinned && model.settings.isClientIdManaged && model.isAvailable(.ownApp))
-    }
-
     private var signInHelp: String {
         "\(identity.upn), signed in with \(identity.signInMethod.detailedName)"
     }
@@ -111,10 +105,10 @@ struct IdentityHeader: View {
                 }
                 Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
                 Button("Add tenant…") { open(.addTenant(identity.id)) }
-                if identity.signInMethod.isOwnApp {
-                    Button("Change app registration…") { open(.changeRegistration(identity.id)) }
-                        .disabled(!canChangeRegistration || model.isAccountBusy(identity.id))
+                Button(identity.signInMethod.isOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…") {
+                    open(.changeRegistration(identity.id))
                 }
+                .disabled(!model.canChangeRegistration(for: identity) || model.isAccountBusy(identity.id))
                 if let t = soleTenant {
                     Divider()
                     TenantMenuItems(tenant: t, confirmRemove: $confirmRemoveTenant)

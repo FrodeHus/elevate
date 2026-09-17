@@ -1,8 +1,11 @@
 import SwiftUI
 import ElevateCore
 
-/// Moves an Entra app registration account between the Settings registration and one of its
-/// own. The switch is saved only after the same account signs in with the new registration.
+/// Moves an account onto an Entra app registration — the Settings one or one of its own. For an
+/// account already on an Entra app registration this switches it between the two; for an Azure
+/// CLI / Azure PowerShell / other-app account it upgrades it, so Elevate can also read and
+/// activate Entra roles and PIM for Groups for it. The switch is saved only after the same
+/// account signs in with the new registration.
 struct ChangeRegistrationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -16,19 +19,34 @@ struct ChangeRegistrationView: View {
     @State private var working = false
 
     private var identity: Identity? { model.identity(identityId) }
+    private var isUpgrade: Bool { identity?.signInMethod.isOwnApp == false }
     private var chosen: Registration {
+        if let registration { return registration }
         // Under a managed client id only the Settings (managed) registration can be chosen.
-        registration ?? (identity?.signInMethod.isPinned == true && model.canPin ? .different : .settings)
+        if identity?.signInMethod.isPinned == true, model.canPin { return .different }
+        if model.isAvailable(.ownApp) { return .settings }
+        return model.canPin ? .different : .settings
     }
     private var target: SignInMethod { chosen == .settings ? .ownApp : .pinned(clientId) }
     private var canContinue: Bool {
         guard let identity, !working else { return false }
         return target != identity.signInMethod && model.isAvailable(target) && !model.isAccountBusy(identityId)
     }
+    private var displayedTitle: String {
+        guard let identity else { return "App registration for \(identityId)" }
+        return isUpgrade ? "Upgrade \(identity.upn) to an Entra app registration" : "App registration for \(identity.upn)"
+    }
+    private var introText: String {
+        guard let identity else { return "" }
+        if isUpgrade {
+            return "\(identity.upn) signs in with the \(identity.signInMethod.displayName) today. With an Entra app registration Elevate also reads and activates Entra roles and PIM for Groups. Elevate signs the account in with the registration you choose and keeps its tenants, roles and profiles. Nothing changes if the sign-in is cancelled or a different account signs in."
+        }
+        return "Elevate signs \(identity.upn) in with the registration you choose and keeps its tenants, roles and profiles. Nothing changes if the sign-in is cancelled or a different account signs in."
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Elevate signs \(identity?.upn ?? identityId) in with the registration you choose and keeps its tenants, roles and profiles. Nothing changes if the sign-in is cancelled or a different account signs in.")
+            Text(introText)
                 .font(.callout).fixedSize(horizontal: false, vertical: true)
             Picker("", selection: Binding(get: { chosen }, set: { registration = $0 })) {
                 Text("Follow the registration in Settings (\(model.settingsRegistrationLabel))")
@@ -63,7 +81,7 @@ struct ChangeRegistrationView: View {
             }
         }
         .padding(16).frame(width: 440)
-        .navigationTitle("App registration for \(identity?.upn ?? identityId)")
+        .navigationTitle(displayedTitle)
         .onAppear {
             if case .pinnedApp(let id) = identity?.signInMethod { clientId = id }
             else { clientId = model.rememberedPinnedClientId }

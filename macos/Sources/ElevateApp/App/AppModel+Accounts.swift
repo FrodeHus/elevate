@@ -26,6 +26,16 @@ extension AppModel {
         isMethodAllowed(.ownApp) && !settings.isClientIdManaged && (pinnedMSAL != nil || ownAppViaLoopback)
     }
 
+    /// Whether "Change app registration…" (or, for an account not already an Entra app
+    /// registration, "Upgrade to Entra app registration…") should be offered for `identity`: some
+    /// target is actually reachable, whatever the account's current method — the Settings
+    /// registration (when it differs from the current method) or, unless the client id is
+    /// managed, a pinned one.
+    func canChangeRegistration(for identity: Identity) -> Bool {
+        let toSettings = isAvailable(.ownApp) && identity.signInMethod != .ownApp
+        return toSettings || canPin
+    }
+
     /// How Add account and the Change app registration sheet name the Settings registration.
     var settingsRegistrationLabel: String {
         if settings.isClientIdManaged { return "managed by your organization" }
@@ -225,15 +235,17 @@ extension AppModel {
         }
     }
 
-    /// Moves an Entra app registration account to another registration — a pinned client id or
-    /// the Settings one — keeping its tenants, configured roles, profiles and role memory. The
-    /// change is saved only after the same user has signed in with the new registration; a
-    /// cancelled sign-in or a different account changes nothing. Sets `notice` on failure.
+    /// Moves an account to an Entra app registration — a pinned client id or the Settings one —
+    /// keeping its tenants, configured roles, profiles and role memory. The current method can be
+    /// anything (Azure CLI, Azure PowerShell, a custom app, or already an Entra app registration);
+    /// only the target is restricted. The change is saved only after the same user has signed in
+    /// with the new registration; a cancelled sign-in or a different account changes nothing. Sets
+    /// `notice` on failure.
     @discardableResult
     func changeSignInRegistration(_ identity: Identity, to method: SignInMethod) async -> Bool {
         let current = identity.signInMethod
-        guard current.isOwnApp, method.isOwnApp else {
-            notice = "Only Entra app registration accounts can change registration"
+        guard method.isOwnApp else {
+            notice = "Only an Entra app registration can be chosen here"
             return false
         }
         guard method != current else { return true }
@@ -285,6 +297,13 @@ extension AppModel {
             }
             let old = state.identities[index]
             state.identities[index].signInMethod = method
+            // Upgrading from a limited method: the flags it left behind (view-only Entra, blocked
+            // groups/Azure reads, a discovery error) no longer apply, and its cached policies were
+            // learned under a method that could not activate what they cover.
+            if !current.isOwnApp {
+                for key in tenants(for: identity.id).map(\.id) { resetDiscoveryFlags(key) }
+                tokenHintAccounts.removeAll { $0 == identity.id }
+            }
             persist()
             if newStoreKey == nil || newStoreKey != oldStoreKey {
                 await discardCachedSignIn(old)
@@ -401,6 +420,16 @@ extension AppModel {
 
     func retryDiscovery(_ key: TenantKey) async {
         declinedTenants.remove(key)
+        resetDiscoveryFlags(key)
+        persist()
+        await refresh(key)
+    }
+
+    /// Clears everything a past discovery failure or a limited sign-in method left on a tenant:
+    /// its discovery mode, last error, and the per-surface unavailable reasons, and drops its
+    /// cached policies (learned under whatever was blocking discovery). Does not persist or
+    /// refresh; callers do that once they are done touching state.
+    func resetDiscoveryFlags(_ key: TenantKey) {
         guard var t = self.tenant(key) else { return }
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
@@ -409,7 +438,5 @@ extension AppModel {
         t.entraActivation = nil
         dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
-        persist()
-        await refresh(key)
     }
 }
