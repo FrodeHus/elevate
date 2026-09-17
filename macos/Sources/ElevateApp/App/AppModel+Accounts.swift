@@ -230,24 +230,38 @@ extension AppModel {
             notice = "Wait for this account's requests to finish"
             return false
         }
+        // The interactive sign-in below can take minutes; capture what could go stale while the
+        // browser is up, and re-check it once the user comes back before committing anything.
+        let generation = configGeneration
+        let oldStoreKey = tokenStoreKey(for: current)
         if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
         do {
             let signedIn = try await tokens.signIn(method: method)
             guard signedIn.id == identity.id else {
                 // Keep a session that belongs to another account already in the list.
                 if !state.identities.contains(where: { $0.id == signedIn.id }) {
-                    try? await tokens.signOut(signedIn)
+                    await discardCachedSignIn(signedIn)
                 }
                 notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Nothing was changed."
                 logError("Change registration: got \(signedIn.upn), expected \(identity.upn)")
                 return false
             }
-            guard let index = state.identities.firstIndex(where: { $0.id == identity.id }) else { return false }
+            let newStoreKey = tokenStoreKey(for: method)
+            // Re-check everything the guards above already checked: the client id, an in-flight
+            // request or the account itself may have changed while the browser was open.
+            guard configGeneration == generation, !isAccountBusy(identity.id), isAvailable(method),
+                let index = state.identities.firstIndex(where: { $0.id == identity.id }) else {
+                if newStoreKey == nil || newStoreKey != oldStoreKey {
+                    await discardCachedSignIn(signedIn)
+                }
+                notice = "Something changed while you were signing in. Nothing was changed; try again."
+                logError("Change registration: state changed while \(identity.upn) was signing in")
+                return false
+            }
             let old = state.identities[index]
             state.identities[index].signInMethod = method
             persist()
-            if effectiveClientId(for: old.signInMethod).map(SignInMethod.normalizedClientId)
-                != effectiveClientId(for: method).map(SignInMethod.normalizedClientId) {
+            if newStoreKey == nil || newStoreKey != oldStoreKey {
                 await discardCachedSignIn(old)
             }
             dropRuntime(identity.id)

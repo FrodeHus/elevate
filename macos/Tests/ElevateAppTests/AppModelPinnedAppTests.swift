@@ -257,18 +257,50 @@ extension AppModelPinnedAppTests {
 
     @Test func noChangeIsANoOpAndBusyOrManagedAccountsAreRefused() async {
         let tokens = FakeTokenProvider()
-        let model = await modelWithAccount(Sample.identity(method: .pinned(Self.pinnedId)), tokens: tokens)
-        #expect(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .pinned(Self.pinnedId)))
-        #expect(await tokens.storedIdentities.isEmpty)   // no sign-in happened
-        model.inFlight = [Sample.azureKey]
-        #expect(!(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .ownApp)))
-        cleanup(model)
+        do {
+            let model = await modelWithAccount(Sample.identity(method: .pinned(Self.pinnedId)), tokens: tokens)
+            defer { cleanup(model) }
+            #expect(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .pinned(Self.pinnedId)))
+            #expect(await tokens.storedIdentities.isEmpty)   // no sign-in happened
+            model.inFlight = [Sample.azureKey]
+            #expect(!(await model.changeSignInRegistration(model.identity(Sample.identityId)!, to: .ownApp)))
+            #expect(model.notice?.contains("Wait") == true)
+            #expect(await tokens.storedIdentities.isEmpty)   // still no sign-in happened
+        }
 
         let managed = ManagedConfiguration.load(from: DictionaryManagedSource(["ClientId": Self.settingsId]))
         let locked = await modelWithAccount(Sample.identity(method: .ownApp), tokens: tokens, managed: managed)
+        defer { cleanup(locked) }
         #expect(!(await locked.changeSignInRegistration(locked.identity(Sample.identityId)!, to: .pinned(Self.pinnedId))))
         #expect(locked.notice?.contains("organization") == true)
-        cleanup(locked)
+    }
+
+    @Test func settingsChangingDuringSignInIsDetectedAndNothingCommits() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .pinned(Self.pinnedId)), tokens: tokens)
+        defer { cleanup(model) }
+        // Simulate `applyClientId` running while the interactive sign-in is up.
+        await tokens.setOnSignIn { model.configGeneration += 1 }
+        let ok = await model.changeSignInRegistration(model.identity("new")!, to: .ownApp)
+        #expect(!ok)
+        #expect(model.identity("new")?.signInMethod == .pinned(Self.pinnedId))
+        #expect(model.notice?.contains("Something changed") == true)
+        // The new (ownApp) session's token store differs from the old pinned one, so it is safe
+        // to discard without presenting any sign-out UI.
+        #expect(await tokens.signOutCalls == ["new"])
+    }
+
+    @Test func becomingBusyDuringSignInIsDetectedAndNothingCommits() async {
+        let tokens = FakeTokenProvider()
+        let model = await modelWithAccount(Sample.identity("new", method: .ownApp), tokens: tokens)
+        defer { cleanup(model) }
+        await tokens.setOnSignIn {
+            model.inFlight = [Sample.key(.azureResource(scope: "/subscriptions/s1", roleDefinitionId: "owner-def"), identityId: "new")]
+        }
+        let ok = await model.changeSignInRegistration(model.identity("new")!, to: .pinned(Self.pinnedId))
+        #expect(!ok)
+        #expect(model.identity("new")?.signInMethod == .ownApp)
+        #expect(model.notice?.contains("Something changed") == true)
     }
 }
 

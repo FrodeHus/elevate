@@ -11,13 +11,18 @@ actor FakeTokenProvider: TokenProviding {
     private(set) var silentCalls: [String] = []
     /// Identity ids passed to `signOut`, so a test can assert a sign-in was (or was not) discarded.
     private(set) var signOutCalls: [String] = []
+    /// Lets a test simulate app state changing while an interactive sign-in is in flight (it can
+    /// take minutes for real): run right before `signIn` returns its identity.
+    private var onSignIn: (@MainActor () async -> Void)?
 
     func setSilentError(_ e: PIMError?) { silentError = e }
     func setInteractiveError(_ e: PIMError?) { interactiveError = e }
     func setSignInError(_ e: PIMError?) { signInError = e }
+    func setOnSignIn(_ hook: (@MainActor () async -> Void)?) { onSignIn = hook }
 
     func signIn(method: SignInMethod) async throws -> Identity {
         if let signInError { throw signInError }
+        if let onSignIn { await onSignIn() }
         let i = Identity(id: "new", upn: "new@x", displayName: "New", homeTenantId: "home", signInMethod: method)
         storedIdentities.append(i)
         return i
