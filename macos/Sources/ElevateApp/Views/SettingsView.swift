@@ -164,7 +164,7 @@ struct SettingsView: View {
             // Put the field back, or losing focus would ask again for the same abandoned edit.
             Button("Cancel", role: .cancel) { draft = model.settings.clientId }
         } message: {
-            Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it; you will add them again. Azure CLI and Azure PowerShell accounts are unaffected.")
+            Text("Saving a different client ID signs out \(model.ownAppIdentityCount) account\(model.ownAppIdentityCount == 1 ? "" : "s") that use it. They keep their tenants, roles and profiles and need to sign in again. Accounts with their own app registration, and Azure CLI and Azure PowerShell accounts, are unaffected.")
         }
         .sharedAppConsentDialog(isPresented: $confirmSharedApp) { applySharedApp() }
     }

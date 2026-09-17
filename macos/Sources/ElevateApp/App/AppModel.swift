@@ -340,7 +340,8 @@ final class AppModel {
 
     /// Saves a new client id. The token cache is per client — MSAL's on a signed build, the
     /// loopback keychain store on an unsigned one — so every *own-app* account is signed out and
-    /// cleared; first-party accounts keep their own refresh tokens and stay.
+    /// asked to sign in again, keeping its tenants, roles and profiles; first-party accounts keep
+    /// their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
         guard !settings.isClientIdManaged else { throw PIMError.unexpected(status: 0, body: "The client ID is managed by your organization") }
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -353,6 +354,7 @@ final class AppModel {
             guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
             replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
         }
+        // `== .ownApp` deliberately excludes pinned accounts: only accounts following Settings are affected.
         let ownApp = state.identities.filter { $0.signInMethod == .ownApp }
         // The old client's cache is unusable under the new client id; drop it silently.
         // A webview sign-out here would only interrupt the user with a browser window.
@@ -364,7 +366,9 @@ final class AppModel {
         configGeneration += 1
         deactivationProgress.removeAll()
         recentlyDeactivated.removeAll()
-        for identity in ownApp { forgetIdentity(identity.id) }
+        // The accounts keep their tenants, roles and profiles; they sign in again under the new id.
+        for identity in ownApp { dropRuntime(identity.id) }
+        signInNeeded.formUnion(ownApp.map(\.id))
         lastRefresh = .distantPast
         selection = []; busy = []; inFlight = []
         decisionInFlight = []; approvalErrors = [:]
@@ -390,6 +394,14 @@ final class AppModel {
     func forgetIdentity(_ identityId: String) {
         state.removeIdentity(identityId)
         signInNeeded.remove(identityId)
+        dropRuntime(identityId)
+    }
+
+    /// Drops what this session read or started for an account, keeping the account itself, its
+    /// tenants, configured roles, profile entries and role memory. Used when its registration
+    /// changes and everything read under the old one is stale.
+    // internal for AppModel+Accounts
+    func dropRuntime(_ identityId: String) {
         for key in roles.keys where key.identityId == identityId { roles[key] = nil }
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
@@ -405,7 +417,7 @@ final class AppModel {
     // MARK: Derived
 
     var identities: [Identity] { state.identities }
-    /// Accounts a client-id change would sign out; the first-party ones are unaffected.
+    /// Accounts that follow the Settings client id and would need to sign in again after it changes.
     var ownAppIdentityCount: Int { state.identities.count { $0.signInMethod == .ownApp } }
     /// False when the machine has no usable network path; reads and requests are held back.
     var isOnline: Bool { network.isOnline }

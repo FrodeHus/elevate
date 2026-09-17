@@ -143,6 +143,55 @@ struct AppModelPinnedAppTests {
     }
 }
 
+extension AppModelPinnedAppTests {
+    fileprivate static func configuredState(for identity: Identity) -> (AppState, ManualRole) {
+        var state = AppState()
+        state.identities = [identity]
+        state.upsertTenant(Sample.tenant(identityId: identity.id))
+        let manual = ManualRole(tenantKey: TenantKey(identityId: identity.id, tenantId: Sample.tenantId),
+                                scope: Sample.azureKey.scope, displayName: "Owner")
+        state.manualRoles = [manual]
+        return (state, manual)
+    }
+
+    @Test func changingTheSettingsIdKeepsFollowingAccountsAndAsksThemToSignIn() async throws {
+        let settings = makeSettings()
+        settings.clientId = Self.settingsId
+        let model = await makeModel(settings: settings, ownAppViaLoopback: true)
+        defer { cleanup(model) }
+        let own = Sample.identity(method: .ownApp)
+        let pinned = Sample.identity("pin", method: .pinned(Self.pinnedId))
+        var (state, _) = Self.configuredState(for: own)
+        state.identities.append(pinned)
+        state.upsertTenant(Sample.tenant(identityId: pinned.id))
+        // Set after bootstrap, which would flag both for having no keychain token.
+        model.state = state
+        model.signInNeeded = []
+        model.roles[Sample.tenantKey] = [Sample.role(Sample.azureKey, name: "Owner")]
+
+        try model.applyClientId("22222222-2222-3333-4444-555555555555")
+
+        #expect(model.identities.map(\.id) == [own.id, pinned.id])
+        #expect(model.tenants(for: own.id).map(\.tenantId) == [Sample.tenantId])
+        #expect(model.state.manualRoles.count == 1)
+        #expect(model.roles(for: Sample.tenantKey).isEmpty)
+        #expect(model.needsSignIn(own.id))
+        #expect(!model.needsSignIn(pinned.id))
+        #expect(model.identity(pinned.id)?.signInMethod == .pinned(Self.pinnedId))
+    }
+
+    @Test func signOutStillForgetsEverything() async {
+        let model = await makeModel(ownAppViaLoopback: true)
+        defer { cleanup(model) }
+        let own = Sample.identity(method: .ownApp)
+        model.state = Self.configuredState(for: own).0
+        model.forgetIdentity(own.id)
+        #expect(model.identities.isEmpty)
+        #expect(model.tenants(for: own.id).isEmpty)
+        #expect(!model.needsSignIn(own.id))
+    }
+}
+
 /// Records the client ids the composite asked the pinned route for.
 final class RouteLog: @unchecked Sendable {
     private let lock = NSLock()
