@@ -38,4 +38,42 @@ import Foundation
         let i = try await tokens.signIn(method: .azurePowerShell)
         #expect(i.signInMethod == .azurePowerShell)
     }
+
+    @Test func pinnedAppIsAnOwnAppFormWithItsOwnClientId() {
+        let pinned = SignInMethod.pinned("  AAAAAAAA-2222-3333-4444-555555555555 ")
+        #expect(pinned == .pinnedApp(clientId: "aaaaaaaa-2222-3333-4444-555555555555"))
+        #expect(pinned.clientId == "aaaaaaaa-2222-3333-4444-555555555555")
+        #expect(pinned.isOwnApp && pinned.isPinned && pinned.usesMSAL)
+        #expect(SignInMethod.ownApp.isOwnApp && !SignInMethod.ownApp.isPinned)
+        #expect(!SignInMethod.custom(clientId: "abc").isOwnApp)
+        #expect(pinned.kind == .ownApp)
+        #expect(pinned.displayName == "Entra app registration")
+        #expect(pinned.detailedName == "Entra app registration (aaaaaaaa…)")
+        #expect(SignInMethod.ownApp.detailedName == "Entra app registration")
+        #expect(pinned.isPreauthorisedForEntraActivation && pinned.limitationSummary == nil)
+        #expect(!pinned.sharesToolTokenCache && !pinned.isCustom)
+        #expect(pinned != .ownApp)
+    }
+
+    @Test func pinnedAppRoundTripsLowerCased() throws {
+        let pinned = SignInMethod.pinned("AAAAAAAA-2222-3333-4444-555555555555")
+        let encoded = String(decoding: try JSONEncoder().encode(pinned), as: UTF8.self)
+        #expect(encoded == "\"ownApp:aaaaaaaa-2222-3333-4444-555555555555\"")
+        #expect(try JSONDecoder().decode(SignInMethod.self, from: Data(encoded.utf8)) == pinned)
+        #expect(SignInMethod(storageKey: "ownApp:AAAAAAAA-2222-3333-4444-555555555555") == pinned)
+        #expect(SignInMethod(storageKey: "ownApp:") == nil)
+        #expect(SignInMethod(storageKey: "ownApp") == .ownApp)
+        // A case built directly with upper case still encodes lower-cased.
+        let raw = SignInMethod.pinnedApp(clientId: "BBBB")
+        #expect(raw.storageKey == "ownApp:bbbb")
+    }
+
+    @Test func pinnedAppCountsAsOwnAppForTheManagedAllowList() {
+        var cliOnly = ManagedConfiguration()
+        cliOnly.allowedSignInMethods = [.azureCLI]
+        #expect(!ManagedPolicy.isAllowed(.pinned("abc"), by: cliOnly))
+        var ownOnly = ManagedConfiguration()
+        ownOnly.allowedSignInMethods = [.ownApp]
+        #expect(ManagedPolicy.isAllowed(.pinned("abc"), by: ownOnly))
+    }
 }

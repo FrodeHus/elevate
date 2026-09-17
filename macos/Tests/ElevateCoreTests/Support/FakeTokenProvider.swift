@@ -6,6 +6,7 @@ actor FakeTokenProvider: TokenProviding {
     var storedIdentities: [Identity] = []
     var silentError: PIMError?
     var interactiveError: PIMError?
+    var signInError: PIMError?
     private(set) var interactiveCalls: [InteractiveCall] = []
     private(set) var silentCalls: [String] = []
     /// Identity ids passed to `signOut`, so a test can assert a sign-in was (or was not) discarded.
@@ -13,8 +14,10 @@ actor FakeTokenProvider: TokenProviding {
 
     func setSilentError(_ e: PIMError?) { silentError = e }
     func setInteractiveError(_ e: PIMError?) { interactiveError = e }
+    func setSignInError(_ e: PIMError?) { signInError = e }
 
     func signIn(method: SignInMethod) async throws -> Identity {
+        if let signInError { throw signInError }
         let i = Identity(id: "new", upn: "new@x", displayName: "New", homeTenantId: "home", signInMethod: method)
         storedIdentities.append(i)
         return i
