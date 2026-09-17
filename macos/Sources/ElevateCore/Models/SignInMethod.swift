@@ -37,7 +37,7 @@ public enum SignInMethod: Hashable, Sendable {
         case .ownApp, .pinnedApp: "Entra app registration"
         case .azureCLI: "Azure CLI app"
         case .azurePowerShell: "Azure PowerShell app"
-        case .custom: "Company app (client ID)"
+        case .custom: "Other app (browser sign-in)"
         }
     }
 
@@ -90,7 +90,7 @@ public enum SignInMethod: Hashable, Sendable {
     /// Whether the client is known to carry the Graph scope that activates Entra directory roles.
     /// Neither Microsoft first-party app is: they can list PIM schedules but
     /// `RoleAssignmentSchedule.ReadWrite.Directory` is admin-consent only, so Entra roles are
-    /// view-only with them unless an admin grants it to the enterprise app. A custom app is
+    /// view-only with them unless an admin grants it to the enterprise app. Another app is
     /// assumed capable until its token says otherwise. Azure resource roles go through ARM
     /// (`user_impersonation`) and are unaffected either way.
     public var isPreauthorisedForEntraActivation: Bool {
@@ -109,7 +109,7 @@ public enum SignInMethod: Hashable, Sendable {
     /// Longer explanation shown on the Entra rows and headers of an account using this method.
     public var entraViewOnlyReason: String? {
         isPreauthorisedForEntraActivation ? nil
-            : "This account was added with the \(displayName), which supports Azure resource roles only: Microsoft grants it no Graph PIM permissions, so Elevate does not read or activate Entra roles for it. Add the account with your own or a custom app registration for Entra roles."
+            : "This account was added with the \(displayName), which supports Azure resource roles only: Microsoft grants it no Graph PIM permissions, so Elevate does not read or activate Entra roles for it. Add the account with an Entra app registration or another app registration for Entra roles."
     }
 }
 

@@ -437,7 +437,7 @@ final class AppModel {
     func groupsUnavailableReason(for key: TenantKey) -> String? {
         guard let identity = identity(key.identityId) else { return nil }
         if !identity.signInMethod.isPreauthorisedForEntraActivation {
-            return "The \(identity.signInMethod.displayName) supports Azure resource roles only; PIM for Groups needs your own or a custom app registration."
+            return "The \(identity.signInMethod.displayName) supports Azure resource roles only; PIM for Groups needs your own or another app registration."
         }
         return tenant(key)?.groupsUnavailableReason
     }

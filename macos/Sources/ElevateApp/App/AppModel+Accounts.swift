@@ -10,8 +10,8 @@ extension AppModel {
     /// the organization does not permit is not listed at all.
     var availableMethods: [SignInMethod] { SignInMethod.builtIn.filter { isMethodAllowed($0) } }
 
-    /// Whether the "Company app (client ID)" row is offered; the client id typed into it does not change the
-    /// answer, since the managed allow-list names kinds of method, not registrations.
+    /// Whether the "Other app (browser sign-in)" row is offered; the client id typed into it does not change
+    /// the answer, since the managed allow-list names kinds of method, not registrations.
     var isCustomMethodAllowed: Bool { isMethodAllowed(.custom(clientId: "")) }
 
     /// The custom client id used last time, for prefilling the add-account dialog.
@@ -126,7 +126,7 @@ extension AppModel {
             switch method {
             case .ownApp: notice = "Complete initial setup first"
             case .pinnedApp: notice = canPin ? "Enter the registration's application (client) ID as a GUID" : "Your own app registration is unavailable in this build"
-            case .custom: notice = "Enter the custom app's application (client) ID as a GUID"
+            case .custom: notice = "Enter the other app's application (client) ID as a GUID"
             default: notice = "That sign-in method is unavailable"
             }
             logError("Add account (\(method.displayName)): \(notice ?? "unavailable")")

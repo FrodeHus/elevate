@@ -23,8 +23,8 @@
             </RadioButton>
             <RadioButton x:Name="CustomChoice" GroupName="method" Checked="OnChoiceChanged">
                 <StackPanel>
-                    <TextBlock Text="Company app (client ID)" FontWeight="SemiBold" />
-                    <TextBlock Text="A company multi-tenant registration without the WAM redirect; signs in through the system browser on http://localhost."
+                    <TextBlock Text="Other app (browser sign-in)" FontWeight="SemiBold" />
+                    <TextBlock Text="Any registration that lists http://localhost, such as an existing company PIM app. What it can do depends on its permissions."
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>

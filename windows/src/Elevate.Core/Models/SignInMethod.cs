@@ -77,7 +77,7 @@ public readonly record struct SignInMethod
         SignInMethodKind.OwnApp => "Entra app registration",
         SignInMethodKind.AzureCLI => "Azure CLI app",
         SignInMethodKind.AzurePowerShell => "Azure PowerShell app",
-        _ => "Company app (client ID)",
+        _ => "Other app (browser sign-in)",
     };
 
     /// <summary>Longer caption naming a pinned account's own client id.</summary>
@@ -121,7 +121,7 @@ public readonly record struct SignInMethod
     /// <summary>
     /// Whether the client is known to carry the Graph scope that activates Entra directory roles.
     /// Neither Microsoft first-party app is: they can list PIM schedules but
-    /// <c>RoleAssignmentSchedule.ReadWrite.Directory</c> is admin-consent only. A custom app is
+    /// <c>RoleAssignmentSchedule.ReadWrite.Directory</c> is admin-consent only. Another app is
     /// assumed capable until its token says otherwise.
     /// </summary>
     public bool IsPreauthorisedForEntraActivation =>
@@ -137,7 +137,7 @@ public readonly record struct SignInMethod
         ? null
         : $"This account was added with the {DisplayName}, which supports Azure resource roles only: "
           + "Microsoft grants it no Graph PIM permissions, so Elevate does not read or activate Entra "
-          + "roles for it. Add the account with your own or a custom app registration for Entra roles.";
+          + "roles for it. Add the account with an Entra app registration or another app registration for Entra roles.";
 
     /// <summary>The single string this method is persisted as.</summary>
     public string StorageKey => Kind switch

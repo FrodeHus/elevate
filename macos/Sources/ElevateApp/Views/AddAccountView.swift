@@ -33,7 +33,7 @@ struct AddAccountView: View {
         m == .ownApp ? (model.isAvailable(.ownApp) || model.canPin) : model.isAvailable(m)
     }
     private var selectedChoice: Choice {
-        // With every fixed method withheld by the organization, "Company app" is all that is left
+        // With every fixed method withheld by the organization, "Other app" is all that is left
         // — and it may be withheld too, in which case the dialog has nothing to offer.
         choice ?? methods.first { rowEnabled($0) }.map(Choice.fixed) ?? methods.first.map(Choice.fixed) ?? .custom
     }
@@ -98,8 +98,8 @@ struct AddAccountView: View {
                 }
                 if includeCustom {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Company app (client ID)")
-                        Text("A registration that lists only http://localhost, such as an existing company PIM app; signs in through the browser")
+                        Text("Other app (browser sign-in)")
+                        Text("Any registration that lists http://localhost, such as an existing company PIM app. What it can do depends on its permissions.")
                             .font(.caption).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -149,7 +149,7 @@ struct AddAccountView: View {
         if let summary = selection.limitationSummary {
             VStack(alignment: .leading, spacing: 4) {
                 Label(summary, systemImage: "info.circle").font(.callout.weight(.medium))
-                Text("Microsoft grants the \(selection.displayName) no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or a custom app registration for Entra roles.")
+                Text("Microsoft grants the \(selection.displayName) no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or another app registration for Entra roles.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
@@ -183,7 +183,7 @@ struct AddAccountView: View {
         case .azurePowerShell:
             "Azure resource roles only; for tenants that block the Azure CLI app"
         case .custom:
-            "A registration that lists only http://localhost, such as an existing company PIM app; signs in through the browser"
+            "Any registration that lists http://localhost, such as an existing company PIM app. What it can do depends on its permissions."
         }
     }
 

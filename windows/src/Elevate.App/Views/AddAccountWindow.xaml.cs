@@ -31,7 +31,7 @@ public sealed partial class AddAccountWindow : Window
                 ? "Signs in with Windows (WAM) using the shared Elevate app (no SLA) configured in Settings; an administrator must grant consent once per tenant. Supports Entra roles, Azure roles and PIM for Groups."
                 : "Signs in with Windows (WAM) using the client ID from Settings; needs admin consent in each tenant. Supports Entra roles, Azure roles and PIM for Groups.";
         // A method the organization does not permit is not offered at all: its row goes, and so
-        // does the client-id box under "Custom client ID" when custom registrations are withheld.
+        // does the client-id box under "Other app (browser sign-in)" when custom registrations are withheld.
         var offered = model.AvailableMethods;
         OwnAppChoice.Visibility = Offered(offered, SignInMethodKind.OwnApp);
         CliChoice.Visibility = Offered(offered, SignInMethodKind.AzureCLI);
@@ -41,8 +41,8 @@ public sealed partial class AddAccountWindow : Window
         var choice = Row(initial.Kind);
         if (choice.Visibility != Visibility.Visible)
         {
-            // Every fixed method may be withheld, leaving "Custom client ID" as all there is — and
-            // it may be withheld too, in which case the dialog has nothing to offer.
+            // Every fixed method may be withheld, leaving "Other app (browser sign-in)" as all
+            // there is — and it may be withheld too, in which case the dialog has nothing to offer.
             choice = new[] { OwnAppChoice, CliChoice, PowerShellChoice, CustomChoice }
                 .FirstOrDefault(r => r.Visibility == Visibility.Visible) ?? OwnAppChoice;
         }
@@ -101,7 +101,7 @@ public sealed partial class AddAccountWindow : Window
         {
             Limits.Severity = InfoBarSeverity.Informational;
             Limits.Title = summary;
-            Limits.Message = $"Microsoft grants the {selection.DisplayName} no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or a custom app registration for Entra roles.";
+            Limits.Message = $"Microsoft grants the {selection.DisplayName} no Graph PIM permissions, so Elevate skips Entra directory roles for this account entirely. Azure resource roles are discovered, activated and deactivated normally. Use your own or another app registration for Entra roles.";
         }
         else if (selection.IsCustom)
         {

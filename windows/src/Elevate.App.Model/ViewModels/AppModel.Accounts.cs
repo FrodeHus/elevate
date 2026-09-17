@@ -56,7 +56,7 @@ public sealed partial class AppModel
                 : method.Kind switch
                 {
                     SignInMethodKind.OwnApp => "Complete initial setup first",
-                    SignInMethodKind.Custom => "Enter the custom app's application (client) ID as a GUID",
+                    SignInMethodKind.Custom => "Enter the other app's application (client) ID as a GUID",
                     _ => "That sign-in method is unavailable",
                 };
             LogError($"Add account ({method.DisplayName}): {Notice}");

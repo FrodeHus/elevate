@@ -382,7 +382,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
         if (!identity.SignInMethod.IsPreauthorisedForEntraActivation)
         {
-            return $"The {identity.SignInMethod.DisplayName} supports Azure resource roles only; PIM for Groups needs your own or a custom app registration.";
+            return $"The {identity.SignInMethod.DisplayName} supports Azure resource roles only; PIM for Groups needs your own or another app registration.";
         }
 
         return Tenant(key)?.GroupsUnavailableReason;

@@ -49,7 +49,7 @@ public sealed class FirstPartyTokenProvider : MsalProviderBase
         var clientId = method.ClientId ?? throw new PimException(PimErrorKind.Unexpected, "Unsupported sign-in method");
         if (!AppSettings.IsValidClientId(clientId))
         {
-            throw new PimException(PimErrorKind.Unexpected, "Enter the custom app's application (client) ID as a GUID");
+            throw new PimException(PimErrorKind.Unexpected, "Enter the other app's application (client) ID as a GUID");
         }
 
         try
