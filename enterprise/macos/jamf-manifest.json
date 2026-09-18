@@ -43,7 +43,12 @@
       "items": {
         "type": "string",
         "title": "Method",
-        "enum": ["ownApp", "azureCLI", "azurePowerShell", "custom"]
+        "enum": [
+          "ownApp",
+          "azureCLI",
+          "azurePowerShell",
+          "custom"
+        ]
       },
       "links": [
         {
@@ -101,6 +106,55 @@
         {
           "rel": "ManagedProfilesUrl",
           "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#managedprofilesurl"
+        }
+      ]
+    },
+    "OrganizationName": {
+      "type": "string",
+      "title": "Organization name",
+      "description": "Your organization's name, shown beside Elevate's own (never instead of it): 1-32 characters. Required before the three keys below take effect.",
+      "links": [
+        {
+          "rel": "OrganizationName",
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#organizationname"
+        }
+      ]
+    },
+    "OrganizationTitleStyle": {
+      "type": "string",
+      "title": "Organization title style",
+      "description": "How the name is phrased beside Elevate's own. by: \"by Contoso\". managedBy: \"Managed by Contoso\". none: no header caption, but Settings and the support contact stay. Leave out for by.",
+      "enum": [
+        "by",
+        "managedBy",
+        "none"
+      ],
+      "links": [
+        {
+          "rel": "OrganizationTitleStyle",
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#organizationtitlestyle"
+        }
+      ]
+    },
+    "OrganizationSupportUrl": {
+      "type": "string",
+      "title": "Organization support URL",
+      "description": "An https:// URL for your help desk. http:// URLs are ignored.",
+      "links": [
+        {
+          "rel": "OrganizationSupportUrl",
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#organizationsupporturl"
+        }
+      ]
+    },
+    "OrganizationSupportEmail": {
+      "type": "string",
+      "title": "Organization support email",
+      "description": "An email address for your help desk, offered as a mailto: link.",
+      "links": [
+        {
+          "rel": "OrganizationSupportEmail",
+          "href": "https://github.com/FrodeHus/elevate/blob/main/docs/enterprise/keys.md#organizationsupportemail"
         }
       ]
     }

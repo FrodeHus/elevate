@@ -17,7 +17,7 @@ setup and nothing for the user to type.
   [latest release](https://github.com/FrodeHus/elevate/releases/latest), for
   `cli/managed.json` as a starting point.
 
-The CLI reads the same seven keys as the apps ([keys.md](keys.md)), from the source that fits the
+The CLI reads the same eleven keys as the apps ([keys.md](keys.md)), from the source that fits the
 platform:
 
 | Platform | Source |

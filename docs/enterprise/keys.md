@@ -35,6 +35,10 @@ Where the values come from:
 | `PinnedTenants` | list of strings | Tenant ids or verified domains tracked for every account that can reach them | macOS, Windows, CLI | 2 | `contoso.com` |
 | `ManagedProfiles` | string (JSON document) | A profile set in the format below | macOS, Windows, CLI | 3 | `{"version":1,"profiles":[…]}` |
 | `ManagedProfilesUrl` | string | An `https://` URL serving the same JSON, fetched once a day | macOS, Windows, CLI | 3 | `https://example.com/elevate/profiles.json` |
+| `OrganizationName` | string | Your organization's name, 1-32 characters after trimming | macOS, Windows, CLI | 4 | `Contoso` |
+| `OrganizationTitleStyle` | string | `by`, `managedBy` or `none`; absent means `by` | macOS, Windows, CLI | 4 | `managedBy` |
+| `OrganizationSupportUrl` | string | An `https://` URL for your help desk | macOS, Windows, CLI | 4 | `https://help.contoso.com` |
+| `OrganizationSupportEmail` | string | An email address for your help desk | macOS, Windows, CLI | 4 | `it@contoso.com` |
 
 Anything else in the payload is ignored.
 
@@ -288,4 +292,136 @@ JSON:
 
 ```json
 { "ManagedProfilesUrl": "https://example.com/elevate/profiles.json" }
+```
+
+## `OrganizationName`
+
+Your organization's name, shown beside Elevate's own. The app reads as
+"Elevate", with "by Contoso" underneath it in the panel header, "Provided by
+Contoso." on the first-run screen, and an "Organization" section in Settings.
+
+**Elevate's own name is never replaced.** This is co-branding: your name is
+added, not substituted. There is no key that renames or re-icons the app.
+
+The name is trimmed and must be 1-32 characters. A longer one is rejected with
+a warning naming its length — it is never silently truncated. The 32-character
+limit is what the panel header can show without clipping.
+
+**This key gates the other three.** Without it `OrganizationTitleStyle`,
+`OrganizationSupportUrl` and `OrganizationSupportEmail` are ignored, each with
+its own warning: a style with nothing to style, and an unattributed "Get help"
+link, are both worse than no branding at all.
+
+Plist (macOS):
+
+```xml
+<key>OrganizationName</key>
+<string>Contoso</string>
+```
+
+Registry (Windows), `REG_SZ`:
+
+```
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Reothor\Elevate]
+"OrganizationName"="Contoso"
+```
+
+JSON:
+
+```json
+{ "OrganizationName": "Contoso" }
+```
+
+## `OrganizationTitleStyle`
+
+How the name is phrased beside Elevate's own. Matched case-insensitively
+against three values; anything else is rejected with a warning.
+
+- **`by`** (the default, used when the key is absent) - the header reads
+  "Elevate" with "by Contoso" underneath.
+- **`managedBy`** - the header reads "Elevate" with "Managed by Contoso"
+  underneath; the more formal phrasing.
+- **`none`** - no caption in the header at all, while Settings, the first-run
+  line and the support contact all stay.
+
+Push `none` when you want the help desk contact without changing the
+everyday appearance.
+
+Plist (macOS):
+
+```xml
+<key>OrganizationTitleStyle</key>
+<string>managedBy</string>
+```
+
+Registry (Windows), `REG_SZ`:
+
+```
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Reothor\Elevate]
+"OrganizationTitleStyle"="managedBy"
+```
+
+JSON:
+
+```json
+{ "OrganizationTitleStyle": "managedBy" }
+```
+
+## `OrganizationSupportUrl`
+
+Your help desk, as an `https://` URL. It becomes a "Get help from Contoso IT"
+link on the first-run screen and in Settings, and the CLI appends
+`Need help? Contoso IT — https://help.contoso.com/` to sign-in and activation
+failures — the moment a user actually needs to know who to call.
+
+`http://` URLs and anything unparseable are rejected with a warning. Requires
+`OrganizationName`.
+
+Plist (macOS):
+
+```xml
+<key>OrganizationSupportUrl</key>
+<string>https://help.contoso.com</string>
+```
+
+Registry (Windows), `REG_SZ`:
+
+```
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Reothor\Elevate]
+"OrganizationSupportUrl"="https://help.contoso.com"
+```
+
+JSON:
+
+```json
+{ "OrganizationSupportUrl": "https://help.contoso.com" }
+```
+
+## `OrganizationSupportEmail`
+
+An email address for your help desk, offered as a `mailto:` link wherever the
+support URL would appear. When both are set the URL wins for the link and the
+CLI contact line, and both are listed in Settings and diagnostics.
+
+Must contain `@` and no whitespace; anything else is rejected with a warning.
+Requires `OrganizationName`.
+
+Plist (macOS):
+
+```xml
+<key>OrganizationSupportEmail</key>
+<string>it@contoso.com</string>
+```
+
+Registry (Windows), `REG_SZ`:
+
+```
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Reothor\Elevate]
+"OrganizationSupportEmail"="it@contoso.com"
+```
+
+JSON:
+
+```json
+{ "OrganizationSupportEmail": "it@contoso.com" }
 ```

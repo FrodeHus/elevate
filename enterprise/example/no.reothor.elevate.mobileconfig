@@ -68,6 +68,16 @@
                 </array>
                 <key>ManagedProfiles</key>
                 <string>{"version":1,"profiles":[{"id":"prod-incident","name":"Prod incident","reason":"Incident response","pinned":true,"roles":[{"kind":"azureResource","tenant":"contoso.com","scope":"/subscriptions/00000000-0000-0000-0000-000000000001","role":"Contributor","duration":"PT2H"},{"kind":"entraDirectory","tenant":"contoso.com","role":"Security Reader"},{"kind":"group","tenant":"contoso.com","group":"SRE on-call","access":"member","duration":"PT4H"}]}]}</string>
+                <!-- Co-branding: your name is added beside Elevate's, never instead of it.
+                     OrganizationName gates the other three; omit it to leave the app unbranded. -->
+                <key>OrganizationName</key>
+                <string>Contoso</string>
+                <key>OrganizationTitleStyle</key>
+                <string>managedBy</string>
+                <key>OrganizationSupportUrl</key>
+                <string>https://help.contoso.com</string>
+                <key>OrganizationSupportEmail</key>
+                <string>it@contoso.com</string>
                 <key>ManagedProfilesUrl</key>
                 <string>https://example.com/elevate/profiles.json</string>
               </dict>

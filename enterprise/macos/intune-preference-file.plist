@@ -27,6 +27,14 @@
   </array>
   <key>ManagedProfiles</key>
   <string>{"version":1,"profiles":[{"id":"prod-incident","name":"Prod incident","reason":"Incident response","pinned":true,"roles":[{"kind":"entraDirectory","tenant":"contoso.com","role":"Security Reader"}]}]}</string>
+  <key>OrganizationName</key>
+  <string>Contoso</string>
+  <key>OrganizationTitleStyle</key>
+  <string>managedBy</string>
+  <key>OrganizationSupportUrl</key>
+  <string>https://help.contoso.com</string>
+  <key>OrganizationSupportEmail</key>
+  <string>it@contoso.com</string>
   <key>ManagedProfilesUrl</key>
   <string>https://example.com/elevate/profiles.json</string>
 </dict>
