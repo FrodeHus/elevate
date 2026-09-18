@@ -132,6 +132,11 @@ struct AllProfilesPopover: View {
         }
         .frame(width: 340)
         .onAppear { searchFocused = true }
+        // A row's delete confirmation is rendered by that row, so filtering it out of the list
+        // would take the card with it and leave `model.profileToDelete` set with nothing to
+        // confirm or cancel — the pinned row's own card stays suppressed while this popover is
+        // open. Typing a query that hides the profile cancels its pending delete instead.
+        .onChange(of: query) { model.cancelProfileDeleteIfHidden(visible: matching) }
     }
 
     private func sectionLabel(_ text: String) -> some View {

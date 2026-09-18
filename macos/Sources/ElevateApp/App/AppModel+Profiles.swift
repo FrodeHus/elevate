@@ -84,6 +84,19 @@ extension AppModel {
             applyHotKey()
         }
     }
+
+    /// Cancels a pending delete whose confirmation card can no longer be seen.
+    ///
+    /// `profileToDelete` is one piece of model state, but the card it drives is rendered by the row
+    /// for that profile — so a search query that filters the row out of a list takes the card with
+    /// it and leaves the pending delete with nothing on screen to confirm or cancel it. Callers pass
+    /// the profiles their list is currently showing; a pending delete outside that set is cancelled
+    /// rather than left orphaned.
+    func cancelProfileDeleteIfHidden(visible: [ActivationProfile]) {
+        guard let pending = profileToDelete else { return }
+        if !visible.contains(where: { $0.id == pending }) { profileToDelete = nil }
+    }
+
     /// Reorders the user's profiles. The managed ones are listed after them and cannot be moved,
     /// so offsets that reach into that tail are ignored rather than applied to the wrong profile.
     func moveProfile(fromOffsets: IndexSet, toOffset: Int) {
