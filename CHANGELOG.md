@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- macOS, Windows and CLI: organization co-branding. Four managed-configuration keys —
+  `OrganizationName` (1–32 characters, which gates the other three), `OrganizationTitleStyle`
+  (`by`, `managedBy` or `none`), `OrganizationSupportUrl` (`https://` only) and
+  `OrganizationSupportEmail` — add your organization's name beside Elevate's own and point users
+  at your help desk. The name appears as a caption under the title in the panel, on the first-run
+  screen and in Settings, and the support contact becomes a "Get help from <name> IT" link there
+  and is appended to CLI sign-in and activation failures. Elevate's own name and icon are never
+  replaced. Diagnostics names the organization. The Windows ADMX template and the macOS and Intune
+  templates carry all four.
 - macOS: an account can now use its own Entra app registration instead of the one in Settings.
   Choose **Use a different registration** in Add account, or **Change app registration…** from an
   existing account's menu to switch later; both keep the account's tenants, roles and profiles.

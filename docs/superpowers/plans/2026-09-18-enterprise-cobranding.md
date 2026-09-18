@@ -43,6 +43,26 @@
 - **`ALLOWED_URL_PREFIXES`** in the validator needed `https://help.contoso.com` for the new
   placeholder.
 
+### Found when the Windows half was first compiled
+
+- **`SettingsWindow.xaml.cs` was missing `using Elevate.Core.Managed;`.** `TitleStyle.Name()` is
+  an extension method on `OrganizationTitleStyles` in that namespace, and the file only imported
+  `Elevate.Core.Models`. Without it the whole app failed to build, which in turn made the XAML
+  compiler report seven cascading "Unknown type" errors for unrelated views — those were noise,
+  not separate problems. `HyperlinkButton` and `Thickness` were already covered by the existing
+  `Microsoft.UI.Xaml.Controls` and `Microsoft.UI.Xaml` usings.
+- **`Core.Managed.Branding.Resolve(Managed)` resolved as written**, so the fallback to the fully
+  qualified `Elevate.Core.Managed.Branding.Resolve(...)` was not needed.
+- **The header caption pushed the tools off the row.** The caption started as the second line of a
+  `StackPanel` in the header grid's column 0, which is `Auto`: the column grew to the caption's
+  full width, and with the offline pill also showing, the refresh button was clipped off the right
+  edge of the 380 px flyout. Fixed by giving the header grid a second row and putting the caption
+  there, spanning through the star column so it is bounded and ellipsises instead; the tools stack
+  gained `Grid.RowSpan="2"` and stays centred. `TextWrapping="NoWrap"` was added alongside
+  `TextTrimming` as the plan anticipated.
+- **The unbranded and `none` headers are pixel-identical to the pre-change header**, because the
+  caption's row collapses to zero height when it is hidden.
+
 ---
 
 ### Task 1: Swift core — the four keys and their validation

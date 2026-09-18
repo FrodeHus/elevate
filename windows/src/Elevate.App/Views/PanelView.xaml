@@ -218,23 +218,29 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <!-- "Elevate" stays the primary mark at full weight; an organization's name is added
                  beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
                  line rather than an inline suffix: the row leaves the title about 26 characters,
                  which "Elevate - Managed by <name>" overruns for almost any real name. -->
-            <StackPanel Grid.Column="0" Spacing="0" VerticalAlignment="Center">
-                <TextBlock Text="Elevate" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock x:Name="OrganizationCaption" Visibility="Collapsed"
-                           FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           TextTrimming="CharacterEllipsis" MaxLines="1" />
-            </StackPanel>
-            <Border Grid.Column="1" x:Name="OfflinePill" Visibility="Collapsed" VerticalAlignment="Center"
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Elevate" FontSize="16" FontWeight="SemiBold" />
+            <!-- The caption sits on its own row spanning the star column rather than under the title
+                 in an Auto column: an Auto column grows to the caption's full width, which pushed the
+                 offline pill and the refresh button off the right edge for a long name. Here the star
+                 column bounds it, so a name too long for the row is ellipsised instead. -->
+            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" x:Name="OrganizationCaption" Visibility="Collapsed"
+                       FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" />
+            <Border Grid.Row="0" Grid.Column="1" x:Name="OfflinePill" Visibility="Collapsed" VerticalAlignment="Center"
                     Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="9" Padding="7,1"
                     ToolTipService.ToolTip="No network connection; refreshes and requests are paused">
                 <TextBlock Text="offline" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
-            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                 <ToggleButton x:Name="SearchToggle" Width="32" Height="32" Padding="0" Click="OnSearchToggle"
                               AutomationProperties.Name="Search">
                     <FontIcon Glyph="&#xE721;" FontSize="14" />

@@ -1,6 +1,7 @@
 using Elevate.App.Services;
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
