@@ -48,6 +48,30 @@ import Foundation
         #expect(emailOnly?.supportLine == "Need help? Contoso IT — it@contoso.com")
     }
 
+    @Test func supportDestinationFallsBackToMailto() {
+        let url = Branding.resolve(from: config([
+            "OrganizationName": "Contoso", "OrganizationSupportUrl": "https://help.contoso.com",
+        ]))
+        #expect(url?.supportDestination?.absoluteString == "https://help.contoso.com")
+
+        let email = Branding.resolve(from: config([
+            "OrganizationName": "Contoso", "OrganizationSupportEmail": "it@contoso.com",
+        ]))
+        #expect(email?.supportDestination?.absoluteString == "mailto:it@contoso.com")
+
+        #expect(Branding.resolve(from: config(["OrganizationName": "Contoso"]))?.supportDestination == nil)
+    }
+
+    @Test func diagnosticsLineNamesTheOrganizationAndHelpDesk() {
+        let full = Branding.resolve(from: config([
+            "OrganizationName": "Contoso",
+            "OrganizationTitleStyle": "managedBy",
+            "OrganizationSupportUrl": "https://help.contoso.com",
+        ]))
+        #expect(full?.diagnosticsLine == "Contoso (managedBy) · https://help.contoso.com")
+        #expect(Branding.resolve(from: config(["OrganizationName": "Contoso"]))?.diagnosticsLine == "Contoso (by)")
+    }
+
     @Test func noSupportMeansNoSupportLine() {
         let branding = Branding.resolve(from: config(["OrganizationName": "Contoso"]))
         #expect(branding?.hasSupport == false)

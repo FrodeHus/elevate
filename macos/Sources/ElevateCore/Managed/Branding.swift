@@ -27,11 +27,27 @@ public struct Branding: Hashable, Sendable {
 
     public var hasSupport: Bool { supportUrl != nil || supportEmail != nil }
 
+    /// The single link a "Get help" control opens: the help desk URL, or the address as `mailto:`.
+    /// One place on purpose, so no view builds a `mailto:` of its own.
+    public var supportDestination: URL? {
+        if let supportUrl { return supportUrl }
+        guard let supportEmail else { return nil }
+        return URL(string: "mailto:\(supportEmail)")
+    }
+
     /// The one-line contact appended to CLI failures. Prefers the URL: a help desk portal lists the
     /// address, but an address does not list the portal.
     public var supportLine: String? {
         guard let target = supportUrl?.absoluteString ?? supportEmail else { return nil }
         return "Need help? \(supportLabel) — \(target)"
+    }
+
+    /// One line for the diagnostics report: the name, how it is phrased, and the help desk.
+    public var diagnosticsLine: String {
+        var parts = ["\(organizationName) (\(titleStyle.rawValue))"]
+        if let supportUrl { parts.append(supportUrl.absoluteString) }
+        if let supportEmail { parts.append(supportEmail) }
+        return parts.joined(separator: " · ")
     }
 
     public static func resolve(from config: ManagedConfiguration) -> Branding? {

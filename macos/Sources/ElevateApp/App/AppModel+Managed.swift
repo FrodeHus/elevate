@@ -5,6 +5,12 @@ import ElevateCore
 /// sign-in methods may be used, which tenants may be tracked, and which ones must be.
 @MainActor
 extension AppModel {
+    // MARK: Co-branding
+
+    /// The organization's co-branding, or nil when nothing is pushed. Every branded view is behind
+    /// this being non-nil, so an unbranded install renders exactly as it did before the feature.
+    var branding: Branding? { Branding.resolve(from: managed) }
+
     // MARK: Sign-in methods
 
     /// Whether `method` may be used at all under the managed configuration. A method that is not

@@ -72,6 +72,43 @@ public class BrandingTests
     }
 
     [Fact]
+    public void SupportDestinationFallsBackToMailto()
+    {
+        Branding.Resolve(Config(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationSupportUrl"] = "https://help.contoso.com",
+        }))!.SupportDestination!.ToString().Should().Be("https://help.contoso.com/");
+
+        Branding.Resolve(Config(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationSupportEmail"] = "it@contoso.com",
+        }))!.SupportDestination!.ToString().Should().Be("mailto:it@contoso.com");
+
+        Branding.Resolve(Config(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+        }))!.SupportDestination.Should().BeNull();
+    }
+
+    [Fact]
+    public void DiagnosticsLineNamesTheOrganizationAndHelpDesk()
+    {
+        Branding.Resolve(Config(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationTitleStyle"] = "managedBy",
+            ["OrganizationSupportUrl"] = "https://help.contoso.com",
+        }))!.DiagnosticsLine.Should().Be("Contoso (managedBy) · https://help.contoso.com/");
+
+        Branding.Resolve(Config(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+        }))!.DiagnosticsLine.Should().Be("Contoso (by)");
+    }
+
+    [Fact]
     public void NoSupportMeansNoSupportLine()
     {
         var branding = Branding.Resolve(Config(new Dictionary<string, object?>

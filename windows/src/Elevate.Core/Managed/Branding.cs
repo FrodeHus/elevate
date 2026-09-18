@@ -30,6 +30,13 @@ public sealed record Branding(
     public bool HasSupport => SupportUrl is not null || SupportEmail is not null;
 
     /// <summary>
+    /// The single link a "Get help" control opens: the help desk URL, or the address as a
+    /// <c>mailto:</c>. One place on purpose, so no view builds a <c>mailto:</c> of its own.
+    /// </summary>
+    public Uri? SupportDestination =>
+        SupportUrl ?? (SupportEmail is { } email ? new Uri($"mailto:{email}") : null);
+
+    /// <summary>
     /// The one-line contact appended to CLI failures. Prefers the URL: a help desk portal lists the
     /// address, but an address does not list the portal.
     /// </summary>
@@ -37,6 +44,26 @@ public sealed record Branding(
         (SupportUrl?.ToString() ?? SupportEmail) is { } target
             ? $"Need help? {SupportLabel} — {target}"
             : null;
+
+    /// <summary>One line for the diagnostics report: the name, its phrasing, and the help desk.</summary>
+    public string DiagnosticsLine
+    {
+        get
+        {
+            var parts = new List<string> { $"{OrganizationName} ({TitleStyle.Name()})" };
+            if (SupportUrl is not null)
+            {
+                parts.Add(SupportUrl.ToString());
+            }
+
+            if (SupportEmail is not null)
+            {
+                parts.Add(SupportEmail);
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
 
     public static Branding? Resolve(ManagedConfiguration config)
     {

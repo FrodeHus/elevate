@@ -217,7 +217,20 @@ struct PanelView: View {
     private var header: some View {
         @Bindable var model = model
         return HStack {
-            Text("Elevate").font(.headline)
+            // "Elevate" stays the primary mark at full weight; an organization's name is added
+            // beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
+            // line rather than an inline suffix: this row leaves the title about 26 characters,
+            // which "Elevate - Managed by <name>" overruns for almost any real name.
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Elevate").font(.headline)
+                if let caption = model.branding?.headerCaption {
+                    Text(caption)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
             if !model.isOnline {
                 Text("offline").font(.caption2).foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 1)
