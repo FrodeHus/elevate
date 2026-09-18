@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Elevate.Core.Managed;
 
 /// <summary>
@@ -14,6 +16,42 @@ public enum ManagedKey
     PinnedTenants,
     ManagedProfiles,
     ManagedProfilesUrl,
+    OrganizationName,
+    OrganizationTitleStyle,
+    OrganizationSupportUrl,
+    OrganizationSupportEmail,
+}
+
+/// <summary>
+/// How an organization's name is phrased beside Elevate's own. <c>None</c> keeps the support
+/// contact and the About section but renders no caption in the panel header. Elevate's own name is
+/// never replaced. Port of the Swift <c>OrganizationTitleStyle</c> enum; the wire names are
+/// <c>by</c>, <c>managedBy</c> and <c>none</c>.
+/// </summary>
+public enum OrganizationTitleStyle
+{
+    By,
+    ManagedBy,
+    None,
+}
+
+/// <summary>Wire names and parsing for <see cref="OrganizationTitleStyle"/>.</summary>
+public static class OrganizationTitleStyles
+{
+    /// <summary>The raw string an administrator pushes.</summary>
+    public static string Name(this OrganizationTitleStyle style) => style switch
+    {
+        OrganizationTitleStyle.By => "by",
+        OrganizationTitleStyle.ManagedBy => "managedBy",
+        OrganizationTitleStyle.None => "none",
+        _ => throw new ArgumentOutOfRangeException(nameof(style), style, message: null),
+    };
+
+    /// <summary>Case-insensitive lookup by wire name; null when no style matches.</summary>
+    public static OrganizationTitleStyle? Parse(string raw) =>
+        Enum.GetValues<OrganizationTitleStyle>()
+            .Cast<OrganizationTitleStyle?>()
+            .FirstOrDefault(s => string.Equals(s!.Value.Name(), raw, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Raw string names and enumeration helpers for <see cref="ManagedKey"/>.</summary>
@@ -29,6 +67,10 @@ public static class ManagedKeys
         ManagedKey.PinnedTenants => "PinnedTenants",
         ManagedKey.ManagedProfiles => "ManagedProfiles",
         ManagedKey.ManagedProfilesUrl => "ManagedProfilesUrl",
+        ManagedKey.OrganizationName => "OrganizationName",
+        ManagedKey.OrganizationTitleStyle => "OrganizationTitleStyle",
+        ManagedKey.OrganizationSupportUrl => "OrganizationSupportUrl",
+        ManagedKey.OrganizationSupportEmail => "OrganizationSupportEmail",
         _ => throw new ArgumentOutOfRangeException(nameof(key), key, message: null),
     };
 
@@ -42,5 +84,9 @@ public static class ManagedKeys
         ManagedKey.PinnedTenants,
         ManagedKey.ManagedProfiles,
         ManagedKey.ManagedProfilesUrl,
+        ManagedKey.OrganizationName,
+        ManagedKey.OrganizationTitleStyle,
+        ManagedKey.OrganizationSupportUrl,
+        ManagedKey.OrganizationSupportEmail,
     ];
 }
