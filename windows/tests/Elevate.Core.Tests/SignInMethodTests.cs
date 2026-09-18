@@ -97,7 +97,8 @@ public class SignInMethodTests
         pinned.PinnedClientId.Should().Be("aaaaaaaa-2222-3333-4444-555555555555");
         pinned.ClientId.Should().Be("aaaaaaaa-2222-3333-4444-555555555555");
         pinned.CustomClientId.Should().BeNull();
-        pinned.UsesMsal.Should().BeFalse("the Windows app and CLI do not support pinned accounts yet");
+        pinned.IsOwnApp.Should().BeTrue();
+        pinned.UsesMsal.Should().BeTrue("a pinned account is served by the MSAL client built for its own id");
         pinned.Should().NotBe(SignInMethod.OwnApp);
         pinned.DisplayName.Should().Be("Entra app registration");
         pinned.DetailedName.Should().Be("Entra app registration (aaaaaaaa…)");

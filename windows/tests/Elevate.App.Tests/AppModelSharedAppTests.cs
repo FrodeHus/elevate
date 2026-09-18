@@ -95,6 +95,20 @@ public class AppModelSharedAppTests
     }
 
     [Fact]
+    public async Task PerTenantAdminConsentUrlUsesAPinnedAccountsOwnClientId()
+    {
+        using var test = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: AppSettings.SharedClientId, pinning: true);
+        test.Model.State.Identities.Add(Sample.Identity(method: SignInMethod.PinnedApp(OtherClientId)));
+
+        var url = test.Model.AdminConsentUrl(Sample.IdentityId, Sample.TenantId);
+
+        url.Should().NotBeNull();
+        Query(url!, "client_id").Should().Be(OtherClientId);
+        // Its own registration, not the shared one, so the loopback-friendly redirect is kept.
+        Query(url!, "redirect_uri").Should().Be(SharedApp.NativeClientRedirectUri);
+    }
+
+    [Fact]
     public async Task PerTenantAdminConsentUrlIsNullForFirstPartyCustomAndUnknownAccounts()
     {
         // The tenant menu offers "Open admin consent link…" whenever this returns a URL, so the

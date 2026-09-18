@@ -21,6 +21,19 @@
                     <TextBlock x:Name="OwnAppCaption" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
+            <StackPanel x:Name="RegistrationRow" Margin="28,0,0,0" Spacing="6" Visibility="Collapsed">
+                <RadioButton x:Name="SettingsRegistration" GroupName="registration" Checked="OnChoiceChanged" />
+                <RadioButton x:Name="PinnedRegistration" GroupName="registration" Content="Use a different registration" Checked="OnChoiceChanged" />
+                <StackPanel x:Name="PinnedRow" Margin="28,0,0,0" Spacing="4" Visibility="Collapsed">
+                    <TextBox x:Name="PinnedClientId" PlaceholderText="Application (client) ID" FontFamily="Cascadia Mono, Consolas" TextChanged="OnCustomChanged" />
+                    <TextBlock x:Name="PinnedHint" Text="Enter the application (client) ID as a GUID" FontSize="12"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                    <TextBlock x:Name="PinnedMatchHint" Text="Matches the registration in Settings; this account keeps this ID even if Settings changes."
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                    <TextBlock Text="Needs the same setup as the Elevate app: ms-appx-web://microsoft.aad.brokerplugin/{client id} and http://localhost under Mobile and desktop applications, the Graph PIM scopes, and admin consent."
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </StackPanel>
             <RadioButton x:Name="CustomChoice" GroupName="method" Checked="OnChoiceChanged">
                 <StackPanel>
                     <TextBlock Text="Other app (browser sign-in)" FontWeight="SemiBold" />

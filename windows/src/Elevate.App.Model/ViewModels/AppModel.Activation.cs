@@ -279,6 +279,12 @@ public sealed partial class AppModel
         Touch();
     }
 
+    /// <summary>
+    /// Drops the hint for one account without remembering the dismissal: used when the account
+    /// moves to a registration that no longer shares any tool's token cache.
+    /// </summary>
+    internal void ClearTokenHint(string identityId) => _tokenHintAccounts.Remove(identityId);
+
     /// <summary>Hides the hint for the account it names and remembers not to raise it again for that account.</summary>
     public void DismissTokenHint()
     {

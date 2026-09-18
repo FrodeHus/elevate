@@ -3,6 +3,7 @@ using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
 using Elevate.Core.Auth;
 using Elevate.Core.Managed;
+using Elevate.Core.Models;
 using Spectre.Console;
 
 namespace Elevate.Cli.Commands;
@@ -168,8 +169,10 @@ public static class ConfigCommands
                         throw new CliException("The application (client) ID must be a GUID, or 'shared' for the shared Elevate app.", ExitCodes.Usage);
                     }
 
-                    // The own-app cache is per client id, so every own-app account signs out with the change.
-                    var ownApp = session.Identities.Where(i => i.SignInMethod.UsesMsal).ToList();
+                    // The own-app cache is per client id, so every own-app account signs out with
+                    // the change. An account pinned to a registration of its own does not follow
+                    // the setting and keeps its tokens.
+                    var ownApp = session.Identities.Where(i => i.SignInMethod == SignInMethod.OwnApp).ToList();
                     if (ownApp.Count > 0 && !string.Equals(v, settings.ClientId, StringComparison.OrdinalIgnoreCase))
                     {
                         if (!parse.GetValue(yes) && context.Output.CanPrompt

@@ -517,8 +517,8 @@ public sealed partial class SettingsWindow : Window
             {
                 XamlRoot = Root.XamlRoot,
                 Title = "Change client ID?",
-                Content = $"Saving a different client ID signs out {count} account{(count == 1 ? "" : "s")} that use{(count == 1 ? "s" : "")} it; you will add {(count == 1 ? "it" : "them")} again. Azure CLI, Azure PowerShell and custom accounts are unaffected.",
-                PrimaryButtonText = "Sign out and change",
+                Content = $"Saving a different client ID asks {count} account{(count == 1 ? "" : "s")} that follow{(count == 1 ? "s" : "")} it to sign in again; {(count == 1 ? "it keeps its" : "they keep their")} tenants, roles and profiles. Accounts with a registration of their own, and Azure CLI, Azure PowerShell and other-app accounts, are unaffected.",
+                PrimaryButtonText = "Change",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
             };

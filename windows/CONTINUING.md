@@ -48,7 +48,7 @@ src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --
 src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --show settings
 ```
 
-- `--flyout` opens the flyout at once; `--show <settings|add-account|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window. Both exist for screenshots and smoke tests and are harmless in production.
+- `--flyout` opens the flyout at once; `--show <settings|add-account|registration|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window. Both exist for screenshots and smoke tests and are harmless in production.
 - A second launch does not start twice: it broadcasts `Reothor.Elevate.Open` and the running instance opens its flyout. **The installed app counts**: quit it (tray menu) before running a dev build, or the dev build just opens the installed one's flyout.
 - The tray icon starts in the taskbar's overflow (the `^` chevron) like every new app; drag it out or open it from there.
 - Shell failures (unhandled exceptions, toast failures) go to `%LOCALAPPDATA%\Elevate\elevate.log`; user-visible errors also accumulate in `AppModel.ErrorLog`, which Settings → Copy diagnostics renders.

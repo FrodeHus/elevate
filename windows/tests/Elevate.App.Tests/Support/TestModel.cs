@@ -18,6 +18,20 @@ public sealed class FakeFirstPartyProviders(ITokenProvider? provider = null) : I
     public IReadOnlyCollection<ITokenProvider> Known { get; } = provider is null ? [] : [provider];
 }
 
+/// <summary>Routes every pinned client id to one fake provider, recording the ids asked for.</summary>
+public sealed class FakePinnedProviders(ITokenProvider? provider = null) : IPinnedProviders
+{
+    public List<string> Asked { get; } = [];
+
+    public ITokenProvider? Provider(string clientId)
+    {
+        Asked.Add(clientId);
+        return AppSettings.IsValidClientId(clientId) ? provider : null;
+    }
+
+    public IReadOnlyCollection<ITokenProvider> Known { get; } = provider is null ? [] : [provider];
+}
+
 /// <summary>A <see cref="FakeTokenProvider"/> that can also stand in for the own-app (MSAL) provider.</summary>
 public sealed class FakeOwnAppProvider : IOwnAppTokenProvider
 {
@@ -86,7 +100,8 @@ public sealed class TestModel : IDisposable
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null,
         RecordingNotifier? notifier = null,
-        ManagedConfiguration? managed = null)
+        ManagedConfiguration? managed = null,
+        bool pinning = false)
     {
         Directory = Path.Combine(Path.GetTempPath(), "elevate-tests-" + Guid.NewGuid().ToString("N"));
         Store = new AppStateStore(Directory);
@@ -106,10 +121,13 @@ public sealed class TestModel : IDisposable
         Tokens = tokens ?? new FakeTokenProvider();
         // Every method routes to the same fake: the composite's routing has tests of its own.
         FirstParty = new FakeFirstPartyProviders(Tokens);
+        // Pinning is off unless a test asks for it, so the default model behaves like a build
+        // without a pinned registry.
+        Pinned = pinning ? new FakePinnedProviders(Tokens) : null;
         Notifier = notifier ?? new RecordingNotifier();
         HotKeys = new NoopHotKeyCenter();
         Model = new AppModel(Tokens, Http, Store, Notifier, new FixedNetworkMonitor(online), Settings, FirstParty,
-            ownApp, ownAppFactory, HotKeys);
+            ownApp, ownAppFactory, HotKeys, Pinned);
     }
 
     public RecordingNotifier Notifier { get; }
@@ -128,6 +146,9 @@ public sealed class TestModel : IDisposable
 
     public FakeFirstPartyProviders FirstParty { get; }
 
+    /// <summary>Null unless the test asked for pinning.</summary>
+    public FakePinnedProviders? Pinned { get; }
+
     public AppModel Model { get; }
 
     public static async Task<TestModel> BootstrappedAsync(
@@ -139,9 +160,10 @@ public sealed class TestModel : IDisposable
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
         string? clientId = null,
         RecordingNotifier? notifier = null,
-        ManagedConfiguration? managed = null)
+        ManagedConfiguration? managed = null,
+        bool pinning = false)
     {
-        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId, notifier, managed);
+        var test = new TestModel(state, http, online, tokens, ownApp, ownAppFactory, clientId, notifier, managed, pinning);
         await test.Model.BootstrapAsync();
         return test;
     }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Elevate.App.Views.ChangeRegistrationWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" x:Name="Heading" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+
+        <TextBlock Grid.Row="1" x:Name="Intro" TextWrapping="Wrap" />
+
+        <StackPanel Grid.Row="2" Spacing="6">
+            <RadioButton x:Name="SettingsRegistration" GroupName="registration" Checked="OnChoiceChanged" />
+            <RadioButton x:Name="PinnedRegistration" GroupName="registration" Content="Use a different registration" Checked="OnChoiceChanged" />
+            <StackPanel x:Name="PinnedRow" Margin="28,0,0,0" Spacing="4" Visibility="Collapsed">
+                <TextBox x:Name="PinnedClientId" PlaceholderText="Application (client) ID" FontFamily="Cascadia Mono, Consolas" TextChanged="OnClientIdChanged" />
+                <TextBlock x:Name="PinnedHint" Text="Enter the application (client) ID as a GUID" FontSize="12"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                <TextBlock x:Name="PinnedMatchHint" Text="Matches the registration in Settings; this account keeps this ID even if Settings changes."
+                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+                <TextBlock Text="Needs the same setup as the Elevate app: ms-appx-web://microsoft.aad.brokerplugin/{client id} and http://localhost under Mobile and desktop applications, the Graph PIM scopes, and admin consent."
+                           FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+
+        <InfoBar Grid.Row="3" x:Name="Error" IsOpen="False" IsClosable="False" Severity="Error" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <ProgressRing x:Name="Working" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" MinWidth="90" />
+            <Button x:Name="ApplyButton" Content="Sign in and switch" Style="{StaticResource AccentButtonStyle}" Click="OnApply" MinWidth="140" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,7 +1,9 @@
 using Elevate.App.Auth;
 using Elevate.App.Services;
 using Elevate.App.Tests.Support;
+using Elevate.App.ViewModels;
 using Elevate.Core.Auth;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
 using Elevate.Core.Tests.Support;
@@ -33,15 +35,54 @@ public class AppModelAccountTests
     }
 
     [Fact]
-    public async Task PinnedAppIsNeverAvailableEvenWithAConfiguredClientId()
+    public async Task PinnedAppNeedsAPinnedRegistryAndAGuid()
     {
-        using var configured = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: ClientId);
+        using var noRegistry = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: ClientId);
+        noRegistry.Model.CanPin.Should().BeFalse();
+        noRegistry.Model.IsAvailable(SignInMethod.PinnedApp(OtherClientId)).Should().BeFalse();
 
-        configured.Model.IsAvailable(SignInMethod.PinnedApp(ClientId)).Should().BeFalse();
+        using var pinning = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        pinning.Model.CanPin.Should().BeTrue();
+        pinning.Model.IsAvailable(SignInMethod.PinnedApp(OtherClientId)).Should().BeTrue();
+        pinning.Model.IsAvailable(SignInMethod.PinnedApp("not-a-guid")).Should().BeFalse();
+        // A pinned account does not need the Settings registration to be configured.
+        using var unconfigured = await TestModel.BootstrappedAsync(pinning: true);
+        unconfigured.Model.IsAvailable(SignInMethod.OwnApp).Should().BeFalse();
+        unconfigured.Model.IsAvailable(SignInMethod.PinnedApp(OtherClientId)).Should().BeTrue();
     }
 
     [Fact]
-    public async Task APinnedIdentityIsNotFlaggedForSignInAtLaunchButReportedAsUnsupported()
+    public async Task ManagedClientIdTurnsPinningOff()
+    {
+        var managed = ManagedConfiguration.Load(new DictionaryManagedSource(
+            new Dictionary<string, object?> { [ManagedKey.ClientId.Name()] = ClientId }, "test policy"));
+        using var test = await TestModel.BootstrappedAsync(ownApp: new FakeOwnAppProvider(), managed: managed, pinning: true);
+
+        test.Model.CanPin.Should().BeFalse();
+        test.Model.IsAvailable(SignInMethod.PinnedApp(OtherClientId)).Should().BeFalse();
+        test.Model.SettingsRegistrationLabel.Should().Be("managed by your organization");
+    }
+
+    [Fact]
+    public async Task APinnedIdentityIsReconciledLikeAnyOtherWhenTheRegistryExists()
+    {
+        var tokens = new FakeTokenProvider();
+        var state = new AppState
+        {
+            Identities = [Sample.Identity("pinned", SignInMethod.PinnedApp(OtherClientId))],
+            Tenants = [Sample.Tenant("pinned")],
+        };
+        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+
+        // The pinned provider knows no account, so the identity is flagged rather than refused.
+        test.Model.NeedsSignIn("pinned").Should().BeTrue();
+        test.Model.Identities.Should().ContainSingle();
+        test.Model.Notice.Should().Contain("sign in again").And.NotContain(SignInMethod.PinnedUnsupportedMessage);
+        test.Pinned!.Asked.Should().Contain(OtherClientId);
+    }
+
+    [Fact]
+    public async Task APinnedIdentityIsLeftAloneWithoutARegistry()
     {
         var state = new AppState
         {
@@ -52,7 +93,22 @@ public class AppModelAccountTests
 
         test.Model.NeedsSignIn("pinned").Should().BeFalse();
         test.Model.Identities.Should().ContainSingle();
-        test.Model.Notice.Should().Contain(SignInMethod.PinnedUnsupportedMessage);
+    }
+
+    [Fact]
+    public async Task AddingAPinnedAccountRemembersItsClientId()
+    {
+        var tokens = new FakeTokenProvider();
+        var http = new StubHttpClient();
+        http.On("GET", "/organization", """{"value":[{"id":"home","displayName":"Home Org"}]}""");
+        using var test = await TestModel.BootstrappedAsync(http: http, tokens: tokens, ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+
+        var added = await test.Model.AddAccountAsync(SignInMethod.PinnedApp(OtherClientId));
+
+        added.Should().BeTrue();
+        test.Model.Identities.Should().ContainSingle(i => i.SignInMethod == SignInMethod.PinnedApp(OtherClientId));
+        test.Model.RememberedPinnedClientId.Should().Be(OtherClientId);
+        test.Settings.PinnedClientId.Should().Be(OtherClientId);
     }
 
     [Fact]
@@ -67,22 +123,45 @@ public class AppModelAccountTests
     }
 
     [Fact]
-    public async Task RetryingSignInForAPinnedIdentityRefusesWithoutCallingTheTokenProvider()
+    public async Task RetryingSignInForAPinnedIdentityRefusesUnderAManagedClientId()
     {
         var tokens = new FakeTokenProvider();
         var state = new AppState
         {
-            Identities = [Sample.Identity("pinned", SignInMethod.PinnedApp(ClientId))],
+            Identities = [Sample.Identity("pinned", SignInMethod.PinnedApp(OtherClientId))],
             Tenants = [Sample.Tenant("pinned")],
         };
-        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: new FakeOwnAppProvider(), clientId: ClientId);
+        var managed = ManagedConfiguration.Load(new DictionaryManagedSource(
+            new Dictionary<string, object?> { [ManagedKey.ClientId.Name()] = ClientId }, "test policy"));
+        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: new FakeOwnAppProvider(), managed: managed, pinning: true);
         var identity = test.Model.Identity("pinned")!;
 
         var ok = await test.Model.RetrySignInAsync(identity);
 
         ok.Should().BeFalse();
-        test.Model.Notice.Should().Be(SignInMethod.PinnedUnsupportedMessage);
+        test.Model.Notice.Should().Be(AppModel.ManagedPinnedNotice);
         tokens.StoredIdentities.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RetryingSignInForAPinnedIdentitySignsItInAgain()
+    {
+        var tokens = new FakeTokenProvider();
+        var state = new AppState
+        {
+            Identities = [Sample.Identity("pinned", SignInMethod.PinnedApp(OtherClientId))],
+            Tenants = [Sample.Tenant("pinned")],
+        };
+        using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var identity = test.Model.Identity("pinned")!;
+        test.Model.NeedsSignIn("pinned").Should().BeTrue();
+        tokens.NextSignIn = Sample.Identity("pinned", SignInMethod.PinnedApp(OtherClientId));
+
+        var ok = await test.Model.RetrySignInAsync(identity);
+
+        ok.Should().BeTrue();
+        test.Model.NeedsSignIn("pinned").Should().BeFalse();
+        test.Model.Notice.Should().BeNull();
     }
 
     [Fact]
@@ -141,28 +220,41 @@ public class AppModelAccountTests
     }
 
     [Fact]
-    public async Task ApplyClientIdSignsOutOwnAppAccountsAndKeepsFirstPartyOnes()
+    public async Task ApplyClientIdKeepsTheAccountsThatFollowItAndAsksThemToSignInAgain()
     {
         var previous = new FakeOwnAppProvider();
         var replacement = new FakeOwnAppProvider();
+        var pinnedMethod = SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555");
         var state = new AppState
         {
-            Identities = [Sample.Identity("own", SignInMethod.OwnApp), Sample.Identity("cli", SignInMethod.AzureCLI)],
-            Tenants = [Sample.Tenant("own"), Sample.Tenant("cli")],
+            Identities =
+            [
+                Sample.Identity("own", SignInMethod.OwnApp),
+                Sample.Identity("cli", SignInMethod.AzureCLI),
+                Sample.Identity("pinned", pinnedMethod),
+            ],
+            Tenants = [Sample.Tenant("own"), Sample.Tenant("cli"), Sample.Tenant("pinned")],
         };
         var tokens = new FakeTokenProvider();
         tokens.AddIdentity(Sample.Identity("own", SignInMethod.OwnApp));
         tokens.AddIdentity(Sample.Identity("cli", SignInMethod.AzureCLI));
+        tokens.AddIdentity(Sample.Identity("pinned", pinnedMethod));
         using var test = await TestModel.BootstrappedAsync(state, tokens: tokens, ownApp: previous,
-            ownAppFactory: _ => replacement, clientId: ClientId);
+            ownAppFactory: _ => replacement, clientId: ClientId, pinning: true);
         var model = test.Model;
-        model.Identities.Should().HaveCount(2);
+        model.Identities.Should().HaveCount(3);
+        model.OwnAppIdentityCount.Should().Be(1, "only the account following Settings is affected");
         model.Roles[new TenantKey("own", Sample.TenantId)] = [Sample.Role(Sample.Key(new EntraDirectoryScope("r", "/"), "own"), "Reader")];
 
         model.ApplyClientId(OtherClientId);
 
         model.Settings.ClientId.Should().Be(OtherClientId);
-        model.Identities.Select(i => i.Id).Should().Equal("cli");
+        // The accounts, their tenants and their configured roles stay; only the read state goes.
+        model.Identities.Select(i => i.Id).Should().Equal("own", "cli", "pinned");
+        model.TenantsFor("own").Should().ContainSingle();
+        model.NeedsSignIn("own").Should().BeTrue();
+        model.NeedsSignIn("cli").Should().BeFalse();
+        model.NeedsSignIn("pinned").Should().BeFalse();
         model.Roles.Keys.Should().NotContain(k => k.IdentityId == "own");
         model.IsConfigured.Should().BeTrue();
         model.Tokens.Should().BeOfType<CompositeTokenProvider>();
@@ -341,6 +433,134 @@ public class AppModelAccountTests
 
         model.Tenant(Sample.TenantKey)!.EntraActivation!.IsSupported.Should().BeFalse();
         model.CanActivate(Sample.EntraKey).Should().BeFalse();
+    }
+
+    // MARK: Change app registration
+
+    /// <summary>An account, its tenant and a role read under the old registration.</summary>
+    private static AppState WithOneAccount(SignInMethod method) => new()
+    {
+        Identities = [Sample.Identity(method: method)],
+        Tenants = [Sample.Tenant() with { EntraActivation = EntraActivationSupport.Unsupported("no scope"), LastDiscoveryError = "blocked" }],
+    };
+
+    [Fact]
+    public async Task ChangingRegistrationKeepsTheAccountAndItsTenantsAndClearsTheLimitedMethodsFlags()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.AzureCLI), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+        model.CanChangeRegistration(identity).Should().BeTrue();
+        tokens.NextSignIn = Sample.Identity(method: SignInMethod.OwnApp);
+
+        var changed = await model.ChangeSignInRegistrationAsync(identity, SignInMethod.OwnApp);
+
+        changed.Should().BeTrue();
+        model.Identity(Sample.IdentityId)!.SignInMethod.Should().Be(SignInMethod.OwnApp);
+        model.TenantsFor(Sample.IdentityId).Should().ContainSingle();
+        var tenant = model.Tenant(Sample.TenantKey)!;
+        tenant.EntraActivation.Should().BeNull();
+        tenant.LastDiscoveryError.Should().BeNull();
+        model.Notice.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ChangingRegistrationToAPinnedIdRemembersItAndKeepsTheOldSessionOut()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.OwnApp));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.OwnApp), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+        var target = SignInMethod.PinnedApp(OtherClientId);
+        tokens.NextSignIn = Sample.Identity(method: target);
+
+        var changed = await model.ChangeSignInRegistrationAsync(identity, target);
+
+        changed.Should().BeTrue();
+        model.Identity(Sample.IdentityId)!.SignInMethod.Should().Be(target);
+        model.RememberedPinnedClientId.Should().Be(OtherClientId);
+        // The old cache slot is a different client id, so the session there is discarded.
+        tokens.SignOutCalls.Should().Equal(Sample.IdentityId);
+    }
+
+    [Fact]
+    public async Task ChangingRegistrationToTheSameClientIdKeepsTheSharedCacheSlot()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.OwnApp));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.OwnApp), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+        var target = SignInMethod.PinnedApp(ClientId);
+        tokens.NextSignIn = Sample.Identity(method: target);
+
+        var changed = await model.ChangeSignInRegistrationAsync(identity, target);
+
+        changed.Should().BeTrue();
+        tokens.SignOutCalls.Should().BeEmpty("both methods are the same MSAL account under one client id");
+    }
+
+    [Fact]
+    public async Task ADifferentAccountSigningInChangesNothing()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.AzureCLI), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+        tokens.NextSignIn = Sample.Identity("someone-else", SignInMethod.OwnApp);
+
+        var changed = await model.ChangeSignInRegistrationAsync(identity, SignInMethod.OwnApp);
+
+        changed.Should().BeFalse();
+        model.Identity(Sample.IdentityId)!.SignInMethod.Should().Be(SignInMethod.AzureCLI);
+        model.Notice.Should().Contain("was expected").And.Contain("Nothing was changed");
+        tokens.SignOutCalls.Should().Equal("someone-else");
+    }
+
+    [Fact]
+    public async Task OnlyAnEntraAppRegistrationCanBeChosenAndAManagedClientIdBlocksPinning()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.AzureCLI));
+        var managed = ManagedConfiguration.Load(new DictionaryManagedSource(
+            new Dictionary<string, object?> { [ManagedKey.ClientId.Name()] = ClientId }, "test policy"));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.AzureCLI), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), managed: managed, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+
+        (await model.ChangeSignInRegistrationAsync(identity, SignInMethod.AzurePowerShell)).Should().BeFalse();
+        model.Notice.Should().Contain("Only an Entra app registration");
+
+        (await model.ChangeSignInRegistrationAsync(identity, SignInMethod.PinnedApp(OtherClientId))).Should().BeFalse();
+        model.Notice.Should().Contain("managed by your organization");
+        tokens.StoredIdentities.Select(i => i.Id).Should().Equal(Sample.IdentityId);
+    }
+
+    [Fact]
+    public async Task ChangingRegistrationIsRefusedWhileTheAccountIsBusy()
+    {
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity(method: SignInMethod.AzureCLI));
+        using var test = await TestModel.BootstrappedAsync(WithOneAccount(SignInMethod.AzureCLI), tokens: tokens,
+            ownApp: new FakeOwnAppProvider(), clientId: ClientId, pinning: true);
+        var model = test.Model;
+        var identity = model.Identity(Sample.IdentityId)!;
+        model.Busy.Add(Sample.TenantKey);
+
+        var changed = await model.ChangeSignInRegistrationAsync(identity, SignInMethod.OwnApp);
+
+        changed.Should().BeFalse();
+        model.Notice.Should().Contain("Wait for this account");
+        model.Identity(Sample.IdentityId)!.SignInMethod.Should().Be(SignInMethod.AzureCLI);
     }
 
     /// <summary>A provider whose account list cannot be read at all.</summary>

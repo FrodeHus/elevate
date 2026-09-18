@@ -5,19 +5,22 @@ namespace Elevate.App.Auth;
 
 /// <summary>
 /// Routes every token operation to the provider that owns the identity's sign-in method:
-/// <c>OwnApp</c> to the own-app (MSAL + broker) provider, every other method to its first-party
-/// or custom-client provider. Port of the macOS <c>CompositeTokenProvider</c>.
+/// <c>ownApp</c> to the own-app (MSAL + broker) provider, <c>ownApp:&lt;client id&gt;</c> to that
+/// client id's provider from the pinned registry, every other method to its first-party or
+/// custom-client provider. Port of the macOS <c>CompositeTokenProvider</c>.
 /// </summary>
 public sealed class CompositeTokenProvider : ITokenProvider
 {
     private readonly IOwnAppTokenProvider? _ownApp;
     private readonly IFirstPartyProviders _firstParty;
+    private readonly IPinnedProviders? _pinned;
 
-    public CompositeTokenProvider(IOwnAppTokenProvider? ownApp, IFirstPartyProviders firstParty)
+    public CompositeTokenProvider(IOwnAppTokenProvider? ownApp, IFirstPartyProviders firstParty, IPinnedProviders? pinned = null)
     {
         ArgumentNullException.ThrowIfNull(firstParty);
         _ownApp = ownApp;
         _firstParty = firstParty;
+        _pinned = pinned;
     }
 
     public Task<Identity> SignInAsync(SignInMethod method, CancellationToken ct) =>
@@ -46,6 +49,11 @@ public sealed class CompositeTokenProvider : ITokenProvider
             all.AddRange(await provider.IdentitiesAsync(ct).ConfigureAwait(false));
         }
 
+        foreach (var provider in _pinned?.Known ?? [])
+        {
+            all.AddRange(await provider.IdentitiesAsync(ct).ConfigureAwait(false));
+        }
+
         return [.. all.DistinctBy(i => i.Id)];
     }
 
@@ -64,9 +72,11 @@ public sealed class CompositeTokenProvider : ITokenProvider
 
     private ITokenProvider Provider(SignInMethod method)
     {
-        if (method.IsPinned)
+        if (method.PinnedClientId is { } pinnedClientId)
         {
-            throw new PimException(PimErrorKind.Unexpected, SignInMethod.PinnedUnsupportedMessage);
+            return (_pinned ?? throw new PimException(PimErrorKind.Unexpected, "Sign-in is unavailable in this build"))
+                .Provider(pinnedClientId)
+                ?? throw new PimException(PimErrorKind.Unexpected, "Enter the application (client) ID as a GUID");
         }
 
         if (method.UsesMsal)
