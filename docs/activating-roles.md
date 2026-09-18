@@ -54,10 +54,16 @@ is genuinely in effect, the row shows a **hollow** green dot and reads **propaga
 beside its countdown. The countdown runs from the moment PIM recorded the activation, so it is
 already ticking.
 
+The activation sheet holds for the first check before it closes, so in the common case — a role
+that is already in effect — the last thing it says is **Ready** rather than a word that only means
+PIM wrote the assignment down. If the check has not answered within a few seconds the sheet closes
+anyway and the row carries the rest; it never holds you there for minutes.
+
 When the check succeeds the dot fills and Elevate notifies you, so you can switch away and be told
-when to come back. If it never succeeds the row reads **not in effect yet**; hover it for the usual
-reason, which is almost always a tool that is still holding a token minted before the activation.
-The role is active either way, and can be deactivated at any point.
+when to come back. If it never succeeds the row reads **not in effect yet** — and Elevate says so
+in a notification too, because by then you have almost certainly moved on. Hover the row for the
+usual reason, which is almost always a tool still holding a token minted before the activation. The
+role is active either way, and can be deactivated at any point.
 
 Some roles cannot be checked from here — one scoped to an administrative unit, and group
 *ownership* — and those rows simply go green as before.

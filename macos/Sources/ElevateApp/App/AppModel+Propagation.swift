@@ -42,6 +42,19 @@ extension AppModel {
     /// Whether the row should read as active-but-not-ready.
     func isPropagating(_ key: RoleKey) -> Bool { propagationNote(for: key) != nil }
 
+    /// Waits for `keys` to stop propagating, up to `within`, and answers whether every one of them
+    /// is in effect. The activation sheet holds for this so it can close on an honest word instead
+    /// of on the "active" the service would have given it.
+    func settledInEffect(_ keys: [RoleKey], within: TimeInterval) async -> Bool {
+        guard !keys.isEmpty else { return false }
+        let deadline = Date.now.addingTimeInterval(within)
+        while keys.contains(where: { propagation[$0] == .propagating }) {
+            if Date.now >= deadline { return false }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return keys.allSatisfy { propagation[$0] == .ready }
+    }
+
     /// Starts probing everything `outcomes` activated. Roles already being watched are left alone,
     /// so a second activation of the same role does not run two probes against it.
     func watchPropagation(_ outcomes: [ActivationOutcome]) {
@@ -81,7 +94,8 @@ extension AppModel {
     /// Records where a role got to. `.ready` and `.unobservable` both leave a plain active row — the
     /// first because it is ready, the second because there was never anything to say — but only
     /// `.ready` is worth a notification.
-    private func settle(_ outcome: PropagationOutcome, generation: Int) {
+    // internal, not private: the tests drive a settled outcome directly, as the C# port does.
+    func settle(_ outcome: PropagationOutcome, generation: Int) {
         guard generation == configGeneration, propagation[outcome.roleKey] != nil else { return }
         // Expired, deactivated elsewhere, or dropped by a refresh while the probe ran: there is no
         // row left to say anything on, so the entry goes rather than lingering.
@@ -89,14 +103,17 @@ extension AppModel {
             propagation[outcome.roleKey] = nil
             return
         }
+        propagation[outcome.roleKey] = outcome.state
         switch outcome.state {
         case .ready:
-            propagation[outcome.roleKey] = nil
             Task { await notifyReady(outcome.roleKey) }
-        case .unobservable:
-            propagation[outcome.roleKey] = nil
+        case .unconfirmed:
+            // Whoever activated this has almost certainly moved on; the row alone would leave them
+            // believing a role works when it does not. No quiet window here — reaching the deadline
+            // means the wait was long enough to have been noticed.
+            Task { await notifyUnconfirmed(outcome.roleKey, cause: outcome.detail) }
         default:
-            propagation[outcome.roleKey] = outcome.state
+            break
         }
     }
 
@@ -113,6 +130,13 @@ extension AppModel {
         let tenantName = tenant(key.tenantKey)?.displayName ?? key.tenantId
         await notifier.notify(title: "\(summaryName(for: key)) is ready",
                               body: "The access is in effect in \(tenantName).")
+    }
+
+    /// Says the role is active but does not work yet, and what usually explains that.
+    private func notifyUnconfirmed(_ key: RoleKey, cause: String?) async {
+        guard active[key] != nil else { return }
+        await notifier.notify(title: "\(summaryName(for: key)) is active but not in effect",
+                              body: cause ?? PropagationHints.likelyCause(key.scope.kind))
     }
 
     /// Stops watching a role and drops its state. Called when it is deactivated or its account goes
