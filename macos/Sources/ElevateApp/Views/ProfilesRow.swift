@@ -39,7 +39,11 @@ struct ProfilesRow: View {
                 // Deleting a pinned chip confirms here, spanning the row's full width, not the
                 // chip's own ~150 pt column: a card that narrow wrapped the message onto four lines
                 // and truncated both button titles to "Ca…"/"Del…" (found in the visual check).
-                .rowLevelProfileDeleteConfirmation(pinned: pinned)
+                // Suppressed while the "All profiles" popover is open: a pinned profile also shows
+                // there, and `ProfilePopoverRow` presents its own card for it — the row the user
+                // actually clicked. Without this, deleting a pinned profile from inside the popover
+                // opened both cards at once, driven by the same `model.profileToDelete`.
+                .rowLevelProfileDeleteConfirmation(pinned: pinned, suppressedByPopover: showAll)
             }
             Divider()
         }
@@ -276,8 +280,10 @@ extension View {
 
     /// Attached to the whole pinned-chips row instead of one chip: shows the delete confirmation
     /// for whichever pinned profile `model.profileToDelete` names, at the row's full width.
-    func rowLevelProfileDeleteConfirmation(pinned: [ActivationProfile]) -> some View {
-        modifier(RowLevelProfileDeleteConfirmation(pinned: pinned))
+    /// `suppressedByPopover` skips it while the "All profiles" popover is open, since that popover
+    /// shows the same pinned profile and presents its own card for it instead.
+    func rowLevelProfileDeleteConfirmation(pinned: [ActivationProfile], suppressedByPopover: Bool) -> some View {
+        modifier(RowLevelProfileDeleteConfirmation(pinned: pinned, suppressedByPopover: suppressedByPopover))
     }
 }
 
@@ -301,9 +307,10 @@ private struct ProfileDeleteConfirmation: ViewModifier {
 private struct RowLevelProfileDeleteConfirmation: ViewModifier {
     @Environment(AppModel.self) private var model
     let pinned: [ActivationProfile]
+    let suppressedByPopover: Bool
 
     func body(content: Content) -> some View {
-        if let target = pinned.first(where: { $0.id == model.profileToDelete }) {
+        if !suppressedByPopover, let target = pinned.first(where: { $0.id == model.profileToDelete }) {
             content.inlineProfileDeleteConfirmation(target)
         } else {
             content

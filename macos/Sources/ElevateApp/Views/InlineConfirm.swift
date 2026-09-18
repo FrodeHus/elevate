@@ -73,7 +73,18 @@ private struct InlineConfirmCard: View {
             }
         }
         .padding(10)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        // Opaque, not just `.quaternary`: this card can be part of a pinned section header (the
+        // tenant header, and the account header when it stands in for its sole tenant), and a
+        // pinned header always overlays whatever has scrolled underneath it — normal for a sticky
+        // header, but a translucent fill let that scrolled role text visibly bleed through the
+        // card (found in the visual check). A solid backing under the same `.quaternary` tint keeps
+        // the look but fully occludes it, matching how `PinnedHeaderChrome` already backs the row.
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor))
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary)
+            }
+        }
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.bottom, 8)
         .accessibilityElement(children: .contain)
