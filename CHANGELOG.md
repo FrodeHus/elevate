@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and is appended to CLI sign-in and activation failures. Elevate's own name and icon are never
   replaced. Diagnostics names the organization. The Windows ADMX template and the macOS and Intune
   templates carry all four.
+- Windows: an account can now use its own Entra app registration instead of the one in Settings,
+  matching macOS. Choose **Use a different registration** under **Entra app registration** in Add
+  account, or **Change app registration…** / **Upgrade to Entra app registration…** from an
+  existing account's menu. Each pinned client ID gets its own MSAL (WAM) public client, so its
+  tokens stay separate; its admin consent links use that client ID. Both options are hidden when
+  the organization manages the client ID, and such an account can then only move to the managed
+  registration.
 - macOS: an account can now use its own Entra app registration instead of the one in Settings.
   Choose **Use a different registration** in Add account, or **Change app registration…** from an
   existing account's menu to switch later; both keep the account's tenants, roles and profiles.
@@ -36,14 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   macOS and Windows. The stored value (`custom:<id>`) and the managed-configuration key
   (`custom`) are unchanged.
 
-- macOS: changing the client ID in Settings no longer removes accounts. Accounts that use the
-  Settings registration keep their tenants, roles and profiles and show **Sign in**; accounts with
-  their own registration, and Azure CLI and Azure PowerShell accounts, are unaffected. Windows and
-  the CLI (`elevate config set client-id`) still sign those accounts out and remove them with their
-  tenants and roles; the CLI asks first unless `--yes` is given.
-- Windows and CLI: accounts with their own app registration are not supported yet; such an
-  account shows "This account uses its own app registration, which this version of Elevate does
-  not support yet."
+- macOS and Windows: changing the client ID in Settings no longer removes accounts. Accounts that
+  use the Settings registration keep their tenants, roles and profiles and show **Sign in**;
+  accounts with their own registration, and Azure CLI and Azure PowerShell accounts, are
+  unaffected. The CLI (`elevate config set client-id`) still signs those accounts out and removes
+  them with their tenants and roles; it asks first unless `--yes` is given.
+- CLI: accounts with their own app registration are not supported yet; such an account shows
+  "This account uses its own app registration, which this version of Elevate does not support
+  yet."
 - Windows: every release now opens the `microsoft/winget-pkgs` pull requests for `Reothor.Elevate`
   and `Reothor.Elevate.CLI` itself (and the audit tool's release its `Reothor.Elevate.Audit`
   one), so `winget install` and `winget upgrade` follow the GitHub releases after Microsoft's

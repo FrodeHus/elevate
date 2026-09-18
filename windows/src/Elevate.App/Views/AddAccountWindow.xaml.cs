@@ -23,9 +23,25 @@ public sealed partial class AddAccountWindow : Window
         DialogWindows.Configure(this, "Add account", 460, 560, Root, autoHeight: true);
         DialogWindows.DefaultButton(Root, ContinueButton);
         CustomClientId.Text = model.RememberedCustomClientId;
+        PinnedClientId.Text = model.RememberedPinnedClientId;
         var ownAppAvailable = model.IsAvailable(SignInMethod.OwnApp);
-        OwnAppChoice.IsEnabled = ownAppAvailable;
-        OwnAppCaption.Text = !ownAppAvailable
+        // The Entra row is usable through either registration, so it stays enabled when only a
+        // registration of the account's own is reachable.
+        OwnAppChoice.IsEnabled = ownAppAvailable || model.CanPin;
+        SettingsRegistration.Content = $"Use the registration in Settings ({model.SettingsRegistrationLabel})";
+        SettingsRegistration.IsEnabled = ownAppAvailable;
+        // Hidden entirely when the organization manages the client id: there is nothing to choose.
+        PinnedRegistration.Visibility = model.CanPin ? Visibility.Visible : Visibility.Collapsed;
+        if (ownAppAvailable || !model.CanPin)
+        {
+            SettingsRegistration.IsChecked = true;
+        }
+        else
+        {
+            PinnedRegistration.IsChecked = true;
+        }
+
+        OwnAppCaption.Text = !ownAppAvailable && !model.CanPin
             ? "Unavailable — configure a client ID in Settings."
             : model.UsesSharedApp
                 ? "Signs in with Windows (WAM) using the shared Elevate app (no SLA) configured in Settings; an administrator must grant consent once per tenant. Supports Entra roles, Azure roles and PIM for Groups."
@@ -37,7 +53,13 @@ public sealed partial class AddAccountWindow : Window
         CliChoice.Visibility = Offered(offered, SignInMethodKind.AzureCLI);
         PowerShellChoice.Visibility = Offered(offered, SignInMethodKind.AzurePowerShell);
         CustomChoice.Visibility = model.IsCustomMethodAllowed ? Visibility.Visible : Visibility.Collapsed;
-        var initial = preselected ?? (ownAppAvailable ? SignInMethod.OwnApp : SignInMethod.AzureCLI);
+        var initial = preselected ?? (ownAppAvailable || model.CanPin ? SignInMethod.OwnApp : SignInMethod.AzureCLI);
+        if (initial.PinnedClientId is { } preselectedPin && model.CanPin)
+        {
+            PinnedClientId.Text = preselectedPin;
+            PinnedRegistration.IsChecked = true;
+        }
+
         var choice = Row(initial.Kind);
         if (choice.Visibility != Visibility.Visible)
         {
@@ -77,7 +99,15 @@ public sealed partial class AddAccountWindow : Window
         {
             if (OwnAppChoice.IsChecked == true)
             {
-                return SignInMethod.OwnApp;
+                if (PinnedRegistration.IsChecked != true)
+                {
+                    return SignInMethod.OwnApp;
+                }
+
+                var pinned = PinnedClientId.Text.Trim();
+                // A placeholder id keeps the method pinned while the box is empty, so the dialog
+                // stays on "Use a different registration" instead of falling back to Settings.
+                return SignInMethod.PinnedApp(pinned.Length > 0 ? pinned : "-");
             }
 
             if (CustomChoice.IsChecked == true)
@@ -93,6 +123,19 @@ public sealed partial class AddAccountWindow : Window
     private void Update()
     {
         var selection = Selection;
+        // Nothing to choose between when a registration of the account's own is unavailable, so
+        // the whole sub-section goes rather than leaving one row that cannot be unpicked.
+        RegistrationRow.Visibility = _model.CanPin && OwnAppChoice.IsChecked == true && OwnAppChoice.Visibility == Visibility.Visible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        var pinnedChosen = OwnAppChoice.IsChecked == true && PinnedRegistration.IsChecked == true;
+        PinnedRow.Visibility = pinnedChosen ? Visibility.Visible : Visibility.Collapsed;
+        var typedPin = PinnedClientId.Text.Trim();
+        var pinIsGuid = AppSettings.IsValidClientId(typedPin);
+        PinnedHint.Visibility = pinnedChosen && typedPin.Length > 0 && !pinIsGuid ? Visibility.Visible : Visibility.Collapsed;
+        PinnedMatchHint.Visibility = pinnedChosen && pinIsGuid && _model.MatchesSettingsClientId(typedPin)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         CustomRow.Visibility = CustomChoice.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         CustomHint.Visibility = CustomChoice.IsChecked == true && CustomClientId.Text.Trim().Length > 0 && !AppSettings.IsValidClientId(CustomClientId.Text)
             ? Visibility.Visible

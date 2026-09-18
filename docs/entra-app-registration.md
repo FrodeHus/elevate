@@ -215,11 +215,13 @@ only what was consented.
 
 Some accounts may need a different registration than the one in Settings — most often because
 their tenant has its own copy of the Elevate registration, separate from your organization's. On
-macOS, an account can "pin" its own client ID instead of following the one in Settings.
+macOS and Windows, an account can "pin" its own client ID instead of following the one in Settings.
 
-The second registration needs the same setup as the Settings one: the redirect
-`msauth.no.reothor.elevate://auth` under **Mobile and desktop applications** for signed builds,
-plus `http://localhost` there too for unsigned builds, the same Microsoft Graph PIM scopes from
+The second registration needs the same setup as the Settings one: the redirects **Mobile and
+desktop applications** asks for on that platform — `msauth.no.reothor.elevate://auth` for signed
+macOS builds, `http://localhost` for unsigned ones, and
+`ms-appx-web://microsoft.aad.brokerplugin/<client id>` plus `http://localhost` on Windows — the
+same Microsoft Graph PIM scopes from
 the [permission table](#4-permission-table), and admin consent in each tenant that account uses.
 Admin consent links for such an account use its own client ID, not the one in Settings.
 
@@ -229,7 +231,8 @@ Settings (\<label\>)" and "Use a different registration", with a field for the A
 account pinned to it, so a later change to Settings does not affect it.
 
 **Changing it later:** open the account's menu and choose **Change app registration…**. The sheet
-offers "Follow the registration in Settings" or "Use a different registration", and a **Sign in
+(a window on Windows) offers "Follow the registration in Settings" or "Use a different
+registration", and a **Sign in
 and switch** button. Elevate signs the account in with the chosen registration and keeps its
 tenants, roles and profiles. Nothing changes if you cancel the sign-in, a different account signs
 in instead, or something else changes the account meanwhile. When your organization manages the client ID,
@@ -239,9 +242,11 @@ just "Follow the registration in Settings", and **Sign in** on that account says
 In Add account, both options are hidden when your organization manages the client ID with the
 [`ClientId`](enterprise/keys.md#clientid) key.
 
-**Platform support:** this is a macOS feature. The Windows app and the CLI do not support
-accounts with their own registration yet; such an account shows "This account uses its own app
-registration, which this version of Elevate does not support yet."
+**Platform support:** macOS and the Windows app support this. On Windows the second registration
+needs `ms-appx-web://microsoft.aad.brokerplugin/<client id>` and `http://localhost` as redirect
+URIs, the same as the Settings one. The CLI does not support accounts with their own registration
+yet; such an account shows "This account uses its own app registration, which this version of
+Elevate does not support yet."
 
 Copy diagnostics never includes any client ID, including one an account pins.
 

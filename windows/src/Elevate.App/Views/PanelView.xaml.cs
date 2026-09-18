@@ -731,6 +731,15 @@ public sealed partial class PanelView : UserControl
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
+            if (_model.Identity(identityId) is { } identity && _model.CanChangeRegistration(identity))
+            {
+                // An account not on an Entra app registration yet gains Entra roles and PIM for
+                // Groups by moving to one, so the item says so instead of "change".
+                menu.Items.Add(Item(
+                    identity.SignInMethod.IsOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…",
+                    () => App.Current.OpenChangeRegistration(identityId)));
+            }
+
             menu.Items.Add(Item("Sign out…", () => _ = ConfirmSignOutAsync(identityId)));
         }
         else if (group.Kind == GroupKind.Tenant && group.TenantKey is { } key && _model.Tenant(key) is { } tenant)

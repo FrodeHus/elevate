@@ -200,6 +200,12 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
     private readonly IFirstPartyProviders _firstParty;
 
+    /// <summary>
+    /// The providers for accounts pinned to a registration of their own; null when this build
+    /// cannot sign in with an Entra app registration at all, which also disables pinning.
+    /// </summary>
+    private readonly IPinnedProviders? _pinned;
+
     /// <summary>Builds the own-app provider for a client id; null when the build cannot sign in that way.</summary>
     private readonly Func<string, IOwnAppTokenProvider>? _ownAppFactory;
 
@@ -225,7 +231,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         IFirstPartyProviders firstParty,
         IOwnAppTokenProvider? ownApp = null,
         Func<string, IOwnAppTokenProvider>? ownAppFactory = null,
-        IHotKeyCenter? hotKeys = null)
+        IHotKeyCenter? hotKeys = null,
+        IPinnedProviders? pinned = null)
     {
         ArgumentNullException.ThrowIfNull(tokens);
         ArgumentNullException.ThrowIfNull(http);
@@ -242,6 +249,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         _network = network;
         Settings = settings;
         _firstParty = firstParty;
+        _pinned = pinned;
         _ownApp = ownApp;
         _ownAppFactory = ownAppFactory;
         _context = SynchronizationContext.Current;
@@ -259,8 +267,10 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         tokens);
 
     /// <summary>
-    /// Saves a new client id. The own-app token cache is per client, so every own-app account is
-    /// signed out and cleared; first-party accounts keep their own caches and stay.
+    /// Saves a new client id. The own-app token cache is per client, so every account that follows
+    /// the Settings registration loses its saved sign-in and is asked to sign in again, keeping its
+    /// tenants, configured roles and profiles; accounts with a registration of their own, and the
+    /// first-party ones, keep their own caches and are untouched.
     /// </summary>
     /// <exception cref="InvalidOperationException">The organization manages the client id.</exception>
     /// <exception cref="PimException">The id is not a GUID, or this build cannot sign in with an own app.</exception>
@@ -284,7 +294,9 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         var factory = _ownAppFactory ?? throw new PimException(PimErrorKind.Unexpected, "Sign-in is unavailable in this build");
         var replacement = factory(id);
 
-        var ownApp = State.Identities.Where(i => i.SignInMethod.UsesMsal).ToList();
+        // Deliberately not IsOwnApp: an account pinned to a registration of its own does not
+        // follow Settings, and its tokens live in its own client's cache slot.
+        var ownApp = State.Identities.Where(i => i.SignInMethod == SignInMethod.OwnApp).ToList();
         // The old client's cache is unusable under the new client id; drop it silently. A browser
         // sign-out here would only interrupt the user.
         var previous = _ownApp;
@@ -304,9 +316,11 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         }
 
         ConfigGeneration += 1;
+        // The accounts keep their tenants, roles and profiles; they sign in again under the new id.
         foreach (var identity in ownApp)
         {
-            ForgetIdentity(identity.Id);
+            DropRuntime(identity.Id);
+            SignInNeeded.Add(identity.Id);
         }
 
         LastRefresh = DateTimeOffset.MinValue;
@@ -323,7 +337,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         Persist();
         Settings.ClientId = id;
         _ownApp = replacement;
-        var composite = new CompositeTokenProvider(replacement, _firstParty);
+        var composite = new CompositeTokenProvider(replacement, _firstParty, _pinned);
         Tokens = composite;
         Coordinator = MakeCoordinator(composite);
         ApprovalProviders = MakeApprovalProviders(Http, composite);
@@ -341,6 +355,16 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     {
         State.RemoveIdentity(identityId);
         SignInNeeded.Remove(identityId);
+        DropRuntime(identityId);
+    }
+
+    /// <summary>
+    /// Drops what this session read or started for an account, keeping the account itself, its
+    /// tenants, configured roles, profile entries and role memory. Used when its registration
+    /// changes and everything read under the old one is stale.
+    /// </summary>
+    internal void DropRuntime(string identityId)
+    {
         foreach (var key in Roles.Keys.Where(k => k.IdentityId == identityId).ToList())
         {
             Roles.Remove(key);
@@ -353,6 +377,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         RemoveWhere(DeactivationErrors, k => k.IdentityId == identityId);
         RemoveWhere(DeactivationPhases, k => k.IdentityId == identityId);
         TenantsAwaitingSignIn.RemoveWhere(k => k.IdentityId == identityId);
+        DeclinedTenants.RemoveWhere(k => k.IdentityId == identityId);
         DropApprovals(k => k.IdentityId == identityId);
         DropPolicies(k => k.IdentityId == identityId);
     }
@@ -361,8 +386,11 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
     public IReadOnlyList<Identity> Identities => State.Identities;
 
-    /// <summary>Accounts a client-id change would sign out; the first-party ones are unaffected.</summary>
-    public int OwnAppIdentityCount => State.Identities.Count(i => i.SignInMethod.UsesMsal);
+    /// <summary>
+    /// Accounts that follow the Settings client id and would need to sign in again after it
+    /// changes; the pinned and first-party ones are unaffected.
+    /// </summary>
+    public int OwnAppIdentityCount => State.Identities.Count(i => i.SignInMethod == SignInMethod.OwnApp);
 
     /// <summary>False when the machine has no usable network path; reads and requests are held back.</summary>
     public bool IsOnline => _network.IsOnline;
@@ -404,18 +432,24 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Only own-app accounts can be consented to: the first-party client ids are Microsoft's,
-    /// already consented tenant-wide, and are not ours to request consent for.
+    /// already consented tenant-wide, and are not ours to request consent for. An account with a
+    /// registration of its own is consented for that registration, not the one in Settings.
     /// </summary>
     public Uri? AdminConsentUrl(string identityId, string tenantId)
     {
-        if (!IsConfigured || Identity(identityId)?.SignInMethod.UsesMsal != true)
+        if (Identity(identityId)?.SignInMethod is not { IsOwnApp: true } method)
         {
             return null;
         }
 
+        if (method.PinnedClientId is { } pinned)
+        {
+            return SharedApp.AdminConsentUri(pinned, tenantId);
+        }
+
         // The shared registration redirects to its consent result page; own registrations keep
         // the loopback-friendly nativeclient URI. SharedApp.AdminConsentUri picks by client id.
-        return SharedApp.AdminConsentUri(Settings.ClientId, tenantId);
+        return IsConfigured ? SharedApp.AdminConsentUri(Settings.ClientId, tenantId) : null;
     }
 
     /// <summary>True when the configured client id is the project-provided shared Elevate app registration.</summary>
@@ -467,7 +501,14 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         // account", which would flag real accounts on a transient error: fail open and keep them as is.
         foreach (var identity in State.Identities)
         {
-            _ = _firstParty.Provider(identity.SignInMethod);
+            if (identity.SignInMethod.PinnedClientId is { } pinnedClientId)
+            {
+                _ = _pinned?.Provider(pinnedClientId);
+            }
+            else
+            {
+                _ = _firstParty.Provider(identity.SignInMethod);
+            }
         }
 
         IReadOnlyList<Identity>? known = null;
@@ -487,15 +528,12 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             var needsSignIn = new List<string>();
             foreach (var identity in State.Identities)
             {
-                // Pinned accounts are unsupported here, not signed out: they are never flagged, and
-                // their tenants show the unsupported message when they are read.
-                if (identity.SignInMethod.IsPinned)
-                {
-                    continue;
-                }
-
-                // Own-app accounts are only reconcilable when the own-app provider exists.
-                if (identity.SignInMethod.UsesMsal && _ownApp is null)
+                // Only reconcilable when the provider holding this account's tokens exists: the
+                // pinned registry for a registration of its own, the Settings provider otherwise.
+                var reconcilable = identity.SignInMethod.IsPinned
+                    ? _pinned is not null
+                    : !identity.SignInMethod.UsesMsal || _ownApp is not null;
+                if (!reconcilable)
                 {
                     continue;
                 }
@@ -505,13 +543,6 @@ public sealed partial class AppModel : ObservableObject, IDisposable
                     SignInNeeded.Add(identity.Id);
                     needsSignIn.Add(identity.Upn);
                 }
-            }
-
-            var pinned = State.Identities.Where(i => i.SignInMethod.IsPinned).Select(i => i.Upn).ToList();
-            if (pinned.Count > 0)
-            {
-                Notice = $"{string.Join(", ", pinned)}: {SignInMethod.PinnedUnsupportedMessage}";
-                LogError($"Unsupported own app registration: {string.Join(", ", pinned)}");
             }
 
             if (needsSignIn.Count > 0)

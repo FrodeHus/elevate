@@ -14,15 +14,21 @@ namespace Elevate.App.Auth;
 /// </summary>
 public sealed class MsalTokenProvider : MsalProviderBase, IOwnAppTokenProvider
 {
-    public MsalTokenProvider(string clientId, TokenCache cache, InteractiveGate gate, Func<IntPtr> parentWindow)
+    /// <param name="pinned">
+    /// True for a provider serving accounts that keep this client id of their own
+    /// (<c>ownApp:&lt;client id&gt;</c>) instead of following Settings; the identities it returns
+    /// are stamped with that method, so each routes back to its own registration.
+    /// </param>
+    public MsalTokenProvider(string clientId, TokenCache cache, InteractiveGate gate, Func<IntPtr> parentWindow, bool pinned = false)
         : base(Build(clientId, parentWindow), cache, gate)
     {
         ClientId = clientId.Trim();
+        Method = pinned ? SignInMethod.PinnedApp(ClientId) : SignInMethod.OwnApp;
     }
 
     public string ClientId { get; }
 
-    protected override SignInMethod Method => SignInMethod.OwnApp;
+    protected override SignInMethod Method { get; }
 
     /// <summary>
     /// The sign-in asks for the entitlement scope alongside User.Read, as the macOS provider does:
@@ -71,6 +77,76 @@ public sealed class MsalTokenProvider : MsalProviderBase, IOwnAppTokenProvider
         catch (MsalException e)
         {
             throw Map(e);
+        }
+    }
+}
+
+/// <summary>
+/// One <see cref="MsalTokenProvider"/> per pinned client id, created on first use and kept for the
+/// life of the app. The Settings registration keeps its own provider in <c>AppModel</c>; these
+/// stamp <c>ownApp:&lt;client id&gt;</c>, so each account routes back to its own registration. All
+/// share the token cache file (MSAL keys its entries by client id), the parent window and the
+/// interactive gate. Port of the macOS <c>MSALProviderRegistry</c>.
+/// </summary>
+public sealed class PinnedProviderRegistry : IPinnedProviders
+{
+    private readonly Lock _gate = new();
+    private readonly Dictionary<string, MsalTokenProvider> _providers = new(StringComparer.Ordinal);
+    private readonly TokenCache _cache;
+    private readonly InteractiveGate _interactive;
+    private readonly Func<IntPtr> _parentWindow;
+
+    public PinnedProviderRegistry(TokenCache cache, InteractiveGate interactive, Func<IntPtr> parentWindow)
+    {
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(interactive);
+        ArgumentNullException.ThrowIfNull(parentWindow);
+        _cache = cache;
+        _interactive = interactive;
+        _parentWindow = parentWindow;
+    }
+
+    public ITokenProvider? Provider(string clientId)
+    {
+        if (!AppSettings.IsValidClientId(clientId))
+        {
+            return null;
+        }
+
+        // Normalised the same way SignInMethod.PinnedApp normalises it, so one provider serves
+        // every spelling of the id and the method it stamps matches the one it is asked for.
+        var id = SignInMethod.NormalizeClientId(clientId);
+        lock (_gate)
+        {
+            if (_providers.TryGetValue(id, out var existing))
+            {
+                return existing;
+            }
+        }
+
+        // Build MSAL's client outside the lock; if another caller won the race meanwhile, keep
+        // theirs so every account of this id shares one provider and one cache slot.
+        var created = new MsalTokenProvider(id, _cache, _interactive, _parentWindow, pinned: true);
+        lock (_gate)
+        {
+            if (_providers.TryGetValue(id, out var existing))
+            {
+                return existing;
+            }
+
+            _providers[id] = created;
+            return created;
+        }
+    }
+
+    public IReadOnlyCollection<ITokenProvider> Known
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _providers.Values];
+            }
         }
     }
 }

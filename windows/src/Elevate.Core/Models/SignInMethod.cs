@@ -25,7 +25,7 @@ public readonly record struct SignInMethod
     public const string AzureCLIClientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
     public const string AzurePowerShellClientId = "1950a258-227b-4e31-a9cf-717495945fc2";
 
-    /// <summary>Shown wherever a pinned account is used before the Windows app and CLI support it.</summary>
+    /// <summary>Shown wherever a pinned account is used before the CLI supports it. The Windows app does.</summary>
     public const string PinnedUnsupportedMessage =
         "This account uses its own app registration, which this version of Elevate does not support yet.";
 
@@ -47,6 +47,9 @@ public readonly record struct SignInMethod
     public string? PinnedClientId => Kind == SignInMethodKind.OwnApp ? _clientId : null;
 
     public bool IsPinned => PinnedClientId is not null;
+
+    /// <summary>Whether this is an Entra app registration, the Settings one or the account's own.</summary>
+    public bool IsOwnApp => Kind == SignInMethodKind.OwnApp;
 
     public static SignInMethod OwnApp => new(SignInMethodKind.OwnApp, null);
     public static SignInMethod AzureCLI => new(SignInMethodKind.AzureCLI, null);
@@ -105,10 +108,10 @@ public readonly record struct SignInMethod
     };
 
     /// <summary>
-    /// Whether the settings registration's MSAL provider serves this method. False for a pinned
-    /// account until the Windows app and CLI support per-account registrations.
+    /// Whether an MSAL public client of ours serves this method: the Settings registration's
+    /// provider, or — for a pinned account — the one built for its own client id.
     /// </summary>
-    public bool UsesMsal => Kind == SignInMethodKind.OwnApp && !IsPinned;
+    public bool UsesMsal => IsOwnApp;
 
     /// <summary>
     /// Whether the account signs in as the Azure CLI or Azure PowerShell app, whose token cache the

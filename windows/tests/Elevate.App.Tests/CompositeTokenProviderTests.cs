@@ -77,14 +77,43 @@ public class CompositeTokenProviderTests
     }
 
     [Fact]
-    public async Task PinnedAccountsAreRefusedWithAClearMessage()
+    public async Task PinnedAccountsGoToTheRegistryForTheirOwnClientId()
+    {
+        var own = new FakeOwnAppProvider();
+        var pinnedProvider = new FakeTokenProvider();
+        var registry = new FakePinnedProviders(pinnedProvider);
+        var composite = new CompositeTokenProvider(own, new FakeFirstPartyProviders(new FakeTokenProvider()), registry);
+        var identity = Sample.Identity("pin", SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555"));
+
+        await composite.AccessTokenAsync(identity, "t1", Scopes.GraphAll, CancellationToken.None);
+
+        registry.Asked.Should().Equal("aaaaaaaa-2222-3333-4444-555555555555");
+        pinnedProvider.SilentCalls.Should().Equal("t1");
+        own.Inner.SilentCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PinnedAccountsAreRefusedWithoutARegistry()
     {
         var composite = new CompositeTokenProvider(new FakeOwnAppProvider(), new FakeFirstPartyProviders(new FakeTokenProvider()));
         var pinned = Sample.Identity("pin", SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555"));
 
         var act = () => composite.AccessTokenAsync(pinned, "t1", Scopes.GraphAll, CancellationToken.None);
 
-        (await act.Should().ThrowAsync<PimException>()).Which.Message.Should().Contain(SignInMethod.PinnedUnsupportedMessage);
+        (await act.Should().ThrowAsync<PimException>()).Which.Kind.Should().Be(PimErrorKind.Unexpected);
+    }
+
+    [Fact]
+    public async Task PinnedProvidersJoinTheIdentityUnion()
+    {
+        var pinnedProvider = new FakeTokenProvider();
+        pinnedProvider.AddIdentity(Sample.Identity("pin", SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555")));
+        var composite = new CompositeTokenProvider(
+            new FakeOwnAppProvider(), new FakeFirstPartyProviders(null), new FakePinnedProviders(pinnedProvider));
+
+        var identities = await composite.IdentitiesAsync(CancellationToken.None);
+
+        identities.Select(i => i.Id).Should().Equal("pin");
     }
 
     [Fact]

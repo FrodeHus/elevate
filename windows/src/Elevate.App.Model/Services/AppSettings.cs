@@ -43,6 +43,7 @@ public sealed class AppSettings : ObservableObject
     private readonly string _path;
     private string _clientId = string.Empty;
     private string _customClientId = string.Empty;
+    private string _pinnedClientId = string.Empty;
     private PanelTab _panelTab = PanelTab.Roles;
     private bool _collapsedActive;
     private bool _collapsedApprovals;
@@ -81,6 +82,7 @@ public sealed class AppSettings : ObservableObject
     private sealed record FileModel(
         string? ClientId = null,
         string? CustomClientId = null,
+        string? PinnedClientId = null,
         PanelTab? PanelTab = null,
         bool? CollapsedActive = null,
         bool? CollapsedApprovals = null,
@@ -132,6 +134,23 @@ public sealed class AppSettings : ObservableObject
         set
         {
             if (SetProperty(ref _customClientId, value ?? string.Empty))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Last client id typed into "Use a different registration" — in Add account or in Change app
+    /// registration — so the next account on the same registration needs no retyping. Not a
+    /// configuration value in its own right.
+    /// </summary>
+    public string PinnedClientId
+    {
+        get => _pinnedClientId;
+        set
+        {
+            if (SetProperty(ref _pinnedClientId, value ?? string.Empty))
             {
                 Save();
             }
@@ -331,6 +350,7 @@ public sealed class AppSettings : ObservableObject
 
             _clientId = model.ClientId ?? string.Empty;
             _customClientId = model.CustomClientId ?? string.Empty;
+            _pinnedClientId = model.PinnedClientId ?? string.Empty;
             _panelTab = model.PanelTab ?? PanelTab.Roles;
             _collapsedActive = model.CollapsedActive ?? false;
             _collapsedApprovals = model.CollapsedApprovals ?? false;
@@ -353,7 +373,7 @@ public sealed class AppSettings : ObservableObject
     private void Save()
     {
         var model = new FileModel(
-            _clientId, _customClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
+            _clientId, _customClientId, _pinnedClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],

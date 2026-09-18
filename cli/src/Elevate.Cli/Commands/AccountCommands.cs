@@ -27,7 +27,7 @@ public static class AccountCommands
             var context = CommandContext.From(parse);
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var chosen = ParseMethod(parse.GetValue(method) ?? ElevateSession.DefaultMethodName(session.Settings.Managed), parse.GetValue(clientId), session.Settings);
-            if (chosen.UsesMsal && !session.Settings.IsConfigured)
+            if (chosen == SignInMethod.OwnApp && !session.Settings.IsConfigured)
             {
                 throw new CliException(
                     "No client ID is configured for the own-app method. Run 'elevate config set client-id <application id>' first, "

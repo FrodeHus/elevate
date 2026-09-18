@@ -125,7 +125,7 @@ public partial class App : Application
                 _notifier?.HandleLaunch(toast);
             }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
-            // `--show <settings|add-account|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window,
+            // `--show <settings|add-account|registration|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window,
             // `--test-toast <seconds>` schedules one Extend toast that far out (quit the app to prove the OS delivers it).
             var args = Environment.GetCommandLineArgs();
             var testToast = Array.IndexOf(args, "--test-toast");
@@ -189,6 +189,7 @@ public partial class App : Application
         var gate = new InteractiveGate();
         Func<IntPtr> anchor = AnchorHandle;
         var firstParty = new FirstPartyProviderRegistry(cache, gate, anchor);
+        var pinned = new PinnedProviderRegistry(cache, gate, anchor);
         IOwnAppTokenProvider MakeOwnApp(string clientId) => new MsalTokenProvider(clientId, cache, gate, anchor);
 
         IOwnAppTokenProvider? ownApp = null;
@@ -205,9 +206,9 @@ public partial class App : Application
             }
         }
 
-        var tokens = new CompositeTokenProvider(ownApp, firstParty);
+        var tokens = new CompositeTokenProvider(ownApp, firstParty, pinned);
         var model = new AppModel(tokens, http, new AppStateStore(), notifier, new NetworkMonitor(), settings,
-            firstParty, ownApp, MakeOwnApp, hotKeys);
+            firstParty, ownApp, MakeOwnApp, hotKeys, pinned);
         if (initError is not null)
         {
             model.Notice = $"Could not initialise sign-in with the saved client ID: {initError}. Check it in Settings.";
@@ -241,6 +242,9 @@ public partial class App : Application
                 break;
             case "bulk" when tenant is not null:
                 OpenActivation([.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
+                break;
+            case "registration" when identity is not null:
+                OpenChangeRegistration(identity.Id);
                 break;
             case "add-tenant" when identity is not null:
                 OpenAddTenant(identity.Id);
@@ -354,6 +358,10 @@ public partial class App : Application
     /// <summary>The request dialog for one package; <paramref name="onSubmitted"/> runs after a successful submit, before it closes.</summary>
     public void OpenRequestPackage(TenantKey tenantKey, Elevate.Core.Models.AccessPackage package, Action onSubmitted) =>
         Open("request-package:" + tenantKey + ":" + package.Id, () => new RequestPackageWindow(Model!, tenantKey, package, onSubmitted));
+
+    /// <summary>Moves one account between the Settings registration and one of its own.</summary>
+    public void OpenChangeRegistration(string identityId) =>
+        Open("registration:" + identityId, () => new ChangeRegistrationWindow(Model!, identityId));
 
     public void OpenAddTenant(string identityId) => Open("add-tenant:" + identityId, () => new TenantWindow(Model!, identityId, TenantWindowMode.Add));
 

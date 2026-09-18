@@ -14,6 +14,20 @@ public interface IOwnAppTokenProvider : ITokenProvider
 }
 
 /// <summary>
+/// The providers for accounts pinned to an Entra app registration of their own
+/// (<c>ownApp:&lt;client id&gt;</c>), one per client id, created on demand and kept for the life of
+/// the process. Port of the macOS <c>MSALProviderRegistry</c>.
+/// </summary>
+public interface IPinnedProviders
+{
+    /// <summary>The provider for a pinned client id, or null when the id is not a usable GUID.</summary>
+    ITokenProvider? Provider(string clientId);
+
+    /// <summary>Every provider created so far, for account enumeration.</summary>
+    IReadOnlyCollection<ITokenProvider> Known { get; }
+}
+
+/// <summary>
 /// The providers for the first-party (Azure CLI, Azure PowerShell) and custom client ids, created
 /// on demand per client id and kept for the life of the process.
 /// </summary>

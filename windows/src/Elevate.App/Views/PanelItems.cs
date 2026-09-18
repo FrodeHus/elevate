@@ -640,7 +640,8 @@ public static class PanelListBuilder
             IdentityId = identity.Id,
             TenantKey = soleTenant?.Key,
             Title = name.Length == 0 ? identity.Upn : name,
-            SignInHelp = $"{identity.Upn}, signed in with {identity.SignInMethod.DisplayName}",
+            // DetailedName so an account on a registration of its own says which one.
+            SignInHelp = $"{identity.Upn}, signed in with {identity.SignInMethod.DetailedName}",
             Initials = Initials(identity),
             Expanded = !model.CollapsedIdentities.Contains(identity.Id),
         };

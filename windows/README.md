@@ -44,7 +44,7 @@ before a role expires with an Extend button, and again when it has expired.
 
 Sign in from the flyout's **Add account…** with one of:
 
-- **Your app registration** through the Windows account picker (WAM), with the system browser as the
+- **Entra app registration** through the Windows account picker (WAM), with the system browser as the
   fallback. Supports Entra directory roles, Azure resource roles and PIM for Groups. Enter the
   application (client) ID in Settings first; the registration must list both redirect URIs shown
   there under the *Mobile and desktop applications* platform:
@@ -52,7 +52,13 @@ Sign in from the flyout's **Add account…** with one of:
   the browser fallback. See [docs/entra-app-registration.md](../docs/entra-app-registration.md).
   Or use the project's shared registration, `c9011cc5-7422-4630-a432-73ff4df5834e`, which already
   lists both redirects — optional, no SLA, and an administrator must consent once per tenant; see
-  [docs/shared-app-registration.md](../docs/shared-app-registration.md).
+  [docs/shared-app-registration.md](../docs/shared-app-registration.md). One account can also
+  **use a different registration** — a client ID of its own instead of the one in Settings, set
+  when it is added or later from its account menu (**Change app registration…**, or **Upgrade to
+  Entra app registration…** for an account on one of the methods below). Hidden when your
+  organization manages the client ID with the `ClientId` policy. Changing the Settings client ID
+  keeps the accounts that follow it, with their tenants, roles and profiles, and asks them to sign
+  in again.
 - **Other app (browser sign-in)**: any public-client registration, through the system browser on `http://localhost`.
 - **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed, but
   Azure resource roles only — Entra directory roles and PIM for Groups are neither read nor
@@ -109,7 +115,7 @@ src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --
 src\Elevate.App\bin\x64\Debug\net10.0-windows10.0.22621.0\win-x64\Elevate.exe --show settings
 ```
 
-`--show` takes `settings`, `add-account`, `configure`, `activation`, `bulk`, `add-tenant`, `discover`,
+`--show` takes `settings`, `add-account`, `registration`, `configure`, `activation`, `bulk`, `add-tenant`, `discover`,
 `save-profile`, `manage-profiles`, `run-profile` or `decision`. `--test-toast <seconds>` schedules one
 Extend toast with Windows that far out; quit the app before it fires to see it delivered anyway.
 To exercise the flyout without
