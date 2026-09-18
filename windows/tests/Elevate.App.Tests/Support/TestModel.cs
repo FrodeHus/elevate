@@ -58,10 +58,19 @@ public sealed class FakeOwnAppProvider : IOwnAppTokenProvider
         Inner.AcquireInteractivelyAsync(identity, tenantId, scopes, claims, ct);
 }
 
-/// <summary>Records every notification the model posts.</summary>
+/// <summary>
+/// Records every notification the model posts. Guarded: a propagation probe reports from a
+/// background task, so the list is appended from one thread while a test reads it from another.
+/// </summary>
 public sealed class RecordingNotifier : IExpiryNotifier
 {
-    public List<(string Title, string Body)> Posted { get; } = [];
+    private readonly List<(string Title, string Body)> _posted = [];
+    private readonly Lock _gate = new();
+
+    public IReadOnlyList<(string Title, string Body)> Posted
+    {
+        get { lock (_gate) { return [.. _posted]; } }
+    }
 
     public Task RescheduleAsync(
         IReadOnlyList<ActiveAssignment> assignments,
@@ -79,7 +88,11 @@ public sealed class RecordingNotifier : IExpiryNotifier
 
     public Task NotifyAsync(string title, string body)
     {
-        Posted.Add((title, body));
+        lock (_gate)
+        {
+            _posted.Add((title, body));
+        }
+
         return Task.CompletedTask;
     }
 }
