@@ -39,7 +39,13 @@ EXPECTED_KEYS = {
     "PinnedTenants",
     "ManagedProfiles",
     "ManagedProfilesUrl",
+    "OrganizationName",
+    "OrganizationTitleStyle",
+    "OrganizationSupportUrl",
+    "OrganizationSupportEmail",
 }
+TITLE_STYLES = {"by", "managedBy", "none"}
+ORGANIZATION_NAME_MAX = 32
 GUID_RE = re.compile(r"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z")
 SLUG_RE = re.compile(r"\A[a-z0-9-]{1,64}\Z")
 # `PnDTnHnMnS`, the shape ISO8601Duration.parse accepts.
@@ -59,7 +65,12 @@ BOILERPLATE_URL_PREFIXES = (
     "http://json-schema.org/",
 )
 # Placeholder hosts the kit intentionally uses in examples.
-ALLOWED_URL_PREFIXES = ("https://example.com/", "https://login.microsoftonline.com/")
+ALLOWED_URL_PREFIXES = (
+    "https://example.com/",
+    "https://login.microsoftonline.com/",
+    # The documented help-desk placeholder for OrganizationSupportUrl.
+    "https://help.contoso.com",
+)
 
 
 class Errors:
@@ -306,6 +317,39 @@ def check_values(values: dict, where: str, errors: Errors, *, placeholders_allow
     if "ManagedProfiles" in values:
         check_profiles_value(values["ManagedProfiles"], where, errors)
 
+    # Organization co-branding. OrganizationName gates the other three, and the
+    # app rejects an over-long name rather than truncating it, so a template
+    # carrying one would ship a value the app refuses.
+    name = values.get("OrganizationName")
+    if name is not None:
+        if not isinstance(name, str) or not name.strip():
+            errors.add(f"{where}: OrganizationName must be a non-blank string")
+        elif len(name.strip()) > ORGANIZATION_NAME_MAX:
+            errors.add(
+                f"{where}: OrganizationName '{name}' is {len(name.strip())} characters; "
+                f"the maximum is {ORGANIZATION_NAME_MAX}"
+            )
+
+    style = values.get("OrganizationTitleStyle")
+    if style is not None and style not in TITLE_STYLES:
+        errors.add(f"{where}: OrganizationTitleStyle '{style}' is not one of {sorted(TITLE_STYLES)}")
+
+    support_url = values.get("OrganizationSupportUrl")
+    if support_url is not None and (not isinstance(support_url, str) or not support_url.startswith("https://")):
+        errors.add(f"{where}: OrganizationSupportUrl '{support_url}' is not an https URL")
+
+    support_email = values.get("OrganizationSupportEmail")
+    if support_email is not None and (
+        not isinstance(support_email, str)
+        or "@" not in support_email
+        or any(c.isspace() for c in support_email)
+    ):
+        errors.add(f"{where}: OrganizationSupportEmail '{support_email}' is not an email address")
+
+    for dependent in ("OrganizationTitleStyle", "OrganizationSupportUrl", "OrganizationSupportEmail"):
+        if values.get(dependent) is not None and name is None:
+            errors.add(f"{where}: {dependent} is set but OrganizationName is not; the app ignores it")
+
 
 def check_key_set(present: list[str], keys: list[str], where: str, errors: Errors) -> None:
     missing = [key for key in keys if key not in present]
@@ -405,7 +449,28 @@ def check_admx(admx_path: Path, adml_path: Path, keys: list[str], errors: Errors
             element = policy.find(f"{ADMX_NS}elements/{ADMX_NS}multiText")
             if element is None or element.get("valueName") != name:
                 errors.add(f"{admx_path}: policy '{name}' must use a multiText element named {name}")
-        elif name in ("ClientId", "ManagedProfilesUrl"):
+        elif name == "OrganizationTitleStyle":
+            element = policy.find(f"{ADMX_NS}elements/{ADMX_NS}enum")
+            if element is None or element.get("valueName") != name:
+                errors.add(f"{admx_path}: policy '{name}' must use an enum element named {name}")
+            else:
+                items: set[str] = set()
+                for item in element.findall(f"{ADMX_NS}item"):
+                    node = item.find(f"{ADMX_NS}value/{ADMX_NS}string")
+                    if node is not None and node.text:
+                        items.add(node.text)
+                if items != TITLE_STYLES:
+                    errors.add(
+                        f"{admx_path}: policy '{name}' must offer exactly "
+                        f"{sorted(TITLE_STYLES)}, not {sorted(items)}"
+                    )
+        elif name in (
+            "ClientId",
+            "ManagedProfilesUrl",
+            "OrganizationName",
+            "OrganizationSupportUrl",
+            "OrganizationSupportEmail",
+        ):
             element = policy.find(f"{ADMX_NS}elements/{ADMX_NS}text")
             if element is None or element.get("valueName") != name:
                 errors.add(f"{admx_path}: policy '{name}' must use a text element named {name}")

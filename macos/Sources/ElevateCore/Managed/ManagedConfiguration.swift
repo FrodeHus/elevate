@@ -12,6 +12,11 @@ public struct ManagedConfiguration: Hashable, Sendable {
     /// Raw JSON text for the managed profiles document; parsed elsewhere.
     public var managedProfilesDocument: String?
     public var managedProfilesUrl: URL?
+    /// The organization's display name, 1-32 characters. Gates the three keys below it.
+    public var organizationName: String?
+    public var organizationTitleStyle: OrganizationTitleStyle?
+    public var organizationSupportUrl: URL?
+    public var organizationSupportEmail: String?
     /// The keys that carried a valid, in-effect value, in `ManagedKey.allCases` order.
     public var keysInEffect: [ManagedKey]
     /// Human-readable notes about values that were present but rejected.
@@ -27,6 +32,10 @@ public struct ManagedConfiguration: Hashable, Sendable {
         pinnedTenants = []
         managedProfilesDocument = nil
         managedProfilesUrl = nil
+        organizationName = nil
+        organizationTitleStyle = nil
+        organizationSupportUrl = nil
+        organizationSupportEmail = nil
         keysInEffect = []
         warnings = []
         origin = nil
@@ -103,6 +112,57 @@ public struct ManagedConfiguration: Hashable, Sendable {
                 config.keysInEffect.append(.managedProfilesUrl)
             } else {
                 config.warnings.append("ManagedProfilesUrl: only https URLs are accepted")
+            }
+        }
+
+        if let raw = source.string(.organizationName) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                config.warnings.append("OrganizationName: a blank name is ignored")
+            } else if trimmed.count > 32 {
+                config.warnings.append("OrganizationName: '\(trimmed)' is \(trimmed.count) characters; the maximum is 32")
+            } else {
+                config.organizationName = trimmed
+                config.keysInEffect.append(.organizationName)
+            }
+        }
+
+        // The three keys below decorate the name; without one they have nothing to attach to.
+        let hasName = config.organizationName != nil
+
+        if let raw = source.string(.organizationTitleStyle) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !hasName {
+                config.warnings.append("OrganizationTitleStyle: ignored because OrganizationName is not set")
+            } else if let style = OrganizationTitleStyle.allCases.first(where: { $0.rawValue.lowercased() == trimmed.lowercased() }) {
+                config.organizationTitleStyle = style
+                config.keysInEffect.append(.organizationTitleStyle)
+            } else {
+                config.warnings.append("OrganizationTitleStyle: '\(raw)' is not one of by, managedBy, none")
+            }
+        }
+
+        if let raw = source.string(.organizationSupportUrl) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !hasName {
+                config.warnings.append("OrganizationSupportUrl: ignored because OrganizationName is not set")
+            } else if let url = URL(string: trimmed), url.scheme == "https" {
+                config.organizationSupportUrl = url
+                config.keysInEffect.append(.organizationSupportUrl)
+            } else {
+                config.warnings.append("OrganizationSupportUrl: only https URLs are accepted")
+            }
+        }
+
+        if let raw = source.string(.organizationSupportEmail) {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !hasName {
+                config.warnings.append("OrganizationSupportEmail: ignored because OrganizationName is not set")
+            } else if trimmed.count >= 3, trimmed.contains("@"), !trimmed.contains(where: \.isWhitespace) {
+                config.organizationSupportEmail = trimmed
+                config.keysInEffect.append(.organizationSupportEmail)
+            } else {
+                config.warnings.append("OrganizationSupportEmail: '\(raw)' is not an email address")
             }
         }
 

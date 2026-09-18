@@ -98,5 +98,55 @@
         <text id="ManagedProfilesUrl" valueName="ManagedProfilesUrl" />
       </elements>
     </policy>
+
+    <policy name="OrganizationName" class="Both" displayName="$(string.OrganizationName)"
+            explainText="$(string.OrganizationName_Help)" presentation="$(presentation.OrganizationName)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <text id="OrganizationName" valueName="OrganizationName" maxLength="32" />
+      </elements>
+    </policy>
+
+    <policy name="OrganizationTitleStyle" class="Both" displayName="$(string.OrganizationTitleStyle)"
+            explainText="$(string.OrganizationTitleStyle_Help)" presentation="$(presentation.OrganizationTitleStyle)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <enum id="OrganizationTitleStyle" valueName="OrganizationTitleStyle">
+          <item displayName="$(string.OrganizationTitleStyle_By)">
+            <value><string>by</string></value>
+          </item>
+          <item displayName="$(string.OrganizationTitleStyle_ManagedBy)">
+            <value><string>managedBy</string></value>
+          </item>
+          <item displayName="$(string.OrganizationTitleStyle_None)">
+            <value><string>none</string></value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+
+    <policy name="OrganizationSupportUrl" class="Both" displayName="$(string.OrganizationSupportUrl)"
+            explainText="$(string.OrganizationSupportUrl_Help)" presentation="$(presentation.OrganizationSupportUrl)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <text id="OrganizationSupportUrl" valueName="OrganizationSupportUrl" />
+      </elements>
+    </policy>
+
+    <policy name="OrganizationSupportEmail" class="Both" displayName="$(string.OrganizationSupportEmail)"
+            explainText="$(string.OrganizationSupportEmail_Help)" presentation="$(presentation.OrganizationSupportEmail)"
+            key="Software\Policies\Reothor\Elevate">
+      <parentCategory ref="Elevate" />
+      <supportedOn ref="SUPPORTED_Elevate_1_6" />
+      <elements>
+        <text id="OrganizationSupportEmail" valueName="OrganizationSupportEmail" />
+      </elements>
+    </policy>
   </policies>
 </policyDefinitions>

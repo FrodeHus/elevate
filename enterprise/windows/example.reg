@@ -11,6 +11,10 @@ Windows Registry Editor Version 5.00
 "ClientId"="11111111-2222-3333-4444-555555555555"
 "DisableUpdateCheck"=dword:00000001
 "ManagedProfilesUrl"="https://example.com/elevate/profiles.json"
+"OrganizationName"="Contoso"
+"OrganizationTitleStyle"="managedBy"
+"OrganizationSupportUrl"="https://help.contoso.com"
+"OrganizationSupportEmail"="it@contoso.com"
 ; ManagedProfiles is a REG_MULTI_SZ; a .reg file spells it as UTF-16LE hex(7) bytes.
 ; The decoded value is the document in profiles.json.
 "ManagedProfiles"=hex(7):7b,00,22,00,76,00,65,00,72,00,73,00,69,00,6f,00,\

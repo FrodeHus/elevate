@@ -1,6 +1,7 @@
 using Elevate.App.Services;
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -222,6 +223,33 @@ public sealed partial class SettingsWindow : Window
         if (managed.ManagedProfilesUrl is { } url)
         {
             AddManagedRow("Managed profiles URL", $"{url.AbsoluteUri} · fetched {Fetched(_model.ManagedProfilesFetchedAt)}", monospace: true);
+        }
+
+        // The organization's co-branding, mirroring the macOS BrandingRows view. Absent entirely
+        // when nothing is pushed, so an unbranded install shows the same rows it always did.
+        if (_model.Branding is { } branding)
+        {
+            AddManagedRow("Organization", branding.OrganizationName);
+            AddManagedRow("Title style", branding.TitleStyle.Name(), monospace: true);
+            if (branding.SupportUrl is { } supportUrl)
+            {
+                AddManagedRow("Support URL", supportUrl.AbsoluteUri, monospace: true);
+            }
+
+            if (branding.SupportEmail is { } supportEmail)
+            {
+                AddManagedRow("Support email", supportEmail, monospace: true);
+            }
+
+            if (_model.SupportDestination is { } destination)
+            {
+                ManagedRows.Children.Add(new HyperlinkButton
+                {
+                    Content = _model.SupportLinkLabel,
+                    NavigateUri = destination,
+                    Padding = new Thickness(0),
+                });
+            }
         }
 
         foreach (var warning in managed.Warnings.Concat(_model.ManagedTenantWarnings).Concat(_model.ManagedProfileWarnings))

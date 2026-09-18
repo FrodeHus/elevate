@@ -91,7 +91,8 @@ extension AppModel {
                                                                                                   keys: settings.managed.keysInEffect.map(\.rawValue),
                                                                                                   warnings: settings.managed.warnings
                                                                                                       + managedTenantWarnings
-                                                                                                      + managedProfileWarnings),
+                                                                                                      + managedProfileWarnings,
+                                                                                                  organization: branding?.diagnosticsLine),
                                      errors: errorLog.entries,
                                      usesSharedClientId: usesSharedApp,
                                      isConfigured: isConfigured)

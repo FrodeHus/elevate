@@ -11,6 +11,14 @@ struct SetupView: View {
         VStack(spacing: 12) {
             Image(systemName: "shield.lefthalf.filled").font(.system(size: 34)).foregroundStyle(.secondary)
             Text("Complete initial setup").font(.headline)
+            // First run is where a user forms their idea of whose software this is, so the
+            // organization's attribution and help desk sit directly under the title.
+            if let branding = model.branding {
+                Text(branding.firstRunLine).font(.subheadline).foregroundStyle(.secondary)
+                if let url = branding.supportDestination {
+                    Link("Get help from \(branding.supportLabel)", destination: url).font(.caption)
+                }
+            }
             Text("Elevate can sign in with your own Entra app registration, which covers every role type and stays under your control. The Elevate project also offers a shared multi-tenant app for quick starts, with no SLA and an administrator consent step. Microsoft's Azure CLI app needs no registration but covers Azure resource roles only (no Entra roles or groups).")
                 .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if model.ownAppViaLoopback {

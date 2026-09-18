@@ -56,6 +56,46 @@ struct AppModelManagedTests {
         #expect(text.contains("Keys: ClientId, DisableUpdateCheck"))
         #expect(!text.contains(Self.id))
     }
+
+    // MARK: - Organization co-branding (design 2026-09-18)
+
+    @Test func brandingIsExposedFromManagedConfiguration() async {
+        let managed = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso", "OrganizationTitleStyle": "managedBy",
+        ]))
+        let model = await makeModel(managed: managed)
+        defer { cleanup(model) }
+
+        #expect(model.branding?.headerCaption == "Managed by Contoso")
+        #expect(model.branding?.firstRunLine == "Provided by Contoso.")
+    }
+
+    @Test func unbrandedModelHasNoBranding() async {
+        let model = await makeModel()
+        defer { cleanup(model) }
+
+        #expect(model.branding == nil)
+    }
+
+    @Test func diagnosticsNamesTheOrganization() async {
+        let managed = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso",
+            "OrganizationSupportUrl": "https://help.contoso.com",
+        ], origin: "unit"))
+        let model = await makeModel(managed: managed)
+        defer { cleanup(model) }
+
+        let text = model.diagnosticsText()
+        #expect(text.contains("Organization: Contoso"))
+        #expect(text.contains("https://help.contoso.com"))
+    }
+
+    @Test func diagnosticsSaysNothingWhenUnbranded() async {
+        let model = await makeModel()
+        defer { cleanup(model) }
+
+        #expect(!model.diagnosticsText().contains("Organization:"))
+    }
 }
 
 /// Managed sign-in methods and tenants: what the app offers, keeps and refuses once an

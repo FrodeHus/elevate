@@ -60,6 +60,47 @@ If you disable or do not configure this policy, only the user's own profiles are
 If you enable this policy, a URL is required: enter an https:// URL serving the JSON document, for example https://example.com/elevate/profiles.json. It is fetched at startup when the cached copy is older than 24 hours and once a day after; the last successful copy is used when a fetch fails. http:// URLs are ignored and reported as a warning. Profiles from the URL and from the inline policy are merged by id, the fetched entry winning.
 
 If you disable or do not configure this policy, no profile set is fetched.</string>
+
+      <string id="OrganizationName">Organization name</string>
+      <string id="OrganizationName_Help">Shows your organization's name beside Elevate's own, so the app reads as something your IT department provides.
+
+Elevate's own name is never replaced: this adds your name, it does not substitute it. There is no setting that renames or re-icons the application.
+
+If you enable this policy, enter your organization's name, 1 to 32 characters. The panel header then reads "Elevate" with "by Contoso" underneath, the first-run screen says "Provided by Contoso.", and Settings gains an Organization section. A name longer than 32 characters is ignored and reported as a warning rather than being shortened.
+
+This policy is required before Organization title style, Organization support URL and Organization support email have any effect.
+
+If you disable or do not configure this policy, the application is unbranded.</string>
+
+      <string id="OrganizationTitleStyle">Organization title style</string>
+      <string id="OrganizationTitleStyle_Help">Chooses how your organization's name is phrased beside Elevate's own.
+
+If you enable this policy, pick one: "by Contoso" shows that caption under the title; "Managed by Contoso" is the more formal phrasing; "No caption" removes the header caption while keeping the Settings section, the first-run line and the support contact. Pick the last one when you want the help desk contact without changing the everyday appearance.
+
+If you disable or do not configure this policy, "by Contoso" is used.
+
+Requires the Organization name policy.</string>
+      <string id="OrganizationTitleStyle_By">by Contoso</string>
+      <string id="OrganizationTitleStyle_ManagedBy">Managed by Contoso</string>
+      <string id="OrganizationTitleStyle_None">No caption</string>
+
+      <string id="OrganizationSupportUrl">Organization support URL</string>
+      <string id="OrganizationSupportUrl_Help">Points users at your help desk.
+
+If you enable this policy, enter an https:// URL, for example https://help.contoso.com. It becomes a "Get help from Contoso IT" link on the first-run screen and in Settings, and the command-line tool appends the contact to sign-in and activation failures, which is where a user most needs to know who to call. http:// URLs are ignored and reported as a warning.
+
+If you disable or do not configure this policy, no support link is shown.
+
+Requires the Organization name policy.</string>
+
+      <string id="OrganizationSupportEmail">Organization support email</string>
+      <string id="OrganizationSupportEmail_Help">Offers your help desk address as a mailto: link.
+
+If you enable this policy, enter an email address, for example it@contoso.com. It is used wherever the support URL would appear; when both are set the URL is used for the link and both are listed in Settings and diagnostics. A value with no @ or containing spaces is ignored and reported as a warning.
+
+If you disable or do not configure this policy, no support address is shown.
+
+Requires the Organization name policy.</string>
     </stringTable>
     <presentationTable>
       <presentation id="ClientId">
@@ -83,6 +124,25 @@ If you disable or do not configure this policy, no profile set is fetched.</stri
       <presentation id="ManagedProfilesUrl">
         <textBox refId="ManagedProfilesUrl">
           <label>https:// URL of the profile set:</label>
+        </textBox>
+      </presentation>
+
+      <presentation id="OrganizationName">
+        <textBox refId="OrganizationName">
+          <label>Organization name (1-32 characters):</label>
+        </textBox>
+      </presentation>
+      <presentation id="OrganizationTitleStyle">
+        <dropdownList refId="OrganizationTitleStyle" defaultItem="0">Phrasing beside the Elevate name:</dropdownList>
+      </presentation>
+      <presentation id="OrganizationSupportUrl">
+        <textBox refId="OrganizationSupportUrl">
+          <label>https:// URL of your help desk:</label>
+        </textBox>
+      </presentation>
+      <presentation id="OrganizationSupportEmail">
+        <textBox refId="OrganizationSupportEmail">
+          <label>Help desk email address:</label>
         </textBox>
       </presentation>
     </presentationTable>

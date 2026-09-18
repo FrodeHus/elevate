@@ -35,11 +35,14 @@ public struct DiagnosticsManaged: Sendable {
     public let origin: String
     public let keys: [String]
     public let warnings: [String]
+    /// The organization's co-branding as one line, or nil when unbranded.
+    public let organization: String?
 
-    public init(origin: String, keys: [String], warnings: [String]) {
+    public init(origin: String, keys: [String], warnings: [String], organization: String? = nil) {
         self.origin = origin
         self.keys = keys
         self.warnings = warnings
+        self.organization = organization
     }
 }
 
@@ -154,6 +157,9 @@ public enum DiagnosticsReport {
         if let managed = input.managed {
             lines.append("  Source: \(managed.origin)")
             lines.append("  Keys: \(managed.keys.joined(separator: ", "))")
+            if let organization = managed.organization {
+                lines.append("  Organization: \(organization)")
+            }
             if !managed.warnings.isEmpty {
                 lines.append("  Warnings:")
                 for warning in managed.warnings {

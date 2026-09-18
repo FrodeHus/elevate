@@ -22,9 +22,14 @@ before you start, the steps with the exact console paths, and how to verify.
 - **Invalid values are ignored key by key**, never the whole payload, and every rejection becomes a
   warning that Diagnostics and `elevate config managed` show.
 
-There are seven keys — the client id, the update check, the permitted sign-in methods, the allowed
-and pinned tenants, and the published profile set inline or by URL. They are documented once, with
-their types, allowed values and syntax in every format, in [keys.md](keys.md).
+There are eleven keys — the client id, the update check, the permitted sign-in methods, the allowed
+and pinned tenants, the published profile set inline or by URL, and your organization's name, title
+style and help-desk URL and email. They are documented once, with their types, allowed values and
+syntax in every format, in [keys.md](keys.md).
+
+The last four are co-branding: they add your organization's name beside Elevate's own and give users
+a route to your help desk. Elevate's own name is never replaced, and there is no key that renames or
+re-icons the app.
 
 ## Where the values come from
 

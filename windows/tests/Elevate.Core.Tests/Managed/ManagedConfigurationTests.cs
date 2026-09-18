@@ -155,4 +155,144 @@ public class ManagedConfigurationTests
 
         ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>(), origin: "unit")).Origin.Should().BeNull();
     }
+
+    // Organization co-branding (design 2026-09-18). Ports the Swift ManagedConfigurationTests.
+
+    [Fact]
+    public void BrandingKeysLoad()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationTitleStyle"] = "managedBy",
+            ["OrganizationSupportUrl"] = "https://help.contoso.com",
+            ["OrganizationSupportEmail"] = "it@contoso.com",
+        }));
+
+        config.OrganizationName.Should().Be("Contoso");
+        config.OrganizationTitleStyle.Should().Be(OrganizationTitleStyle.ManagedBy);
+        config.OrganizationSupportUrl!.ToString().Should().Be("https://help.contoso.com/");
+        config.OrganizationSupportEmail.Should().Be("it@contoso.com");
+        config.Warnings.Should().BeEmpty();
+        config.KeysInEffect.Should().Contain(ManagedKey.OrganizationName);
+    }
+
+    [Fact]
+    public void OrganizationNameDefaultsToNoStyle()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+        }));
+
+        config.OrganizationName.Should().Be("Contoso");
+        config.OrganizationTitleStyle.Should().BeNull();
+    }
+
+    [Fact]
+    public void OrganizationNameIsTrimmedAndBoundedAt32()
+    {
+        ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "  Contoso  ",
+        })).OrganizationName.Should().Be("Contoso");
+
+        ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = new string('a', 32),
+        })).OrganizationName.Should().NotBeNull();
+
+        var over = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = new string('a', 33),
+        }));
+        over.OrganizationName.Should().BeNull();
+        over.Warnings.Should().Contain(w => w.Contains("33 characters"));
+    }
+
+    [Fact]
+    public void BlankOrganizationNameIsRejected()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "   ",
+        }));
+
+        config.OrganizationName.Should().BeNull();
+        config.Warnings.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void TitleStyleIsCaseInsensitiveAndValidated()
+    {
+        var ok = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationTitleStyle"] = "MANAGEDBY",
+        }));
+        ok.OrganizationTitleStyle.Should().Be(OrganizationTitleStyle.ManagedBy);
+
+        var bad = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationTitleStyle"] = "sponsoredBy",
+        }));
+        bad.OrganizationTitleStyle.Should().BeNull();
+        bad.Warnings.Should().Contain(w => w.Contains("by, managedBy, none"));
+    }
+
+    [Fact]
+    public void SupportUrlRejectsNonHttps()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationSupportUrl"] = "http://help.contoso.com",
+        }));
+
+        config.OrganizationSupportUrl.Should().BeNull();
+        config.Warnings.Should().Contain(w => w.Contains("only https URLs are accepted"));
+    }
+
+    [Fact]
+    public void SupportEmailIsValidated()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationName"] = "Contoso",
+            ["OrganizationSupportEmail"] = "not an email",
+        }));
+
+        config.OrganizationSupportEmail.Should().BeNull();
+        config.Warnings.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void BrandingKeysAreIgnoredWithoutAnOrganizationName()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["OrganizationTitleStyle"] = "by",
+            ["OrganizationSupportUrl"] = "https://help.contoso.com",
+            ["OrganizationSupportEmail"] = "it@contoso.com",
+        }));
+
+        config.OrganizationTitleStyle.Should().BeNull();
+        config.OrganizationSupportUrl.Should().BeNull();
+        config.OrganizationSupportEmail.Should().BeNull();
+        config.Warnings.Should().HaveCount(3);
+        config.KeysInEffect.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void UnbrandedConfigurationIsUnchanged()
+    {
+        var config = ManagedConfiguration.Load(new DictionaryManagedSource(new Dictionary<string, object?>
+        {
+            ["ClientId"] = "11111111-2222-3333-4444-555555555555",
+        }));
+
+        config.OrganizationName.Should().BeNull();
+        config.Warnings.Should().BeEmpty();
+    }
 }

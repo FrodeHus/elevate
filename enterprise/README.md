@@ -13,7 +13,7 @@ the app a managed setting renders disabled with a "Managed by your
 organization" caption, and Diagnostics lists the keys in effect (never the
 values).
 
-The seven keys, their types and their syntax in each format are documented in
+The eleven keys, their types and their syntax in each format are documented in
 `docs/enterprise/keys.md` in the repository; a copy named `keys.md` is added
 next to this README at release time. The step-by-step how-tos live in
 `docs/enterprise/` in the repository.
@@ -30,7 +30,7 @@ next to this README at release time. The step-by-step how-tos live in
   policy key, for a script-driven rollout or a quick local test. Same file as
   `example/example.reg`.
 - `macos/no.reothor.elevate.mobileconfig` — a `com.apple.ManagedClient.preferences`
-  profile forcing all seven keys for the domain `no.reothor.elevate`. Replace
+  profile forcing all eleven keys for the domain `no.reothor.elevate`. Replace
   the placeholders, delete the keys you do not want to force, generate fresh
   `PayloadUUID`s, then upload it to Jamf Pro or as an Intune macOS custom
   profile.

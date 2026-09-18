@@ -192,7 +192,8 @@ public sealed partial class AppModel
                 : new DiagnosticsManaged(
                     Managed.Origin ?? "unknown",
                     [.. Managed.KeysInEffect.Select(k => k.Name())],
-                    [.. Managed.Warnings, .. ManagedTenantWarnings, .. ManagedProfileWarnings]),
+                    [.. Managed.Warnings, .. ManagedTenantWarnings, .. ManagedProfileWarnings],
+                    Branding?.DiagnosticsLine),
             UsesSharedClientId: UsesSharedApp,
             IsConfigured: Settings.IsConfigured);
         return DiagnosticsReport.Render(input);

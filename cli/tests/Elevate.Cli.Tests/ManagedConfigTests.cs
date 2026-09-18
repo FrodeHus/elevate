@@ -184,4 +184,64 @@ public class ManagedConfigTests
     /// <summary>The rendered table line for a key, with the box drawing and padding taken out.</summary>
     private static string Line(string output, string key) =>
         output.Split('\n').FirstOrDefault(l => l.Contains(key + " ", StringComparison.Ordinal)) ?? string.Empty;
+
+    // Organization co-branding (design 2026-09-18).
+
+    [Fact]
+    public async Task ConfigManagedListsTheBrandingKeys()
+    {
+        using var session = new TestSession(Managed(
+            ("OrganizationName", "Contoso"),
+            ("OrganizationTitleStyle", "managedBy"),
+            ("OrganizationSupportUrl", "https://help.contoso.com")));
+
+        var (code, table, _) = await RunAsync(session, "config", "managed");
+
+        code.Should().Be(ExitCodes.Ok);
+        table.Should().Contain("OrganizationName");
+        table.Should().Contain("OrganizationTitleStyle");
+        table.Should().Contain("OrganizationSupportUrl");
+    }
+
+    [Fact]
+    public async Task ConfigManagedJsonCarriesTheBrandingKeys()
+    {
+        using var session = new TestSession(Managed(("OrganizationName", "Contoso")));
+
+        var (code, json, _) = await RunAsync(session, "config", "managed", "--json");
+
+        code.Should().Be(ExitCodes.Ok);
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("keys").EnumerateArray()
+            .Select(k => k.GetString()).Should().Contain("OrganizationName");
+    }
+
+    [Fact]
+    public void FailuresAppendTheSupportContactWhenBranded()
+    {
+        var writer = new StringWriter();
+        Program.WriteSupportContact(writer, Managed(
+            ("OrganizationName", "Contoso"),
+            ("OrganizationSupportUrl", "https://help.contoso.com")));
+
+        writer.ToString().Trim().Should().Be("Need help? Contoso IT — https://help.contoso.com/");
+    }
+
+    [Fact]
+    public void FailuresAppendNothingWhenUnbranded()
+    {
+        var writer = new StringWriter();
+        Program.WriteSupportContact(writer, ManagedConfiguration.None);
+
+        writer.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FailuresAppendNothingWhenBrandedWithoutAHelpDesk()
+    {
+        var writer = new StringWriter();
+        Program.WriteSupportContact(writer, Managed(("OrganizationName", "Contoso")));
+
+        writer.ToString().Should().BeEmpty();
+    }
 }

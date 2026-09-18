@@ -4,6 +4,10 @@
   "AllowedSignInMethods": ["ownApp"],
   "AllowedTenants": ["contoso.com"],
   "PinnedTenants": ["contoso.com"],
+  "OrganizationName": "Contoso",
+  "OrganizationTitleStyle": "managedBy",
+  "OrganizationSupportUrl": "https://help.contoso.com",
+  "OrganizationSupportEmail": "it@contoso.com",
   "ManagedProfiles": {
     "version": 1,
     "profiles": [

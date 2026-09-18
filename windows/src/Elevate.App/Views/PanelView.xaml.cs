@@ -160,6 +160,10 @@ public sealed partial class PanelView : UserControl
     private void Draw(AppModel model)
     {
         OfflinePill.Visibility = model.IsOnline ? Visibility.Collapsed : Visibility.Visible;
+        // Absent unless the organization pushed OrganizationName with a style other than "none",
+        // so an unbranded install draws the header exactly as it did before.
+        OrganizationCaption.Text = model.HeaderCaption ?? string.Empty;
+        OrganizationCaption.Visibility = model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed;
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
@@ -214,6 +218,11 @@ public sealed partial class PanelView : UserControl
         var noAccounts = !setup && !failed && model.Identities.Count == 0;
         var bodyHidden = setup || failed || noAccounts;
         SetupView.Visibility = setup ? Visibility.Visible : Visibility.Collapsed;
+        SetupOrganizationLine.Text = model.FirstRunLine ?? string.Empty;
+        SetupOrganizationLine.Visibility = model.HasFirstRunLine ? Visibility.Visible : Visibility.Collapsed;
+        SetupSupportLink.Content = model.SupportLinkLabel ?? string.Empty;
+        SetupSupportLink.NavigateUri = model.SupportDestination;
+        SetupSupportLink.Visibility = model.HasSupportLink ? Visibility.Visible : Visibility.Collapsed;
         NoAccountsView.Visibility = noAccounts ? Visibility.Visible : Visibility.Collapsed;
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;

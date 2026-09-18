@@ -15,7 +15,12 @@ public sealed record DiagnosticsTenant(string Name, string Id, string Mode, IRea
 /// The MDM-managed configuration in effect, as shown in a diagnostics report. Lists key names only,
 /// never the values behind them.
 /// </summary>
-public sealed record DiagnosticsManaged(string Origin, IReadOnlyList<string> Keys, IReadOnlyList<string> Warnings);
+public sealed record DiagnosticsManaged(
+    string Origin,
+    IReadOnlyList<string> Keys,
+    IReadOnlyList<string> Warnings,
+    /// <summary>The organization's co-branding as one line, or null when unbranded.</summary>
+    string? Organization = null);
 
 /// <summary>
 /// The input to <see cref="DiagnosticsReport.Render"/>. Deliberately has no field for a client id,
@@ -109,6 +114,11 @@ public static class DiagnosticsReport
         {
             lines.Add($"  Source: {managed.Origin}");
             lines.Add($"  Keys: {string.Join(", ", managed.Keys)}");
+            if (managed.Organization is { } organization)
+            {
+                lines.Add($"  Organization: {organization}");
+            }
+
             if (managed.Warnings.Count > 0)
             {
                 lines.Add("  Warnings:");

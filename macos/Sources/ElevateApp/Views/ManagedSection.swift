@@ -17,12 +17,40 @@ struct ManagedSection: View {
                     LabeledContent("Update check") { Text("Disabled") }
                 }
                 ManagedListRows()
+                BrandingRows()
                 ForEach(managed.warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
                 if let origin = managed.origin {
                     Text("Source: \(origin)").font(.caption2).foregroundStyle(.secondary)
                 }
             } header: {
                 Label("Managed by your organization", systemImage: "building.2")
+            }
+        }
+    }
+}
+
+/// The organization's co-branding, as Settings and Diagnostics report it: the name, how it is
+/// phrased beside Elevate's own, and the help desk to contact. Nothing at all when unbranded —
+/// `AppModel.branding` is nil unless `OrganizationName` was pushed and accepted.
+struct BrandingRows: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let branding = model.branding {
+            LabeledContent("Organization") { Text(branding.organizationName).textSelection(.enabled) }
+            LabeledContent("Title style") { Text(branding.titleStyle.rawValue).font(.caption.monospaced()) }
+            if let url = branding.supportUrl {
+                LabeledContent("Support URL") {
+                    Text(url.absoluteString).font(.caption.monospaced()).textSelection(.enabled)
+                }
+            }
+            if let email = branding.supportEmail {
+                LabeledContent("Support email") {
+                    Text(email).font(.caption.monospaced()).textSelection(.enabled)
+                }
+            }
+            if let destination = branding.supportDestination {
+                Link("Get help from \(branding.supportLabel)", destination: destination).font(.caption)
             }
         }
     }

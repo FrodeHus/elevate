@@ -26,6 +26,15 @@ public sealed record ManagedConfiguration
 
     public Uri? ManagedProfilesUrl { get; init; }
 
+    /// <summary>The organization's display name, 1-32 characters. Gates the three keys below it.</summary>
+    public string? OrganizationName { get; init; }
+
+    public OrganizationTitleStyle? OrganizationTitleStyle { get; init; }
+
+    public Uri? OrganizationSupportUrl { get; init; }
+
+    public string? OrganizationSupportEmail { get; init; }
+
     /// <summary>The keys that carried a valid, in-effect value, in <see cref="ManagedKeys.All"/> order.</summary>
     public IReadOnlyList<ManagedKey> KeysInEffect { get; init; } = [];
 
@@ -57,6 +66,10 @@ public sealed record ManagedConfiguration
         IReadOnlyList<string> pinnedTenants = [];
         string? managedProfilesDocument = null;
         Uri? managedProfilesUrl = null;
+        string? organizationName = null;
+        OrganizationTitleStyle? organizationTitleStyle = null;
+        Uri? organizationSupportUrl = null;
+        string? organizationSupportEmail = null;
         var keysInEffect = new List<ManagedKey>();
         var warnings = new List<string>();
 
@@ -154,6 +167,83 @@ public sealed record ManagedConfiguration
             }
         }
 
+        var rawOrganizationName = source.String(ManagedKey.OrganizationName);
+        if (rawOrganizationName is not null)
+        {
+            var trimmed = rawOrganizationName.Trim();
+            if (trimmed.Length == 0)
+            {
+                warnings.Add("OrganizationName: a blank name is ignored");
+            }
+            else if (trimmed.Length > 32)
+            {
+                warnings.Add($"OrganizationName: '{trimmed}' is {trimmed.Length} characters; the maximum is 32");
+            }
+            else
+            {
+                organizationName = trimmed;
+                keysInEffect.Add(ManagedKey.OrganizationName);
+            }
+        }
+
+        // The three keys below decorate the name; without one they have nothing to attach to.
+        var hasName = organizationName is not null;
+
+        var rawTitleStyle = source.String(ManagedKey.OrganizationTitleStyle);
+        if (rawTitleStyle is not null)
+        {
+            if (!hasName)
+            {
+                warnings.Add("OrganizationTitleStyle: ignored because OrganizationName is not set");
+            }
+            else if (OrganizationTitleStyles.Parse(rawTitleStyle.Trim()) is { } style)
+            {
+                organizationTitleStyle = style;
+                keysInEffect.Add(ManagedKey.OrganizationTitleStyle);
+            }
+            else
+            {
+                warnings.Add($"OrganizationTitleStyle: '{rawTitleStyle}' is not one of by, managedBy, none");
+            }
+        }
+
+        var rawSupportUrl = source.String(ManagedKey.OrganizationSupportUrl);
+        if (rawSupportUrl is not null)
+        {
+            if (!hasName)
+            {
+                warnings.Add("OrganizationSupportUrl: ignored because OrganizationName is not set");
+            }
+            else if (Uri.TryCreate(rawSupportUrl.Trim(), UriKind.Absolute, out var supportUri) && supportUri.Scheme == Uri.UriSchemeHttps)
+            {
+                organizationSupportUrl = supportUri;
+                keysInEffect.Add(ManagedKey.OrganizationSupportUrl);
+            }
+            else
+            {
+                warnings.Add("OrganizationSupportUrl: only https URLs are accepted");
+            }
+        }
+
+        var rawSupportEmail = source.String(ManagedKey.OrganizationSupportEmail);
+        if (rawSupportEmail is not null)
+        {
+            var trimmed = rawSupportEmail.Trim();
+            if (!hasName)
+            {
+                warnings.Add("OrganizationSupportEmail: ignored because OrganizationName is not set");
+            }
+            else if (trimmed.Length >= 3 && trimmed.Contains('@') && !trimmed.Any(char.IsWhiteSpace))
+            {
+                organizationSupportEmail = trimmed;
+                keysInEffect.Add(ManagedKey.OrganizationSupportEmail);
+            }
+            else
+            {
+                warnings.Add($"OrganizationSupportEmail: '{rawSupportEmail}' is not an email address");
+            }
+        }
+
         return new ManagedConfiguration
         {
             ClientId = clientId,
@@ -163,6 +253,10 @@ public sealed record ManagedConfiguration
             PinnedTenants = pinnedTenants,
             ManagedProfilesDocument = managedProfilesDocument,
             ManagedProfilesUrl = managedProfilesUrl,
+            OrganizationName = organizationName,
+            OrganizationTitleStyle = organizationTitleStyle,
+            OrganizationSupportUrl = organizationSupportUrl,
+            OrganizationSupportEmail = organizationSupportEmail,
             KeysInEffect = keysInEffect,
             Warnings = warnings,
             Origin = keysInEffect.Count > 0 ? source.Origin : null,
