@@ -23,6 +23,26 @@
 - **Both cores change together.** A Swift change without its C# port is an incomplete task.
 - **Baselines to keep green:** Swift 350 tests, `Elevate.Core.Tests` 434, `Elevate.Cli.Tests` 164, validator "all templates consistent".
 
+## Corrections found during execution
+
+- **`swift test` does not build the app target.** `macos/Package.swift` covers only
+  `ElevateCore` and `ElevateCoreTests`. `ElevateAppTests` is an XcodeGen target, so its tests run
+  via `xcodegen generate` then `xcodebuild -project Elevate.xcodeproj -scheme ElevateApp test`.
+  Re-run `xcodegen generate` after adding or deleting a test file, or the stale project fails the
+  build.
+- **`AppModelManagedTests.swift` holds two suites** (`AppModelManagedTests` and
+  `AppModelManagedTenantTests`). Append to the right one; the end of the file is the second.
+- **`Branding` gained three members** beyond the plan, each to keep one rule in one place:
+  `supportDestination` (the URL a "Get help" control opens, `mailto:` when only an email is set),
+  `diagnosticsLine` (the one-line diagnostics entry), and the matching C# `SupportDestination` /
+  `DiagnosticsLine`. `DiagnosticsManaged` gained an `organization` field in both cores.
+- **The CLI has no custom `--version` action**; the support contact is attached to the two failure
+  paths in `Program.Main` instead, which is where spec §3.5 actually aims it, and branding is
+  reported through `elevate diagnostics` and `elevate config managed`.
+- **`enterprise/README.md` and `docs/enterprise/cli.md`** also say "seven keys"; both were updated.
+- **`ALLOWED_URL_PREFIXES`** in the validator needed `https://help.contoso.com` for the new
+  placeholder.
+
 ---
 
 ### Task 1: Swift core — the four keys and their validation
