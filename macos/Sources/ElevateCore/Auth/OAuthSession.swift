@@ -44,10 +44,12 @@ public actor OAuthSession {
 
     public func persistenceError() -> String? { lastPersistenceError }
 
-    public func accessToken(identityId: String, tenantId: String, scopes: [String]) async throws -> String {
+    /// `forceRefresh` skips the cached token and goes back to the token endpoint, which is what a
+    /// propagation probe needs: the claims it reads were fixed when the cached token was minted.
+    public func accessToken(identityId: String, tenantId: String, scopes: [String], forceRefresh: Bool = false) async throws -> String {
         let resource = AuthorizationCodeClient.resourceScope(for: scopes)
         let key = CacheKey(identityId: identityId, tenantId: tenantId, resource: resource)
-        if let e = cache[key], e.expiresAt.timeIntervalSince(now()) > Self.skew { return e.token }
+        if !forceRefresh, let e = cache[key], e.expiresAt.timeIntervalSince(now()) > Self.skew { return e.token }
         if let running = inFlight[key] { return try await running.value }
         let task = Task<String, Error> { [scopes] in try await self.refresh(key: key, scopes: scopes) }
         inFlight[key] = task

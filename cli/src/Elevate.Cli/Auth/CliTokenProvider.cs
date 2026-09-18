@@ -63,6 +63,16 @@ public sealed class CliTokenProvider : ITokenProvider
         return Provider(identity.SignInMethod).AccessTokenAsync(identity, tenantId, scopes, ct);
     }
 
+    /// <summary>Every provider behind this one is MSAL-backed, so a forced refresh always reaches one.</summary>
+    public bool CanForceRefresh => true;
+
+    public Task<string> AccessTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        return Provider(identity.SignInMethod).AccessTokenAsync(identity, tenantId, scopes, forceRefresh, ct);
+    }
+
     /// <summary>
     /// A token minted now rather than one taken from the cache, for the commands that hand a token
     /// to something else right after an activation. See <see cref="MsalCliProvider.FreshAccessTokenAsync"/>.

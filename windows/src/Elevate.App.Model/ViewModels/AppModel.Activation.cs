@@ -239,6 +239,9 @@ public sealed partial class AppModel
 
         Persist();
         NoteTokenHint(outcomes);
+        // "Active" is the service's own view; the access follows minutes later. The rows stay
+        // marked as propagating until a probe says otherwise.
+        WatchPropagation(outcomes);
         var changedGroupTenants = outcomes
             .Where(o => o.RoleKey.Scope.Kind == RoleScopeKind.Group && o.Result is ActivationResult.Activated)
             .Select(o => o.RoleKey.TenantKey)
@@ -508,6 +511,7 @@ public sealed partial class AppModel
                 }
 
                 Active.Remove(key);
+                StopWatchingPropagation(key);
                 await RescheduleNotificationsAsync();
             }
             catch (OperationCanceledException)
@@ -571,6 +575,7 @@ public sealed partial class AppModel
                 }
 
                 Active.Remove(key);
+                StopWatchingPropagation(key);
                 if (key.Scope.Kind == RoleScopeKind.Group)
                 {
                     RefreshRolesAfterGroupChange([key.TenantKey]);

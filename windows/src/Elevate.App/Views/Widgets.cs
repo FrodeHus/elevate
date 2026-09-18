@@ -43,6 +43,7 @@ public sealed partial class StatusDot : ContentControl
     public static string Label(RowStatus status) => status switch
     {
         RowStatus.Active => "Active",
+        RowStatus.Propagating => "Active, not in effect yet",
         RowStatus.Scheduled => "Scheduled",
         RowStatus.Pending => "Awaiting approval",
         RowStatus.Provisioning => "Provisioning",
@@ -56,6 +57,9 @@ public sealed partial class StatusDot : ContentControl
         var (fill, stroke) = Status switch
         {
             RowStatus.Active => ((Brush)resources["SystemFillColorSuccessBrush"], (Brush)resources["SystemFillColorSuccessBrush"]),
+            // Hollow: the same green as active, because it is active, but open because the access
+            // behind it is not there yet. Filling it would be the lie this whole feature removes.
+            RowStatus.Propagating => (null, (Brush)resources["SystemFillColorSuccessBrush"]),
             RowStatus.Scheduled => ((Brush)resources["AccentFillColorDefaultBrush"], (Brush)resources["AccentFillColorDefaultBrush"]),
             RowStatus.Pending or RowStatus.Provisioning => (Pending, Pending),
             RowStatus.Failed => ((Brush)resources["SystemFillColorCriticalBrush"], (Brush)resources["SystemFillColorCriticalBrush"]),

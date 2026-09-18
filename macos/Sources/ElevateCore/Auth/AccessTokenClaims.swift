@@ -20,6 +20,39 @@ public enum AccessTokenClaims {
         payload(accessToken)?["oid"] as? String
     }
 
+    /// The directory role template ids the token carries (`wids`), lower-cased, or nil when the
+    /// token is opaque or has no such claim. Entra emits `wids` for tenant-wide directory roles
+    /// only: a role scoped to an administrative unit or an application never appears here, so its
+    /// absence is not evidence that the role is missing — see `carriesDirectoryRole`.
+    public static func directoryRoles(_ accessToken: String) -> Set<String>? {
+        idSet(accessToken, claim: "wids")
+    }
+
+    /// The group object ids the token carries (`groups`), lower-cased, or nil when the token is
+    /// opaque or the registration does not emit group claims — which is the default, and why a
+    /// caller falls back to asking Graph.
+    public static func groupMemberships(_ accessToken: String) -> Set<String>? {
+        idSet(accessToken, claim: "groups")
+    }
+
+    /// Whether the token grants `roleTemplateId`. nil when the token is opaque, so the caller
+    /// reports that it cannot tell rather than that the role is missing.
+    public static func carriesDirectoryRole(_ accessToken: String, roleTemplateId: String) -> Bool? {
+        directoryRoles(accessToken)?.contains(roleTemplateId.lowercased())
+    }
+
+    /// Whether the token carries `groupId` in `groups`; nil when there is no such claim.
+    public static func carriesGroup(_ accessToken: String, groupId: String) -> Bool? {
+        groupMemberships(accessToken)?.contains(groupId.lowercased())
+    }
+
+    /// A claim holding an array of GUIDs, lower-cased so the comparison does not depend on how the
+    /// service happened to case them. Non-string members are ignored.
+    private static func idSet(_ accessToken: String, claim: String) -> Set<String>? {
+        guard let values = payload(accessToken)?[claim] as? [Any] else { return nil }
+        return Set(values.compactMap { ($0 as? String)?.lowercased() })
+    }
+
     /// Scopes any one of which lets the caller self-activate Entra directory roles.
     public static let entraActivationScopes: Set<String> = [
         "RoleAssignmentSchedule.ReadWrite.Directory",

@@ -45,6 +45,14 @@ final class CompositeTokenProvider: TokenProviding, Sendable {
         try await provider(for: identity.signInMethod).accessToken(identity: identity, tenantId: tenantId, scopes: scopes)
     }
 
+    /// Every provider behind this one can force a refresh, so the probe always reaches one that does.
+    var canForceRefresh: Bool { true }
+
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String {
+        try await provider(for: identity.signInMethod)
+            .accessToken(identity: identity, tenantId: tenantId, scopes: scopes, forceRefresh: forceRefresh)
+    }
+
     @discardableResult
     func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String {
         try await provider(for: identity.signInMethod)

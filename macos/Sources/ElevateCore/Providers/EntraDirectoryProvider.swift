@@ -180,6 +180,32 @@ public struct EntraDirectoryProvider: PIMProvider {
         }
     }
 
+    // MARK: Effective access
+
+    /// Reads a token minted now and looks for the role in its `wids` claim, which is what Graph and
+    /// every other Entra-protected service actually enforce. The PIM assignment exists minutes
+    /// before Entra starts putting the role into new tokens, and that gap is the whole complaint.
+    ///
+    /// `wids` carries tenant-wide directory roles only. A role scoped to an administrative unit or
+    /// an application is never in it, so for those the absence of the role says nothing and the
+    /// answer is that we cannot tell.
+    public func effectiveAccess(_ assignment: ActiveAssignment, identity: Identity) async throws -> EffectiveAccess {
+        guard case let .entraDirectory(roleDefinitionId, directoryScopeId) = assignment.roleKey.scope else {
+            return .unknown("Not an Entra directory role.")
+        }
+        guard directoryScopeId == "/" else {
+            return .unknown("A role scoped to an administrative unit or an application is not carried in the "
+                + "sign-in token, so Elevate cannot see when it takes effect.")
+        }
+        guard let token = await transport.freshToken(identity: identity, tenantId: assignment.roleKey.tenantId, scopes: scopes) else {
+            return .unknown("A fresh token could not be acquired, so the role's claims could not be read.")
+        }
+        guard let carried = AccessTokenClaims.carriesDirectoryRole(token, roleTemplateId: roleDefinitionId) else {
+            return .unknown("The sign-in method issues a token whose claims Elevate cannot read.")
+        }
+        return carried ? .confirmed : .notYet
+    }
+
     /// Withdraws a request still awaiting approval. Graph answers 204 with no body.
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard let requestId = assignment.assignmentId else { throw PIMError.notEligible }

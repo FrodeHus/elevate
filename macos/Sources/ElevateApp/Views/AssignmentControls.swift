@@ -48,6 +48,12 @@ struct AssignmentControls: View {
                         // Hugs its text: "46 min" and "7 h 58 min" differ too much for one fixed
                         // column, and a wide one pushed Deactivate into truncation in select mode.
                         .fixedSize().frame(minWidth: PanelMetrics.countdownWidth, alignment: .trailing)
+                    // PIM calls it active; only a probe can call it usable. The countdown stays —
+                    // the clock started when PIM recorded the activation — but the row says which.
+                    if let note = model.propagationNote(for: key) {
+                        Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .help(model.propagationTooltip(for: key) ?? "")
+                    }
                     if let a = assignment, lockedFor <= 0, ExtendWindow.canExtend(a, policy: policy, now: ctx.date) {
                         Button("Extend") {
                             if NSEvent.modifierFlags.contains(.option) {

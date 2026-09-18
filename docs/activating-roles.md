@@ -16,7 +16,8 @@ Every eligible role is one row under its tenant. The dot at the left tells you i
 | Dot | Meaning |
 |---|---|
 | Hollow | Eligible, not active |
-| Green | Active; the countdown on the right shows time left |
+| Hollow green | Active, but the access is not usable yet; see [Ready, not just active](#ready-not-just-active) |
+| Green | Active and in effect; the countdown on the right shows time left |
 | Orange | Awaiting approval or being provisioned |
 | Blue | Scheduled to start later |
 | Red | The last request failed; hover the message for details |
@@ -44,6 +45,22 @@ opens:
 The row turns green with a countdown. Roles that need approval show **awaiting approval** with a
 **Cancel** button to withdraw the request; Elevate polls every minute and flips the row to active
 once it is approved.
+
+### Ready, not just active
+
+PIM records an activation well before the access behind it works — two to five minutes for an Entra
+directory role, up to fifteen for an Azure resource role. Until Elevate has checked that the role
+is genuinely in effect, the row shows a **hollow** green dot and reads **propagating (~3 min)**
+beside its countdown. The countdown runs from the moment PIM recorded the activation, so it is
+already ticking.
+
+When the check succeeds the dot fills and Elevate notifies you, so you can switch away and be told
+when to come back. If it never succeeds the row reads **not in effect yet**; hover it for the usual
+reason, which is almost always a tool that is still holding a token minted before the activation.
+The role is active either way, and can be deactivated at any point.
+
+Some roles cannot be checked from here — one scoped to an administrative unit, and group
+*ownership* — and those rows simply go green as before.
 
 ### The quick way
 

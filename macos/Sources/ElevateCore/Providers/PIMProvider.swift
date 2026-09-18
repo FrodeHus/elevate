@@ -11,6 +11,19 @@ public protocol PIMProvider: Sendable {
     func deactivate(_ assignment: ActiveAssignment, identity: Identity) async throws
     /// Withdraws a request that is still waiting for an approver.
     func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws
+    /// Whether `assignment` is usable yet, as opposed to merely reported active. PIM calls an
+    /// assignment active as soon as it is written; the access behind it arrives later, so this asks
+    /// the thing that would enforce it — a freshly minted token's claims, or the resource's own
+    /// permission check — rather than asking PIM again.
+    func effectiveAccess(_ assignment: ActiveAssignment, identity: Identity) async throws -> EffectiveAccess
+}
+
+public extension PIMProvider {
+    /// The default answers `.unknown`, so a provider that has no way to observe its own propagation
+    /// does not claim one.
+    func effectiveAccess(_ assignment: ActiveAssignment, identity: Identity) async throws -> EffectiveAccess {
+        .unknown("This kind of role cannot be checked from here.")
+    }
 }
 
 /// Start times for activations booked ahead of time.

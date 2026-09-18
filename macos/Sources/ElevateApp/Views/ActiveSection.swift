@@ -55,7 +55,8 @@ struct ActiveRow: View {
     }
 
     private var statusDot: some View {
-        RoleStatusIndicator(status: assignment.status, deactivation: model.deactivationProgress[assignment.roleKey])
+        RoleStatusIndicator(status: assignment.status, deactivation: model.deactivationProgress[assignment.roleKey],
+                            propagating: model.isPropagating(assignment.roleKey))
     }
 }
 
@@ -63,11 +64,15 @@ struct ActiveRow: View {
 /// sighted users; VoiceOver gets the state as a label instead of silence.
 struct StatusDot: View {
     let status: ActiveAssignment.Status?
+    /// Active as far as PIM is concerned, but the access is not confirmed to work yet.
+    var propagating = false
 
     var body: some View {
         Group {
             switch status {
-            case .active: Circle().fill(.green)
+            // Hollow while it propagates: the same green, because it is active, but open because
+            // the access behind it is not there yet. Filling it would be the lie this removes.
+            case .active: propagating ? AnyView(Circle().strokeBorder(.green, lineWidth: 1.5)) : AnyView(Circle().fill(.green))
             case .scheduled: Circle().fill(.blue)
             // Orange, not yellow: system yellow is close to invisible on a light ground.
             case .pendingApproval, .pendingProvisioning: Circle().fill(.orange)
@@ -81,7 +86,7 @@ struct StatusDot: View {
 
     private var label: String {
         switch status {
-        case .active: "Active"
+        case .active: propagating ? "Active, not in effect yet" : "Active"
         case .scheduled: "Scheduled"
         case .pendingApproval: "Awaiting approval"
         case .pendingProvisioning: "Provisioning"

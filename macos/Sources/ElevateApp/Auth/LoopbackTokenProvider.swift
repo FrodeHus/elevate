@@ -76,6 +76,13 @@ final class LoopbackTokenProvider: TokenProviding, Sendable {
         try await session.accessToken(identityId: identity.id, tenantId: tenantId, scopes: scopes)
     }
 
+    /// The session can be told to go back to the token endpoint instead of its cache.
+    var canForceRefresh: Bool { true }
+
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String {
+        try await session.accessToken(identityId: identity.id, tenantId: tenantId, scopes: scopes, forceRefresh: forceRefresh)
+    }
+
     @discardableResult
     func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String {
         try await gate.run { [self] in

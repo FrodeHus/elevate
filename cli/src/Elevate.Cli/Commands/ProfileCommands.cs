@@ -180,7 +180,7 @@ public static class ProfileCommands
         var ticket = new Option<string?>("--ticket") { Description = "Ticket number, when a policy asks for one." };
         var ticketSystem = new Option<string?>("--ticket-system") { Description = "Ticket system name to go with --ticket." };
         var at = new Option<string?>("--at") { Description = "Start later: +2h, 14:30 or 2026-09-08T09:00." };
-        var wait = new Option<bool>("--wait") { Description = "Wait until every activated role is actually active." };
+        var wait = new Option<bool>("--wait") { Description = "Wait until every activated role is usable, not just reported active." };
         var dryRun = new Option<bool>("--dry-run") { Description = "Show the plan and stop." };
         var command = new Command("run", "Activate a profile. Roles already active or pending are skipped.") { name, reason, ticket, ticketSystem, at, wait, dryRun };
         command.SetAction(async (parse, ct) =>
@@ -243,6 +243,12 @@ public static class ProfileCommands
             else
             {
                 context.Output.Write(Views.OutcomesTable(session, outcomes, now));
+            }
+
+            if (parse.GetValue(wait))
+            {
+                // The table is out first: the propagation notes are about roles it has just listed.
+                await ActivationCommands.VerifyInEffectAsync(context, outcomes, null, ct).ConfigureAwait(false);
             }
 
             TokenHints.Report(context, outcomes);

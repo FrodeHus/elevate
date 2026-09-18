@@ -58,6 +58,34 @@ public sealed partial class GraphTransport
         }
     }
 
+    /// <summary>
+    /// A token minted now rather than taken from the cache, for reading claims that were fixed when
+    /// the cached one was issued. Null when the provider cannot force a refresh, or when the
+    /// acquisition failed — a propagation probe then says it cannot tell instead of reading a stale
+    /// token as if it were current.
+    /// </summary>
+    internal async Task<string?> FreshTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct)
+    {
+        if (!Tokens.CanForceRefresh)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await Tokens.AccessTokenAsync(identity, tenantId, scopes, forceRefresh: true, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (PimException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A Graph URL for <paramref name="path"/>, percent-encoding it only when it is not already a valid URL.</summary>
     public Uri GraphUrl(string path) => Url(GraphBase, path);
 

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- macOS, Windows and CLI: **the green light now means something.** PIM reports an assignment active well
+  before the access works, which is the most-repeated complaint about PIM. After an activation
+  settles, Elevate probes the thing that would actually enforce the role — for an Entra directory
+  role a token minted right then, looking for the role in its `wids` claim; for an Azure resource
+  role Azure's own permission check at the activated scope, compared against what the role
+  definition grants; for PIM for Groups a fresh token's `groups` claim, falling back to Graph's
+  transitive membership check. `elevate activate --wait`, `elevate profiles run --wait` and
+  `elevate run` now wait for that rather than for PIM's record, and report one of three outcomes
+  per role: in effect, active but still not in effect (with the likely cause named — almost always
+  a stale token in another tool), or active but not observable from here, which covers a
+  directory-scoped Entra role, group ownership and sign-in methods whose tokens cannot be read.
+  `elevate run --settle 2m` now bounds that check instead of being a blind pause; `--settle 0`
+  turns the check off and keeps the old fixed 30-second pause for groups. In the panels a row that
+  is active but not usable yet shows a hollow green dot and "propagating (~3 min)" beside its
+  countdown, which keeps running because the clock started when PIM recorded the activation; the
+  dot fills and a notification arrives the moment the access is really in effect, so switching away
+  and coming back at the right time now works. A role that never confirms says "not in effect yet"
+  and names the likely cause on hover. See
+  [Activated, but nothing happened](docs/troubleshooting.md#activated-but-nothing-happened).
+  ([#181](https://github.com/FrodeHus/elevate/issues/181))
 - CLI: `elevate token --resource arm|graph|<resource uri>` prints an access token on stdout and
   nothing else, so a command that authenticates itself — a `curl` against ARM, in-house tooling —
   can make one authenticated call with what is active now. A command rather than an exported

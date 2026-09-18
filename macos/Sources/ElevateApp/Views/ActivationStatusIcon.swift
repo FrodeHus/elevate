@@ -176,6 +176,8 @@ struct DeactivationProgressLabel: View {
 struct RoleStatusIndicator: View {
     let status: ActiveAssignment.Status?
     let deactivation: DeactivationPhase?
+    /// Active, but the access is not confirmed to work yet; the dot is drawn hollow.
+    var propagating = false
     @State private var successVisible = true
 
     var body: some View {
@@ -193,7 +195,7 @@ struct RoleStatusIndicator: View {
                     Image(systemName: "lock").foregroundStyle(.orange).help(message)
                         .accessibilityLabel("Deactivation blocked: \(message)")
                 }
-            } else { StatusDot(status: status) }
+            } else { StatusDot(status: status, propagating: propagating) }
         }
         .frame(width: 20, height: 20)
         .task(id: deactivation) {

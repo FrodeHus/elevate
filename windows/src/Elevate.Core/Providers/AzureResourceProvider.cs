@@ -425,6 +425,79 @@ public sealed class AzureResourceProvider : IPimProvider
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
+    // MARK: Effective access
+
+    private sealed record PermissionEntry(
+        IReadOnlyList<string>? Actions,
+        IReadOnlyList<string>? NotActions,
+        IReadOnlyList<string>? DataActions,
+        IReadOnlyList<string>? NotDataActions);
+
+    private sealed record DefinitionProperties(string? RoleName, IReadOnlyList<PermissionEntry>? Permissions);
+
+    private sealed record FullRoleDefinition(string Id, DefinitionProperties Properties);
+
+    private static ArmPermission Permission(PermissionEntry entry) =>
+        new(entry.Actions ?? [], entry.NotActions ?? []);
+
+    /// <summary>
+    /// Asks ARM what the caller may do at the activated scope and compares it with what the role
+    /// definition grants. ARM answers from its own replicated store, which is exactly the store an
+    /// Azure request is authorised against — so unlike re-reading the PIM assignment, a yes here
+    /// means the role works.
+    /// </summary>
+    public async Task<EffectiveAccess> EffectiveAccessAsync(
+        ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(assignment);
+
+        if (assignment.RoleKey.Scope is not AzureResourceScope scope)
+        {
+            return EffectiveAccess.Unknown("Not an Azure resource role.");
+        }
+
+        var tenantId = assignment.RoleKey.TenantId;
+        try
+        {
+            var definitionId = await ResolveRoleDefinitionIdAsync(scope.RoleDefinitionId, scope.Scope, identity, tenantId, ct)
+                .ConfigureAwait(false);
+            var definition = await DefinitionAsync(definitionId, identity, tenantId, ct).ConfigureAwait(false);
+            var granted = (definition?.Properties.Permissions ?? []).Select(Permission).ToList();
+            if (granted.Sum(p => p.Actions.Count) == 0)
+            {
+                // Nothing to look for: a definition with no actions is a read that told us nothing,
+                // not a role that grants nothing.
+                return EffectiveAccess.Unknown("The role definition did not say what it grants.");
+            }
+
+            var held = await ListAllAsync<PermissionEntry>(
+                identity, tenantId,
+                ArmUrl(Trimmed(scope.Scope) + "/providers/Microsoft.Authorization/permissions", "2022-04-01"),
+                ct).ConfigureAwait(false);
+
+            return ArmActions.Covers(held.Select(Permission).ToList(), granted)
+                ? EffectiveAccess.Confirmed
+                : EffectiveAccess.NotYet;
+        }
+        catch (PimException e)
+        {
+            // A refusal at the scope is the propagation gap itself: until the assignment lands there,
+            // ARM does not let the caller read its own permissions.
+            return e.Kind is PimErrorKind.PolicyViolation or PimErrorKind.NotEligible
+                ? EffectiveAccess.NotYet
+                : EffectiveAccess.Unknown($"Azure could not be asked: {e.Message}");
+        }
+    }
+
+    /// <summary>One role definition with its permissions; the list shape above only carries the name.</summary>
+    private async Task<FullRoleDefinition?> DefinitionAsync(
+        string roleDefinitionId, Identity identity, string tenantId, CancellationToken ct)
+    {
+        var response = await _transport.GetAsync(
+            identity, tenantId, ArmUrl(Trimmed(roleDefinitionId), "2022-04-01"), Scopes, ct).ConfigureAwait(false);
+        return JsonSerializer.Deserialize<FullRoleDefinition>(response.Body, GraphJson.Options);
+    }
+
     public async Task CancelPendingRequestAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(assignment);

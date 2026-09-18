@@ -17,7 +17,11 @@ namespace Elevate.Cli.Commands;
 /// </summary>
 public static class RunCommands
 {
-    /// <summary>Group claims reach a token a little after the membership is active; the default pause before the command.</summary>
+    /// <summary>
+    /// The fixed pause <c>--settle</c> used to be, kept for <c>--settle</c> with no check to bound:
+    /// when the roles cannot be probed at all, a group membership still wants a moment before a
+    /// command asks for a token.
+    /// </summary>
     public static readonly TimeSpan GroupSettle = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -41,7 +45,7 @@ public static class RunCommands
         var ticket = new Option<string?>("--ticket") { Description = "Ticket number, when a policy asks for one." };
         var ticketSystem = new Option<string?>("--ticket-system") { Description = "Ticket system name to go with --ticket." };
         var deactivateAfter = new Option<bool>("--deactivate-after") { Description = "Deactivate the roles this call activated once the command exits." };
-        var settle = new Option<string?>("--settle") { Description = "Extra pause once everything is active, for group claims to propagate, e.g. 2m or 0. Default: 30s when a group membership was activated, else none." };
+        var settle = new Option<string?>("--settle") { Description = "How long to keep checking that the roles are really in effect before running anyway, e.g. 2m; 0 runs the command as soon as PIM reports them active. Default: until the check says so, or the propagation deadline for the kind of role." };
         var timeout = new Option<string?>("--timeout") { Description = "How long to wait for the activations, approvals included, e.g. 1h. Default: 15m." };
         var exportToken = new Option<string[]>("--export-token") { Description = "Put an access token for this resource (arm, graph or a resource URI) in the command's own environment as ELEVATE_ARM_TOKEN and the like; repeat for several. For a command that cannot call 'elevate token' itself. Never set in your shell, and never printed." };
         var iKnow = new Option<bool>("--i-know") { Description = "Acknowledge the Graph scope ceiling, which --export-token graph needs." };
@@ -199,11 +203,21 @@ public static class RunCommands
             await context.Output.StatusAsync("Waiting for the roles to become active…",
                 report => waiter.WaitAsync(waiting, wait, report, ct)).ConfigureAwait(false);
 
-            var settleFor = pause ?? (waiting.Any(k => k.Scope.Kind == RoleScopeKind.Group) ? GroupSettle : TimeSpan.Zero);
-            if (settleFor > TimeSpan.Zero)
+            // "Active" is PIM's own view, and a command handed a role that is only active is the
+            // reason people think an activation did nothing. --settle bounds the check rather than
+            // replacing it; --settle 0 says to run anyway and keeps the old fixed pause for groups,
+            // which is the one case where waiting blind still buys something.
+            if (pause == TimeSpan.Zero)
             {
-                await context.Output.StatusAsync($"Waiting {ShortDurationParser.Label(settleFor)} for the membership to reach new tokens…",
-                    () => Task.Delay(settleFor, ct)).ConfigureAwait(false);
+                if (waiting.Any(k => k.Scope.Kind == RoleScopeKind.Group))
+                {
+                    await context.Output.StatusAsync($"Waiting {ShortDurationParser.Label(GroupSettle)} for the membership to reach new tokens…",
+                        () => Task.Delay(GroupSettle, ct)).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await PropagationReporter.VerifyAsync(context, session, waiting, pause, ct).ConfigureAwait(false);
             }
 
             TokenHints.Report(context, outcomes);

@@ -25,7 +25,7 @@ public static class ActivationCommands
         var ticket = new Option<string?>("--ticket") { Description = "Ticket number, when the policy asks for one." };
         var ticketSystem = new Option<string?>("--ticket-system") { Description = "Ticket system name to go with --ticket." };
         var at = new Option<string?>("--at") { Description = "Start later: +2h, 14:30 or 2026-09-08T09:00." };
-        var wait = new Option<bool>("--wait") { Description = "Wait until the role is actually active (provisioning can take a moment); fails after 5 minutes." };
+        var wait = new Option<bool>("--wait") { Description = "Wait until the role is usable, not just reported active: provisioning first, then a check that the access is really in effect." };
         var command = new Command("activate", "Activate one or more roles. Roles that are already active are left alone; use 'extend' for those.")
         {
             roles, account, tenant, kind, scope, duration, reason, ticket, ticketSystem, at, wait,
@@ -93,7 +93,7 @@ public static class ActivationCommands
         var scope = CommonOptions.Scope();
         var duration = new Option<string?>("--duration", "-d") { Description = "How long from now, e.g. 2h. Default: the last duration used, else the policy default." };
         var reason = new Option<string?>("--reason", "-r") { Description = "Justification. Default: the remembered reason." };
-        var wait = new Option<bool>("--wait") { Description = "Wait until the role is active again." };
+        var wait = new Option<bool>("--wait") { Description = "Wait until the role is active again and the access is really in effect." };
         var command = new Command("extend", "Deactivate and re-activate an active role, so the clock starts over.")
         {
             roles, account, tenant, kind, scope, duration, reason, wait,
@@ -331,9 +331,31 @@ public static class ActivationCommands
             context.Output.Write(Views.OutcomesTable(session, ordered, now));
         }
 
+        if (wait)
+        {
+            // The table is out first: the propagation notes are about roles it has just listed.
+            await VerifyInEffectAsync(context, ordered, null, ct).ConfigureAwait(false);
+        }
+
         TokenHints.Report(context, ordered);
         var failed = ordered.Count(o => o.Result is ActivationResult.Failed);
         return failed == 0 ? ExitCodes.Ok : failed == ordered.Count ? ExitCodes.Failure : ExitCodes.Partial;
+    }
+
+    /// <summary>
+    /// Probes the roles this call activated until the access is genuinely in effect, which is the
+    /// point of <c>--wait</c>: PIM reports an assignment active well before it works. A role that
+    /// cannot be observed from here, and one that is still not in effect at the deadline, are both
+    /// reported rather than waited out.
+    /// </summary>
+    internal static Task<bool> VerifyInEffectAsync(
+        CommandContext context, IReadOnlyList<ActivationOutcome> outcomes, TimeSpan? deadline, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(outcomes);
+        var keys = outcomes.Where(o => o.Result is ActivationResult.Activated).Select(o => o.RoleKey).ToList();
+        return keys.Count == 0
+            ? Task.FromResult(true)
+            : PropagationReporter.VerifyAsync(context, context.Session, keys, deadline, ct);
     }
 
     /// <summary>

@@ -16,6 +16,12 @@ public enum RowStatus
 {
     None,
     Active,
+
+    /// <summary>
+    /// Active as far as PIM is concerned, but the access is not usable yet — or was still not
+    /// usable when Elevate gave up asking. The countdown runs either way; the row says which.
+    /// </summary>
+    Propagating,
     Scheduled,
     Pending,
     Provisioning,
@@ -88,6 +94,7 @@ public sealed class RoleRow : PanelItem
     private string _countdown = string.Empty;
     private bool _countdownSoon;
     private string? _statusText;
+    private string? _statusTooltip;
     private string? _failedText;
     private bool _showActivate;
     private bool _showExtend;
@@ -125,8 +132,11 @@ public sealed class RoleRow : PanelItem
 
     public bool CountdownSoon { get => _countdownSoon; set => SetProperty(ref _countdownSoon, value); }
 
-    /// <summary>"awaiting approval", "provisioning", "starts in 2 h".</summary>
+    /// <summary>"awaiting approval", "provisioning", "starts in 2 h", "propagating (~3 min)".</summary>
     public string? StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+
+    /// <summary>What <see cref="StatusText"/> means, when it is worth more than the two words on the row.</summary>
+    public string? StatusTooltip { get => _statusTooltip; set => SetProperty(ref _statusTooltip, value); }
 
     public string? FailedText { get => _failedText; set => SetProperty(ref _failedText, value); }
 
@@ -184,7 +194,12 @@ public sealed class RoleRow : PanelItem
 
     public Visibility ManualVisibility => IsManual ? Visibility.Visible : Visibility.Collapsed;
 
-    public Visibility CountdownVisibility => Status == RowStatus.Active ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>
+    /// The countdown shows while the role is propagating too: the clock started when PIM recorded
+    /// the activation, whatever the access is doing, and hiding it would understate how little is left.
+    /// </summary>
+    public Visibility CountdownVisibility =>
+        Status is RowStatus.Active or RowStatus.Propagating ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility StatusTextVisibility => string.IsNullOrEmpty(StatusText) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -244,6 +259,7 @@ public sealed class RoleRow : PanelItem
         Countdown = other.Countdown;
         CountdownSoon = other.CountdownSoon;
         StatusText = other.StatusText;
+        StatusTooltip = other.StatusTooltip;
         FailedText = other.FailedText;
         ShowActivate = other.ShowActivate;
         ShowExtend = other.ShowExtend;
@@ -901,6 +917,7 @@ public static class PanelListBuilder
         row.ShowCancel = false;
         row.ShowCancelPending = false;
         row.StatusText = null;
+        row.StatusTooltip = null;
         row.FailedText = null;
         row.Countdown = string.Empty;
         row.CountdownSoon = false;
@@ -922,6 +939,16 @@ public static class PanelListBuilder
                     : "Deactivate this role now";
                 row.ShowExtend = lockedFor <= TimeSpan.Zero && ExtendWindow.CanExtend(assignment, policy, now);
                 row.SelectEnabled = false;
+
+                // PIM calls it active; only a probe can call it usable. Until one does, the row says
+                // so rather than showing the plain green that means "go ahead".
+                if (model.PropagationNote(key) is { } note)
+                {
+                    row.Status = RowStatus.Propagating;
+                    row.StatusText = note;
+                    row.StatusTooltip = model.PropagationTooltip(key);
+                }
+
                 break;
             }
 

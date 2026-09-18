@@ -67,7 +67,14 @@ public abstract class MsalProviderBase : ITokenProvider
         return [.. accounts.Select(a => IdentityFrom(a, null))];
     }
 
-    public async Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct)
+    public Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct)
+        => AccessTokenAsync(identity, tenantId, scopes, forceRefresh: false, ct);
+
+    /// <summary>MSAL can be told to go back to the token endpoint, which is what a propagation probe needs.</summary>
+    public bool CanForceRefresh => true;
+
+    public async Task<string> AccessTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
         await EnsureCacheAsync().ConfigureAwait(false);
@@ -75,6 +82,7 @@ public abstract class MsalProviderBase : ITokenProvider
             ?? throw new PimException(PimErrorKind.InteractionRequired);
         var result = await Run(() => App.AcquireTokenSilent(Requested(scopes), account)
             .WithTenantId(tenantId)
+            .WithForceRefresh(forceRefresh)
             .ExecuteAsync(ct)).ConfigureAwait(false);
         return result.AccessToken;
     }

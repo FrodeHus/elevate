@@ -11,6 +11,7 @@ public sealed class FakeTokenProvider : ITokenProvider
     private readonly List<Identity> _storedIdentities = [];
     private readonly List<InteractiveCall> _interactiveCalls = [];
     private readonly List<string> _silentCalls = [];
+    private readonly List<string> _forcedCalls = [];
     private readonly List<string> _signOutCalls = [];
     private readonly Dictionary<(string IdentityId, string TenantId), string> _tokens = [];
     private readonly Lock _gate = new();
@@ -87,6 +88,44 @@ public sealed class FakeTokenProvider : ITokenProvider
 
     public Task<IReadOnlyList<Identity>> IdentitiesAsync(CancellationToken ct)
         => Task.FromResult(StoredIdentities);
+
+    /// <summary>Whether a probe may ask this provider for a token minted now; tests flip it off to exercise the fallback.</summary>
+    public bool CanForceRefresh { get; set; } = true;
+
+    /// <summary>Returned instead of the cached token when a caller forces a refresh, so a test can move the claims on.</summary>
+    public string? RefreshedToken { get; set; }
+
+    /// <summary>Tenant ids a forced refresh was asked for.</summary>
+    public IReadOnlyList<string> ForcedCalls
+    {
+        get { lock (_gate) { return [.. _forcedCalls]; } }
+    }
+
+    public Task<string> AccessTokenAsync(
+        Identity identity,
+        string tenantId,
+        IReadOnlyList<string> scopes,
+        bool forceRefresh,
+        CancellationToken ct)
+    {
+        if (!forceRefresh)
+        {
+            return AccessTokenAsync(identity, tenantId, scopes, ct);
+        }
+
+        ArgumentNullException.ThrowIfNull(identity);
+        lock (_gate)
+        {
+            _forcedCalls.Add(tenantId);
+        }
+
+        if (SilentError is { } error)
+        {
+            return Task.FromException<string>(error);
+        }
+
+        return Task.FromResult(RefreshedToken ?? TokenFor(identity.Id, tenantId));
+    }
 
     public Task<string> AccessTokenAsync(
         Identity identity,

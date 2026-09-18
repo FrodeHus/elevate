@@ -52,6 +52,23 @@ public interface ITokenProvider
     Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default);
 
     /// <summary>
+    /// Silent acquisition that may bypass the cache. A propagation probe needs a token minted after
+    /// the activation, because the claims it reads — a directory role, a group membership — are
+    /// fixed when the token is issued; every other caller wants the cached one.
+    /// <para>
+    /// The default returns the cached token, so a provider that cannot force a refresh (a test
+    /// double, a provider over a pre-issued token) keeps working; the probe then reports that it
+    /// cannot tell rather than reporting a stale answer as fact.
+    /// </para>
+    /// </summary>
+    Task<string> AccessTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct = default)
+        => AccessTokenAsync(identity, tenantId, scopes, ct);
+
+    /// <summary>Whether <see cref="AccessTokenAsync(Identity, string, IReadOnlyList{string}, bool, CancellationToken)"/> honours a forced refresh.</summary>
+    bool CanForceRefresh => false;
+
+    /// <summary>
     /// Interactive acquisition, optionally carrying a claims challenge. Throws
     /// <see cref="PimErrorKind.ConsentRequired"/> on AADSTS65001.
     /// </summary>
