@@ -116,6 +116,10 @@ struct ActivationStatusIcon: View {
 struct ActivationProgressLabel: View {
     let result: ActivationOutcome.Result?
     let running: Bool
+    /// Where the propagation probe has got to, when one is running for this role.
+    var propagation: PropagationState?
+    /// True while the sheet is holding for the first probe.
+    var checking = false
 
     var phase: ActivationIconPlayback.Phase {
         switch result {
@@ -129,7 +133,20 @@ struct ActivationProgressLabel: View {
         HStack(spacing: 5) {
             if phase != .hidden { ActivationStatusIcon(phase: phase) }
             switch result {
-            case .activated: Text("Active").foregroundStyle(.green)
+            // "Active" is the service's own word and the reason people think an activation did
+            // nothing; the sheet says what it can stand behind.
+            case .activated:
+                switch propagation {
+                case .ready:
+                    Text("Ready").foregroundStyle(.green)
+                        .help("A probe confirmed the access works.")
+                case .propagating where checking:
+                    Text("Checking it is in effect…").foregroundStyle(.secondary)
+                        .help("PIM has recorded the activation; the access usually follows within minutes.")
+                default:
+                    Text("Activated").foregroundStyle(.secondary)
+                        .help("PIM has recorded the activation. The panel row shows whether the access is in effect.")
+                }
             case .scheduled: Label("Scheduled", systemImage: "calendar").foregroundStyle(.blue)
             case .pendingApproval: Label("Pending", systemImage: "clock").foregroundStyle(.orange)
             case .failed(let error):

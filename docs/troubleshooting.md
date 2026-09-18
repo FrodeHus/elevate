@@ -94,10 +94,12 @@ actually enforce the role:
 
 In the panel, a role in that state keeps its countdown — the clock started when PIM recorded the
 activation, whatever the access is doing — but its dot is drawn hollow and the row reads
-**propagating (~3 min)**. The dot fills and a notification arrives when the access is in effect, so
-you can switch away and be told the right moment. A role that never confirms reads **not in effect
-yet**, and hovering it names the likely cause. It stays deactivatable throughout: it is active
-either way.
+**propagating (~3 min)**. The activation sheet holds for the first check before closing, so it ends
+on **Ready** whenever the access is already there. The dot fills and a notification arrives when the
+access comes into effect, so you can switch away and be told the right moment. A role that never
+confirms reads **not in effect yet**, names the likely cause on hover, and says so in a notification
+as well — by then you are unlikely to be looking at the panel. It stays deactivatable throughout: it
+is active either way.
 
 `elevate activate --wait`, `elevate profiles run --wait` and `elevate run` all wait for this rather
 than for PIM's record, and say which of three things happened:

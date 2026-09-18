@@ -77,7 +77,8 @@ public class AppModelPropagationTests
         test.Model.WatchPropagation([Activated(key, started)]);
         await SettledAsync(test.Model, key);
 
-        test.Model.Propagation.Should().NotContainKey(key);
+        test.Model.Propagation[key].Should().Be(PropagationState.Ready);
+        // Ready is recorded but says nothing on the row: the row is simply active again.
         test.Model.PropagationNote(key).Should().BeNull();
         notifier.Posted.Should().ContainSingle().Which.Title.Should().Contain("is ready");
     }
@@ -93,7 +94,7 @@ public class AppModelPropagationTests
         test.Model.WatchPropagation([Activated(key)]);
         await SettledAsync(test.Model, key);
 
-        test.Model.Propagation.Should().NotContainKey(key);
+        test.Model.Propagation[key].Should().Be(PropagationState.Ready);
         notifier.Posted.Should().BeEmpty();
     }
 
@@ -108,7 +109,7 @@ public class AppModelPropagationTests
         test.Model.WatchPropagation([Activated(key)]);
         await SettledAsync(test.Model, key);
 
-        test.Model.Propagation.Should().NotContainKey(key);
+        test.Model.Propagation[key].Should().Be(PropagationState.Unobservable);
         test.Model.PropagationNote(key).Should().BeNull();
     }
 
@@ -135,6 +136,60 @@ public class AppModelPropagationTests
         test.Model.WatchPropagation([new ActivationOutcome(key, new ActivationResult.PendingApproval(pending))]);
 
         test.Model.Propagation.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUnconfirmedRoleIsAnnouncedRatherThanLeftOnTheRow()
+    {
+        // Whoever activated it has moved on; the row alone would leave them trusting a dead role.
+        var notifier = new RecordingNotifier();
+        using var test = await ModelAsync(token: null, notifier);
+        var key = EntraKey;
+        test.Model.Active[key] = new ActiveAssignment(key, "a1", DateTimeOffset.UtcNow, null, AssignmentStatus.Active);
+        test.Model.Propagation[key] = PropagationState.Propagating;
+
+        test.Model.Settle(test.Model.ConfigGeneration, new PropagationOutcome(
+            key, PropagationState.Unconfirmed, PropagationHints.LikelyCause(RoleScopeKind.EntraDirectory)));
+
+        var posted = notifier.Posted.Should().ContainSingle().Subject;
+        posted.Title.Should().Contain("not in effect");
+        posted.Body.Should().Be(PropagationHints.LikelyCause(RoleScopeKind.EntraDirectory));
+    }
+
+    [Fact]
+    public async Task SettledInEffectIsTrueOnlyWhenEveryRoleIsConfirmed()
+    {
+        using var test = await ModelAsync(token: null);
+        var ready = EntraKey;
+        var unobservable = Sample.Key(new GroupScope("grp-1", GroupAccess.Owner));
+        var hold = TimeSpan.FromMilliseconds(200);
+
+        test.Model.Propagation[ready] = PropagationState.Ready;
+        (await test.Model.SettledInEffectAsync([ready], hold)).Should().BeTrue();
+
+        test.Model.Propagation[unobservable] = PropagationState.Unobservable;
+        (await test.Model.SettledInEffectAsync([ready, unobservable], hold)).Should().BeFalse();
+
+        // A role nobody probed is not evidence of anything either.
+        (await test.Model.SettledInEffectAsync([Sample.Key(new EntraDirectoryScope("other", "/"))], hold))
+            .Should().BeFalse();
+        (await test.Model.SettledInEffectAsync([], hold)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SettledInEffectGivesUpAtTheHoldRatherThanWaitingOut()
+    {
+        // The dialog closes on whatever the probe has by then; it never holds the user for minutes.
+        using var test = await ModelAsync(token: null);
+        var key = EntraKey;
+        test.Model.Propagation[key] = PropagationState.Propagating;
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var inEffect = await test.Model.SettledInEffectAsync([key], TimeSpan.FromMilliseconds(250));
+        clock.Stop();
+
+        inEffect.Should().BeFalse();
+        clock.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
     }
 
     [Fact]

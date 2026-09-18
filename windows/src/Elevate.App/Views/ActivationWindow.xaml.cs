@@ -34,6 +34,16 @@ public sealed partial class ActivationWindow : Window
     private readonly List<Item> _items = [];
     private bool _running;
 
+    /// <summary>True while the dialog is holding for the first propagation probe.</summary>
+    private bool _checking;
+
+    /// <summary>
+    /// How long the dialog waits for the probe before closing anyway. A little over the watcher's
+    /// first interval, so the common case — a role that is already in effect — ends on "Ready"
+    /// rather than on a word that only means PIM wrote the assignment down.
+    /// </summary>
+    private static readonly TimeSpan InEffectHold = TimeSpan.FromSeconds(6);
+
     public ActivationWindow(AppModel model, IReadOnlyList<RoleKey> keys)
     {
         InitializeComponent();
@@ -247,8 +257,20 @@ public sealed partial class ActivationWindow : Window
         switch (progress)
         {
             case ActivationResult.Activated:
-                item.Status.Text = "Active";
-                item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["SystemFillColorSuccessBrush"];
+                // "Active" is the service's own word and the reason people think an activation did
+                // nothing; this dialog says what it can stand behind.
+                var settled = _model.Propagation.TryGetValue(item.Role.Key, out var state) ? state : (PropagationState?)null;
+                item.Status.Text = _checking && settled == PropagationState.Propagating
+                    ? "Checking it is in effect…"
+                    : settled == PropagationState.Ready ? "Ready" : "Activated";
+                item.Status.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources[
+                    settled == PropagationState.Ready ? "SystemFillColorSuccessBrush" : "TextFillColorSecondaryBrush"];
+                ToolTipService.SetToolTip(item.Status, settled switch
+                {
+                    PropagationState.Ready => "A probe confirmed the access works.",
+                    PropagationState.Propagating => "PIM has recorded the activation; the access usually follows within minutes.",
+                    _ => "PIM has recorded the activation. The panel row shows whether the access is in effect.",
+                });
                 break;
             case ActivationResult.Scheduled:
                 item.Status.Text = "Scheduled";
@@ -357,11 +379,25 @@ public sealed partial class ActivationWindow : Window
 
         OnModelChanged(this, EventArgs.Empty);
         var allOk = _items.All(i => i.Result is ActivationResult.Activated or ActivationResult.Scheduled or ActivationResult.PendingApproval);
-        if (allOk && _items.Any(i => i.Result is ActivationResult.Activated))
+        var activated = _items.Where(i => i.Result is ActivationResult.Activated).Select(i => i.Role.Key).ToList();
+        if (allOk && activated.Count > 0)
         {
             var dwell = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? ActivationIconPlayback.MorphDuration + .15 : .4;
             await Task.Delay(TimeSpan.FromSeconds(dwell));
+
+            // Hold for the first probe rather than closing on the service's word. Whatever it says
+            // the dialog closes: a role still propagating after this is the panel row's business.
+            _checking = true;
+            OnModelChanged(this, EventArgs.Empty);
+            var inEffect = await _model.SettledInEffectAsync(activated, InEffectHold);
+            _checking = false;
+            OnModelChanged(this, EventArgs.Empty);
+            if (inEffect)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(.5));
+            }
         }
+
         _running = false;
         OnModelChanged(this, EventArgs.Empty);
         if (allOk)

@@ -18,6 +18,13 @@ struct ActivationView: View {
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
+    /// True while the sheet is holding for the first propagation probe.
+    @State private var checking = false
+
+    /// How long the sheet waits for the probe before closing anyway. A little over the watcher's
+    /// first interval, so the common case — a role that is already in effect — ends on "Ready"
+    /// rather than on a word that only means PIM wrote the assignment down.
+    private static let inEffectHold: TimeInterval = 6
     @State private var rowResults: [RoleKey: ActivationOutcome.Result] = [:]
     @State private var scheduleStart = false
     @State private var startAt = Date.now.addingTimeInterval(3600)
@@ -177,7 +184,8 @@ struct ActivationView: View {
     }
 
     @ViewBuilder private func progressLabel(for key: RoleKey) -> some View {
-        ActivationProgressLabel(result: result(for: key), running: running)
+        ActivationProgressLabel(result: result(for: key), running: running,
+                                propagation: model.propagation[key], checking: checking)
     }
 
     // Manual Azure roles acquire a resolved ID during activation; the dialog keeps its original key.
@@ -222,10 +230,17 @@ struct ActivationView: View {
             case .failed, nil: false
             }
         }
-        if allOk && requests.contains(where: {
-            if case .activated = result(for: $0.roleKey) { true } else { false }
-        }) {
+        let activated = requests.map(\.roleKey).filter {
+            if case .activated = result(for: $0) { true } else { false }
+        }
+        if allOk && !activated.isEmpty {
             try? await Task.sleep(for: .seconds(reduceMotion ? 0.4 : ActivationIconPlayback.morphDuration + 0.15))
+            // Hold for the first probe rather than closing on the service's word. Whatever it says
+            // the sheet closes: a role still propagating after this is the panel row's business.
+            checking = true
+            let inEffect = await model.settledInEffect(activated, within: Self.inEffectHold)
+            checking = false
+            if inEffect { try? await Task.sleep(for: .seconds(0.5)) }
         }
         running = false
         if allOk { dismiss() }

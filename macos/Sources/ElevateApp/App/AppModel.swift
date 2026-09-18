@@ -28,9 +28,10 @@ final class AppModel {
 
     // MARK: Propagation — AppModel+Propagation
 
-    /// Roles being probed after an activation, and how far they have got. A role is absent once it
-    /// is ready, or once there was nothing to observe: the row is then a plain active row. Session
-    /// only; never persisted.
+    /// Roles probed since they were activated, and where each got to. A role stays here once it
+    /// settles — `.ready` is what lets the activation sheet close on "Ready" rather than on the word
+    /// PIM would have used. Only `.propagating` and `.unconfirmed` change a row; the other two read
+    /// as a plain active row. Session only; never persisted.
     var propagation: [RoleKey: PropagationState] = [:]
     /// The probe running for each watched role, so it can be cancelled when the role goes away.
     /// The id tells a finishing watch from the one that replaced it.

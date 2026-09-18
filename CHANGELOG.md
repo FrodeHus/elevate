@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- macOS and Windows: the activation sheet no longer signs off with "Active", the word that means
+  only that PIM wrote the assignment down. It holds for the first effective-access check and closes
+  on **Ready** when the access is already there, on **Activated** when the check has not answered in
+  a few seconds — it never holds you there for minutes, and the panel row carries the rest. A role
+  that reaches its propagation deadline without coming into effect now also raises a notification
+  naming the likely cause, rather than saying so only on a row nobody is looking at by then. Follows
+  [#181](https://github.com/FrodeHus/elevate/issues/181), which showed the propagating state on the
+  row but left the sheet — the path most activations actually go through — saying what it always had.
 - macOS, Windows and CLI: **the green light now means something.** PIM reports an assignment active well
   before the access works, which is the most-repeated complaint about PIM. After an activation
   settles, Elevate probes the thing that would actually enforce the role — for an Entra directory
