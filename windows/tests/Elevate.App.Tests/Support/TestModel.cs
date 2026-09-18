@@ -126,8 +126,27 @@ public sealed class TestModel : IDisposable
         Pinned = pinning ? new FakePinnedProviders(Tokens) : null;
         Notifier = notifier ?? new RecordingNotifier();
         HotKeys = new NoopHotKeyCenter();
-        Model = new AppModel(Tokens, Http, Store, Notifier, new FixedNetworkMonitor(online), Settings, FirstParty,
-            ownApp, ownAppFactory, HotKeys, Pinned);
+        // AppModel captures SynchronizationContext.Current and marshals callbacks from the
+        // coordinator back onto it, because in the app that is the one UI thread it requires. The
+        // context xUnit installs is not a thread at all: its Post hands the callback to the thread
+        // pool, so an activation's progress callback could mutate Progress and Active while the
+        // authoritative loop in ActivateCoreAsync was writing the same dictionaries — a genuine
+        // data race, and an intermittent "non-concurrent collections must have exclusive access".
+        // Constructing the model with no ambient context makes Post run inline instead: the
+        // coordinator raises progress from inside the call the model is awaiting, so the callback
+        // lands before that await returns. That is one of the two orderings the UI thread already
+        // produces, and it is the deterministic one.
+        var ambient = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            Model = new AppModel(Tokens, Http, Store, Notifier, new FixedNetworkMonitor(online), Settings, FirstParty,
+                ownApp, ownAppFactory, HotKeys, Pinned);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(ambient);
+        }
     }
 
     public RecordingNotifier Notifier { get; }
