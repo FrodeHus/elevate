@@ -2,7 +2,6 @@ import Foundation
 import ElevateCore
 
 /// One running probe, with an id so a watch that finishes cannot clear the one that replaced it.
-@MainActor
 struct PropagationWatch {
     let id: UUID
     let task: Task<Void, Never>
@@ -18,9 +17,14 @@ extension AppModel {
     /// What the row says under a role that is active but not usable yet, or nil for a plain active row.
     func propagationNote(for key: RoleKey) -> String? {
         switch propagation[key] {
-        case .propagating: "propagating (~\(Countdown.label(PropagationHints.typical(key.scope.kind))))"
-        case .unconfirmed: "not in effect yet"
-        default: nil
+        case .propagating:
+            // The hints are seconds, as the deadline the watcher takes must be; the label wants a Duration.
+            let typical = Duration.seconds(Int(PropagationHints.typical(key.scope.kind)))
+            return "propagating (~\(Countdown.label(typical)))"
+        case .unconfirmed:
+            return "not in effect yet"
+        default:
+            return nil
         }
     }
 
@@ -59,10 +63,11 @@ extension AppModel {
             let watcher = PropagationWatcher(
                 coordinator: coordinator,
                 firstInterval: propagationFirstInterval, maxInterval: propagationMaxInterval)
-            // A cancelled watch — deactivated, signed out, configuration changed — reports nothing.
-            try? await watcher.wait(for: [assignment], identities: state.identities) { outcome in
-                Task { @MainActor [weak self] in self?.settle(outcome, generation: generation) }
-            }
+            // One watch per role, so the returned outcome lands exactly when a progress callback
+            // would have. A cancelled watch — deactivated, signed out, configuration changed —
+            // reports nothing.
+            let outcomes = (try? await watcher.wait(for: [assignment], identities: state.identities)) ?? []
+            for outcome in outcomes { settle(outcome, generation: generation) }
             finish(key, id: id)
         })
     }

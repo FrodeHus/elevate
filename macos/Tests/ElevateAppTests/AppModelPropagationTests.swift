@@ -71,7 +71,8 @@ struct AppModelPropagationTests {
         #expect(model.propagationNote(for: key) == nil)
         // The notification is posted from a detached task; give it a turn.
         try await Task.sleep(for: .milliseconds(50))
-        #expect(await notifier.notifications.first?.title.contains("is ready") == true)
+        let notes = await notifier.notifications
+        #expect(notes.first?.title.contains("is ready") == true)
     }
 
     @Test func aRoleReadyStraightAwayIsNotWorthANotification() async throws {
@@ -86,7 +87,8 @@ struct AppModelPropagationTests {
         try await Task.sleep(for: .milliseconds(50))
 
         #expect(model.propagation[key] == nil)
-        #expect(await notifier.notifications.isEmpty)
+        let notes = await notifier.notifications
+        #expect(notes.isEmpty)
     }
 
     @Test func anUnobservableRoleGoesBackToAPlainActiveRow() async throws {
