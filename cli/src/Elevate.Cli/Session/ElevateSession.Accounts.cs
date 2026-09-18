@@ -17,6 +17,13 @@ public sealed partial class ElevateSession
             throw DisallowedMethod(MethodName(method), Settings.Managed);
         }
 
+        // A registration of the account's own is the user's choice to make; the organization can
+        // take it away by fixing the client id, and then only that one may be used.
+        if (method.IsPinned && Settings.IsClientIdManaged)
+        {
+            throw new CliException(CliSettings.ManagedClientIdMessage, ExitCodes.Usage);
+        }
+
         if (method.IsCustom)
         {
             Settings.CustomClientId = method.CustomClientId!;
@@ -25,7 +32,11 @@ public sealed partial class ElevateSession
         var identity = await Tokens.SignInAsync(method, ct).ConfigureAwait(false);
         if (State.Identities.FirstOrDefault(i => i.Id == identity.Id) is { } existing && existing.SignInMethod != method)
         {
-            if (method.ClientId is null || !string.Equals(method.ClientId, existing.SignInMethod.ClientId, StringComparison.OrdinalIgnoreCase))
+            // Discard the sign-in just made, unless it shares a cache slot with the account that is
+            // already there: MSAL keys accounts by client id, so a pin onto the settings id — or a
+            // custom method over it — is the same entry, and signing out would take its token too.
+            var added = TokenStoreKey(method);
+            if (added is null || added != TokenStoreKey(existing.SignInMethod))
             {
                 try
                 {
@@ -37,7 +48,10 @@ public sealed partial class ElevateSession
                 }
             }
 
-            throw new CliException($"{identity.Upn} is already added with the {existing.SignInMethod.DisplayName}. Sign it out first to change the method.", ExitCodes.Usage);
+            throw new CliException(
+                $"{identity.Upn} is already added with the {existing.SignInMethod.DetailedName}. "
+                + $"Sign it out first to change the method, or move it with 'elevate accounts set-client-id {identity.Upn} <application id>'.",
+                ExitCodes.Usage);
         }
 
         lock (_sync)
@@ -91,9 +105,23 @@ public sealed partial class ElevateSession
         lock (_sync)
         {
             State.RemoveIdentity(identityId);
+            DropRuntime(identityId);
+        }
+    }
+
+    /// <summary>
+    /// Drops what this run read for an account, keeping the account itself, its tenants, configured
+    /// roles, profile entries and role memory. Used when its registration changes and everything
+    /// read under the old one is stale. Port of the desktop apps' <c>dropRuntime</c>.
+    /// </summary>
+    internal void DropRuntime(string identityId)
+    {
+        lock (_sync)
+        {
             foreach (var key in Roles.Keys.Where(k => k.IdentityId == identityId).ToList())
             {
                 Roles.Remove(key);
+                LoadedTenants.Remove(key);
             }
 
             foreach (var key in Active.Keys.Where(k => k.IdentityId == identityId).ToList())
@@ -105,6 +133,139 @@ public sealed partial class ElevateSession
             {
                 Approvals.Remove(key);
             }
+
+            foreach (var key in PolicyCache.Keys.Where(k => k.IdentityId == identityId).ToList())
+            {
+                PolicyCache.Remove(key);
+            }
+        }
+    }
+
+    // MARK: App registrations
+
+    /// <summary>
+    /// Names the MSAL cache slot a method's tokens live in: its client id, normalised. Two methods
+    /// with the same key share one account entry and one refresh token, so signing one out signs
+    /// the other out too. Null when the method has no usable client id at all — the settings form
+    /// before a client id is configured.
+    /// </summary>
+    internal string? TokenStoreKey(SignInMethod method)
+    {
+        var id = method.IsOwnApp && !method.IsPinned ? Settings.ClientId : method.ClientId;
+        return CliSettings.IsValidClientId(id) ? SignInMethod.NormalizeClientId(id!) : null;
+    }
+
+    /// <summary>
+    /// Moves an account to an Entra app registration — a client id of its own, or the one in
+    /// settings — keeping its tenants, configured roles, profiles and role memory. The account's
+    /// current method can be anything; only the target is restricted. The change is saved only
+    /// after the same user has signed in with the new registration: a cancelled sign-in or a
+    /// different account changes nothing. Port of the desktop apps' <c>changeSignInRegistration</c>.
+    /// </summary>
+    public async Task<Identity> ChangeRegistrationAsync(Identity identity, SignInMethod method, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        var current = identity.SignInMethod;
+        if (!method.IsOwnApp)
+        {
+            throw new CliException("Only an Entra app registration can be chosen here.", ExitCodes.Usage);
+        }
+
+        if (method == current)
+        {
+            return identity;
+        }
+
+        if (!IsMethodAllowed(method))
+        {
+            throw DisallowedMethod(MethodName(method), Settings.Managed);
+        }
+
+        // Under a managed client id an account may still move *to* the managed registration.
+        if (method.IsPinned && Settings.IsClientIdManaged)
+        {
+            throw new CliException(CliSettings.ManagedClientIdMessage, ExitCodes.Usage);
+        }
+
+        if (!method.IsPinned && !Settings.IsConfigured)
+        {
+            throw new CliException(
+                "No client ID is configured. Run 'elevate config set client-id <application id>' first.", ExitCodes.Usage);
+        }
+
+        var oldStoreKey = TokenStoreKey(current);
+        var signedIn = await Tokens.SignInAsync(method, ct).ConfigureAwait(false);
+        if (signedIn.Id != identity.Id)
+        {
+            // Keep a session that belongs to another account already in the list; its token is
+            // keyed by its own id, so discarding it cannot touch the one we were waiting for.
+            if (!IsListedSession(signedIn))
+            {
+                await DiscardSignInAsync(signedIn, ct).ConfigureAwait(false);
+            }
+
+            throw new CliException(
+                $"Signed in as {signedIn.Upn}, but {identity.Upn} was expected. Nothing was changed.", ExitCodes.Usage);
+        }
+
+        var index = State.Identities.FindIndex(i => i.Id == identity.Id);
+        if (index < 0)
+        {
+            throw new CliException($"{identity.Upn} is no longer added. Nothing was changed.", ExitCodes.Usage);
+        }
+
+        var old = State.Identities[index];
+        var moved = old with { SignInMethod = method };
+        Mutate(() => State.Identities[index] = moved);
+
+        // Upgrading from a limited method: the flags it left behind (view-only Entra, blocked
+        // groups or Azure reads, a discovery error) no longer apply, and the policies cached under
+        // it were learned by a client that could not activate what they cover.
+        if (!current.IsOwnApp)
+        {
+            foreach (var key in Tenants.Where(t => t.IdentityId == identity.Id).Select(t => t.Key).ToList())
+            {
+                ResetTenant(key);
+            }
+        }
+
+        Persist();
+        var newStoreKey = TokenStoreKey(method);
+        if (newStoreKey is null || newStoreKey != oldStoreKey)
+        {
+            await DiscardSignInAsync(old, ct).ConfigureAwait(false);
+        }
+
+        DropRuntime(identity.Id);
+        return moved;
+    }
+
+    /// <summary>
+    /// Whether a sign-in that returned <paramref name="signedIn"/> is a listed account's own
+    /// session: same user, same cache slot as that account uses. Discarding it would then delete
+    /// the listed account's fresh token.
+    /// </summary>
+    private bool IsListedSession(Identity signedIn)
+    {
+        if (State.Identities.FirstOrDefault(i => i.Id == signedIn.Id) is not { } listed)
+        {
+            return false;
+        }
+
+        var key = TokenStoreKey(signedIn.SignInMethod);
+        return key is not null && key == TokenStoreKey(listed.SignInMethod);
+    }
+
+    /// <summary>Signs a stray or superseded session out, ignoring failures: leaving it cached is harmless.</summary>
+    private async Task DiscardSignInAsync(Identity identity, CancellationToken ct)
+    {
+        try
+        {
+            await Tokens.SignOutAsync(identity, ct).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // The session stays in the cache; harmless.
         }
     }
 

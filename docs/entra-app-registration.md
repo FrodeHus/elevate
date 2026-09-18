@@ -214,8 +214,8 @@ only what was consented.
 ## 8. Using a second registration for some accounts
 
 Some accounts may need a different registration than the one in Settings — most often because
-their tenant has its own copy of the Elevate registration, separate from your organization's. On
-macOS and Windows, an account can "pin" its own client ID instead of following the one in Settings.
+their tenant has its own copy of the Elevate registration, separate from your organization's. An
+account can "pin" its own client ID instead of following the one in Settings.
 
 The second registration needs the same setup as the Settings one: the redirects **Mobile and
 desktop applications** asks for on that platform — `msauth.no.reothor.elevate://auth` for signed
@@ -242,11 +242,17 @@ just "Follow the registration in Settings", and **Sign in** on that account says
 In Add account, both options are hidden when your organization manages the client ID with the
 [`ClientId`](enterprise/keys.md#clientid) key.
 
-**Platform support:** macOS and the Windows app support this. On Windows the second registration
-needs `ms-appx-web://microsoft.aad.brokerplugin/<client id>` and `http://localhost` as redirect
-URIs, the same as the Settings one. The CLI does not support accounts with their own registration
-yet; such an account shows "This account uses its own app registration, which this version of
-Elevate does not support yet."
+**Platform support:** macOS, the Windows app and the CLI all support this. On Windows the second
+registration needs `ms-appx-web://microsoft.aad.brokerplugin/<client id>` and `http://localhost`
+as redirect URIs, the same as the Settings one; the CLI needs `http://localhost` only.
+
+**From the CLI:** `elevate login --method own --client-id <application id>` adds an account with a
+registration of its own, and `elevate accounts set-client-id <account> <application id>` moves one
+there later (`--from-settings` moves it back onto the configured registration, and the same command
+upgrades an Azure CLI, Azure PowerShell or other-app account). `elevate accounts` names the
+registration each account uses. The rules above hold: the change is saved only after the same
+account signs in with the new registration, and under a managed client ID only the managed
+registration may be chosen.
 
 Copy diagnostics never includes any client ID, including one an account pins.
 

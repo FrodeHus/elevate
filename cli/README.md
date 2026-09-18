@@ -71,6 +71,7 @@ The CLI signs in the same ways the apps do, chosen per account with `--method`:
 |---|---|---|
 | Your own app registration | `elevate config set client-id <application id>` then `elevate login` | Entra directory roles, Azure resource roles, PIM for Groups, approvals, access packages |
 | The shared Elevate app | `elevate config set client-id shared`, `elevate consent` for the link an administrator opens once per tenant, then `elevate login` | The same, once an administrator has consented — optional, no SLA, see [docs/shared-app-registration.md](../docs/shared-app-registration.md) |
+| An Entra registration of this account's own | `elevate login --method own --client-id <application id>` | The same as your own app registration, but for this account only — it ignores the configured client id |
 | A custom (company) registration | `elevate login --method custom --client-id <application id>` | The same, given the same permissions; the id is remembered |
 | The Azure CLI app | `elevate login --method cli` | Azure resource roles only, no registration or consent needed |
 | The Azure PowerShell app | `elevate login --method pwsh` | Same, for tenants that block the Azure CLI app |
@@ -88,6 +89,25 @@ Microsoft's Azure CLI and Azure PowerShell apps are not pre-authorised for the G
 permissions, so an account added that way sees and activates Azure resource roles only. See the
 [sign-in methods](../macos/README.md#sign-in-methods) section of the macOS guide for the details;
 they apply here unchanged.
+
+`elevate accounts` names the registration each account uses, a registration of its own by the first
+characters of its client id. An account moves between registrations later without losing its
+tenants, roles or profiles:
+
+```bash
+elevate accounts set-client-id alex 22222222-… # give this account a registration of its own
+elevate accounts set-client-id alex --from-settings   # put it back on the configured one
+```
+
+The same command upgrades an Azure CLI, Azure PowerShell or other-app account to an Entra app
+registration, which adds Entra roles and PIM for Groups. Either way Elevate asks you to sign in
+with the new registration and saves nothing until the same account comes back; a cancelled sign-in
+or a different account changes nothing. When your organization manages the client id, an account
+can only be moved onto the managed registration.
+
+Changing the configured id with `elevate config set client-id` keeps the accounts that follow it —
+their tenants, roles and profiles stay — and asks them to sign in again on next use. Accounts with a
+registration of their own, and Azure CLI and Azure PowerShell accounts, are unaffected.
 
 After the first sign-in the home tenant is tracked. Other tenants: `elevate tenants discover --add`
 lists and tracks every tenant the account can reach through Azure Resource Manager, and
@@ -114,7 +134,7 @@ roles lists them instead of guessing.
 | `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles), `export <name>` (prints one of your profiles as a managed profile document). Profiles your organization publishes are listed with source `managed` and cannot be renamed, deleted or saved over. |
 | `elevate approvals` | Requests awaiting your decision as an approver; `approve <id>` and `deny <id> --reason …`. Extend and renew requests are listed with "decide in the portal", as in the apps. |
 | `elevate packages` | Access packages (entitlement management) for accounts signed in with your own or a custom registration: `list` (with the state of any pending request or delivered assignment), `requests` (open ones; `--all` adds denied, failed and cancelled with dates and the service's status), `assigned` (delivered, with expiry and policy), `request <package> --justification …` (`--policy` when several apply; packages that ask questions are handed to My Access with a link), `cancel <id>`. The first call asks for the `EntitlementMgmt-SubjectAccess.ReadWrite` permission, which needs no admin consent. |
-| `elevate accounts` / `login` / `logout` | The signed-in accounts. |
+| `elevate accounts` / `login` / `logout` | The signed-in accounts and the registration each uses; `accounts set-client-id <account> <application id\|--from-settings>` moves one to another Entra app registration, keeping its tenants, roles and profiles. |
 | `elevate tenants` | Tracked tenants with their flags; `discover`, `add`, `remove`, `retry` (clears the manual-roles, azure-off and groups-off latches), and `manual add|list|clear` for tenants that refuse discovery. |
 | `elevate config` | The client id (`config set client-id shared` selects the shared Elevate app and states its no-SLA caveat once; `config` then shows `shared Elevate app`), the remembered custom client id, the Linux cache mode and the stale-token hint (`config set token-hint off --account alex` hides it for one account); `config path` prints the data directory. |
 | `elevate consent [--tenant <id>] [--open]` | The admin consent link for the configured registration: the `organizations` endpoint by default, one tenant with `--tenant` (a tracked tenant's name, or any id or domain). The shared app's link lands on its consent result page, your own registration's on `nativeclient`. `--open` also opens it in the browser. |

@@ -23,8 +23,12 @@ public sealed class FakeTokenProvider : ITokenProvider
         return Task.FromResult(identity);
     }
 
+    /// <summary>Every identity signed out, in order, so a test can see which session was discarded.</summary>
+    public List<Identity> SignedOut { get; } = [];
+
     public Task SignOutAsync(Identity identity, CancellationToken ct = default)
     {
+        SignedOut.Add(identity);
         _identities.RemoveAll(i => i.Id == identity.Id);
         return Task.CompletedTask;
     }

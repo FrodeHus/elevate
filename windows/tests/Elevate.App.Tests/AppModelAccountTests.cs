@@ -77,7 +77,7 @@ public class AppModelAccountTests
         // The pinned provider knows no account, so the identity is flagged rather than refused.
         test.Model.NeedsSignIn("pinned").Should().BeTrue();
         test.Model.Identities.Should().ContainSingle();
-        test.Model.Notice.Should().Contain("sign in again").And.NotContain(SignInMethod.PinnedUnsupportedMessage);
+        test.Model.Notice.Should().Contain("sign in again").And.NotContain("does not support");
         test.Pinned!.Asked.Should().Contain(OtherClientId);
     }
 

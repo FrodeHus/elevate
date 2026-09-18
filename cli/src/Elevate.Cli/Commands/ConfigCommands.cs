@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
+using Elevate.Cli.Session;
 using Elevate.Core.Auth;
 using Elevate.Core.Managed;
 using Elevate.Core.Models;
@@ -169,28 +170,49 @@ public static class ConfigCommands
                         throw new CliException("The application (client) ID must be a GUID, or 'shared' for the shared Elevate app.", ExitCodes.Usage);
                     }
 
-                    // The own-app cache is per client id, so every own-app account signs out with
-                    // the change. An account pinned to a registration of its own does not follow
-                    // the setting and keeps its tokens.
+                    // The own-app cache is per client id, so the saved sign-in of every account that
+                    // follows the setting is unusable after the change. The accounts themselves are
+                    // kept, with their tenants, roles and profiles, and sign in again on next use.
+                    // An account pinned to a registration of its own does not follow the setting.
                     var ownApp = session.Identities.Where(i => i.SignInMethod == SignInMethod.OwnApp).ToList();
+                    string? signInAgain = null;
                     if (ownApp.Count > 0 && !string.Equals(v, settings.ClientId, StringComparison.OrdinalIgnoreCase))
                     {
+                        var who = Markup.Escape(string.Join(", ", ownApp.Select(i => i.Upn)));
                         if (!parse.GetValue(yes) && context.Output.CanPrompt
-                            && !context.Output.Stderr.Confirm($"Changing the client ID signs out {ownApp.Count} own-app account{(ownApp.Count == 1 ? "" : "s")} ({Markup.Escape(string.Join(", ", ownApp.Select(i => i.Upn)))}). Continue?", defaultValue: false))
+                            && !context.Output.Stderr.Confirm($"Changing the client ID asks {ownApp.Count} account{(ownApp.Count == 1 ? "" : "s")} ({who}) to sign in again; their tenants, roles and profiles are kept. Continue?", defaultValue: false))
                         {
                             return ExitCodes.Ok;
                         }
 
+                        // Drop the old client's saved sign-ins, which the new client id cannot use
+                        // anyway. Best effort: the accounts sign in again either way.
                         foreach (var identity in ownApp)
                         {
-                            await session.SignOutAsync(identity, ct).ConfigureAwait(false);
+                            try
+                            {
+                                await session.Tokens.SignOutAsync(identity, ct).ConfigureAwait(false);
+                            }
+                            catch (Exception e) when (e is not OperationCanceledException)
+                            {
+                                session.LogError($"Sign out ({identity.Upn}): {ElevateSession.Describe(e)}");
+                            }
+
+                            session.DropRuntime(identity.Id);
                         }
+
+                        signInAgain = $"{who} signs in again on next use; 'elevate roles' does it now.";
                     }
 
                     settings.ClientId = v;
                     if (shared)
                     {
                         context.Output.Warn(Markup.Escape(SharedAppCaveat));
+                    }
+
+                    if (signInAgain is not null)
+                    {
+                        context.Output.Note(signInAgain);
                     }
 
                     break;
