@@ -91,7 +91,19 @@ public sealed class MsalCliProvider : ITokenProvider
         return [.. accounts.Select(a => IdentityFrom(a, null))];
     }
 
-    public async Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default)
+    public Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default) =>
+        SilentAsync(identity, tenantId, scopes, forceRefresh: false, ct);
+
+    /// <summary>
+    /// Like <see cref="AccessTokenAsync"/>, but past the cache: the refresh token is redeemed for a
+    /// new access token. What a role activation changes — an Entra role in <c>wids</c>, a group in
+    /// <c>groups</c> — reaches a token only when one is minted after it, so a token handed to a
+    /// command right after an activation must not be the one cached before it.
+    /// </summary>
+    public Task<string> FreshAccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default) =>
+        SilentAsync(identity, tenantId, scopes, forceRefresh: true, ct);
+
+    private async Task<string> SilentAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
         await _registered.Value.ConfigureAwait(false);
@@ -99,6 +111,7 @@ public sealed class MsalCliProvider : ITokenProvider
             ?? throw new PimException(PimErrorKind.InteractionRequired);
         var result = await Run(() => _app.AcquireTokenSilent(Requested(scopes), account)
             .WithTenantId(tenantId)
+            .WithForceRefresh(forceRefresh)
             .ExecuteAsync(ct)).ConfigureAwait(false);
         return result.AccessToken;
     }

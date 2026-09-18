@@ -63,7 +63,12 @@ public static class CommandLauncher
     /// Runs the command to completion and returns its exit code. Ctrl+C reaches the child through the
     /// shared console, so this waits for it to finish rather than watching a cancellation token.
     /// </summary>
-    public static async Task<int> RunAsync(string executable, IReadOnlyList<string> arguments)
+    /// <param name="environment">
+    /// Variables added to the child's environment only. Nothing here reaches the user's shell, and
+    /// the values are never printed: this is how <c>run --export-token</c> hands a token to a
+    /// command that cannot ask for one itself.
+    /// </param>
+    public static async Task<int> RunAsync(string executable, IReadOnlyList<string> arguments, IReadOnlyDictionary<string, string>? environment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(executable);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -71,6 +76,11 @@ public static class CommandLauncher
         foreach (var argument in arguments)
         {
             info.ArgumentList.Add(argument);
+        }
+
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            info.Environment[name] = value;
         }
 
         Process process;
