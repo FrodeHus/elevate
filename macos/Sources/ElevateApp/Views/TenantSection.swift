@@ -226,11 +226,16 @@ private struct RemoveTenantConfirmation: ViewModifier {
     @Binding var isPresented: Bool
 
     func body(content: Content) -> some View {
-        content.confirmationDialog("Remove \(tenant.displayName)?", isPresented: $isPresented, titleVisibility: .visible) {
-            Button("Remove tenant", role: .destructive) { model.removeTenant(tenant.id) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.")
+        // A `confirmationDialog` here would open its own window and take key focus from the
+        // MenuBarExtra panel, which then dismisses itself before the click lands; the inline card
+        // stays inside the panel's own window.
+        content.inlineConfirmation(
+            "Remove \(tenant.displayName)?",
+            message: "Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.",
+            confirmTitle: "Remove tenant",
+            isPresented: $isPresented
+        ) {
+            model.removeTenant(tenant.id)
         }
     }
 }

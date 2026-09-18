@@ -117,13 +117,6 @@ struct IdentityHeader: View {
                 Button("Sign out…", role: .destructive) { confirmSignOut = true }
             }
         }
-        .confirmationDialog("Sign out \(identity.upn)?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Sign out", role: .destructive) { model.signOut(identity) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(signOutMessage)
-        }
-        .modifier(SoleTenantRemoval(tenant: soleTenant, isPresented: $confirmRemoveTenant))
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -139,6 +132,14 @@ struct IdentityHeader: View {
         }
         .overlay(alignment: .leading) { Rectangle().fill(Color.accentColor).frame(width: 3) }
         .overlay(alignment: .bottom) { Divider() }
+        // Row chrome (padding, background, accent bar) applies above so it stays confined to the
+        // row itself; the confirmation cards below sit outside it, inset to match by their own
+        // `PanelMetrics.headerInset` padding. See InlineConfirm.swift for why these are inline
+        // rather than `confirmationDialog`.
+        .inlineConfirmation("Sign out \(identity.upn)?", message: signOutMessage, confirmTitle: "Sign out", isPresented: $confirmSignOut) {
+            model.signOut(identity)
+        }
+        .modifier(SoleTenantRemoval(tenant: soleTenant, isPresented: $confirmRemoveTenant))
     }
 
     private var signOutMessage: String {
