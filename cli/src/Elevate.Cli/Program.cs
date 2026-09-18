@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using Elevate.Cli.Commands;
 using Elevate.Cli.Infrastructure;
+using Elevate.Core.Managed;
 using Elevate.Core.Models;
 
 namespace Elevate.Cli;
@@ -29,16 +30,40 @@ public static class Program
         catch (CliException e)
         {
             Console.Error.WriteLine(e.Message);
+            WriteSupportContact();
             return e.ExitCode;
         }
         catch (PimException e)
         {
             Console.Error.WriteLine(e.UserMessage);
+            WriteSupportContact();
             return e.Kind is PimErrorKind.InteractionRequired or PimErrorKind.SignInDeclined ? ExitCodes.SignInRequired : ExitCodes.Failure;
         }
         catch (OperationCanceledException)
         {
             return ExitCodes.Interrupted;
+        }
+    }
+
+    /// <summary>
+    /// Appends the organization's help desk to a failure, when one is pushed. Only on the failure
+    /// paths: a banner on ordinary output would be noise and would corrupt piped results. Reads the
+    /// policy directly rather than through the session, because the session is what just failed.
+    /// Never throws — a missing or malformed policy simply means no contact line.
+    /// </summary>
+    internal static void WriteSupportContact(TextWriter? writer = null, ManagedConfiguration? managedOverride = null)
+    {
+        try
+        {
+            var managed = managedOverride ?? ManagedConfiguration.Load(ManagedConfigurationSources.Default());
+            if (Branding.Resolve(managed)?.SupportLine is { } line)
+            {
+                (writer ?? Console.Error).WriteLine(line);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // The policy source is unreadable; a failure message is not the place to complain about it.
         }
     }
 

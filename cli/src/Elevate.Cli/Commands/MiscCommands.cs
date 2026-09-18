@@ -84,7 +84,8 @@ public static class MiscCommands
                 session.ErrorLog.Entries,
                 // Key names only: a managed value (the client id) never belongs in a bug report.
                 session.Settings.Managed is { IsEmpty: false } managed
-                    ? new DiagnosticsManaged(managed.Origin ?? "policy", [.. managed.KeysInEffect.Select(k => k.Name())], managed.Warnings)
+                    ? new DiagnosticsManaged(managed.Origin ?? "policy", [.. managed.KeysInEffect.Select(k => k.Name())], managed.Warnings,
+                        Branding.Resolve(managed)?.DiagnosticsLine)
                     : null,
                 UsesSharedClientId: session.Settings.UsesSharedClientId,
                 IsConfigured: session.Settings.IsConfigured);
