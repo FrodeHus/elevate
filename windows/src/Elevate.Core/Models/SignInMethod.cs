@@ -25,10 +25,6 @@ public readonly record struct SignInMethod
     public const string AzureCLIClientId = "04b07795-8ddb-461a-bbee-02f9e1bf7b46";
     public const string AzurePowerShellClientId = "1950a258-227b-4e31-a9cf-717495945fc2";
 
-    /// <summary>Shown wherever a pinned account is used before the CLI supports it. The Windows app does.</summary>
-    public const string PinnedUnsupportedMessage =
-        "This account uses its own app registration, which this version of Elevate does not support yet.";
-
     // One field for the client id of both forms that carry one, so equality covers it.
     private readonly string? _clientId;
 

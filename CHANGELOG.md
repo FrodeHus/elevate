@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tokens stay separate; its admin consent links use that client ID. Both options are hidden when
   the organization manages the client ID, and such an account can then only move to the managed
   registration.
+- CLI: an account can now use its own Entra app registration instead of the configured one, the
+  last platform to gain it. `elevate login --method own --client-id <application id>` adds one,
+  `elevate accounts set-client-id <account> <application id|--from-settings>` moves an account
+  between registrations later — and upgrades an Azure CLI, Azure PowerShell or other-app account to
+  an Entra app registration — keeping its tenants, roles and profiles. The change is saved only
+  after the same account signs in with the new registration. `elevate accounts` names the
+  registration each account uses. Under a managed client ID only the managed registration may be
+  chosen.
 - macOS: an account can now use its own Entra app registration instead of the one in Settings.
   Choose **Use a different registration** in Add account, or **Change app registration…** from an
   existing account's menu to switch later; both keep the account's tenants, roles and profiles.
@@ -43,14 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   macOS and Windows. The stored value (`custom:<id>`) and the managed-configuration key
   (`custom`) are unchanged.
 
-- macOS and Windows: changing the client ID in Settings no longer removes accounts. Accounts that
-  use the Settings registration keep their tenants, roles and profiles and show **Sign in**;
-  accounts with their own registration, and Azure CLI and Azure PowerShell accounts, are
-  unaffected. The CLI (`elevate config set client-id`) still signs those accounts out and removes
-  them with their tenants and roles; it asks first unless `--yes` is given.
-- CLI: accounts with their own app registration are not supported yet; such an account shows
-  "This account uses its own app registration, which this version of Elevate does not support
-  yet."
+- Changing the client ID no longer removes accounts, on any platform. Accounts that use the
+  configured registration keep their tenants, roles and profiles and sign in again — in the apps
+  they show **Sign in**, and the CLI (`elevate config set client-id`) asks them to sign in on next
+  use instead of signing them out; it still confirms first unless `--yes` is given. Accounts with
+  their own registration, and Azure CLI and Azure PowerShell accounts, are unaffected.
 - Windows: every release now opens the `microsoft/winget-pkgs` pull requests for `Reothor.Elevate`
   and `Reothor.Elevate.CLI` itself (and the audit tool's release its `Reothor.Elevate.Audit`
   one), so `winget install` and `winget upgrade` follow the GitHub releases after Microsoft's

@@ -162,11 +162,10 @@ Open **Settings…** from the panel (on Windows, also from the tray icon's right
 - **Copy diagnostics** puts a plain-text report on the clipboard for bug reports: accounts,
   tenants, profiles and recent errors, never tokens or client IDs.
 - **Entra app registration** (on Windows: **App registration**) is where the client ID lives.
-  On macOS, changing it keeps the accounts that use it — they keep their tenants, roles and
+  Changing it keeps the accounts that use it — they keep their tenants, roles and
   profiles and show **Sign in** so you can sign in again with the new ID. Accounts with their own
-  registration, and Azure CLI and Azure PowerShell accounts, are unaffected. On Windows, changing
-  it signs out the accounts that use it and removes them with their tenants and roles; add them
-  again afterwards. Either way Elevate asks before applying the change. On macOS it
+  registration, and Azure CLI and Azure PowerShell accounts, are unaffected. Elevate asks before
+  applying the change. On macOS it
   also has **Quick start with the shared Elevate app…**, and shows **Shared Elevate app — no
   SLA** with a **Grant admin consent…** button while the shared ID is in effect; see
   [shared-app-registration.md](shared-app-registration.md). On Windows it lists the two redirect

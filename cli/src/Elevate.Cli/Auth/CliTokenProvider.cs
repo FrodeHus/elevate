@@ -6,8 +6,9 @@ namespace Elevate.Cli.Auth;
 
 /// <summary>
 /// Routes every token operation to the provider for the identity's sign-in method: the own-app
-/// client id from settings, or the Azure CLI, Azure PowerShell or custom client id the account was
-/// added with. Providers are created on first use, one per client id, over one shared cache.
+/// client id from settings, a registration of the account's own, or the Azure CLI, Azure PowerShell
+/// or custom client id the account was added with. Providers are created on first use, one per
+/// client id and form, over one shared cache.
 /// </summary>
 public sealed class CliTokenProvider : ITokenProvider
 {
@@ -68,7 +69,7 @@ public sealed class CliTokenProvider : ITokenProvider
         return Provider(identity.SignInMethod).AcquireInteractivelyAsync(identity, tenantId, scopes, claims, ct);
     }
 
-    /// <summary>Whether a method can sign in right now; the own app needs a client id in settings.</summary>
+    /// <summary>Whether a method can sign in right now; the Settings registration needs a client id.</summary>
     public bool IsAvailable(SignInMethod method) => ClientIdFor(method) is not null;
 
     /// <summary>Makes sure the provider for an identity exists, so its account can be enumerated.</summary>
@@ -82,14 +83,10 @@ public sealed class CliTokenProvider : ITokenProvider
 
     private string? ClientIdFor(SignInMethod method)
     {
-        if (method.IsPinned)
-        {
-            return null;
-        }
-
         if (method.UsesMsal)
         {
-            var id = _ownAppClientId();
+            // A pinned account carries its own registration; every other own-app account follows settings.
+            var id = method.PinnedClientId ?? _ownAppClientId();
             return CliSettings.IsValidClientId(id) ? id.Trim() : null;
         }
 
@@ -100,14 +97,17 @@ public sealed class CliTokenProvider : ITokenProvider
     {
         var clientId = ClientIdFor(method) ?? throw new CliException(
             method.IsPinned
-                ? SignInMethod.PinnedUnsupportedMessage
+                ? "The registration's application (client) ID must be a GUID."
                 : method.UsesMsal
                     ? "No client ID is configured. Run 'elevate config set client-id <application id>' first, or sign in with --method cli."
                     : "That sign-in method has no usable client ID.",
             ExitCodes.Usage);
         lock (_lock)
         {
-            var key = method.UsesMsal ? "own:" + clientId : clientId;
+            // The pinned and settings forms are kept apart even on one client id: a provider only
+            // signs in with the method it was built for. MSAL keys its cache by client id, so the
+            // two still share one account entry — which is what a pin onto the settings id means.
+            var key = method.IsPinned ? "pinned:" + clientId : method.UsesMsal ? "own:" + clientId : clientId;
             if (!_providers.TryGetValue(key, out var provider))
             {
                 provider = new MsalCliProvider(method, clientId, _cache, _gate, _flow, _say);
