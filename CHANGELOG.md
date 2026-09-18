@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissed the panel on click. A `confirmationDialog` opens its own window, which took key focus
   from the menu bar panel and closed it before the click reached a button. They now confirm inline,
   as a card in the panel itself.
+- macOS: a pending "Delete profile?" confirmation in the "All profiles" popover is now cancelled
+  when a search query filters its profile out of the list. The card is part of the profile's row,
+  so it left the list with the row while the delete stayed pending, with nothing on screen to
+  confirm or cancel it.
 
 ## [1.7.0] - 2026-09-15
 

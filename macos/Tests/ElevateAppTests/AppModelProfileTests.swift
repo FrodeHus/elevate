@@ -71,4 +71,39 @@ struct AppModelProfileTests {
         #expect(model.profiles.isEmpty)
         cleanup(model)
     }
+
+    /// The "All profiles" popover renders the delete confirmation inside the row it belongs to, so a
+    /// query that filters that row away would hide the card while leaving the delete pending.
+    @Test func pendingDeleteIsCancelledWhenTheListStopsShowingItsProfile() async {
+        let model = await loadedModel()
+        let ops = model.saveProfile(name: "Ops", keys: [Sample.entraKey])!
+        let audit = model.saveProfile(name: "Audit", keys: [Sample.azureKey])!
+
+        func matching(_ query: String) -> [ActivationProfile] {
+            model.profiles.filter { PanelFilter.matches(query: query, text: $0.name) }
+        }
+
+        // Still listed: the card is on screen, so the pending delete stands.
+        model.profileToDelete = ops.id
+        model.cancelProfileDeleteIfHidden(visible: matching(""))
+        #expect(model.profileToDelete == ops.id)
+        model.cancelProfileDeleteIfHidden(visible: matching("op"))
+        #expect(model.profileToDelete == ops.id)
+
+        // Filtered out: cancelled rather than left with nothing to confirm or cancel it.
+        model.cancelProfileDeleteIfHidden(visible: matching("aud"))
+        #expect(model.profileToDelete == nil)
+        #expect(model.profiles.count == 2, "cancelling a pending delete must not delete anything")
+
+        // A pending delete for another profile is untouched while its own row is showing.
+        model.profileToDelete = audit.id
+        model.cancelProfileDeleteIfHidden(visible: matching("aud"))
+        #expect(model.profileToDelete == audit.id)
+
+        // Nothing pending: nothing to do.
+        model.profileToDelete = nil
+        model.cancelProfileDeleteIfHidden(visible: [])
+        #expect(model.profileToDelete == nil)
+        cleanup(model)
+    }
 }
