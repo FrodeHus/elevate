@@ -332,6 +332,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         AccessPackageErrors.Clear();
         DeactivationErrors.Clear();
         DeactivationPhases.Clear();
+        StopAllPropagationWatches();
         PendingExtend = null;
         SelectMode = false;
         Persist();
@@ -657,6 +658,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         _timers?.Cancel();
         _timers?.Dispose();
         _timers = null;
+        StopAllPropagationWatches();
         _network.Changed -= OnNetworkChanged;
     }
 

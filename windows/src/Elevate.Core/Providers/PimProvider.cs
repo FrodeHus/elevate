@@ -23,6 +23,19 @@ public interface IPimProvider
 
     /// <summary>Withdraws a request that is still waiting for an approver.</summary>
     Task CancelPendingRequestAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default);
+
+    /// <summary>
+    /// Whether <paramref name="assignment"/> is usable yet, as opposed to merely reported active.
+    /// PIM calls an assignment active as soon as it is written; the access behind it arrives later,
+    /// so this asks the thing that would enforce it — a freshly minted token's claims, or the
+    /// resource's own permission check — rather than asking PIM again.
+    /// <para>
+    /// The default answers <see cref="EffectiveAccessKind.Unknown"/>, so a provider that has no way
+    /// to observe its own propagation does not claim one.
+    /// </para>
+    /// </summary>
+    Task<EffectiveAccess> EffectiveAccessAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
+        => Task.FromResult(EffectiveAccess.Unknown("This kind of role cannot be checked from here."));
 }
 
 /// <summary>

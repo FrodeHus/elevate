@@ -58,9 +58,16 @@ public sealed class CompositeTokenProvider : ITokenProvider
     }
 
     public Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct)
+        => AccessTokenAsync(identity, tenantId, scopes, forceRefresh: false, ct);
+
+    /// <summary>Every provider behind this one is MSAL-backed, so a forced refresh always reaches one.</summary>
+    public bool CanForceRefresh => true;
+
+    public Task<string> AccessTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        return Provider(identity.SignInMethod).AccessTokenAsync(identity, tenantId, scopes, ct);
+        return Provider(identity.SignInMethod).AccessTokenAsync(identity, tenantId, scopes, forceRefresh, ct);
     }
 
     public Task<string> AcquireInteractivelyAsync(

@@ -135,6 +135,9 @@ extension AppModel {
         }
         persist()
         noteTokenHint(outcomes)
+        // "Active" is the service's own view; the access follows minutes later. The rows stay
+        // marked as propagating until a probe says otherwise.
+        watchPropagation(outcomes)
         let changedGroupTenants = Set(outcomes.compactMap { o -> TenantKey? in
             guard o.roleKey.scope.kind == .group, case .activated = o.result else { return nil }
             return o.roleKey.tenantKey
@@ -264,6 +267,7 @@ extension AppModel {
             try await coordinator.cancelPendingRequest(a, identity: identity)
             guard generation == configGeneration else { return }
             active[key] = nil
+            stopWatchingPropagation(key)
             await rescheduleNotifications()
         } catch {
             guard generation == configGeneration else { return }
@@ -311,6 +315,7 @@ extension AppModel {
             }
             guard generation == configGeneration else { return .blocked("Configuration changed during deactivation") }
             active[key] = nil
+            stopWatchingPropagation(key)
             deactivationProgress[key] = .succeeded
             retainDeactivatedRow(a)
             if key.scope.kind == .group { refreshRolesAfterGroupChange([key.tenantKey]) }

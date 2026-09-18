@@ -33,10 +33,31 @@ actor FakeTokenProvider: TokenProviding {
     }
     func identities() async throws -> [Identity] { storedIdentities }
 
+    /// Returned instead of the cached token when a caller forces a refresh, so a test can move the claims on.
+    var refreshedToken: String?
+    /// Tenant ids a forced refresh was asked for.
+    private(set) var forcedCalls: [String] = []
+
+    func setRefreshedToken(_ token: String?) { refreshedToken = token }
+
+    /// Whether a probe may ask for a token minted now; a test turns it off to exercise the fallback.
+    nonisolated let canForceRefresh: Bool
+
+    init(canForceRefresh: Bool = true) { self.canForceRefresh = canForceRefresh }
+
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String {
         silentCalls.append(tenantId)
         if let silentError { throw silentError }
         return "token-\(tenantId)"
+    }
+
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String {
+        guard forceRefresh else {
+            return try await accessToken(identity: identity, tenantId: tenantId, scopes: scopes)
+        }
+        forcedCalls.append(tenantId)
+        if let silentError { throw silentError }
+        return refreshedToken ?? "token-\(tenantId)"
     }
 
     func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String {

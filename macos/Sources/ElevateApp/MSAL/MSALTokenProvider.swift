@@ -71,9 +71,17 @@ final class MSALTokenProvider: TokenProviding, @unchecked Sendable {
     }
 
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String {
+        try await accessToken(identity: identity, tenantId: tenantId, scopes: scopes, forceRefresh: false)
+    }
+
+    /// MSAL can be told to go back to the token endpoint, which is what a propagation probe needs.
+    var canForceRefresh: Bool { true }
+
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String {
         guard let account = try? app.account(forIdentifier: identity.id) else { throw PIMError.interactionRequired }
         let params = MSALSilentTokenParameters(scopes: scopes, account: account)
         params.authority = try MSALAADAuthority(url: URL(string: "https://login.microsoftonline.com/\(tenantId)")!)
+        params.forceRefresh = forceRefresh
         return try await withCheckedThrowingContinuation { cont in
             app.acquireTokenSilent(with: params) { result, error in
                 if let result { cont.resume(returning: result.accessToken) } else { cont.resume(throwing: Self.map(error)) }

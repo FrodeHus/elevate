@@ -192,6 +192,41 @@ public struct GroupProvider: PIMProvider {
         }
     }
 
+    // MARK: Effective access
+
+    struct IdCollection: Decodable { let value: [String]? }
+
+    /// Membership is only ever enforced from a token, so the token is what gets asked: a freshly
+    /// minted one whose `groups` claim names the group means every service will see it too. Most
+    /// registrations do not emit group claims, and then Graph's own transitive check stands in — it
+    /// is the store that mints those claims, so it turns true first.
+    ///
+    /// Ownership is not a claim and Graph reports it as soon as the assignment exists, so there is
+    /// nothing here to observe and the answer is that we cannot tell.
+    public func effectiveAccess(_ assignment: ActiveAssignment, identity: Identity) async throws -> EffectiveAccess {
+        guard case let .group(groupId, accessId) = assignment.roleKey.scope else {
+            return .unknown("Not a group assignment.")
+        }
+        guard accessId == .member else {
+            return .unknown("Group ownership is not carried in a token, so Elevate cannot see when it takes effect.")
+        }
+        let tenantId = assignment.roleKey.tenantId
+        if let token = await transport.freshToken(identity: identity, tenantId: tenantId, scopes: scopes),
+           let carried = AccessTokenClaims.carriesGroup(token, groupId: groupId) {
+            return carried ? .confirmed : .notYet
+        }
+        do {
+            let body = try JSONSerialization.data(withJSONObject: ["ids": [groupId]])
+            let response = try await transport.post(
+                identity: identity, tenantId: tenantId,
+                url: try transport.graphURL("/me/checkMemberObjects"), scopes: scopes, body: body)
+            let ids = (try? GraphJSON.decoder.decode(IdCollection.self, from: response.body))?.value ?? []
+            return ids.contains { $0.caseInsensitiveCompare(groupId) == .orderedSame } ? .confirmed : .notYet
+        } catch let error as PIMError {
+            return .unknown("The membership could not be checked: \(error.userMessage)")
+        }
+    }
+
     /// Withdraws a request still awaiting approval. Graph answers 204 with no body.
     public func cancelPendingRequest(_ assignment: ActiveAssignment, identity: Identity) async throws {
         guard let requestId = assignment.assignmentId else { throw PIMError.notEligible }

@@ -72,6 +72,46 @@ A red message on the row states Entra's reason. The usual ones:
   role must stay active for five minutes before it can be deactivated.
 - **Multi-factor authentication required**: complete the browser step-up and try again.
 
+## Activated, but nothing happened
+
+PIM reports an assignment active as soon as it writes it. The access behind it arrives later —
+usually two to five minutes for an Entra directory role, up to fifteen for an Azure resource role,
+and a group membership reaches a token only when that token is next issued. The portal tab you had
+open, and every tool already signed in, keeps the token it was given before the activation.
+
+Elevate does not take PIM's word for it. After an activation settles it probes the thing that would
+actually enforce the role:
+
+- **Entra directory roles**: a token minted right then, looking for the role in its `wids` claim —
+  which is what Graph and every other Entra-protected service reads. A role scoped to an
+  administrative unit or an application is not carried in a token at all, so those report that
+  Elevate cannot tell.
+- **Azure resource roles**: Azure's own permission check at the activated scope, compared against
+  what the role definition grants.
+- **PIM for Groups**: a fresh token's `groups` claim when the registration emits one, otherwise
+  Graph's transitive membership check. Group *ownership* is not a claim, so it reports that
+  Elevate cannot tell.
+
+In the panel, a role in that state keeps its countdown — the clock started when PIM recorded the
+activation, whatever the access is doing — but its dot is drawn hollow and the row reads
+**propagating (~3 min)**. The dot fills and a notification arrives when the access is in effect, so
+you can switch away and be told the right moment. A role that never confirms reads **not in effect
+yet**, and hovering it names the likely cause. It stays deactivatable throughout: it is active
+either way.
+
+`elevate activate --wait`, `elevate profiles run --wait` and `elevate run` all wait for this rather
+than for PIM's record, and say which of three things happened:
+
+| What you see | What it means |
+| --- | --- |
+| `in effect` | A probe saw the access. The role works now. |
+| `active, but still not in effect` | The probe kept saying no until the deadline. The role is active regardless; the message names the likely cause, which is almost always a stale token somewhere else. |
+| `active; Elevate cannot confirm it is in effect` | There is nothing to observe from here — a directory-scoped role, group ownership, or a sign-in method whose token Elevate cannot read. Not a failure. |
+
+`--settle 2m` bounds the check for `elevate run`; `--settle 0` turns it off and restores the old
+fixed pause for groups. If a role keeps coming back "still not in effect", the next section is the
+usual reason.
+
 ## Activated, but the Azure CLI or kubectl still says AuthorizationFailed
 
 The Azure CLI, Azure PowerShell and kubelogin cache the token they got before the activation. That
@@ -88,8 +128,12 @@ as that account and stays quiet. If you do, the same commands apply:
 - AKS with kubelogin: `kubelogin remove-tokens`, then run the `kubectl` command again.
 - Azure PowerShell: `Connect-AzAccount` again.
 
-A group membership also takes a few minutes to reach new tokens. The CLI's `elevate run` waits for
-the activation and, for groups, pauses before running the command (`--settle` sets how long). The
+A group membership also takes a few minutes to reach new tokens. `elevate run` and `--wait` do not
+take PIM's word for it: once the assignment is active they probe until the access is genuinely in
+effect — a token minted now carrying the directory role or the group, or Azure agreeing at the
+activated scope — and only then run the command. `--settle 2m` bounds that check; `--settle 0`
+turns it off and restores the old fixed pause for groups. See
+[Activated, but nothing happened](#activated-but-nothing-happened) for what the states mean. The
 hint can be hidden per account: close it in the panel, or `elevate config set token-hint off
 --account <name>` in the CLI (`on` brings it back).
 

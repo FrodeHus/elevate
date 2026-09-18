@@ -298,6 +298,60 @@ public sealed class GroupProvider : IPimProvider
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
+    // MARK: Effective access
+
+    private sealed record IdCollection(IReadOnlyList<string>? Value);
+
+    /// <summary>
+    /// Membership is only ever enforced from a token, so the token is what gets asked: a freshly
+    /// minted one whose <c>groups</c> claim names the group means every service will see it too.
+    /// Most registrations do not emit group claims, and then Graph's own transitive check stands in
+    /// — it is the store that mints those claims, so it turns true first.
+    /// <para>
+    /// Ownership is not a claim and Graph reports it as soon as the assignment exists, so there is
+    /// nothing here to observe and the answer is that we cannot tell.
+    /// </para>
+    /// </summary>
+    public async Task<EffectiveAccess> EffectiveAccessAsync(
+        ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(assignment);
+
+        if (assignment.RoleKey.Scope is not GroupScope scope)
+        {
+            return EffectiveAccess.Unknown("Not a group assignment.");
+        }
+
+        if (scope.AccessId == GroupAccess.Owner)
+        {
+            return EffectiveAccess.Unknown(
+                "Group ownership is not carried in a token, so Elevate cannot see when it takes effect.");
+        }
+
+        var tenantId = assignment.RoleKey.TenantId;
+        if (await _transport.FreshTokenAsync(identity, tenantId, Scopes, ct).ConfigureAwait(false) is { } token
+            && AccessTokenClaims.CarriesGroup(token, scope.GroupId) is { } carried)
+        {
+            return carried ? EffectiveAccess.Confirmed : EffectiveAccess.NotYet;
+        }
+
+        try
+        {
+            var body = new JsonObject { ["ids"] = new JsonArray(scope.GroupId) };
+            var response = await _transport.PostAsync(
+                identity, tenantId, _transport.GraphUrl("/me/checkMemberObjects"),
+                Scopes, Encoding.UTF8.GetBytes(body.ToJsonString()), ct).ConfigureAwait(false);
+            var ids = JsonSerializer.Deserialize<IdCollection>(response.Body, GraphJson.Options)?.Value ?? [];
+            return ids.Any(id => string.Equals(id, scope.GroupId, StringComparison.OrdinalIgnoreCase))
+                ? EffectiveAccess.Confirmed
+                : EffectiveAccess.NotYet;
+        }
+        catch (PimException e)
+        {
+            return EffectiveAccess.Unknown($"The membership could not be checked: {e.Message}");
+        }
+    }
+
     /// <summary>Withdraws a request still awaiting approval. Graph answers 204 with no body.</summary>
     public async Task CancelPendingRequestAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
     {

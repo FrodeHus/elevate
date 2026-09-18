@@ -268,6 +268,48 @@ public sealed class EntraDirectoryProvider : IPimProvider
             throw new PimException(PimErrorKind.Unexpected, $"Deactivation has not completed: {outcome ?? "Unknown"}");
     }
 
+    // MARK: Effective access
+
+    /// <summary>
+    /// Reads a token minted now and looks for the role in its <c>wids</c> claim, which is what Graph
+    /// and every other Entra-protected service actually enforce. The PIM assignment exists minutes
+    /// before Entra starts putting the role into new tokens, and that gap is the whole complaint.
+    /// <para>
+    /// <c>wids</c> carries tenant-wide directory roles only. A role scoped to an administrative unit
+    /// or an application is never in it, so for those the absence of the role says nothing and the
+    /// answer is that we cannot tell.
+    /// </para>
+    /// </summary>
+    public async Task<EffectiveAccess> EffectiveAccessAsync(
+        ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(assignment);
+
+        if (assignment.RoleKey.Scope is not EntraDirectoryScope scope)
+        {
+            return EffectiveAccess.Unknown("Not an Entra directory role.");
+        }
+
+        if (scope.DirectoryScopeId != "/")
+        {
+            return EffectiveAccess.Unknown(
+                "A role scoped to an administrative unit or an application is not carried in the sign-in token, "
+                + "so Elevate cannot see when it takes effect.");
+        }
+
+        if (await _transport.FreshTokenAsync(identity, assignment.RoleKey.TenantId, Scopes, ct).ConfigureAwait(false) is not { } token)
+        {
+            return EffectiveAccess.Unknown("A fresh token could not be acquired, so the role's claims could not be read.");
+        }
+
+        return AccessTokenClaims.CarriesDirectoryRole(token, scope.RoleDefinitionId) switch
+        {
+            true => EffectiveAccess.Confirmed,
+            false => EffectiveAccess.NotYet,
+            null => EffectiveAccess.Unknown("The sign-in method issues a token whose claims Elevate cannot read."),
+        };
+    }
+
     /// <summary>Withdraws a request still awaiting approval. Graph answers 204 with no body.</summary>
     public async Task CancelPendingRequestAsync(ActiveAssignment assignment, Identity identity, CancellationToken ct = default)
     {

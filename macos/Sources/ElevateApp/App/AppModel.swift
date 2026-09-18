@@ -26,6 +26,19 @@ final class AppModel {
     /// Roles with an activation or deactivation request currently in flight; rows show a busy indicator.
     var inFlight: Set<RoleKey> = []
 
+    // MARK: Propagation — AppModel+Propagation
+
+    /// Roles being probed after an activation, and how far they have got. A role is absent once it
+    /// is ready, or once there was nothing to observe: the row is then a plain active row. Session
+    /// only; never persisted.
+    var propagation: [RoleKey: PropagationState] = [:]
+    /// The probe running for each watched role, so it can be cancelled when the role goes away.
+    /// The id tells a finishing watch from the one that replaced it.
+    @ObservationIgnored var propagationWatches: [RoleKey: PropagationWatch] = [:]
+    /// Probe pacing. Tests shorten it so they do not sit through the real interval.
+    @ObservationIgnored var propagationFirstInterval = PropagationWatcher.defaultFirstInterval
+    @ObservationIgnored var propagationMaxInterval = PropagationWatcher.defaultMaxInterval
+
     // MARK: Approvals — AppModel+Approvals
 
     /// Requests awaiting this user's decision, per tenant and kind. Session only: approvals are
@@ -372,6 +385,7 @@ final class AppModel {
         configGeneration += 1
         deactivationProgress.removeAll()
         recentlyDeactivated.removeAll()
+        stopAllPropagationWatches()
         // The accounts keep their tenants, roles and profiles; they sign in again under the new id.
         for identity in ownApp { dropRuntime(identity.id) }
         signInNeeded.formUnion(ownApp.map(\.id))

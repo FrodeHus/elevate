@@ -57,7 +57,8 @@
                                Foreground="{x:Bind CountdownBrush, Mode=OneWay}"
                                FontWeight="{x:Bind CountdownWeight, Mode=OneWay}" />
                     <TextBlock Text="{x:Bind StatusText, Mode=OneWay}" Visibility="{x:Bind StatusTextVisibility, Mode=OneWay}"
-                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                               FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"
+                               ToolTipService.ToolTip="{x:Bind StatusTooltip, Mode=OneWay}" />
                     <ProgressRing Width="16" Height="16" IsActive="True" Visibility="{x:Bind ProvisioningVisibility, Mode=OneWay}" />
                     <TextBlock Text="cannot activate" Visibility="{x:Bind ViewOnlyVisibility, Mode=OneWay}" FontSize="12"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"

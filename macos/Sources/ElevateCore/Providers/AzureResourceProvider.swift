@@ -48,6 +48,11 @@ public struct AzureResourceProvider: PIMProvider {
         return url
     }
 
+    /// A scope's path form for an ARM URL: no leading or trailing slash.
+    static func trimmed(_ scope: String) -> String {
+        scope.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+
     /// GET every page of an ARM list, following `nextLink`.
     func listAll<T: Decodable>(_ type: T.Type, identity: Identity, tenantId: String, url: URL) async throws -> [T] {
         var next: URL? = url
@@ -243,6 +248,45 @@ public struct AzureResourceProvider: PIMProvider {
         // ARM reports a completed SelfDeactivate as Revoked; Provisioned covers the older shape.
         guard outcome == "Provisioned" || outcome == "Revoked" else {
             throw PIMError.unexpected(status: 0, body: "Deactivation has not completed: \(outcome ?? "Unknown")")
+        }
+    }
+
+    // MARK: Effective access
+
+    struct DefinitionProperties: Decodable { let roleName: String?; let permissions: [ArmPermission]? }
+    struct FullRoleDefinition: Decodable { let id: String; let properties: DefinitionProperties }
+
+    /// Asks ARM what the caller may do at the activated scope and compares it with what the role
+    /// definition grants. ARM answers from its own replicated store, which is exactly the store an
+    /// Azure request is authorised against — so unlike re-reading the PIM assignment, a yes here
+    /// means the role works.
+    public func effectiveAccess(_ assignment: ActiveAssignment, identity: Identity) async throws -> EffectiveAccess {
+        guard case let .azureResource(scope, roleDefinitionId) = assignment.roleKey.scope else {
+            return .unknown("Not an Azure resource role.")
+        }
+        let tenantId = assignment.roleKey.tenantId
+        do {
+            let definitionId = try await resolveRoleDefinitionId(roleDefinitionId, scope: scope, identity: identity, tenantId: tenantId)
+            let response = try await transport.get(
+                identity: identity, tenantId: tenantId,
+                url: try Self.armURL(Self.trimmed(definitionId), apiVersion: "2022-04-01"), scopes: scopes)
+            let granted = (try? GraphJSON.decoder.decode(FullRoleDefinition.self, from: response.body))?.properties.permissions ?? []
+            guard granted.contains(where: { !$0.actions.isEmpty }) else {
+                // Nothing to look for: a definition with no actions is a read that told us nothing,
+                // not a role that grants nothing.
+                return .unknown("The role definition did not say what it grants.")
+            }
+            let held = try await listAll(
+                ArmPermission.self, identity: identity, tenantId: tenantId,
+                url: try Self.armURL(Self.trimmed(scope) + "/providers/Microsoft.Authorization/permissions", apiVersion: "2022-04-01"))
+            return ArmActions.covers(held, required: granted) ? .confirmed : .notYet
+        } catch let error as PIMError {
+            // A refusal at the scope is the propagation gap itself: until the assignment lands there,
+            // ARM does not let the caller read its own permissions.
+            switch error {
+            case .policyViolation, .notEligible: return .notYet
+            default: return .unknown("Azure could not be asked: \(error.userMessage)")
+            }
         }
     }
 

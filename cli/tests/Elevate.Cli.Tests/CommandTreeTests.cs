@@ -34,6 +34,9 @@ public class CommandTreeTests
         parse.Errors.Should().BeEmpty();
         parse.GetValue(command).Should().Equal("terraform", "apply");
 
+        // --settle 0 stays accepted: it is how you say "run as soon as PIM reports them active".
+        root.Parse("run -p Morning --settle 0 -- terraform apply").Errors.Should().BeEmpty();
+
         Program.IsRun(root.Parse("profiles run Morning")).Should().BeFalse("only the top-level run waits for a child process");
         root.Parse("init zsh").Errors.Should().BeEmpty();
         root.Parse("config set token-hint off --account alex").Errors.Should().BeEmpty();

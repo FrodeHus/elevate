@@ -94,11 +94,19 @@ public sealed class MsalCliProvider : ITokenProvider
     public Task<string> AccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default) =>
         SilentAsync(identity, tenantId, scopes, forceRefresh: false, ct);
 
+    /// <summary>MSAL can be told to go back to the token endpoint, so Core's probes may ask for a fresh token.</summary>
+    public bool CanForceRefresh => true;
+
+    public Task<string> AccessTokenAsync(
+        Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct = default) =>
+        SilentAsync(identity, tenantId, scopes, forceRefresh, ct);
+
     /// <summary>
-    /// Like <see cref="AccessTokenAsync"/>, but past the cache: the refresh token is redeemed for a
-    /// new access token. What a role activation changes — an Entra role in <c>wids</c>, a group in
-    /// <c>groups</c> — reaches a token only when one is minted after it, so a token handed to a
-    /// command right after an activation must not be the one cached before it.
+    /// Like <see cref="AccessTokenAsync(Identity, string, IReadOnlyList{string}, CancellationToken)"/>,
+    /// but past the cache: the refresh token is redeemed for a new access token. What a role
+    /// activation changes — an Entra role in <c>wids</c>, a group in <c>groups</c> — reaches a token
+    /// only when one is minted after it, so a token handed to a command right after an activation
+    /// must not be the one cached before it. The same acquisition Core's propagation probes use.
     /// </summary>
     public Task<string> FreshAccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default) =>
         SilentAsync(identity, tenantId, scopes, forceRefresh: true, ct);

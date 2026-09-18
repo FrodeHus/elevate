@@ -38,9 +38,26 @@ public protocol TokenProviding: Sendable {
     func identities() async throws -> [Identity]
     /// Silent acquisition for `tenantId`. Throws `PIMError.interactionRequired` when a prompt is needed.
     func accessToken(identity: Identity, tenantId: String, scopes: [String]) async throws -> String
+    /// Silent acquisition that may bypass the cache. A propagation probe needs a token minted after
+    /// the activation, because the claims it reads — a directory role, a group membership — are
+    /// fixed when the token is issued; every other caller wants the cached one.
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String
+    /// Whether `accessToken(identity:tenantId:scopes:forceRefresh:)` honours a forced refresh.
+    var canForceRefresh: Bool { get }
     /// Interactive acquisition, optionally carrying a claims challenge. Throws `PIMError.consentRequired` on AADSTS65001.
     @discardableResult
     func acquireInteractively(identity: Identity, tenantId: String, scopes: [String], claims: String?) async throws -> String
+}
+
+public extension TokenProviding {
+    /// The default returns the cached token, so a provider that cannot force a refresh (a test
+    /// double, a provider over a pre-issued token) keeps working; the probe then reports that it
+    /// cannot tell rather than reporting a stale answer as fact.
+    func accessToken(identity: Identity, tenantId: String, scopes: [String], forceRefresh: Bool) async throws -> String {
+        try await accessToken(identity: identity, tenantId: tenantId, scopes: scopes)
+    }
+
+    var canForceRefresh: Bool { false }
 }
 
 public enum InteractionRetry {

@@ -17,6 +17,15 @@ public struct GraphTransport: Sendable {
         self.mapper = mapper
     }
 
+    /// A token minted now rather than taken from the cache, for reading claims that were fixed when
+    /// the cached one was issued. nil when the provider cannot force a refresh, or when the
+    /// acquisition failed — a propagation probe then says it cannot tell instead of reading a stale
+    /// token as if it were current.
+    func freshToken(identity: Identity, tenantId: String, scopes: [String]) async -> String? {
+        guard tokens.canForceRefresh else { return nil }
+        return try? await tokens.accessToken(identity: identity, tenantId: tenantId, scopes: scopes, forceRefresh: true)
+    }
+
     /// A Graph URL for `path`, percent-encoding it only when it is not already a valid URL.
     public func graphURL(_ path: String) throws -> URL {
         try Self.url(base: Self.graphBase, path: path)
