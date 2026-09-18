@@ -71,4 +71,77 @@ import Foundation
         #expect(SignInMethod.ownApp.kind == .ownApp); #expect(SignInMethod.custom(clientId: "x").kind == .custom)
         #expect(SignInMethodKind(rawValue: "azurePowerShell") == .azurePowerShell)
     }
+
+    // MARK: - Organization co-branding (design 2026-09-18)
+
+    @Test func brandingKeysLoad() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso",
+            "OrganizationTitleStyle": "managedBy",
+            "OrganizationSupportUrl": "https://help.contoso.com",
+            "OrganizationSupportEmail": "it@contoso.com",
+        ]))
+        #expect(c.organizationName == "Contoso")
+        #expect(c.organizationTitleStyle == .managedBy)
+        #expect(c.organizationSupportUrl?.absoluteString == "https://help.contoso.com")
+        #expect(c.organizationSupportEmail == "it@contoso.com")
+        #expect(c.warnings.isEmpty)
+        #expect(c.keysInEffect.contains(.organizationName))
+    }
+    @Test func organizationNameDefaultsToNoStyle() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource(["OrganizationName": "Contoso"]))
+        #expect(c.organizationName == "Contoso"); #expect(c.organizationTitleStyle == nil)
+    }
+    @Test func organizationNameIsTrimmedAndBoundedAt32() {
+        let ok = String(repeating: "a", count: 32)
+        #expect(ManagedConfiguration.load(from: DictionaryManagedSource(["OrganizationName": "  Contoso  "])).organizationName == "Contoso")
+        #expect(ManagedConfiguration.load(from: DictionaryManagedSource(["OrganizationName": ok])).organizationName == ok)
+        let over = ManagedConfiguration.load(from: DictionaryManagedSource(["OrganizationName": String(repeating: "a", count: 33)]))
+        #expect(over.organizationName == nil)
+        #expect(over.warnings.contains { $0.contains("33 characters") })
+    }
+    @Test func blankOrganizationNameIsRejected() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource(["OrganizationName": "   "]))
+        #expect(c.organizationName == nil); #expect(c.warnings.count == 1)
+    }
+    @Test func titleStyleIsCaseInsensitiveAndValidated() {
+        let ok = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso", "OrganizationTitleStyle": "MANAGEDBY",
+        ]))
+        #expect(ok.organizationTitleStyle == .managedBy)
+        let bad = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso", "OrganizationTitleStyle": "sponsoredBy",
+        ]))
+        #expect(bad.organizationTitleStyle == nil)
+        #expect(bad.warnings.contains { $0.contains("by, managedBy, none") })
+    }
+    @Test func supportUrlRejectsNonHttps() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso", "OrganizationSupportUrl": "http://help.contoso.com",
+        ]))
+        #expect(c.organizationSupportUrl == nil)
+        #expect(c.warnings.contains { $0.contains("only https URLs are accepted") })
+    }
+    @Test func supportEmailIsValidated() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationName": "Contoso", "OrganizationSupportEmail": "not an email",
+        ]))
+        #expect(c.organizationSupportEmail == nil); #expect(c.warnings.count == 1)
+    }
+    @Test func brandingKeysAreIgnoredWithoutAnOrganizationName() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource([
+            "OrganizationTitleStyle": "by",
+            "OrganizationSupportUrl": "https://help.contoso.com",
+            "OrganizationSupportEmail": "it@contoso.com",
+        ]))
+        #expect(c.organizationTitleStyle == nil)
+        #expect(c.organizationSupportUrl == nil)
+        #expect(c.organizationSupportEmail == nil)
+        #expect(c.warnings.count == 3)
+        #expect(c.keysInEffect.isEmpty)
+    }
+    @Test func unbrandedConfigurationIsUnchanged() {
+        let c = ManagedConfiguration.load(from: DictionaryManagedSource(["ClientId": "11111111-2222-3333-4444-555555555555"]))
+        #expect(c.organizationName == nil); #expect(c.warnings.isEmpty)
+    }
 }

@@ -10,6 +10,19 @@ public enum ManagedKey: String, CaseIterable, Hashable, Sendable {
     case pinnedTenants = "PinnedTenants"
     case managedProfiles = "ManagedProfiles"
     case managedProfilesUrl = "ManagedProfilesUrl"
+    case organizationName = "OrganizationName"
+    case organizationTitleStyle = "OrganizationTitleStyle"
+    case organizationSupportUrl = "OrganizationSupportUrl"
+    case organizationSupportEmail = "OrganizationSupportEmail"
+}
+
+/// How an organization's name is phrased beside Elevate's own. `none` keeps the support contact and
+/// the About section but renders no caption in the panel header. Elevate's own name is never
+/// replaced — see `docs/superpowers/specs/2026-09-18-enterprise-cobranding-design.md`.
+public enum OrganizationTitleStyle: String, CaseIterable, Hashable, Sendable {
+    case by
+    case managedBy
+    case none
 }
 
 /// Something that can supply raw managed-configuration values by key, without knowing anything
