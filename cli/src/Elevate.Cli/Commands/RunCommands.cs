@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Elevate.Cli.Auth;
 using Elevate.Cli.Infrastructure;
 using Elevate.Cli.Rendering;
 using Elevate.Cli.Selection;
@@ -42,9 +43,11 @@ public static class RunCommands
         var deactivateAfter = new Option<bool>("--deactivate-after") { Description = "Deactivate the roles this call activated once the command exits." };
         var settle = new Option<string?>("--settle") { Description = "Extra pause once everything is active, for group claims to propagate, e.g. 2m or 0. Default: 30s when a group membership was activated, else none." };
         var timeout = new Option<string?>("--timeout") { Description = "How long to wait for the activations, approvals included, e.g. 1h. Default: 15m." };
+        var exportToken = new Option<string[]>("--export-token") { Description = "Put an access token for this resource (arm, graph or a resource URI) in the command's own environment as ELEVATE_ARM_TOKEN and the like; repeat for several. For a command that cannot call 'elevate token' itself. Never set in your shell, and never printed." };
+        var iKnow = new Option<bool>("--i-know") { Description = "Acknowledge the Graph scope ceiling, which --export-token graph needs." };
         var run = new Command("run", "Activate roles or a profile, wait until they are active, then run a command and exit with its code.")
         {
-            profile, roles, command, account, tenant, kind, scope, duration, reason, ticket, ticketSystem, deactivateAfter, settle, timeout,
+            profile, roles, command, account, tenant, kind, scope, duration, reason, ticket, ticketSystem, deactivateAfter, settle, timeout, exportToken, iKnow,
         };
         run.SetAction(async (parse, ct) =>
         {
@@ -74,12 +77,26 @@ public static class RunCommands
             var executable = CommandLauncher.Resolve(words[0])
                 ?? throw new CliException($"Command not found: {words[0]}", ExitCodes.CommandNotFound);
 
+            // Same reason: a resource that does not parse, or an unacknowledged Graph token, is a
+            // usage error to find before an activation rather than after one.
+            var exports = (parse.GetValue(exportToken) ?? []).Select(TokenResource.Parse).DistinctBy(r => r.Name).ToList();
+            foreach (var resource in exports)
+            {
+                TokenCommands.RequireGraphAcknowledgement(context, resource, parse.GetValue(iKnow));
+            }
+
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
             var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
             var chosenProfile = profileName is null
                 ? null
                 : session.FindProfile(profileName) ?? throw new CliException($"No profile matches '{profileName}'. 'elevate profiles' lists them.", ExitCodes.NotFound);
+
+            // Which account and tenant the exported tokens are for is settled here too, so an
+            // ambiguous --account is an error before an activation rather than after one.
+            var exportTo = exports.Count == 0
+                ? default((Identity Identity, string TenantId)?)
+                : Resolve(context, parse.GetValue(account), parse.GetValue(tenant));
 
             await ReadTenantsAsync(context, chosenProfile, roleTerms.Length > 0 ? filter : null, ct).ConfigureAwait(false);
 
@@ -190,8 +207,13 @@ public static class RunCommands
             }
 
             TokenHints.Report(context, outcomes);
+
+            // After the wait and the settle, so what was just activated is in the token rather than
+            // a claim set minted before the activation.
+            var environment = await ExportsAsync(context, exports, exportTo, ct).ConfigureAwait(false);
+
             context.Output.Note($"Running {Markup.Escape(string.Join(' ', words))}");
-            var exit = await CommandLauncher.RunAsync(executable, words[1..]).ConfigureAwait(false);
+            var exit = await CommandLauncher.RunAsync(executable, words[1..], environment).ConfigureAwait(false);
 
             if (parse.GetValue(deactivateAfter))
             {
@@ -202,6 +224,41 @@ public static class RunCommands
             return exit;
         });
         return run;
+    }
+
+    /// <summary>
+    /// The tokens <c>--export-token</c> asked for, as variables for the child process only. The
+    /// names are printed, the values never are. An opt-in convenience for a command that cannot call
+    /// <c>elevate token</c> itself — a compiled binary, a container entrypoint, someone else's
+    /// script; anything that can call out should, because a variable is a snapshot that cannot refresh.
+    /// </summary>
+    private static async Task<IReadOnlyDictionary<string, string>?> ExportsAsync(
+        CommandContext context,
+        IReadOnlyList<TokenResource> exports,
+        (Identity Identity, string TenantId)? exportTo,
+        CancellationToken ct)
+    {
+        if (exports.Count == 0 || exportTo is not { } target)
+        {
+            return null;
+        }
+
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var resource in exports)
+        {
+            variables[resource.EnvironmentVariable] = await TokenCommands
+                .AcquireAsync(context, target.Identity, target.TenantId, resource, cached: false, ct).ConfigureAwait(false);
+        }
+
+        context.Output.Note($"{Markup.Escape(string.Join(", ", variables.Keys))} set for the command only.");
+        return variables;
+    }
+
+    /// <summary>The account and tenant the exported tokens are minted for; the role filters name them here too.</summary>
+    private static (Identity Identity, string TenantId) Resolve(CommandContext context, string? account, string? tenant)
+    {
+        var identity = context.RequireAccount(account);
+        return (identity, TokenCommands.ResolveTenant(context, identity, tenant));
     }
 
     /// <summary>Reads the tenants a profile and the role filters touch, once, under one spinner.</summary>

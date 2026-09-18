@@ -129,7 +129,8 @@ roles lists them instead of guessing.
 | `elevate activate <role…>` | Activate. Duration and reason default to what was used last for that role, then to the policy; `--duration 2h`, `--reason`, `--ticket`, `--at 14:30` (or `+2h`) and `--wait` override. A role that is already active is left alone. With no role named, a checklist is offered in a terminal. |
 | `elevate extend <role…>` | Deactivate and re-activate, so the clock starts over. Refused for approval-required roles, which would leave you without the role while the request waits. |
 | `elevate deactivate <role…>` / `elevate cancel <role…>` | Deactivate an active role; withdraw a request that is awaiting approval or scheduled. |
-| `elevate run [--profile NAME] [--role ROLE…] -- <command>` | Activate what is named (roles already active are left alone, pending ones are waited for), wait until every one is active, approvals included, then run the command with the terminal's own stdin and stdout and exit with its code. Activations last 10 minutes by default, just enough for one command (`--duration` overrides; the durations remembered for `activate` and the profile are untouched). `--deactivate-after` deactivates what this call activated once the command exits; `--settle 2m` pauses after a group activation for the claim to propagate (default 30 s for groups); `--timeout 1h` bounds the wait (default 15 m). |
+| `elevate run [--profile NAME] [--role ROLE…] -- <command>` | Activate what is named (roles already active are left alone, pending ones are waited for), wait until every one is active, approvals included, then run the command with the terminal's own stdin and stdout and exit with its code. Activations last 10 minutes by default, just enough for one command (`--duration` overrides; the durations remembered for `activate` and the profile are untouched). `--deactivate-after` deactivates what this call activated once the command exits; `--settle 2m` pauses after a group activation for the claim to propagate (default 30 s for groups); `--timeout 1h` bounds the wait (default 15 m). `--export-token arm` puts a token in the command's own environment as `ELEVATE_ARM_TOKEN`, for a command that cannot call `elevate token` itself. |
+| `elevate token --resource arm\|graph\|<uri>` | Print an access token for that resource on stdout and nothing else, so a command that does its own HTTP can make one authenticated call. It activates nothing: it returns a token for what is active now. `--format json` adds the resource, account, tenant and expiry; `--format kubectl` prints an `ExecCredential` for a kubeconfig exec plugin. `--account` and `--tenant` pick the account and tenant; `--cached` allows a cached token instead of minting a fresh one. `--resource graph` needs `--i-know` (see below). |
 | `elevate init bash\|zsh\|fish\|pwsh` | A shell hook that wraps `az`, `kubectl`, `terraform` and `helm`: when one fails with an authorization error, a line suggests `elevate run`. `eval "$(elevate init zsh)"` in your profile. |
 | `elevate profiles` | List profiles. `save <name> <role…>` (or `--from-active`), `show`, `run` (plans first: active and pending entries are skipped; `--dry-run` shows the plan), `rename`, `delete`, `import` (copies the desktop app's profiles), `export <name>` (prints one of your profiles as a managed profile document). Profiles your organization publishes are listed with source `managed` and cannot be renamed, deleted or saved over. |
 | `elevate approvals` | Requests awaiting your decision as an approver; `approve <id>` and `deny <id> --reason …`. Extend and renew requests are listed with "decide in the portal", as in the apps. |
@@ -170,6 +171,58 @@ assignment, so the next command is refused as if nothing had happened. The CLI s
 an activation and names the fix: `az login` again (and `kubelogin remove-tokens` for AKS), or a
 fresh `Connect-AzAccount`. `elevate config set token-hint
 off --account alex` hides the line for one account; `on` brings it back.
+
+**Tokens for your own tools.** `az`, `terraform`, `kubectl` and `helm` sign themselves in; direct
+REST calls and in-house tooling do not, and the point of having just activated a role is to make
+one authenticated request with it. `elevate token` prints one:
+
+```bash
+elevate run --role Contributor -- sh -c \
+  'curl -H "Authorization: Bearer $(elevate token --resource arm)" \
+   https://management.azure.com/subscriptions?api-version=2022-12-01'
+```
+
+A command rather than an exported variable, because a variable is a snapshot: access tokens last
+60–90 minutes, and a long-running child handed a stale one gets a `401` with no recourse. Calling
+the command again gets a fresh token. It is also not inherited by every descendant process, is not
+readable at `/proc/<pid>/environ`, and does not land in a crash dump or a stray `env` in a CI log.
+Elevate never logs the token itself — not in a progress note, not in a failure, not in
+`diagnostics`.
+
+For the genuine cases where the child cannot call back out — a compiled binary, a container
+entrypoint, a script that is not yours to edit — `elevate run --export-token arm -- ./my-tool`
+puts it in `ELEVATE_ARM_TOKEN` for that command only, never in your shell. The name always states
+the resource (`ELEVATE_GRAPH_TOKEN`, `ELEVATE_VAULT_AZURE_NET_TOKEN`), so a token is never pasted
+at an API it was not minted for. Both are opt-in, and both mint the token after the activation is
+active, so what was just activated is in it.
+
+kubectl can ask for one itself, which solves refresh for free — the plugin is called again when the
+token expires:
+
+```yaml
+users:
+  - name: prod-aks
+    user:
+      exec:
+        apiVersion: client.authentication.k8s.io/v1
+        command: elevate
+        args: ["token", "--resource", "6dae42f8-4368-4678-94ff-3960e28e3630", "--account", "alex@contoso.com"]
+```
+
+(`6dae42f8-…` is the AKS AAD server application id.) Terraform's `azurerm` provider takes
+`ARM_ACCESS_TOKEN` alongside `ARM_SUBSCRIPTION_ID` and `ARM_TENANT_ID`; `az` has no supported way
+to accept a user access token, so sign it in as usual and use `elevate run`.
+
+**What a Graph token can do.** Not much, on purpose. Elevate's registration is consented for
+`User.Read`, `RoleEligibilitySchedule.Read.Directory`, `RoleAssignmentSchedule.ReadWrite.Directory`
+and `RoleManagementPolicy.Read.Directory` and nothing else. An activated role does ride in the
+token's `wids` claim, but that delegated ceiling applies on top of it: having just activated Global
+Administrator, `--resource graph` will still be refused with a `403` for user management. So
+`--resource graph` and `--export-token graph` are refused until you add `--i-know`, and say so
+again on stderr when you do. Widening the scopes to "fix" this would trade away the minimal,
+auditable consent posture the app registration rests on. ARM is the opposite:
+`https://management.azure.com/user_impersonation` is the full surface, so an ARM token genuinely
+carries the Azure role that was just activated.
 
 Global options: `--json`, `--quiet`, `--no-color` (or `NO_COLOR`), `--device-code`, `--data-dir`.
 

@@ -63,6 +63,16 @@ public sealed class CliTokenProvider : ITokenProvider
         return Provider(identity.SignInMethod).AccessTokenAsync(identity, tenantId, scopes, ct);
     }
 
+    /// <summary>
+    /// A token minted now rather than one taken from the cache, for the commands that hand a token
+    /// to something else right after an activation. See <see cref="MsalCliProvider.FreshAccessTokenAsync"/>.
+    /// </summary>
+    public Task<string> FreshAccessTokenAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        return Provider(identity.SignInMethod).FreshAccessTokenAsync(identity, tenantId, scopes, ct);
+    }
+
     public Task<string> AcquireInteractivelyAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, string? claims, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(identity);

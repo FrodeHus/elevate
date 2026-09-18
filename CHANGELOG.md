@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CLI: `elevate token --resource arm|graph|<resource uri>` prints an access token on stdout and
+  nothing else, so a command that authenticates itself — a `curl` against ARM, in-house tooling —
+  can make one authenticated call with what is active now. A command rather than an exported
+  variable because it refreshes, is not inherited by every descendant process and works outside
+  `run`: `elevate run --role Contributor -- sh -c 'curl -H "Authorization: Bearer $(elevate token
+  --resource arm)" https://management.azure.com/...'`. `--format json` adds the resource, account,
+  tenant and expiry, and `--format kubectl` prints an `ExecCredential`, so kubectl can call
+  `elevate token` as an exec credential plugin and get a fresh token whenever the old one expires.
+  For a command that cannot call back out — a compiled binary, a container entrypoint —
+  `elevate run --export-token arm -- ./my-tool` puts the token in `ELEVATE_ARM_TOKEN` for that
+  command only, never in your shell. Tokens are minted after the activation is active rather than
+  taken from the cache, so what was just activated is in them, and are never logged. `token`
+  activates nothing itself. `--resource graph` is refused without `--i-know`, and warns when given
+  it: Elevate's Graph token carries only the four permissions its registration is consented for, so
+  a Graph call outside them is refused however privileged the role that was just activated. ARM has
+  no such ceiling.
 - macOS, Windows and CLI: organization co-branding. Four managed-configuration keys —
   `OrganizationName` (1–32 characters, which gates the other three), `OrganizationTitleStyle`
   (`by`, `managedBy` or `none`), `OrganizationSupportUrl` (`https://` only) and

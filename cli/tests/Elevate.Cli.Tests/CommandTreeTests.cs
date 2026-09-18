@@ -11,7 +11,7 @@ public class CommandTreeTests
     {
         var root = Program.BuildRootCommand();
         root.Subcommands.Select(c => c.Name).Should().Contain(
-            ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel", "run",
+            ["login", "logout", "accounts", "tenants", "roles", "status", "watch", "activate", "extend", "deactivate", "cancel", "run", "token",
              "profiles", "approvals", "packages", "config", "consent", "catalogue", "diagnostics", "update", "completion", "init"]);
     }
 
@@ -58,6 +58,10 @@ public class CommandTreeTests
     [InlineData("packages assigned -a alex")]
     [InlineData("packages request \"Azure Sandbox\" --justification \"INC-4412\" --policy Engineers")]
     [InlineData("packages cancel 0123abcd 4567ef01")]
+    [InlineData("token --resource arm")]
+    [InlineData("token --resource https://vault.azure.net --account alex --tenant contoso --format json")]
+    [InlineData("token --resource graph --i-know --format kubectl --cached")]
+    [InlineData("run --role Reader --export-token arm --export-token graph --i-know -- ./my-tool")]
     public void CommandLinesParseWithoutErrors(string line)
     {
         var result = Program.BuildRootCommand().Parse(line);
@@ -70,6 +74,13 @@ public class CommandTreeTests
         var packages = Program.BuildRootCommand().Subcommands.Single(c => c.Name == "packages");
         packages.Subcommands.Select(c => c.Name).Should().BeEquivalentTo(["list", "requests", "assigned", "request", "cancel"]);
         Program.BuildRootCommand().Parse("packages request").Errors.Should().NotBeEmpty("the package argument is required");
+    }
+
+    [Fact]
+    public void TokenAlwaysNamesItsResource()
+    {
+        // A token is minted for exactly one audience; an unnamed one would be pasted at the wrong API.
+        Program.BuildRootCommand().Parse("token").Errors.Should().NotBeEmpty();
     }
 
     [Fact]
