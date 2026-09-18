@@ -210,3 +210,44 @@ permissions and grant admin consent; Elevate itself never asks for them:
 
 With a custom client the auditor requests `https://graph.microsoft.com/.default`, so it can do
 only what was consented.
+
+## 8. Using a second registration for some accounts
+
+Some accounts may need a different registration than the one in Settings — most often because
+their tenant has its own copy of the Elevate registration, separate from your organization's. On
+macOS, an account can "pin" its own client ID instead of following the one in Settings.
+
+The second registration needs the same setup as the Settings one: the redirect
+`msauth.no.reothor.elevate://auth` under **Mobile and desktop applications** for signed builds,
+plus `http://localhost` there too for unsigned builds, the same Microsoft Graph PIM scopes from
+the [permission table](#4-permission-table), and admin consent in each tenant that account uses.
+Admin consent links for such an account use its own client ID, not the one in Settings.
+
+**Where to choose it:** Add account → Entra app registration offers "Use the registration in
+Settings (\<label\>)" and "Use a different registration", with a field for the Application
+(client) ID. If the ID you type matches the one in Settings, Elevate says so and still keeps that
+account pinned to it, so a later change to Settings does not affect it.
+
+**Changing it later:** open the account's menu and choose **Change app registration…**. The sheet
+offers "Follow the registration in Settings" or "Use a different registration", and a **Sign in
+and switch** button. Elevate signs the account in with the chosen registration and keeps its
+tenants, roles and profiles. Nothing changes if you cancel the sign-in, a different account signs
+in instead, or something else changes the account meanwhile. When your organization manages the client ID,
+an account with its own registration can only be moved to the managed one: the sheet then offers
+just "Follow the registration in Settings", and **Sign in** on that account says so.
+
+In Add account, both options are hidden when your organization manages the client ID with the
+[`ClientId`](enterprise/keys.md#clientid) key.
+
+**Platform support:** this is a macOS feature. The Windows app and the CLI do not support
+accounts with their own registration yet; such an account shows "This account uses its own app
+registration, which this version of Elevate does not support yet."
+
+Copy diagnostics never includes any client ID, including one an account pins.
+
+**Upgrading an account that is not an Entra app registration yet:** the same account menu offers
+**Upgrade to Entra app registration…** for an account added with the Azure CLI app, the Azure
+PowerShell app or **Other app (browser sign-in)**. It works the same way as **Change app
+registration…** above — choose the Settings registration or a different one, then **Sign in and
+switch** — and keeps the account's tenants, roles and profiles; nothing changes until the same
+account signs in with the new registration.

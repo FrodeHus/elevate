@@ -111,8 +111,12 @@ of these matters to you:
 - you are rolling Elevate out to a fleet, where a client id you own is pushed with the managed
   [`ClientId`](enterprise/keys.md#clientid) key.
 
-Switching later is a one-field change: put your own client id into Settings (or push it), which
-signs out the accounts that used the old one. Nothing else has to be redone.
+Switching later is a one-field change: put your own client id into Settings (or push it). On
+macOS, accounts that used the old one keep their tenants, roles and profiles and show **Sign in**
+so they can sign in again with the new id; accounts with their own registration, and Azure CLI and
+Azure PowerShell accounts, are unaffected. On Windows and in the CLI (`elevate config set
+client-id`), the accounts that used the old id are signed out and removed with their tenants and
+roles, and have to be added again.
 
 ## 5. Onboarding: granting admin consent
 

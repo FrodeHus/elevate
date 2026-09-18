@@ -71,7 +71,24 @@ struct AppModelSignInRetryTests {
         cleanup(model)
     }
 
-    @Test func signOutStillRemovesAFlaggedAccount() async {
+    @Test func retryReturningAnotherListedAccountKeepsThatAccountsSession() async {
+        // After a Settings client id change several accounts need to sign in at once; the picker
+        // may hand back one that has already signed in again, whose fresh token must stay.
+        let a = Sample.identity("id-1", method: .azureCLI)
+        let b = Sample.identity("new", method: .azureCLI)
+        var state = Self.stateWithAccount(a)
+        state.identities.append(b)
+        let tokens = FakeTokenProvider()
+        let model = await makeModel(state: state, tokens: tokens)
+        let ok = await model.retrySignIn(a)
+        #expect(!ok)
+        #expect(model.needsSignIn("id-1"))
+        #expect(await tokens.signOutCalls.isEmpty)
+        #expect(model.notice?.contains("was expected") == true)
+        cleanup(model)
+    }
+
+        @Test func signOutStillRemovesAFlaggedAccount() async {
         let identity = Sample.identity(method: .azureCLI)
         let tokens = FakeTokenProvider()
         let model = await makeModel(state: Self.stateWithAccount(identity), tokens: tokens)

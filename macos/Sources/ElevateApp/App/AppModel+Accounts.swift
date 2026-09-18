@@ -10,12 +10,58 @@ extension AppModel {
     /// the organization does not permit is not listed at all.
     var availableMethods: [SignInMethod] { SignInMethod.builtIn.filter { isMethodAllowed($0) } }
 
-    /// Whether the "Company app (client ID)" row is offered; the client id typed into it does not change the
-    /// answer, since the managed allow-list names kinds of method, not registrations.
+    /// Whether the "Other app (browser sign-in)" row is offered; the client id typed into it does not change
+    /// the answer, since the managed allow-list names kinds of method, not registrations.
     var isCustomMethodAllowed: Bool { isMethodAllowed(.custom(clientId: "")) }
 
     /// The custom client id used last time, for prefilling the add-account dialog.
     var rememberedCustomClientId: String { settings.customClientId }
+
+    /// The last client id typed into "Use a different registration", for prefilling Add account.
+    var rememberedPinnedClientId: String { settings.pinnedClientId }
+
+    /// Whether an account can use an Entra app registration of its own: the organization allows
+    /// the method and has not fixed the client id, and this build has a way to sign in with it.
+    var canPin: Bool {
+        isMethodAllowed(.ownApp) && !settings.isClientIdManaged && (pinnedMSAL != nil || ownAppViaLoopback)
+    }
+
+    /// Whether "Change app registration…" (or, for an account not already an Entra app
+    /// registration, "Upgrade to Entra app registration…") should be offered for `identity`: some
+    /// target is actually reachable, whatever the account's current method — the Settings
+    /// registration (when it differs from the current method) or, unless the client id is
+    /// managed, a pinned one.
+    func canChangeRegistration(for identity: Identity) -> Bool {
+        let toSettings = isAvailable(.ownApp) && identity.signInMethod != .ownApp
+        return toSettings || canPin
+    }
+
+    /// How Add account and the Change app registration sheet name the Settings registration.
+    var settingsRegistrationLabel: String {
+        if settings.isClientIdManaged { return "managed by your organization" }
+        if usesSharedApp { return "shared Elevate app" }
+        guard let id = effectiveClientId(for: .ownApp) else { return "not configured" }
+        return "\(id.prefix(8))…"
+    }
+
+    func matchesSettingsClientId(_ raw: String) -> Bool {
+        guard let id = effectiveClientId(for: .ownApp) else { return false }
+        return SignInMethod.normalizedClientId(id) == SignInMethod.normalizedClientId(raw)
+    }
+
+    /// Whether any request for the account is running, so its registration must not change now.
+    func isAccountBusy(_ identityId: String) -> Bool {
+        inFlight.contains { $0.identityId == identityId } || busy.contains { $0.identityId == identityId }
+    }
+
+    /// The loopback provider holding `method`'s refresh tokens, or nil when MSAL holds them.
+    func loopbackStore(for method: SignInMethod) -> LoopbackTokenProvider? {
+        switch method {
+        case .ownApp: ownAppLoopbackProvider
+        case .pinnedApp(let id): ownAppViaLoopback ? loopback.provider(clientId: id, reportedMethod: method) : nil
+        default: loopback.provider(for: method)
+        }
+    }
 
     /// Whether a method can be used right now. A custom method needs a well-formed client id.
     ///
@@ -27,18 +73,41 @@ extension AppModel {
         guard isMethodAllowed(method) else { return false }
         return switch method {
         case .ownApp: isConfigured
+        case .pinnedApp(let id): canPin && AppSettings.isValidClientId(id)
         case .custom(let id): AppSettings.isValidClientId(id)
         default: method.clientId != nil
         }
     }
 
-    /// The client id whose keychain refresh-token store `method` uses, or nil when it has none of
-    /// its own: `.ownApp` on a signed build keeps its tokens in MSAL's cache, not the keychain
-    /// store, so it shares nothing with any loopback method.
+    /// Names the token store `method`'s refresh token would be kept in: a loopback keychain item,
+    /// keyed by client id, or an MSAL account, keyed by its normalised client id. Two methods that
+    /// return the same key share one cache slot and one refresh token; nil means `method` has no
+    /// usable store at all (an Entra app registration form on a signed build with no effective
+    /// client id).
+    private func tokenStoreKey(for method: SignInMethod) -> String? {
+        if let id = loopbackClientId(for: method) { return "loopback:\(id)" }
+        guard method.usesMSAL, !ownAppViaLoopback, let id = effectiveClientId(for: method) else { return nil }
+        return "msal:\(SignInMethod.normalizedClientId(id))"
+    }
+
+    /// Whether a sign-in that returned `signedIn` (instead of the account being waited for) is a
+    /// listed account's own session: same user, and the same token store as that account uses.
+    /// Discarding it would then delete the listed account's fresh token.
+    private func isListedSession(_ signedIn: Identity) -> Bool {
+        guard let listed = state.identities.first(where: { $0.id == signedIn.id }),
+              let key = tokenStoreKey(for: signedIn.signInMethod) else { return false }
+        return key == tokenStoreKey(for: listed.signInMethod)
+    }
+
+    /// Shown when a pinned account is asked to sign in while the organization fixes the client id.
+    static let managedPinnedNotice = "Your organization manages the app registration. Change this account to it with Change app registration, or sign it out."
+
+    /// The client id `method`'s loopback keychain store uses, or nil when it keeps its tokens in
+    /// MSAL's cache instead (either Entra app registration form on a signed build).
     private func loopbackClientId(for method: SignInMethod) -> String? {
         guard method.usesMSAL else { return method.clientId }
-        guard ownAppViaLoopback, settings.isConfigured else { return nil }
-        return settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard ownAppViaLoopback else { return nil }
+        return effectiveClientId(for: method)
     }
 
     // MARK: Accounts
@@ -56,27 +125,30 @@ extension AppModel {
         guard isAvailable(method) else {
             switch method {
             case .ownApp: notice = "Complete initial setup first"
-            case .custom: notice = "Enter the custom app's application (client) ID as a GUID"
+            case .pinnedApp: notice = canPin ? "Enter the registration's application (client) ID as a GUID" : "Your own app registration is unavailable in this build"
+            case .custom: notice = "Enter the other app's application (client) ID as a GUID"
             default: notice = "That sign-in method is unavailable"
             }
             logError("Add account (\(method.displayName)): \(notice ?? "unavailable")")
             return false
         }
         if case .custom(let id) = method { settings.customClientId = id }
+        if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
         do {
             let identity = try await tokens.signIn(method: method)
             // The same account under a different method would fight over the same rows and tenants.
             if let existing = state.identities.first(where: { $0.id == identity.id }), existing.signInMethod != method {
-                notice = "This account is already added with \(existing.signInMethod.displayName)"
+                notice = "This account is already added with \(existing.signInMethod.detailedName)"
                 logError("Add account: already added with \(existing.signInMethod.displayName)")
-                // Discard the sign-in we just made, but only when it does not share a keychain
-                // item with the account that is already there: refresh tokens are keyed
+                // Discard the sign-in we just made, but only when it does not share a token store
+                // with the account that is already there: refresh tokens are keyed
                 // "<clientId>|<identityId>", so on an unsigned build the `.ownApp` stand-in and a
-                // `.custom` account over the same Settings client id are the *same* item, and
-                // signing out would delete the existing account's token.
-                let added = loopbackClientId(for: method)
-                if added == nil || added != loopbackClientId(for: existing.signInMethod) {
-                    try? await tokens.signOut(identity)
+                // `.custom` account over the same Settings client id are the *same* keychain item,
+                // and a pinned id equal to the Settings id is the same MSAL account on a signed
+                // build — either way, signing out would delete the existing account's token.
+                let added = tokenStoreKey(for: method)
+                if added == nil || added != tokenStoreKey(for: existing.signInMethod) {
+                    await discardCachedSignIn(identity)
                 }
                 return false
             }
@@ -85,7 +157,7 @@ extension AppModel {
             }
             // The own-app method keeps its refresh token in the Keychain too when it runs through
             // the loopback flow, so its save failures must be surfaced the same way.
-            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            let store = loopbackStore(for: method)
             if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")
@@ -121,6 +193,11 @@ extension AppModel {
             logError("Sign in again (\(method.displayName)): \(Self.disallowedMethodNotice)")
             return false
         }
+        if case .pinnedApp = method, settings.isClientIdManaged {
+            notice = Self.managedPinnedNotice
+            logError("Sign in again (\(method.displayName)): the app registration is managed by your organization")
+            return false
+        }
         guard isAvailable(method) else {
             notice = method == .ownApp ? "Complete initial setup first" : "That sign-in method is unavailable"
             logError("Sign in again (\(method.displayName)): \(notice ?? "unavailable")")
@@ -130,37 +207,137 @@ extension AppModel {
             let signedIn = try await tokens.signIn(method: method)
             guard signedIn.id == identity.id else {
                 // A different account came back. Its token is keyed by its own id, so discarding it
-                // cannot touch the one we were waiting for.
-                try? await tokens.signOut(signedIn)
+                // cannot touch the one we were waiting for — but it may be another listed account
+                // that has just signed in again (after a Settings client id change many need to),
+                // and its fresh session must stay.
+                if !isListedSession(signedIn) {
+                    await discardCachedSignIn(signedIn)
+                }
                 notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Sign out \(identity.upn) if you no longer need it."
                 logError("Sign in again: got \(signedIn.upn), expected \(identity.upn)")
                 return false
             }
             signInNeeded.remove(identity.id)
-            let store = method.usesMSAL ? ownAppLoopbackProvider : loopback.provider(for: method)
+            let store = loopbackStore(for: method)
             if let failure = await store?.persistenceError() {
                 notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
                 logError("Refresh token not saved to the Keychain: \(failure)")
             } else {
                 notice = nil
             }
-            let keys = tenants(for: identity.id).map(\.id)
-            for key in keys { tenantErrors[key] = nil }
-            let generation = configGeneration
-            await withTaskGroup(of: Void.self) { group in
-                for key in keys {
-                    group.addTask {
-                        guard await self.configGeneration == generation else { return }
-                        await self.refresh(key)
-                    }
-                }
-            }
+            await refreshTenants(of: identity.id)
             return true
         } catch {
             let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
             notice = message
             logError("Sign in again (\(method.displayName)): \(message)")
             return false
+        }
+    }
+
+    /// Moves an account to an Entra app registration — a pinned client id or the Settings one —
+    /// keeping its tenants, configured roles, profiles and role memory. The current method can be
+    /// anything (Azure CLI, Azure PowerShell, a custom app, or already an Entra app registration);
+    /// only the target is restricted. The change is saved only after the same user has signed in
+    /// with the new registration; a cancelled sign-in or a different account changes nothing. Sets
+    /// `notice` on failure.
+    @discardableResult
+    func changeSignInRegistration(_ identity: Identity, to method: SignInMethod) async -> Bool {
+        let current = identity.signInMethod
+        guard method.isOwnApp else {
+            notice = "Only an Entra app registration can be chosen here"
+            return false
+        }
+        guard method != current else { return true }
+        // Under a managed client id an account may still move *to* the managed registration.
+        if case .pinnedApp = method, settings.isClientIdManaged {
+            notice = "The app registration is managed by your organization"
+            logError("Change registration: \(notice ?? "")")
+            return false
+        }
+        guard isAvailable(method) else {
+            notice = method == .ownApp ? "Configure a client ID in Settings first" : "Enter the application (client) ID as a GUID"
+            logError("Change registration: \(notice ?? "")")
+            return false
+        }
+        guard !isAccountBusy(identity.id) else {
+            notice = "Wait for this account's requests to finish"
+            return false
+        }
+        // The interactive sign-in below can take minutes; capture what could go stale while the
+        // browser is up, and re-check it once the user comes back before committing anything.
+        let generation = configGeneration
+        let oldStoreKey = tokenStoreKey(for: current)
+        // `applyClientId` may replace `tokens` while the browser is up; a session made through
+        // this provider must be discarded through it too, or it is orphaned in the old client's cache.
+        let provider = tokens
+        if case .pinnedApp(let id) = method { settings.pinnedClientId = id }
+        do {
+            let signedIn = try await provider.signIn(method: method)
+            guard signedIn.id == identity.id else {
+                // Keep a session that belongs to another account already in the list.
+                if !isListedSession(signedIn) {
+                    await discardCachedSignIn(signedIn, via: provider)
+                }
+                notice = "Signed in as \(signedIn.upn), but \(identity.upn) was expected. Nothing was changed."
+                logError("Change registration: got \(signedIn.upn), expected \(identity.upn)")
+                return false
+            }
+            let newStoreKey = tokenStoreKey(for: method)
+            // Re-check everything the guards above already checked: the client id, an in-flight
+            // request or the account itself may have changed while the browser was open.
+            guard configGeneration == generation, !isAccountBusy(identity.id), isAvailable(method),
+                let index = state.identities.firstIndex(where: { $0.id == identity.id }) else {
+                if newStoreKey == nil || newStoreKey != oldStoreKey {
+                    await discardCachedSignIn(signedIn, via: provider)
+                }
+                notice = "Something changed while you were signing in. Nothing was changed; try again."
+                logError("Change registration: state changed while \(identity.upn) was signing in")
+                return false
+            }
+            let old = state.identities[index]
+            state.identities[index].signInMethod = method
+            // Upgrading from a limited method: the flags it left behind (view-only Entra, blocked
+            // groups/Azure reads, a discovery error) no longer apply, and its cached policies were
+            // learned under a method that could not activate what they cover.
+            if !current.isOwnApp {
+                for key in tenants(for: identity.id).map(\.id) { resetDiscoveryFlags(key) }
+                tokenHintAccounts.removeAll { $0 == identity.id }
+            }
+            persist()
+            if newStoreKey == nil || newStoreKey != oldStoreKey {
+                await discardCachedSignIn(old)
+            }
+            dropRuntime(identity.id)
+            signInNeeded.remove(identity.id)
+            if let failure = await loopbackStore(for: method)?.persistenceError() {
+                notice = "Signed in, but the refresh token could not be saved to the Keychain: \(failure). You will be asked to sign in again after restart."
+                logError("Refresh token not saved to the Keychain: \(failure)")
+            } else {
+                notice = nil
+            }
+            await refreshTenants(of: identity.id)
+            return true
+        } catch {
+            let message = (error as? PIMError)?.userMessage ?? error.localizedDescription
+            notice = message
+            logError("Change registration (\(method.displayName)): \(message)")
+            return false
+        }
+    }
+
+    /// Reads every tenant of an account again, clearing their errors first.
+    func refreshTenants(of identityId: String) async {
+        let keys = tenants(for: identityId).map(\.id)
+        for key in keys { tenantErrors[key] = nil }
+        let generation = configGeneration
+        await withTaskGroup(of: Void.self) { group in
+            for key in keys {
+                group.addTask {
+                    guard await self.configGeneration == generation else { return }
+                    await self.refresh(key)
+                }
+            }
         }
     }
 
@@ -243,6 +420,16 @@ extension AppModel {
 
     func retryDiscovery(_ key: TenantKey) async {
         declinedTenants.remove(key)
+        resetDiscoveryFlags(key)
+        persist()
+        await refresh(key)
+    }
+
+    /// Clears everything a past discovery failure or a limited sign-in method left on a tenant:
+    /// its discovery mode, last error, and the per-surface unavailable reasons, and drops its
+    /// cached policies (learned under whatever was blocking discovery). Does not persist or
+    /// refresh; callers do that once they are done touching state.
+    func resetDiscoveryFlags(_ key: TenantKey) {
         guard var t = self.tenant(key) else { return }
         t.discoveryMode = .automatic
         t.lastDiscoveryError = nil
@@ -251,7 +438,5 @@ extension AppModel {
         t.entraActivation = nil
         dropPolicies { $0.tenantKey == key }
         state.upsertTenant(t)
-        persist()
-        await refresh(key)
     }
 }

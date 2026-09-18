@@ -125,10 +125,10 @@ extension AppModel {
         for tenantKey in consentBlocked {
             guard var t = self.tenant(tenantKey) else { continue }
             t.discoveryMode = .manualRoles
-            // Only an own-app registration can be consented to; the first-party client ids are
-            // Microsoft's and are not ours to request consent for.
+            // Only an Entra app registration (Settings or pinned) can be consented to; the
+            // first-party client ids are Microsoft's and are not ours to request consent for.
             let method = state.identities.first { $0.id == tenantKey.identityId }?.signInMethod ?? .ownApp
-            t.lastDiscoveryError = method == .ownApp
+            t.lastDiscoveryError = method.isOwnApp
                 ? "Activation not permitted in this tenant until an admin consents."
                 : "Activation not permitted in this tenant for the \(method.displayName); try your own app registration instead."
             state.upsertTenant(t)

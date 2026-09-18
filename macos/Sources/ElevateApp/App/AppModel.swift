@@ -184,6 +184,8 @@ final class AppModel {
     /// The pieces behind `tokens` when it is a `CompositeTokenProvider`, kept so `applyClientId`
     /// can swap the MSAL half without disturbing the first-party providers (and their keychain items).
     private var msal: MSALTokenProvider?
+    /// MSAL providers for pinned client ids; nil on unsigned builds and in tests.
+    let pinnedMSAL: MSALProviderRegistry?             // internal for AppModel+Accounts
     let loopback: LoopbackProviderRegistry            // internal for AppModel+Accounts
     /// One interactive gate for every provider, so an MSAL webview and a browser sign-in queue
     /// instead of racing each other. `applyClientId` hands it to the replacement MSAL provider.
@@ -228,13 +230,54 @@ final class AppModel {
     /// The settings an organization pushed through MDM, for the views that show what is managed.
     var managed: ManagedConfiguration { settings.managed }
 
+    /// The route `CompositeTokenProvider` uses for `.pinnedApp` accounts: MSAL on a signed build,
+    /// the loopback flow (stamping `.pinnedApp`) on an unsigned one.
+    nonisolated static func pinnedRoute(registry: MSALProviderRegistry?, loopback: LoopbackProviderRegistry,
+                                        viaLoopback: Bool) -> @Sendable (String) throws -> any TokenProviding {
+        { clientId in
+            let method = SignInMethod.pinned(clientId)
+            if viaLoopback {
+                guard let id = method.clientId, let provider = loopback.provider(clientId: id, reportedMethod: method) else {
+                    throw PIMError.unexpected(status: 0, body: "Enter the application (client) ID as a GUID")
+                }
+                return provider
+            }
+            guard let registry else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
+            return try registry.provider(clientId: clientId)
+        }
+    }
+
+    /// The client id `method` signs in with: the Settings id for `.ownApp` (nil when it is not a
+    /// valid GUID), the method's own id otherwise.
+    func effectiveClientId(for method: SignInMethod) -> String? {
+        guard method == .ownApp else { return method.clientId }
+        let id = settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
+        return AppSettings.isValidClientId(id) ? id : nil
+    }
+
+    /// Forgets `identity`'s saved sign-in for its current method without a browser window.
+    func discardCachedSignIn(_ identity: Identity) async {
+        await discardCachedSignIn(identity, via: tokens)
+    }
+
+    /// Like `discardCachedSignIn(_:)`, through `provider` — a token provider captured before
+    /// `applyClientId` could replace `tokens`.
+    func discardCachedSignIn(_ identity: Identity, via provider: any TokenProviding) async {
+        if let composite = provider as? CompositeTokenProvider {
+            await composite.discardCachedSignIn(identity)
+        } else {
+            try? await provider.signOut(identity)
+        }
+    }
+
     init(tokens: any TokenProviding, http: any HTTPClient, store: AppStateStore, notifier: any ExpiryNotifying,
          network: NetworkMonitor = NetworkMonitor(), settings: AppSettings = AppSettings(), anchor: AuthAnchorWindow? = nil,
-         msal: MSALTokenProvider? = nil, loopback: LoopbackProviderRegistry? = nil,
+         msal: MSALTokenProvider? = nil, pinnedMSAL: MSALProviderRegistry? = nil, loopback: LoopbackProviderRegistry? = nil,
          gate: InteractiveGate = InteractiveGate(), ownAppViaLoopbackOverride: Bool? = nil) {
         self.ownAppViaLoopbackOverride = ownAppViaLoopbackOverride
         self.tokens = tokens
         self.msal = msal
+        self.pinnedMSAL = pinnedMSAL
         self.loopback = loopback ?? LoopbackProviderRegistry(http: http, gate: gate)
         self.gate = gate
         self.http = http
@@ -284,9 +327,11 @@ final class AppModel {
         // Loopback providers need no configuration; they exist whether or not MSAL does.
         let loopback = LoopbackProviderRegistry(http: http, gate: gate)
         let ownAppLoopback = ownAppLoopbackProvider(loopback, settings: settings, enabled: viaLoopback)
-        let tokens = CompositeTokenProvider(msal: msal, loopback: loopback, ownAppLoopback: ownAppLoopback)
+        let pinnedMSAL = viaLoopback ? nil : MSALProviderRegistry(anchor: anchor, gate: gate)
+        let tokens = CompositeTokenProvider(msal: msal, loopback: loopback, ownAppLoopback: ownAppLoopback,
+                                            pinned: pinnedRoute(registry: pinnedMSAL, loopback: loopback, viaLoopback: viaLoopback))
         let model = AppModel(tokens: tokens, http: http, store: AppStateStore(), notifier: notifier, settings: settings,
-                             anchor: anchor, msal: msal, loopback: loopback, gate: gate)
+                             anchor: anchor, msal: msal, pinnedMSAL: pinnedMSAL, loopback: loopback, gate: gate)
         if let initError {
             model.notice = "Could not initialise sign-in with the saved client ID: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription). Check it in Settings."
             model.logError("Sign-in setup: \((initError as? PIMError)?.userMessage ?? initError.localizedDescription)")
@@ -301,7 +346,8 @@ final class AppModel {
 
     /// Saves a new client id. The token cache is per client — MSAL's on a signed build, the
     /// loopback keychain store on an unsigned one — so every *own-app* account is signed out and
-    /// cleared; first-party accounts keep their own refresh tokens and stay.
+    /// asked to sign in again, keeping its tenants, roles and profiles; first-party accounts keep
+    /// their own refresh tokens and stay.
     func applyClientId(_ raw: String) throws {
         guard !settings.isClientIdManaged else { throw PIMError.unexpected(status: 0, body: "The client ID is managed by your organization") }
         let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -314,6 +360,7 @@ final class AppModel {
             guard let anchor else { throw PIMError.unexpected(status: 0, body: "Sign-in is unavailable in this build") }
             replacement = try MSALTokenProvider(clientId: id, redirectUri: AppSettings.redirectUri, anchor: anchor, gate: gate)
         }
+        // `== .ownApp` deliberately excludes pinned accounts: only accounts following Settings are affected.
         let ownApp = state.identities.filter { $0.signInMethod == .ownApp }
         // The old client's cache is unusable under the new client id; drop it silently.
         // A webview sign-out here would only interrupt the user with a browser window.
@@ -325,7 +372,9 @@ final class AppModel {
         configGeneration += 1
         deactivationProgress.removeAll()
         recentlyDeactivated.removeAll()
-        for identity in ownApp { forgetIdentity(identity.id) }
+        // The accounts keep their tenants, roles and profiles; they sign in again under the new id.
+        for identity in ownApp { dropRuntime(identity.id) }
+        signInNeeded.formUnion(ownApp.map(\.id))
         lastRefresh = .distantPast
         selection = []; busy = []; inFlight = []
         decisionInFlight = []; approvalErrors = [:]
@@ -333,7 +382,8 @@ final class AppModel {
         persist()
         settings.clientId = id
         msal = replacement
-        let composite = CompositeTokenProvider(msal: replacement, loopback: loopback, ownAppLoopback: ownAppLoopbackProvider)
+        let composite = CompositeTokenProvider(msal: replacement, loopback: loopback, ownAppLoopback: ownAppLoopbackProvider,
+                                               pinned: Self.pinnedRoute(registry: pinnedMSAL, loopback: loopback, viaLoopback: ownAppViaLoopback))
         tokens = composite
         coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: composite)
@@ -350,14 +400,26 @@ final class AppModel {
     func forgetIdentity(_ identityId: String) {
         state.removeIdentity(identityId)
         signInNeeded.remove(identityId)
+        dropRuntime(identityId)
+    }
+
+    /// Drops what this session read or started for an account, keeping the account itself, its
+    /// tenants, configured roles, profile entries and role memory. Used when its registration
+    /// changes and everything read under the old one is stale.
+    // internal for AppModel+Accounts
+    func dropRuntime(_ identityId: String) {
         for key in roles.keys where key.identityId == identityId { roles[key] = nil }
         active = active.filter { $0.key.identityId != identityId }
         progress = progress.filter { $0.key.identityId != identityId }
         deactivationProgress = deactivationProgress.filter { $0.key.identityId != identityId }
         recentlyDeactivated = recentlyDeactivated.filter { $0.key.identityId != identityId }
-        profileDeactivationProgress.removeAll()
+        for (runId, phases) in profileDeactivationProgress {
+            let kept = phases.filter { $0.key.identityId != identityId }
+            profileDeactivationProgress[runId] = kept.isEmpty ? nil : kept
+        }
         tenantErrors = tenantErrors.filter { $0.key.identityId != identityId }
         tenantsAwaitingSignIn = tenantsAwaitingSignIn.filter { $0.identityId != identityId }
+        declinedTenants = declinedTenants.filter { $0.identityId != identityId }
         dropApprovals { $0.identityId == identityId }
         dropPolicies { $0.identityId == identityId }
     }
@@ -365,7 +427,7 @@ final class AppModel {
     // MARK: Derived
 
     var identities: [Identity] { state.identities }
-    /// Accounts a client-id change would sign out; the first-party ones are unaffected.
+    /// Accounts that follow the Settings client id and would need to sign in again after it changes.
     var ownAppIdentityCount: Int { state.identities.count { $0.signInMethod == .ownApp } }
     /// False when the machine has no usable network path; reads and requests are held back.
     var isOnline: Bool { network.isOnline }
@@ -376,7 +438,7 @@ final class AppModel {
     func groupsUnavailableReason(for key: TenantKey) -> String? {
         guard let identity = identity(key.identityId) else { return nil }
         if !identity.signInMethod.isPreauthorisedForEntraActivation {
-            return "The \(identity.signInMethod.displayName) supports Azure resource roles only; PIM for Groups needs your own or a custom app registration."
+            return "The \(identity.signInMethod.displayName) supports Azure resource roles only; PIM for Groups needs your own or another app registration."
         }
         return tenant(key)?.groupsUnavailableReason
     }
@@ -387,32 +449,33 @@ final class AppModel {
     func identity(_ id: String) -> Identity? { state.identities.first { $0.id == id } }
     func tenant(_ key: TenantKey) -> TenantContext? { state.tenants.first { $0.id == key } }
 
-    /// Only own-app accounts can be consented to: the first-party client ids are Microsoft's,
-    /// already consented tenant-wide, and are not ours to request consent for.
+    /// Only Entra app registration accounts can be consented to: the first-party client ids are
+    /// Microsoft's, already consented tenant-wide, and are not ours to request consent for.
     func adminConsentURL(identityId: String, tenantId: String) -> URL? {
-        guard isConfigured, identity(identityId)?.signInMethod == .ownApp else { return nil }
-        return adminConsentURL(tenantSegment: tenantId)
+        guard let method = identity(identityId)?.signInMethod, method.isOwnApp else { return nil }
+        if method == .ownApp, !isConfigured { return nil }
+        guard let clientId = effectiveClientId(for: method) else { return nil }
+        return adminConsentURL(tenantSegment: tenantId, clientId: clientId)
     }
 
-    /// Admin consent for the shared Elevate app registration. Uses the `/organizations` segment
-    /// rather than a specific tenant id since the shared app is not scoped to one tenant here.
     func sharedAppAdminConsentURL() -> URL? {
         guard isConfigured, usesSharedApp else { return nil }
-        return adminConsentURL(tenantSegment: "organizations")
+        return adminConsentURL(tenantSegment: "organizations", clientId: AppSettings.sharedClientId)
     }
 
-    private func adminConsentURL(tenantSegment: String) -> URL? {
+    private func adminConsentURL(tenantSegment: String, clientId: String) -> URL? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "login.microsoftonline.com"
         components.path = "/\(tenantSegment)/v2.0/adminconsent"
         // The shared app registration has a Web redirect URI on the product site that explains
         // the consent result; own registrations keep the loopback-friendly `nativeclient` URI.
-        let redirectURI = usesSharedApp
+        let shared = clientId.caseInsensitiveCompare(AppSettings.sharedClientId) == .orderedSame
+        let redirectURI = shared
             ? AppSettings.sharedConsentRedirectURI
             : "https://login.microsoftonline.com/common/oauth2/nativeclient"
         components.queryItems = [
-            URLQueryItem(name: "client_id", value: settings.clientId.trimmingCharacters(in: .whitespacesAndNewlines)),
+            URLQueryItem(name: "client_id", value: clientId),
             URLQueryItem(name: "scope", value: (GraphScopes.all + GroupScopes.all + EntitlementScopes.all).joined(separator: " ")),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
         ]
@@ -443,6 +506,14 @@ final class AppModel {
                 needsSignIn.append(identity)
             }
         }
+        // Pinned accounts on a signed build: each registration has its own MSAL cache.
+        if let pinnedMSAL, !ownAppViaLoopback {
+            for identity in state.identities {
+                guard case .pinnedApp(let id) = identity.signInMethod,
+                      let known = try? await pinnedMSAL.provider(clientId: id).identities() else { continue }
+                if !known.contains(where: { $0.id == identity.id }) { needsSignIn.append(identity) }
+            }
+        }
         // First-party identities live only in `AppState`; they are usable only while their refresh
         // token is still in the keychain. A Keychain read failure must not be mistaken for "no
         // token" — that would flag real accounts on a transient error, so we fail open and
@@ -451,11 +522,8 @@ final class AppModel {
         // On an unsigned build own-app identities are reconciled here too, against the loopback
         // store for the Settings client id — including accounts a signed build added through MSAL,
         // which have no loopback token and are correctly dropped.
-        for identity in state.identities where identity.signInMethod != .ownApp || ownAppViaLoopback {
-            let known = identity.signInMethod == .ownApp
-                ? ownAppLoopbackProvider
-                : loopback.provider(for: identity.signInMethod)
-            guard let provider = known else { continue }
+        for identity in state.identities where !identity.signInMethod.usesMSAL || ownAppViaLoopback {
+            guard let provider = loopbackStore(for: identity.signInMethod) else { continue }
             switch await provider.refreshTokenState(for: identity.id) {
             case .some(false):
                 needsSignIn.append(identity)

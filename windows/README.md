@@ -53,11 +53,11 @@ Sign in from the flyout's **Add account…** with one of:
   Or use the project's shared registration, `c9011cc5-7422-4630-a432-73ff4df5834e`, which already
   lists both redirects — optional, no SLA, and an administrator must consent once per tenant; see
   [docs/shared-app-registration.md](../docs/shared-app-registration.md).
-- **A custom client ID**: any public-client registration, through the system browser on `http://localhost`.
+- **Other app (browser sign-in)**: any public-client registration, through the system browser on `http://localhost`.
 - **The Azure CLI app** or **the Azure PowerShell app**: no registration or consent needed, but
   Azure resource roles only — Entra directory roles and PIM for Groups are neither read nor
-  activated, because Microsoft grants those apps no Graph PIM permissions. Use your own or a
-  custom registration for those.
+  activated, because Microsoft grants those apps no Graph PIM permissions. Use your own or
+  another app registration for those.
 
 Everything the macOS app does is here: select several roles across pivots and activate them
 together, save a selection as a **profile** (pinned profiles are chips in one row under the pivots,

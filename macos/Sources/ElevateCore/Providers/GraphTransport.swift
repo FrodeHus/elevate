@@ -85,8 +85,9 @@ public struct GraphTransport: Sendable {
         let response = try await http.send(req)
         if (200..<300).contains(response.status) { return response }
         let error = mapper(response)
-        // Admin consent only helps the user's own app registration; for a first-party sign-in a 403 is a plain refusal.
-        if case .consentRequired = error, identity.signInMethod != .ownApp {
+        // Admin consent only helps an Entra app registration (the Settings one or a pinned one);
+        // for a first-party or company sign-in a 403 is a plain refusal.
+        if case .consentRequired = error, !identity.signInMethod.isOwnApp {
             throw PIMError.forbidden(Self.firstPartyForbiddenMessage(body: response.bodyText, method: identity.signInMethod))
         }
         throw error

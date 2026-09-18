@@ -69,6 +69,16 @@ import Foundation
         }
     }
 
+    @Test func forbiddenMapsToConsentRequiredForAPinnedApp() async {
+        let (p, http) = makeProvider()
+        await http.on("GET", "accessPackages/filterByCurrentUser", status: 403, body: Data(#"{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges"}}"#.utf8))
+        var pinned = identity
+        pinned.signInMethod = .pinned("aaaaaaaa-2222-3333-4444-555555555555")
+        await #expect(throws: PIMError.consentRequired) {
+            _ = try await p.requestablePackages(identity: pinned, tenantId: "t1")
+        }
+    }
+
     @Test func requirementsWithOnePolicy() async throws {
         let (p, http) = makeProvider()
         await http.on("POST", "getApplicablePolicyRequirements", body: Fixtures.data("ap-requirements-one"))

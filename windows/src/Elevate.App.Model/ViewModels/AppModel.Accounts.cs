@@ -21,8 +21,12 @@ public sealed partial class AppModel
     /// <summary>The custom client id used last time, for prefilling the add-account dialog.</summary>
     public string RememberedCustomClientId => Settings.CustomClientId;
 
-    /// <summary>Whether a method can be used right now. A custom method needs a well-formed client id.</summary>
-    public bool IsAvailable(SignInMethod method) => IsMethodAllowed(method) && method.Kind switch
+    /// <summary>
+    /// Whether a method can be used right now. A custom method needs a well-formed client id; a
+    /// pinned own-app account is never available until the Windows app supports per-account
+    /// registrations.
+    /// </summary>
+    public bool IsAvailable(SignInMethod method) => !method.IsPinned && IsMethodAllowed(method) && method.Kind switch
     {
         SignInMethodKind.OwnApp => IsConfigured,
         SignInMethodKind.Custom => AppSettings.IsValidClientId(method.CustomClientId),
@@ -47,12 +51,14 @@ public sealed partial class AppModel
 
         if (!IsAvailable(method))
         {
-            Notice = method.Kind switch
-            {
-                SignInMethodKind.OwnApp => "Complete initial setup first",
-                SignInMethodKind.Custom => "Enter the custom app's application (client) ID as a GUID",
-                _ => "That sign-in method is unavailable",
-            };
+            Notice = method.IsPinned
+                ? SignInMethod.PinnedUnsupportedMessage
+                : method.Kind switch
+                {
+                    SignInMethodKind.OwnApp => "Complete initial setup first",
+                    SignInMethodKind.Custom => "Enter the other app's application (client) ID as a GUID",
+                    _ => "That sign-in method is unavailable",
+                };
             LogError($"Add account ({method.DisplayName}): {Notice}");
             return false;
         }
@@ -149,7 +155,9 @@ public sealed partial class AppModel
 
         if (!IsAvailable(method))
         {
-            Notice = method.Kind == SignInMethodKind.OwnApp ? "Complete initial setup first" : "That sign-in method is unavailable";
+            Notice = method.IsPinned
+                ? SignInMethod.PinnedUnsupportedMessage
+                : method.Kind == SignInMethodKind.OwnApp ? "Complete initial setup first" : "That sign-in method is unavailable";
             LogError($"Sign in again ({method.DisplayName}): {Notice}");
             return false;
         }

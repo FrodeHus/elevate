@@ -77,6 +77,17 @@ public class CompositeTokenProviderTests
     }
 
     [Fact]
+    public async Task PinnedAccountsAreRefusedWithAClearMessage()
+    {
+        var composite = new CompositeTokenProvider(new FakeOwnAppProvider(), new FakeFirstPartyProviders(new FakeTokenProvider()));
+        var pinned = Sample.Identity("pin", SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555"));
+
+        var act = () => composite.AccessTokenAsync(pinned, "t1", Scopes.GraphAll, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<PimException>()).Which.Message.Should().Contain(SignInMethod.PinnedUnsupportedMessage);
+    }
+
+    [Fact]
     public void FirstPartyScopesCollapseToTheResourceDefault()
     {
         FirstPartyTokenProvider.ResourceDefault(Scopes.GraphAll).Should().Be("https://graph.microsoft.com/.default");

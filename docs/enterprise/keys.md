@@ -30,7 +30,7 @@ Where the values come from:
 |---|---|---|---|---|---|
 | `ClientId` | string | Application (client) id of your Entra app registration, a GUID | macOS, Windows, CLI | 1 | `11111111-2222-3333-4444-555555555555` |
 | `DisableUpdateCheck` | boolean | `true` disables the daily GitHub releases check and the update UI; `false` leaves it on | macOS, Windows, CLI | 1 | `true` |
-| `AllowedSignInMethods` | list of strings | Any of `ownApp`, `azureCLI`, `azurePowerShell`, `custom`; absent or empty means all | macOS, Windows, CLI | 2 | `ownApp` |
+| `AllowedSignInMethods` | list of strings | Any of `ownApp`, `azureCLI`, `azurePowerShell`, `custom` (Other app (browser sign-in)); absent or empty means all | macOS, Windows, CLI | 2 | `ownApp` |
 | `AllowedTenants` | list of strings | Tenant ids or verified domains; absent or empty means no restriction | macOS, Windows, CLI | 2 | `contoso.com` |
 | `PinnedTenants` | list of strings | Tenant ids or verified domains tracked for every account that can reach them | macOS, Windows, CLI | 2 | `contoso.com` |
 | `ManagedProfiles` | string (JSON document) | A profile set in the format below | macOS, Windows, CLI | 3 | `{"version":1,"profiles":[…]}` |
@@ -105,9 +105,10 @@ JSON:
 
 Limits which sign-in methods users may add. Names are matched
 case-insensitively against `ownApp`, `azureCLI`, `azurePowerShell` and
-`custom`; an unknown name is dropped with a warning. An absent or empty list
-means every method is available. Accounts added earlier with a method that is
-no longer allowed keep working, with a caption.
+`custom` (Other app (browser sign-in)); an unknown name is dropped with a
+warning. An absent or empty list means every method is available. Accounts
+added earlier with a method that is no longer allowed keep working, with a
+caption.
 
 Plist (macOS) — an array, or a single comma-separated string:
 

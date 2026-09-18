@@ -64,6 +64,11 @@ public sealed class CompositeTokenProvider : ITokenProvider
 
     private ITokenProvider Provider(SignInMethod method)
     {
+        if (method.IsPinned)
+        {
+            throw new PimException(PimErrorKind.Unexpected, SignInMethod.PinnedUnsupportedMessage);
+        }
+
         if (method.UsesMsal)
         {
             return _ownApp ?? throw new PimException(PimErrorKind.Unexpected, "Configure a client id in Settings");

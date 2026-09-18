@@ -123,8 +123,8 @@ public sealed class AppSettings : ObservableObject
     }
 
     /// <summary>
-    /// Last client id typed into "Custom client ID" in Add account, so the next account from the
-    /// same company app needs no retyping. Not a configuration value in its own right.
+    /// Last client id typed into "Other app (browser sign-in)" in Add account, so the next account
+    /// from the same other app needs no retyping. Not a configuration value in its own right.
     /// </summary>
     public string CustomClientId
     {

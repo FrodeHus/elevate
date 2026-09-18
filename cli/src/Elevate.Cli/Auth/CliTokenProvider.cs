@@ -82,6 +82,11 @@ public sealed class CliTokenProvider : ITokenProvider
 
     private string? ClientIdFor(SignInMethod method)
     {
+        if (method.IsPinned)
+        {
+            return null;
+        }
+
         if (method.UsesMsal)
         {
             var id = _ownAppClientId();
@@ -94,9 +99,11 @@ public sealed class CliTokenProvider : ITokenProvider
     private MsalCliProvider Provider(SignInMethod method)
     {
         var clientId = ClientIdFor(method) ?? throw new CliException(
-            method.UsesMsal
-                ? "No client ID is configured. Run 'elevate config set client-id <application id>' first, or sign in with --method cli."
-                : "That sign-in method has no usable client ID.",
+            method.IsPinned
+                ? SignInMethod.PinnedUnsupportedMessage
+                : method.UsesMsal
+                    ? "No client ID is configured. Run 'elevate config set client-id <application id>' first, or sign in with --method cli."
+                    : "That sign-in method has no usable client ID.",
             ExitCodes.Usage);
         lock (_lock)
         {

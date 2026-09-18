@@ -7,6 +7,14 @@
       "homeTenantId" : "t-home",
       "signInMethod" : "azureCLI"
     }
+    ,
+    {
+      "id" : "id2",
+      "upn" : "p@contoso.com",
+      "displayName" : "Pia",
+      "homeTenantId" : "t-home",
+      "signInMethod" : "ownApp:aaaaaaaa-2222-3333-4444-555555555555"
+    }
   ],
   "tenants" : [
     {

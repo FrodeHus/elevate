@@ -66,8 +66,9 @@ public class AppStateGoldenTests
     {
         var state = Json.Deserialize<AppState>(Fixtures.Text("state-macos"))!;
 
-        state.Identities.Should().ContainSingle();
+        state.Identities.Should().HaveCount(2);
         state.Identities[0].SignInMethod.Should().Be(SignInMethod.AzureCLI);
+        state.Identities[1].SignInMethod.Should().Be(SignInMethod.PinnedApp("aaaaaaaa-2222-3333-4444-555555555555"));
         state.Tenants.Select(t => t.TenantId).Should().Equal("t-home", "t-cust");
         state.Tenants[0].EntraActivation!.IsSupported.Should().BeFalse();
         state.Tenants[1].DiscoveryMode.Should().Be(DiscoveryMode.ManualRoles);

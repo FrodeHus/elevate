@@ -66,7 +66,7 @@ Elevate can add an account in two ways, chosen per account in "Add account…":
   unsigned build only needs `http://localhost` registered as a redirect URI under the "Mobile and
   desktop applications" platform (the setup script and the guide already add it). Settings shows
   "via loopback" next to the version when that is the active transport.
-- **A custom app registration through the loopback flow** ("Company app (client ID)"). Any
+- **A custom app registration through the loopback flow** ("Other app (browser sign-in)"). Any
   public-client registration you have a client ID for, such as a company-wide PIM app that has
   no macOS platform configured. It needs `http://localhost` registered as a redirect URI
   under the "Mobile and desktop applications" platform (that platform marks it public-client, so
@@ -85,6 +85,10 @@ Caveats:
   sign-in with it — try the Azure PowerShell app, and if the tenant blocks public clients
   altogether, use your own app registration.
 - The same account cannot be added twice under different methods; sign it out first.
+- An account added with the Azure CLI app, the Azure PowerShell app or another app can be
+  upgraded to an Entra app registration from its account menu ("Upgrade to Entra app
+  registration…"), keeping its tenants, roles and profiles; the change commits only after the
+  same account signs in with the new registration.
 - Changing the client ID in Settings only affects own-app accounts: they are signed out and
   removed. Azure CLI and Azure PowerShell accounts and their tenants are left alone.
 - An own-app account added by a signed build is signed out when the same state is opened by an

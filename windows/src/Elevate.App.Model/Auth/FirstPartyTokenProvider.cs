@@ -49,7 +49,7 @@ public sealed class FirstPartyTokenProvider : MsalProviderBase
         var clientId = method.ClientId ?? throw new PimException(PimErrorKind.Unexpected, "Unsupported sign-in method");
         if (!AppSettings.IsValidClientId(clientId))
         {
-            throw new PimException(PimErrorKind.Unexpected, "Enter the custom app's application (client) ID as a GUID");
+            throw new PimException(PimErrorKind.Unexpected, "Enter the other app's application (client) ID as a GUID");
         }
 
         try
@@ -88,6 +88,14 @@ public sealed class FirstPartyProviderRegistry : IFirstPartyProviders
 
     public ITokenProvider? Provider(SignInMethod method)
     {
+        // Entra app registration accounts (the Settings form and a pinned client id) are never
+        // served here: a pinned id would otherwise get a provider stamping the pinned method,
+        // cached under the same key a Custom account of that id uses.
+        if (method.Kind == SignInMethodKind.OwnApp)
+        {
+            return null;
+        }
+
         if (method.ClientId is not { } clientId || !AppSettings.IsValidClientId(clientId))
         {
             return null;

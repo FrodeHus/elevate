@@ -84,15 +84,22 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
   Settings — your own, your company's, or the shared Elevate app. Each tenant needs an
   administrator to consent once; the tenant menu offers **Open admin consent link…** for every
   account signed in this way, so consent can be granted or renewed before anything fails.
-  On macOS the caption under the option describes how this build signs in: through Microsoft's
-  sign-in window on a signed build, through your browser on an unsigned one. On Windows the
+  On macOS a signed build signs in through Microsoft's sign-in window and an unsigned one through
+  your browser; the setup text under **Use a different registration** names the redirect URI the
+  registration needs for this build (`http://localhost` on an unsigned one). On Windows the
   Windows account picker opens, with the browser as fallback.
 - **Azure CLI app** and **Azure PowerShell app** are Microsoft's own apps. No consent, Azure
   resource roles only. Use the PowerShell one when your tenant blocks the Azure CLI.
-- **Company app (client ID)** (on Windows: **Custom client ID**) is for two cases: an existing
-  public-client registration that lists only `http://localhost`, such as a company-wide PIM app,
-  or a second registration you want to use alongside the one in Settings. Type its ID; Elevate
-  reads what it was granted after sign-in.
+- **Other app (browser sign-in)** is for any existing public-client registration that lists
+  `http://localhost`, such as a company-wide PIM app. Type its ID; what it can do depends on its
+  permissions, which Elevate reads after sign-in. For a second copy of the Elevate registration,
+  use **Use a different registration** below instead (macOS).
+- On macOS, choosing **Entra app registration** also offers **Use a different registration**,
+  which pins that one account to a client ID of its own instead of the one in Settings. See
+  [Using a second registration for some accounts](entra-app-registration.md#8-using-a-second-registration-for-some-accounts).
+- On macOS, an account added with the Azure CLI app, the Azure PowerShell app or an other app
+  registration can be upgraded to an Entra app registration later, from its account menu
+  (**Upgrade to Entra app registration…**), without losing its tenants or roles.
 
 Click **Continue**. Microsoft sign-in opens and returns you to Elevate. The account appears in
 the panel with its home tenant and, after a moment, the roles you are eligible for. The same
@@ -154,7 +161,11 @@ Open **Settings…** from the panel (on Windows, also from the tray icon's right
 - **Copy diagnostics** puts a plain-text report on the clipboard for bug reports: accounts,
   tenants, profiles and recent errors, never tokens or client IDs.
 - **Entra app registration** (on Windows: **App registration**) is where the client ID lives.
-  Changing it signs out the accounts that use it, so Elevate asks before applying. On macOS it
+  On macOS, changing it keeps the accounts that use it — they keep their tenants, roles and
+  profiles and show **Sign in** so you can sign in again with the new ID. Accounts with their own
+  registration, and Azure CLI and Azure PowerShell accounts, are unaffected. On Windows, changing
+  it signs out the accounts that use it and removes them with their tenants and roles; add them
+  again afterwards. Either way Elevate asks before applying the change. On macOS it
   also has **Quick start with the shared Elevate app…**, and shows **Shared Elevate app — no
   SLA** with a **Grant admin consent…** button while the shared ID is in effect; see
   [shared-app-registration.md](shared-app-registration.md). On Windows it lists the two redirect

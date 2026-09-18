@@ -46,8 +46,8 @@ public sealed partial class AppModel
     public bool IsMethodAllowed(SignInMethod method) => ManagedPolicy.IsAllowed(method, Managed);
 
     /// <summary>
-    /// Whether the "Custom client ID" row is offered; the client id typed into it does not change
-    /// the answer, since the managed allow-list names kinds of method, not registrations.
+    /// Whether the "Other app (browser sign-in)" row is offered; the client id typed into it does
+    /// not change the answer, since the managed allow-list names kinds of method, not registrations.
     /// </summary>
     public bool IsCustomMethodAllowed =>
         Managed.AllowedSignInMethods is not { } allowed || allowed.Contains(SignInMethodKind.Custom);
