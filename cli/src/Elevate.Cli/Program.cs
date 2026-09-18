@@ -102,6 +102,7 @@ public static class Program
         root.Subcommands.Add(ActivationCommands.Deactivate());
         root.Subcommands.Add(ActivationCommands.Cancel());
         root.Subcommands.Add(RunCommands.Run());
+        root.Subcommands.Add(TokenCommands.Token());
         root.Subcommands.Add(ProfileCommands.Profiles());
         root.Subcommands.Add(ApprovalCommands.Approvals());
         root.Subcommands.Add(PackageCommands.Packages());
