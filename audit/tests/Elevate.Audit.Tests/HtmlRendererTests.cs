@@ -40,7 +40,7 @@ public partial class HtmlRendererTests
         html.Should().Contain("hold standing privileged access in Contoso.");
         html.Should().Contain("Azure management groups were not scanned, so the Azure section under-counts.");
         var hrefs = Regex.Matches(html, "<a class=\"tile[^\"]*\" href=\"#([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
-        hrefs.Should().Equal("entra", "pim-groups", "azure", "guests", "workload", "hygiene", "coverage");
+        hrefs.Should().Equal("entra", "pim-groups", "azure", "guests", "workload", "eligibility", "hygiene", "coverage");
         foreach (var id in hrefs)
         {
             html.Should().Contain($"id=\"{id}\"", $"tile #{id} must resolve");

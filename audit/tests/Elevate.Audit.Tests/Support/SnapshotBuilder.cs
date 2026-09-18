@@ -1,3 +1,4 @@
+using System.Globalization;
 using Elevate.Audit.Model;
 
 namespace Elevate.Audit.Tests.Support;
@@ -18,6 +19,8 @@ public sealed class SnapshotBuilder
     private readonly List<AzureAssignmentRecord> _azureAssignments = [];
     private readonly List<AzureAssignmentRecord> _azureEligibilities = [];
     private readonly List<SkippedSource> _skipped = [];
+    private readonly List<ActivationRecord> _activations = [];
+    private ActivationHistory? _history;
     private TenantInfo _tenant = new("11111111-1111-1111-1111-111111111111", "Contoso");
 
     public static SnapshotBuilder Contoso() => new SnapshotBuilder()
@@ -99,8 +102,29 @@ public sealed class SnapshotBuilder
 
     public SnapshotBuilder Skipped(string source, string reason) { _skipped.Add(new SkippedSource(source, reason)); return this; }
 
+    /// <summary>Declares which role systems' activation history was readable, and over what window.</summary>
+    public SnapshotBuilder History(string since, string until, params RoleSystem[] systems)
+    {
+        _history = new ActivationHistory(
+            DateTimeOffset.Parse(since, CultureInfo.InvariantCulture),
+            DateTimeOffset.Parse(until, CultureInfo.InvariantCulture),
+            systems.Length == 0 ? [RoleSystem.Entra, RoleSystem.Group, RoleSystem.Azure] : systems,
+            []);
+        return this;
+    }
+
+    /// <summary>One activation in the history. <paramref name="roleKeys"/> are matched against the eligibility's own.</summary>
+    public SnapshotBuilder Activated(string at, string principalId, RoleSystem system, string? scope = null, params string[] roleKeys)
+    {
+        _activations.Add(new ActivationRecord(DateTimeOffset.Parse(at, CultureInfo.InvariantCulture), principalId, system, roleKeys, scope));
+        return this;
+    }
+
     public Snapshot Build() => new(
         Snapshot.KindMarker, "0.0.0-test", _tenant, "alex.rivera@contoso.com", new DateTimeOffset(2026, 9, 13, 12, 0, 0, TimeSpan.Zero),
         _roles, _assignments, _eligibilities, _groups.Values.ToList(), _principals,
-        _azureScopes, _azureRoles, _azureAssignments, _azureEligibilities, _skipped);
+        _azureScopes, _azureRoles, _azureAssignments, _azureEligibilities, _skipped)
+    {
+        Activations = _history is null ? null : _history with { Activations = _activations },
+    };
 }

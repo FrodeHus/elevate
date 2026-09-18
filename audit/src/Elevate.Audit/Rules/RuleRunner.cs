@@ -4,11 +4,12 @@ namespace Elevate.Audit.Rules;
 
 public static class RuleRunner
 {
-    /// <summary>All ten rules, in report order.</summary>
+    /// <summary>All thirteen rules, in report order.</summary>
     public static IReadOnlyList<IRule> All { get; } =
     [
         new EntraUserPermanentRule(), new EntraGroupPermanentRule(), new EntraGroupNotPimRule(), new EntraGroupNotAssignableRule(),
         new GroupMemberPermanentRule(), new AzurePermanentRule(), new ServicePrincipalPermanentRule(), new GuestPermanentRule(),
+        new EligibleNeverActivatedRule(), new EligibleDormantRule(), new EligibleOrphanedRule(),
         new EligibleNoEndRule(), new GlobalAdminCountRule(),
     ];
 

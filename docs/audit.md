@@ -4,7 +4,9 @@
 reads your tenant, and lists every piece of *standing* privileged access that could become
 PIM eligibility instead: permanent Entra role assignments held by people or by groups (with the
 nested groups resolved), permanent members of groups that PIM for Groups already manages, and
-permanent Owner, Contributor and similar assignments in Azure. It writes nothing. Nothing leaves
+permanent Owner, Contributor and similar assignments in Azure. It also reports the other half of
+the problem — eligibilities nobody uses, which leave people able to become Global Administrator
+long after they should be — by reading PIM activation history. It writes nothing. Nothing leaves
 your machine.
 
 It is separate from the Elevate app and CLI: a different binary, no shared settings, no shared
@@ -36,7 +38,7 @@ tool is versioned and released separately from the Elevate app and CLI: its rele
 
 | Resource | Client | What it asks for |
 |---|---|---|
-| Microsoft Graph | **Microsoft Graph Command Line Tools** (`14d82eec-204b-4c2f-b7e8-296a70dab67e`), Microsoft's own multi-tenant public client | Six delegated, read-only scopes, listed below |
+| Microsoft Graph | **Microsoft Graph Command Line Tools** (`14d82eec-204b-4c2f-b7e8-296a70dab67e`), Microsoft's own multi-tenant public client | Seven delegated, read-only scopes, listed below |
 | Azure Resource Manager | **Azure CLI** (`04b07795-8ddb-461a-bbee-02f9e1bf7b46`) | `.default`, which is what the Azure CLI itself uses |
 
 The Graph scopes and why each one is needed:
@@ -49,9 +51,16 @@ The Graph scopes and why each one is needed:
 | `PrivilegedEligibilitySchedule.Read.AzureADGroup` | Eligible memberships and ownerships of those groups. |
 | `GroupMember.Read.All` | Expanding the members of role-assigned groups, including nested groups. |
 | `User.ReadBasic.All` | Names and sign-in names of the people found, instead of bare object ids. |
+| `AuditLog.Read.All` | **Optional.** The PIM entries of the directory audit log, which is the only record of who has actually activated an eligibility. |
 
 Every read is Microsoft Graph v1.0 except role definitions (for the isPrivileged flag) and group
 members (v1.0 omits service principals), both read on beta.
+
+`AuditLog.Read.All` is the only optional one. If consent for the set is refused, `elevate-audit`
+signs in again with the other six, reports `activation-history` as a skipped source, and leaves out
+`ELIGIBLE-NEVER-ACTIVATED` and `ELIGIBLE-DORMANT` rather than guessing; the rest of the scan is
+unaffected. Azure resource activations come from ARM's own PIM request history, which the Reader
+role already covers, so they need no extra Graph scope.
 
 All of them are read scopes; several require an administrator to consent. Since the person
 running a standing-access audit is a privileged administrator, you consent for yourself at the
@@ -81,6 +90,7 @@ once, and read the report in the terminal. Useful options:
 | `--json report.json` (or `--json -`) | Also write the JSON report, or print only JSON on stdout. |
 | `--all-roles` | Report every role, not only the privileged ones. |
 | `--min-severity medium` | Hides findings below the level from the output; the summary counts and the exit code still cover every finding, and the report says how many were hidden. |
+| `--dormant-after 60` | Days without an activation before an eligibility counts as dormant (default 90). The activation history is read over twice this, so a dormant eligibility can be seen at all. |
 | `--ignore GA-COUNT` | Skip a rule (repeatable). |
 | `--skip-azure` | Do not sign in to Azure or scan Azure RBAC. |
 | `--tenant <id>` | Scan a tenant you are a guest in. |
@@ -106,6 +116,9 @@ like the report — it contains personal data.
 | `AZURE-PERMANENT` | A permanent privileged Azure role assignment at any scope. | High for Owner, User Access Administrator and RBAC Administrator; Medium otherwise |
 | `SP-PERMANENT` | A service principal or managed identity holds a permanent privileged role. PIM does not apply; review the workload identity instead. | Info |
 | `GUEST-PERMANENT` | A guest holds a permanent privileged role, directly or through a group. | High |
+| `ELIGIBLE-ORPHANED` | An eligibility is held by a principal that cannot use it: a disabled account, a blocked guest, or one that no longer resolves in the directory. | High |
+| `ELIGIBLE-NEVER-ACTIVATED` | An eligibility granted before the lookback window opened was never activated inside it. | Medium for privileged roles, Low otherwise |
+| `ELIGIBLE-DORMANT` | An eligibility was last activated more than `--dormant-after` days ago. | Medium for privileged roles, Low otherwise |
 | `ELIGIBLE-NO-END` | An eligibility has no end date. | Low |
 | `GA-COUNT` | Fewer than 2 or more than 5 people can become Global Administrator. | Medium |
 
@@ -115,7 +128,34 @@ Vault Administrator, Key Vault Data Access Administrator, Storage Account Contri
 Machine Administrator Login, Azure Kubernetes Service RBAC Cluster Admin, Security Admin, and any
 custom role whose actions include `*` or can write role assignments.
 
-A currently *activated* PIM assignment is not standing access and is never reported.
+A currently *activated* PIM assignment is not standing access and is never reported — but it does
+count as use of the eligibility behind it, so it never shows up as unused either.
+
+### Unused eligibility
+
+PIM removes standing access, not standing *eligibility*. Eligible assignments accumulate: people
+who changed team, projects that finished, one-off grants nobody revoked. A tenant can look clean by
+the "no permanent assignments" measure and still have fifty people who could become Global
+Administrator if they chose to. The three `ELIGIBLE-*` rules above cover Entra directory roles, PIM
+for Groups and Azure resource roles, and the remedy is the standard PIM move: remove the
+eligibility, or put it behind an access review.
+
+Two things bound what they can say, and the report states both:
+
+- **Retention.** Directory audit logs are kept for 30 days by default (longer with Entra ID P1/P2
+  and a log export). The tool asks for `--dormant-after` × 2 days of history, but a tenant returns
+  only what it keeps, so the report names the window it asked for and says the tenant may hold less.
+  `ELIGIBLE-NEVER-ACTIVATED` therefore fires only for an eligibility that already existed when the
+  window opened; one granted inside it is never called unused, because retention rather than disuse
+  would explain the silence.
+- **Readability.** Each role system is judged only when its history was readable: Entra roles and
+  PIM for Groups from the directory audit log, Azure roles from ARM's request history. A system
+  whose history is missing is skipped rather than reported as never used, and Coverage says which.
+  `ELIGIBLE-ORPHANED` needs no history and always runs.
+
+Matching an audit entry back to an eligibility is best-effort: PIM names a role by definition id,
+template id or display name depending on the entry, so any of them matching counts, and scopes are
+compared only when both sides carry one.
 
 ## 5. A tenant that blocks the Graph PowerShell app
 
@@ -127,8 +167,9 @@ public client your tenant allows with `--client-id`:
    see [section 7 of the app registration guide](entra-app-registration.md#7-optional-read-scopes-for-elevate-audit)).
 2. Under **Authentication**, add the platform **Mobile and desktop applications** with the
    redirect URI `http://localhost`.
-3. Under **API permissions**, add the six delegated Microsoft Graph scopes from section 2 and
-   grant admin consent.
+3. Under **API permissions**, add the delegated Microsoft Graph scopes from section 2 and grant
+   admin consent. `AuditLog.Read.All` is optional; without it the unused-eligibility rules are
+   skipped.
 4. Run `elevate-audit --client-id <application id>`.
 
 With a custom client the tool asks for `https://graph.microsoft.com/.default`, so it can only do
@@ -138,7 +179,8 @@ what that registration was consented for.
 
 The HTML report opens with a one-sentence verdict — how many people and workload identities
 hold standing privileged access, and whether anything was skipped — and one tile per area:
-Entra roles, PIM for Groups, Azure RBAC, Guests, Workload identities, Hygiene and Coverage. Each
+Entra roles, PIM for Groups, Azure RBAC, Guests, Workload identities, Unused eligibility, Hygiene
+and Coverage. Each
 tile shows a state (Critical, Attention, Review, Clean or Not scanned), the counts per severity,
 and one line in plain words; click it to jump to the area. An area marked **under-counts** has a
 partially skipped source behind it, listed under Coverage.
@@ -161,15 +203,16 @@ with every section open and every filter cleared.
 
 Remedies are the standard PIM moves: convert a permanent assignment to eligible, onboard a group
 to PIM for Groups, replace a dynamic or non-role-assignable group with a static role-assignable
-one, or, for service principals, review the workload identity's need for the role.
+one, remove or review an eligibility nobody uses, or, for service principals, review the workload
+identity's need for the role.
 
 A sample report from a fictional tenant is at
 <https://elevate.reothor.no/audit-sample.html>.
 
 ## 7. Troubleshooting
 
-- **"Consent … was declined or is not permitted"** — accept the six read scopes, or use
-  `--client-id` (section 5).
+- **"Consent … was declined or is not permitted"** — accept the read scopes, or use `--client-id`
+  (section 5).
 - **"The signed-in account may not list the tenant's role assignments"** — you need Global
   Reader, Privileged Role Administrator or Security Reader (section 3).
 - **The Azure section says "skipped"** — the account sees no subscriptions, or the ARM sign-in
@@ -180,6 +223,12 @@ A sample report from a fictional tenant is at
 - **A group shows as "not onboarded" although it is** — the account cannot read that group's
   PIM data; for role-assignable groups that needs Global Reader or Privileged Role Administrator
   at directory scope.
+- **The `activation-history` source is skipped** — `AuditLog.Read.All` was not consented, or the
+  account cannot read the directory audit log. `ELIGIBLE-NEVER-ACTIVATED` and `ELIGIBLE-DORMANT` are
+  left out; `ELIGIBLE-ORPHANED` still runs.
+- **No `ELIGIBLE-DORMANT` findings although you expect some** — the window is bounded by the
+  tenant's audit-log retention, 30 days by default. With 30 days retained, nothing can be seen to be
+  90 days idle; lower `--dormant-after`, or keep the logs longer.
 - **Throttled** — the tool retries `429` replies honouring `Retry-After`; `--verbose` shows each
   request.
 - **The `groups` source shows "N nested group(s) could not be read"** — the account lacks read

@@ -34,6 +34,7 @@ public static class HtmlRenderer
         ("azure", "Azure subscriptions", "Role assignments in the subscriptions the account can read."),
         ("azure-management-groups", "Azure management groups", "Role assignments inherited from management groups."),
         ("principals", "Principals", "Names, sign-in names and guest status."),
+        ("activation-history", "Activation history", "PIM activations in the lookback window, from the directory audit log and ARM's request history."),
     ];
 
     public static string Render(AuditReport report)
@@ -388,6 +389,13 @@ public static class HtmlRenderer
     private static void Appendix(StringBuilder b, AuditReport report)
     {
         b.Append("<details class=\"appendix\" id=\"appendix\"><summary>").Append(Caret).Append("<h2>Appendix</h2><span class=\"muted\">Options, scopes requested, evidence ids</span></summary>\n<p>Options: all roles ").Append(report.Options.AllRoles ? "on" : "off").Append("; minimum severity ").Append(E(report.Options.MinSeverity)).Append("; ignored rules: ").Append(report.Options.Ignored.Count == 0 ? "none" : E(string.Join(", ", report.Options.Ignored))).Append(".</p>\n");
+        if (report.ActivationWindow is { } window)
+        {
+            b.Append("<p>PIM activation history examined: ").Append(E(Date(window.Since))).Append(" to ").Append(E(Date(window.Until)))
+             .Append(" (").Append(window.Days.ToString(CultureInfo.InvariantCulture)).Append(" days, ").Append(E(string.Join(", ", window.Systems)))
+             .Append("). Directory audit logs are retained for 30 days by default, so the tenant may hold less than this window.</p>\n");
+        }
+
         b.Append("<p>Read-only Microsoft Graph scopes requested: ").Append(report.ScopesRequested.Count == 0 ? "none recorded" : string.Join(", ", report.ScopesRequested.Select(s => "<code>" + E(s) + "</code>"))).Append(". Nothing was written to the tenant.</p>\n");
         b.Append("<p>This report contains personal data (names and sign-in names of people who hold roles). Handle it as you would any access review.</p>\n<details><summary>Evidence ids</summary><div class=\"table-scroll\"><table><thead><tr><th>Rule</th><th>Principal id</th><th>Assignment id</th><th>Start</th><th>End</th><th>Type</th></tr></thead><tbody>\n");
         foreach (var f in report.Findings)

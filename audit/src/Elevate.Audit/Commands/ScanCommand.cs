@@ -22,6 +22,7 @@ public static class ScanCommand
     public static readonly Option<bool> SkipAzureOption = new("--skip-azure") { Description = "Do not sign in to Azure Resource Manager or scan Azure RBAC." };
     public static readonly Option<bool> AllRolesOption = new("--all-roles") { Description = "Report every role, not only the privileged ones." };
     public static readonly Option<string> MinSeverityOption = new("--min-severity") { Description = "Lowest severity to show: high, medium, low or info.", DefaultValueFactory = _ => "info" };
+    public static readonly Option<int> DormantAfterOption = new("--dormant-after") { Description = $"Days without an activation before an eligibility counts as dormant; also the activation lookback. Default: {AuditDefaults.DormantAfterDays}.", DefaultValueFactory = _ => AuditDefaults.DormantAfterDays };
     public static readonly Option<string[]> IgnoreOption = new("--ignore") { Description = "Rule code to skip (repeatable), e.g. --ignore GA-COUNT.", AllowMultipleArgumentsPerToken = true };
     public static readonly Option<bool> NoFailOption = new("--no-fail") { Description = "Exit 0 even when there are high findings." };
     public static readonly Option<string?> JsonOption = new("--json") { Description = "Write the JSON report to this file, or - for stdout (then nothing else goes to stdout)." };
@@ -35,7 +36,7 @@ public static class ScanCommand
     public static void AddTo(RootCommand root)
     {
         ArgumentNullException.ThrowIfNull(root);
-        foreach (var option in new Option[] { TenantOption, ClientIdOption, DeviceCodeOption, SkipAzureOption, AllRolesOption, MinSeverityOption, IgnoreOption, NoFailOption, JsonOption, HtmlOption, SaveSnapshotOption, FromSnapshotOption, QuietOption, NoColorOption, VerboseOption })
+        foreach (var option in new Option[] { TenantOption, ClientIdOption, DeviceCodeOption, SkipAzureOption, AllRolesOption, MinSeverityOption, DormantAfterOption, IgnoreOption, NoFailOption, JsonOption, HtmlOption, SaveSnapshotOption, FromSnapshotOption, QuietOption, NoColorOption, VerboseOption })
         {
             root.Options.Add(option);
         }
@@ -52,11 +53,18 @@ public static class ScanCommand
             throw new AuditException($"Unknown severity '{parse.GetValue(MinSeverityOption)}'. Use high, medium, low or info.");
         }
 
+        var dormantAfter = parse.GetValue(DormantAfterOption);
+        if (dormantAfter < 1)
+        {
+            throw new AuditException($"--dormant-after must be at least 1 day, not {dormantAfter}.");
+        }
+
         var options = new AuditOptions(
             AllRoles: parse.GetValue(AllRolesOption),
             Ignored: (parse.GetValue(IgnoreOption) ?? []).Select(i => i.ToUpperInvariant()).ToList(),
             MinSeverity: minSeverity,
-            SkipAzure: parse.GetValue(SkipAzureOption));
+            SkipAzure: parse.GetValue(SkipAzureOption),
+            DormantAfterDays: dormantAfter);
         var jsonTarget = parse.GetValue(JsonOption);
         var jsonToStdout = jsonTarget == "-";
 
@@ -71,8 +79,9 @@ public static class ScanCommand
         else
         {
             var clientId = parse.GetValue(ClientIdOption);
-            scopesRequested = clientId is null ? ClientIds.GraphReadScopeNames : [".default"];
-            snapshot = await ScanLiveAsync(parse.GetValue(TenantOption)!, clientId, parse.GetValue(DeviceCodeOption), parse.GetValue(VerboseOption), options, terminal, ct).ConfigureAwait(false);
+            var live = await ScanLiveAsync(parse.GetValue(TenantOption)!, clientId, parse.GetValue(DeviceCodeOption), parse.GetValue(VerboseOption), options, terminal, ct).ConfigureAwait(false);
+            snapshot = live.Snapshot;
+            scopesRequested = clientId is not null ? [".default"] : live.ScopesGranted;
         }
 
         if (parse.GetValue(SaveSnapshotOption) is { } savePath)
@@ -113,7 +122,10 @@ public static class ScanCommand
         return RuleRunner.HasHigh(findings) && !parse.GetValue(NoFailOption) ? ExitCodes.HighFindings : ExitCodes.Ok;
     }
 
-    private static async Task<Snapshot> ScanLiveAsync(string tenant, string? clientId, bool deviceCode, bool verbose, AuditOptions options, Terminal terminal, CancellationToken ct)
+    /// <summary><paramref name="ScopesGranted"/> omits the optional activation-history scope when consent for it was refused.</summary>
+    private sealed record LiveScan(Snapshot Snapshot, IReadOnlyList<string> ScopesGranted);
+
+    private static async Task<LiveScan> ScanLiveAsync(string tenant, string? clientId, bool deviceCode, bool verbose, AuditOptions options, Terminal terminal, CancellationToken ct)
     {
         var provider = new AuditTokenProvider(clientId, tenant, deviceCode, terminal.Say);
         Identity identity;
@@ -138,7 +150,11 @@ public static class ScanCommand
         terminal.Note($"Signed in as {identity.Upn}.");
         try
         {
-            return await new Scanner(graph, arm, identity, tenantId, options, AppInfo.Version, terminal.Note, verbose: verbose ? terminal.Note : null).ScanAsync(ct).ConfigureAwait(false);
+            var scanner = new Scanner(graph, arm, identity, tenantId, options, AppInfo.Version, terminal.Note, verbose: verbose ? terminal.Note : null, activationHistoryDeclined: provider.ActivationHistoryDeclined);
+            var scopes = provider.ActivationHistoryDeclined is null
+                ? ClientIds.GraphReadScopeNames
+                : ClientIds.GraphReadScopeNames.Where(s => !s.StartsWith("AuditLog.", StringComparison.Ordinal)).ToList();
+            return new LiveScan(await scanner.ScanAsync(ct).ConfigureAwait(false), scopes);
         }
         catch (PimException e) when (e.Kind is PimErrorKind.Forbidden or PimErrorKind.ConsentRequired)
         {

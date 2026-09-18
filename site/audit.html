@@ -119,10 +119,13 @@ HTML report written to report.html.</code></pre>
             <tr><td><code>PrivilegedEligibilitySchedule.Read.AzureADGroup</code></td><td>Eligible memberships of PIM-managed groups.</td></tr>
             <tr><td><code>GroupMember.Read.All</code></td><td>Expanding role-assigned groups, nested groups included.</td></tr>
             <tr><td><code>User.ReadBasic.All</code></td><td>Names instead of object ids.</td></tr>
+            <tr><td><code>AuditLog.Read.All</code></td><td>Optional: PIM activation history, for the eligibilities nobody uses.</td></tr>
           </tbody>
         </table>
       </div>
       <p>
+        <code>AuditLog.Read.All</code> is the only optional one: refuse it and the tool signs in again without
+        it, says so under Coverage, and leaves out the two rules that need activation history.
         Tokens stay in memory for one run and are never written to disk. Nothing is written to your tenant.
         If your organization blocks Microsoft's Graph PowerShell client, pass any public client you own with
         <code>--client-id</code>; the guide explains

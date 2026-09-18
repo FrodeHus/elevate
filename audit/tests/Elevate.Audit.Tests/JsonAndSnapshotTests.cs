@@ -20,8 +20,8 @@ public class JsonAndSnapshotTests
 
         var json = JsonRenderer.Render(report);
 
-        report.Summary.Should().BeEquivalentTo(new { High = 13, Medium = 5, Low = 5, Info = 2 });
-        findings.Select(f => f.Id).Distinct().Should().HaveCount(10, "the sample exercises every rule");
+        report.Summary.Should().BeEquivalentTo(new { High = 14, Medium = 9, Low = 5, Info = 2 });
+        findings.Select(f => f.Id).Distinct().Should().HaveCount(13, "the sample exercises every rule");
         Golden.Check("audit/tests/Elevate.Audit.Tests/Golden/sample-report.json", json);
     }
 

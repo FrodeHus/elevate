@@ -10,6 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Three rules for eligibilities nobody uses, driven by PIM activation history: `ELIGIBLE-ORPHANED`
+  (High — the eligibility is held by a disabled account, a blocked guest, or a principal that no
+  longer resolves), `ELIGIBLE-NEVER-ACTIVATED` and `ELIGIBLE-DORMANT` (Medium for privileged roles,
+  Low otherwise). All three cover Entra directory roles, PIM for Groups and Azure resource roles,
+  and each finding carries the last activation date and the age of the eligibility. The HTML report
+  gains an "Unused eligibility" area.
+- `--dormant-after <days>` (default 90) sets the dormancy threshold; the activation history is read
+  over twice that, so a dormant eligibility can be seen at all.
+- An optional seventh Graph scope, `AuditLog.Read.All`, for the PIM entries of the directory audit
+  log. If consent for it is refused the sign-in is retried without it, `activation-history` is
+  listed as a skipped source, and only `ELIGIBLE-ORPHANED` runs. Azure activations come from ARM's
+  own request history and need no extra scope. The report states the window it examined, because
+  directory audit logs are retained for 30 days by default and the tenant may hold less than was
+  asked for.
+
 ### Fixed
 
 - winget manifest: the release-notes link points at the `audit-v` tag, not the app's `v` tag.

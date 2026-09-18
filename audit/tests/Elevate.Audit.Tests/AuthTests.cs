@@ -8,13 +8,28 @@ namespace Elevate.Audit.Tests;
 public class AuthTests
 {
     [Fact]
-    public void ScopesFor_GraphWithDefaultClient_AlwaysAsksForTheSixReadScopes()
+    public void ScopesFor_GraphWithDefaultClient_AlwaysAsksForTheReadScopes()
     {
         var (resource, scopes) = ClientIds.ScopesFor(["https://graph.microsoft.com/User.Read"], customGraphClient: false);
 
         resource.Should().Be(Resource.Graph);
         scopes.Should().Equal(ClientIds.GraphReadScopes);
-        scopes.Should().HaveCount(6).And.StartWith("https://graph.microsoft.com/User.Read");
+        scopes.Should().HaveCount(7).And.StartWith("https://graph.microsoft.com/User.Read");
+    }
+
+    [Fact]
+    public void GraphRequiredScopes_AreTheReadScopesWithoutTheOptionalAuditLogOne()
+    {
+        ClientIds.GraphReadScopes.Should().Contain(ClientIds.ActivationHistoryScope);
+        ClientIds.GraphRequiredScopes.Should().NotContain(ClientIds.ActivationHistoryScope).And.HaveCount(6);
+    }
+
+    [Fact]
+    public void ScopesFor_GraphWithAnExplicitScopeList_AsksForThatListInstead()
+    {
+        var (_, scopes) = ClientIds.ScopesFor(ClientIds.GraphReadScopes, customGraphClient: false, ClientIds.GraphRequiredScopes);
+
+        scopes.Should().Equal(ClientIds.GraphRequiredScopes);
     }
 
     [Fact]

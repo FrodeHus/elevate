@@ -18,6 +18,7 @@ public static class SampleSnapshot
         .User("u-casey", "Casey Wong", "casey.wong@contoso.com")
         .User("u-riley", "Riley Park", "riley.park@contoso.com")
         .User("u-morgan", "Morgan Diaz", "morgan.diaz@contoso.com")
+        .User("u-taylor", "Taylor Kim", "taylor.kim@contoso.com", enabled: false)
         .ServicePrincipal("sp-deploy", "Deploy Bot")
         .Group("g-tier0", "Tier 0 Admins", pim: PimStatus.Onboarded, members: [("u-sam", PrincipalType.User), ("g-platform", PrincipalType.Group)])
         .Group("g-platform", "Platform Team", assignable: false, members: [("g-oncall", PrincipalType.Group), ("g-tier0", PrincipalType.Group)])
@@ -38,6 +39,7 @@ public static class SampleSnapshot
         .Eligible("e-casey-ga", "u-casey", "rd-ga", end: new DateTimeOffset(2027, 3, 1, 0, 0, 0, TimeSpan.Zero))
         .Eligible("e-riley-ga", "u-riley", "rd-ga")
         .Eligible("e-morgan-ga", "u-morgan", "rd-ga")
+        .Eligible("e-taylor-sec", "u-taylor", "rd-sec", end: new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero))
         .GroupPim("g-tier0", "gp-sam-owner", "u-sam", "owner")
         .GroupPim("g-tier0", "gp-alex-member", "u-alex", "member", eligible: true)
         .AzureScope("/subscriptions/sub1/resourceGroups/rg-payments", AzureScopeKind.ResourceGroup, "rg-payments")
@@ -48,6 +50,11 @@ public static class SampleSnapshot
         .AzureAssigned("si-sam-owner-active", "/subscriptions/sub1", Owner, "u-sam", "User", type: AssignmentType.Activated, end: new DateTimeOffset(2026, 9, 13, 18, 0, 0, TimeSpan.Zero), fromSchedule: true)
         .AzureAssigned("ra-jordan-reader", "/subscriptions/sub1", Reader, "u-jordan", "User")
         .AzureEligible("ae-jordan-owner", "/subscriptions/sub1", Owner, "u-jordan", "User")
+        // 180 days back from the scan (twice the 90-day dormancy threshold), with every system's history
+        // readable: enough to tell an eligibility nobody has touched from one that was used last week.
+        .History("2026-03-17T12:00:00Z", "2026-09-13T12:00:00Z")
+        .Activated("2026-09-01T08:30:00Z", "u-alex", RoleSystem.Group, "g-tier0", "g-tier0")
+        .Activated("2026-03-20T09:15:00Z", "u-morgan", RoleSystem.Entra, null, "rd-ga")
         .Skipped("azure-management-groups", "Azure management groups are not readable by this account; scanned subscriptions only.")
         .Build();
 }

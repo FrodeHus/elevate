@@ -37,7 +37,7 @@ public class AzureCollectorTests
     {
         var stub = Tenant();
 
-        var data = await new AzureCollector(TestIdentity.Arm(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(CancellationToken.None);
+        var data = await new AzureCollector(TestIdentity.Arm(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(DateTimeOffset.Parse("2026-06-15T12:00:00Z"), CancellationToken.None);
 
         data.Notes.Should().ContainSingle().Which.Should().Contain("management groups");
         data.Scopes.Should().ContainSingle().Which.Should().BeEquivalentTo(new AzureScopeRecord("/subscriptions/sub1", AzureScopeKind.Subscription, "Production"));
@@ -54,7 +54,7 @@ public class AzureCollectorTests
         var stub = Tenant();
         stub.On("GET", "/subscriptions?api-version", """{"value":[]}""");
 
-        var act = () => new AzureCollector(TestIdentity.Arm(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(CancellationToken.None);
+        var act = () => new AzureCollector(TestIdentity.Arm(stub), TestIdentity.Alex, TestIdentity.TenantId).CollectAsync(DateTimeOffset.Parse("2026-06-15T12:00:00Z"), CancellationToken.None);
 
         (await act.Should().ThrowAsync<PimException>()).Which.Kind.Should().Be(PimErrorKind.NotEligible);
     }

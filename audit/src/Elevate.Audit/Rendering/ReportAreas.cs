@@ -20,12 +20,13 @@ public static class ReportAreas
     public static readonly ReportArea Azure = new("azure", "Azure RBAC", "Permanent privileged Azure role assignments at any scope.");
     public static readonly ReportArea Guests = new("guests", "Guests", "Guests holding a permanent privileged role, directly or through a group.");
     public static readonly ReportArea Workload = new("workload", "Workload identities", "Service principals and managed identities holding permanent privileged roles; PIM eligibility does not apply.");
+    public static readonly ReportArea Eligibility = new("eligibility", "Unused eligibility", "Eligibilities nobody exercises: never activated, dormant, or held by a principal that cannot use them.");
     public static readonly ReportArea Hygiene = new("hygiene", "Hygiene", "Eligibilities without an end date and the Global Administrator count.");
     public static readonly ReportArea Other = new("other", "Other", "Findings from rules this renderer does not know.");
     public static readonly ReportArea Coverage = new("coverage", "Coverage", "Which sources were read and which were skipped.");
 
     /// <summary>Finding areas in report order. Coverage is rendered after them, from the skipped list.</summary>
-    public static IReadOnlyList<ReportArea> Ordered { get; } = [Entra, PimGroups, Azure, Guests, Workload, Hygiene, Other];
+    public static IReadOnlyList<ReportArea> Ordered { get; } = [Entra, PimGroups, Azure, Guests, Workload, Eligibility, Hygiene, Other];
 
     private static readonly Dictionary<string, ReportArea> ByRule = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -37,6 +38,9 @@ public static class ReportAreas
         ["AZURE-PERMANENT"] = Azure,
         ["GUEST-PERMANENT"] = Guests,
         ["SP-PERMANENT"] = Workload,
+        ["ELIGIBLE-NEVER-ACTIVATED"] = Eligibility,
+        ["ELIGIBLE-DORMANT"] = Eligibility,
+        ["ELIGIBLE-ORPHANED"] = Eligibility,
         ["ELIGIBLE-NO-END"] = Hygiene,
         ["GA-COUNT"] = Hygiene,
     };
@@ -62,7 +66,9 @@ public static class ReportAreas
     {
         ArgumentNullException.ThrowIfNull(area);
         ArgumentNullException.ThrowIfNull(skipped);
-        return (area == Azure && Has(skipped, "azure-management-groups")) || ((area == Entra || area == Guests) && Has(skipped, "groups"));
+        return (area == Azure && Has(skipped, "azure-management-groups"))
+            || ((area == Entra || area == Guests) && Has(skipped, "groups"))
+            || (area == Eligibility && Has(skipped, "activation-history"));
     }
 
     public static AreaState StateOf(ReportArea area, IReadOnlyList<Finding> areaFindings, IReadOnlyList<SkippedSource> skipped)
@@ -171,6 +177,30 @@ public static class ReportAreas
             return n == 0 ? "No service principal holds a permanent privileged role." : $"{Plural(n, "service principal holds", "service principals hold")} permanent roles. Review whether they need them.";
         }
 
+        if (area == Eligibility)
+        {
+            var never = Distinct(areaFindings.Where(f => Is(f, "ELIGIBLE-NEVER-ACTIVATED")));
+            var dormant = Distinct(areaFindings.Where(f => Is(f, "ELIGIBLE-DORMANT")));
+            var orphaned = Distinct(areaFindings.Where(f => Is(f, "ELIGIBLE-ORPHANED")));
+            var parts = new List<string>();
+            if (orphaned > 0)
+            {
+                parts.Add($"{Plural(orphaned, "eligibility is held", "eligibilities are held")} by a disabled or deleted principal.");
+            }
+
+            if (never > 0)
+            {
+                parts.Add($"{Plural(never, "eligibility has", "eligibilities have")} never been activated.");
+            }
+
+            if (dormant > 0)
+            {
+                parts.Add($"{Plural(dormant, "eligibility has", "eligibilities have")} not been activated recently.");
+            }
+
+            return parts.Count > 0 ? string.Join(" ", parts) : "Every eligibility is in use by a principal that can use it.";
+        }
+
         if (area == Hygiene)
         {
             var noEnd = areaFindings.Count(f => Is(f, "ELIGIBLE-NO-END"));
@@ -231,6 +261,7 @@ public static class ReportAreas
         "pim-for-groups" => "PIM for Groups was not scanned",
         "groups" => "some groups could not be read, so the Entra and Guests sections under-count",
         "principals" => "some principals could not be resolved to names",
+        "activation-history" => "PIM activation history was not read, so the unused-eligibility section under-counts",
         _ => $"the {source} source was skipped",
     };
 

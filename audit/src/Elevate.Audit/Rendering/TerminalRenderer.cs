@@ -41,6 +41,11 @@ public static class TerminalRenderer
             header.AddRow("[grey]Ignored[/]", Markup.Escape(string.Join(", ", report.Options.Ignored)));
         }
 
+        if (report.ActivationWindow is { } window)
+        {
+            header.AddRow("[grey]History[/]", Markup.Escape($"activations {window.Since:yyyy-MM-dd} to {window.Until:yyyy-MM-dd} ({window.Days} days; audit-log retention may be shorter)"));
+        }
+
         if (report.Skipped.Count > 0)
         {
             header.AddRow("[grey]Skipped[/]", Markup.Escape(string.Join(", ", report.Skipped.Select(s => s.Source))));

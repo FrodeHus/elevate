@@ -21,6 +21,7 @@ public sealed class AuditTokenProvider : ITokenProvider
     private readonly SemaphoreSlim _interactive = new(1, 1);
     private IAccount? _graphAccount;
     private IAccount? _armAccount;
+    private IReadOnlyList<string> _graphScopes = ClientIds.GraphReadScopes;
 
     public AuditTokenProvider(string? graphClientId, string tenant, bool deviceCode, Action<string> say)
     {
@@ -44,10 +45,32 @@ public sealed class AuditTokenProvider : ITokenProvider
 
     public string Tenant { get; }
 
-    /// <summary>The interactive Graph sign-in that starts a scan; consent for the read scopes happens here.</summary>
+    /// <summary>
+    /// Null when the optional <see cref="ClientIds.ActivationHistoryScope"/> was consented (or the client is
+    /// a custom one asking for <c>.default</c>); otherwise why it was not, for the skipped source.
+    /// </summary>
+    public string? ActivationHistoryDeclined { get; private set; }
+
+    /// <summary>
+    /// The interactive Graph sign-in that starts a scan; consent for the read scopes happens here. The
+    /// activation-history scope is optional, so a tenant that refuses consent for the set is offered the
+    /// required scopes alone rather than being left unable to scan at all.
+    /// </summary>
     public async Task<Identity> SignInAsync(CancellationToken ct)
     {
-        var result = await InteractiveAsync(Resource.Graph, ClientIds.ScopesFor(ClientIds.GraphReadScopes, _customGraph).Scopes, ct).ConfigureAwait(false);
+        AuthenticationResult result;
+        try
+        {
+            result = await InteractiveAsync(Resource.Graph, ClientIds.ScopesFor(_graphScopes, _customGraph, _graphScopes).Scopes, ct).ConfigureAwait(false);
+        }
+        catch (PimException e) when (!_customGraph && e.Kind is PimErrorKind.ConsentRequired or PimErrorKind.PolicyViolation)
+        {
+            ActivationHistoryDeclined = "Consent for AuditLog.Read.All was declined or is not permitted, so PIM activation history was not read.";
+            _graphScopes = ClientIds.GraphRequiredScopes;
+            _say("Consent for the optional AuditLog.Read.All scope was refused; retrying without it. The unused-eligibility rules will be skipped.");
+            result = await InteractiveAsync(Resource.Graph, ClientIds.ScopesFor(_graphScopes, _customGraph, _graphScopes).Scopes, ct).ConfigureAwait(false);
+        }
+
         _graphAccount = result.Account;
         return IdentityFrom(result);
     }
@@ -66,7 +89,7 @@ public sealed class AuditTokenProvider : ITokenProvider
 
     private async Task<string> AcquireAsync(IReadOnlyList<string> requested, CancellationToken ct)
     {
-        var (resource, scopes) = ClientIds.ScopesFor(requested, _customGraph);
+        var (resource, scopes) = ClientIds.ScopesFor(requested, _customGraph, _graphScopes);
         var app = resource == Resource.Arm ? _arm : _graph;
         var account = resource == Resource.Arm ? _armAccount : _graphAccount;
         if (account is not null)

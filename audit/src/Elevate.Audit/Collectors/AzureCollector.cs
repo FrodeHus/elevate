@@ -12,6 +12,8 @@ public sealed record AzureData(
     IReadOnlyList<AzureRoleDefinitionRecord> RoleDefinitions,
     IReadOnlyList<AzureAssignmentRecord> Assignments,
     IReadOnlyList<AzureAssignmentRecord> Eligibilities,
+    IReadOnlyList<ActivationRecord> Activations,
+    bool ActivationsReadable,
     IReadOnlyList<string> Notes);
 
 /// <summary>Azure RBAC through ARM: management groups (best effort), subscriptions, classic role assignments, PIM schedule instances, role definitions.</summary>
@@ -21,6 +23,8 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
     internal sealed record WireManagementGroup(string Id, string Name, Named? Properties);
     internal sealed record WireSubscription(string Id, string SubscriptionId, string? DisplayName);
     internal sealed record AssignmentProperties(string? Scope, string? RoleDefinitionId, string? PrincipalId, string? PrincipalType, string? AssignmentType, DateTimeOffset? StartDateTime, DateTimeOffset? EndDateTime);
+    internal sealed record RequestProperties(string? Scope, string? RoleDefinitionId, string? PrincipalId, string? RequestType, string? Status, DateTimeOffset? CreatedOn);
+    internal sealed record WireRequest(string Id, string Name, RequestProperties? Properties);
     internal sealed record WireAssignment(string Id, string Name, AssignmentProperties? Properties);
     internal sealed record Permission(IReadOnlyList<string>? Actions);
     internal sealed record DefinitionProperties(string? RoleName, string? Type, IReadOnlyList<Permission>? Permissions);
@@ -28,7 +32,7 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
 
     private readonly IReadOnlyList<string> _scopes = Scopes.ArmAll;
 
-    public async Task<AzureData> CollectAsync(CancellationToken ct)
+    public async Task<AzureData> CollectAsync(DateTimeOffset activationsSince, CancellationToken ct)
     {
         var notes = new List<string>();
         var scopes = new List<AzureScopeRecord>();
@@ -57,6 +61,8 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
         var assignments = new Dictionary<string, AzureAssignmentRecord>(StringComparer.OrdinalIgnoreCase);
         var eligibilities = new Dictionary<string, AzureAssignmentRecord>(StringComparer.OrdinalIgnoreCase);
         var definitions = new Dictionary<string, AzureRoleDefinitionRecord>(StringComparer.OrdinalIgnoreCase);
+        var activations = new List<ActivationRecord>();
+        var activationsReadable = true;
 
         foreach (var mg in managementGroups)
         {
@@ -83,6 +89,23 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
                 eligibilities.TryAdd(e.Id, Map(e, fromSchedule: true));
             }
 
+            // ARM keeps its own PIM request history, so Azure activations need no extra consent. A
+            // subscription that refuses the read only costs this subscription's history, not the scan.
+            try
+            {
+                foreach (var r in await ListAllAsync<WireRequest>(GraphUrls.SubscriptionAssignmentRequests(sub.SubscriptionId), ct).ConfigureAwait(false))
+                {
+                    if (Activation(r, activationsSince) is { } activation)
+                    {
+                        activations.Add(activation);
+                    }
+                }
+            }
+            catch (PimException)
+            {
+                activationsReadable = false;
+            }
+
             foreach (var d in await ListAllAsync<WireDefinition>(GraphUrls.SubscriptionRoleDefinitions(sub.SubscriptionId), ct).ConfigureAwait(false))
             {
                 definitions.TryAdd(d.Name, new AzureRoleDefinitionRecord(
@@ -94,7 +117,32 @@ public sealed class AzureCollector(GraphTransport arm, Identity identity, string
             }
         }
 
-        return new AzureData(scopes, definitions.Values.ToList(), assignments.Values.ToList(), eligibilities.Values.ToList(), notes);
+        return new AzureData(scopes, definitions.Values.ToList(), assignments.Values.ToList(), eligibilities.Values.ToList(), activations, activationsReadable, notes);
+    }
+
+    /// <summary>
+    /// An Azure PIM request that actually granted access from an eligibility: a self-activation, or an
+    /// extension or renewal of one. An assignment made by an administrator is not use of an eligibility.
+    /// </summary>
+    internal static ActivationRecord? Activation(WireRequest request, DateTimeOffset since)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var p = request.Properties;
+        var type = p?.RequestType ?? string.Empty;
+        var activated = type.Contains("Activate", StringComparison.OrdinalIgnoreCase)
+            || (type.StartsWith("Self", StringComparison.OrdinalIgnoreCase)
+                && (type.Contains("Extend", StringComparison.OrdinalIgnoreCase) || type.Contains("Renew", StringComparison.OrdinalIgnoreCase)));
+        if (!activated
+            || p?.CreatedOn is not { } at
+            || at < since
+            || string.IsNullOrEmpty(p.PrincipalId)
+            || string.IsNullOrEmpty(p.RoleDefinitionId)
+            || (p.Status is { } status && status.Equals("Revoked", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return new ActivationRecord(at, p.PrincipalId, RoleSystem.Azure, [ScopeDisplayName(p.RoleDefinitionId)], p.Scope);
     }
 
     public static AzureScopeKind ScopeKindOf(string scope)
