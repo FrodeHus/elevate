@@ -20,24 +20,26 @@ public static class ActivationCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
+        var under = CommonOptions.Under();
         var duration = new Option<string?>("--duration", "-d") { Description = "How long, e.g. 2h, 30m, 1h30m. Default: the last duration used, else the policy default." };
         var reason = new Option<string?>("--reason", "-r") { Description = "Justification. Default: the reason remembered for the role; prompted when required and missing." };
         var ticket = new Option<string?>("--ticket") { Description = "Ticket number, when the policy asks for one." };
         var ticketSystem = new Option<string?>("--ticket-system") { Description = "Ticket system name to go with --ticket." };
         var at = new Option<string?>("--at") { Description = "Start later: +2h, 14:30 or 2026-09-08T09:00." };
         var wait = new Option<bool>("--wait") { Description = "Wait until the role is usable, not just reported active: provisioning first, then a check that the access is really in effect." };
+        var all = new Option<bool>("--all") { Description = "Take every role the filters and names match, instead of insisting each name picks exactly one. With no name, every eligible role the filters leave." };
         var command = new Command("activate", "Activate one or more roles. Roles that are already active are left alone; use 'extend' for those.")
         {
-            roles, account, tenant, kind, scope, duration, reason, ticket, ticketSystem, at, wait,
+            roles, account, tenant, kind, scope, under, duration, reason, ticket, ticketSystem, at, wait, all,
         };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
-            var chosen = await ChooseAsync(context, parse.GetValue(roles) ?? [], filter, "activate").ConfigureAwait(false);
+            var chosen = await ChooseAsync(context, parse.GetValue(roles) ?? [], filter, "activate", parse.GetValue(all)).ConfigureAwait(false);
             var wanted = parse.GetValue(duration) is { } d ? DurationParser.Require(d) : (TimeSpan?)null;
             var start = parse.GetValue(at) is { } a ? StartTimeParser.Require(a) : (DateTimeOffset?)null;
             var ticketInfo = TicketFrom(parse.GetValue(ticket), parse.GetValue(ticketSystem));
@@ -91,19 +93,20 @@ public static class ActivationCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
+        var under = CommonOptions.Under();
         var duration = new Option<string?>("--duration", "-d") { Description = "How long from now, e.g. 2h. Default: the last duration used, else the policy default." };
         var reason = new Option<string?>("--reason", "-r") { Description = "Justification. Default: the remembered reason." };
         var wait = new Option<bool>("--wait") { Description = "Wait until the role is active again and the access is really in effect." };
         var command = new Command("extend", "Deactivate and re-activate an active role, so the clock starts over.")
         {
-            roles, account, tenant, kind, scope, duration, reason, wait,
+            roles, account, tenant, kind, scope, under, duration, reason, wait,
         };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);
             var wanted = parse.GetValue(duration) is { } d ? DurationParser.Require(d) : (TimeSpan?)null;
@@ -135,13 +138,14 @@ public static class ActivationCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
-        var command = new Command("deactivate", "Deactivate active roles.") { roles, account, tenant, kind, scope };
+        var under = CommonOptions.Under();
+        var command = new Command("deactivate", "Deactivate active roles.") { roles, account, tenant, kind, scope, under };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);
             var failures = 0;
@@ -188,13 +192,14 @@ public static class ActivationCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
-        var command = new Command("cancel", "Withdraw a request that is awaiting approval or scheduled for later.") { roles, account, tenant, kind, scope };
+        var under = CommonOptions.Under();
+        var command = new Command("cancel", "Withdraw a request that is awaiting approval or scheduled for later.") { roles, account, tenant, kind, scope, under };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var chosen = RoleSelector.Resolve(session, parse.GetValue(roles) ?? [], filter);
             var failures = 0;
@@ -224,9 +229,23 @@ public static class ActivationCommands
     }
 
     /// <summary>Resolves the typed roles, or offers a checklist when none were typed and a person is there to pick.</summary>
-    private static Task<IReadOnlyList<EligibleRole>> ChooseAsync(CommandContext context, string[] terms, RoleFilter filter, string verb)
+    private static Task<IReadOnlyList<EligibleRole>> ChooseAsync(
+        CommandContext context, string[] terms, RoleFilter filter, string verb, bool all = false)
     {
         var session = context.Session;
+        if (all)
+        {
+            // The scripted form of the panel's subtree checkbox: the filters say what to take, and
+            // a name that matches twelve subscriptions is the point rather than an error.
+            var matched = RoleSelector.ResolveAll(session, terms, filter);
+            if (matched.Count == 0)
+            {
+                throw new CliException("No eligible role matches those filters. Run 'elevate roles' to see what is available.", ExitCodes.NotFound);
+            }
+
+            return Task.FromResult(matched);
+        }
+
         if (terms.Length > 0)
         {
             return Task.FromResult(RoleSelector.Resolve(session, terms, filter));

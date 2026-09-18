@@ -85,6 +85,12 @@ public sealed partial class AppModel : ObservableObject, IDisposable
 
     public HashSet<string> CollapsedIdentities { get; } = [];
 
+    /// <summary>
+    /// Scope nodes of the Azure pivot the user has closed, keyed by <c>ScopeNodeKey</c>. Scopes
+    /// start open, like tenants do, so nothing an account is eligible for is hidden on first sight.
+    /// </summary>
+    public HashSet<string> CollapsedScopes { get; } = [];
+
     public HashSet<RoleKey> Selection { get; } = [];
 
     public string? StartupError
