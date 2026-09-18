@@ -10,31 +10,37 @@ struct ProfilesRow: View {
 
     var body: some View {
         if !model.profiles.isEmpty {
-            HStack(spacing: 6) {
-                let pinned = model.pinnedProfiles
-                if pinned.isEmpty {
-                    Text("Pin profiles to show them here").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                ForEach(pinned) { p in
-                    ProfileChip(profile: p)
-                }
-                Spacer(minLength: 0)
-                Button { showAll.toggle() } label: {
-                    HStack(spacing: 4) {
-                        Text("All \(model.profiles.count)").font(.caption.weight(.medium))
-                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+            let pinned = model.pinnedProfiles
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    if pinned.isEmpty {
+                        Text("Pin profiles to show them here").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .padding(.horizontal, 9).padding(.vertical, 4)
-                    .background(.quaternary.opacity(0.6), in: Capsule())
+                    ForEach(pinned) { p in
+                        ProfileChip(profile: p)
+                    }
+                    Spacer(minLength: 0)
+                    Button { showAll.toggle() } label: {
+                        HStack(spacing: 4) {
+                            Text("All \(model.profiles.count)").font(.caption.weight(.medium))
+                            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                        }
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .background(.quaternary.opacity(0.6), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("All profiles: search, run, pin and manage")
+                    .accessibilityLabel("All profiles, \(model.profiles.count)")
+                    .popover(isPresented: $showAll, arrowEdge: .bottom) {
+                        AllProfilesPopover(dismiss: { showAll = false })
+                    }
                 }
-                .buttonStyle(.plain)
-                .help("All profiles: search, run, pin and manage")
-                .accessibilityLabel("All profiles, \(model.profiles.count)")
-                .popover(isPresented: $showAll, arrowEdge: .bottom) {
-                    AllProfilesPopover(dismiss: { showAll = false })
-                }
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                // Deleting a pinned chip confirms here, spanning the row's full width, not the
+                // chip's own ~150 pt column: a card that narrow wrapped the message onto four lines
+                // and truncated both button titles to "Ca…"/"Del…" (found in the visual check).
+                .rowLevelProfileDeleteConfirmation(pinned: pinned)
             }
-            .padding(.horizontal, 12).padding(.vertical, 7)
             Divider()
         }
     }
@@ -61,7 +67,8 @@ struct ProfileChip: View {
         .frame(maxWidth: 150)
         .help("Run \(profile.name) (\(ProfileSummary.caption(entries: profile.entries))). Option-click to run with the last reason and durations")
         .contextMenu { ProfileMenuItems(profile: profile) }
-        .profileDeleteConfirmation(profile)
+        // No inline confirmation on the chip itself: see `rowLevelProfileDeleteConfirmation`, which
+        // renders it at the row's full width instead of this chip's ~150 pt column.
     }
 }
 
@@ -196,7 +203,7 @@ private struct ProfilePopoverRow: View {
         .onTapGesture { run(NSEvent.modifierFlags.contains(.option)) }
         .onHover { hovering = $0 }
         .contextMenu { ProfileMenuItems(profile: profile) }
-        .profileDeleteConfirmation(profile)
+        .inlineProfileDeleteConfirmation(profile)
     }
 }
 
@@ -254,8 +261,23 @@ enum ProfileActions {
 
 extension View {
     /// The "Delete profile?" dialog, attached to whatever view offers the menu that asks for it.
+    /// For `ManageProfilesView` only: it opens in a real window, where a `confirmationDialog` works.
     func profileDeleteConfirmation(_ profile: ActivationProfile) -> some View {
         modifier(ProfileDeleteConfirmation(profile: profile))
+    }
+
+    /// Same confirmation, inline: for the "All profiles" popover row, where a `confirmationDialog`
+    /// steals key focus from the MenuBarExtra window and dismisses the panel before its buttons can
+    /// be clicked. See InlineConfirm.swift. The pinned chip uses `rowLevelProfileDeleteConfirmation`
+    /// instead, since a chip's own column is too narrow for the card.
+    func inlineProfileDeleteConfirmation(_ profile: ActivationProfile) -> some View {
+        modifier(InlineProfileDeleteConfirmation(profile: profile))
+    }
+
+    /// Attached to the whole pinned-chips row instead of one chip: shows the delete confirmation
+    /// for whichever pinned profile `model.profileToDelete` names, at the row's full width.
+    func rowLevelProfileDeleteConfirmation(pinned: [ActivationProfile]) -> some View {
+        modifier(RowLevelProfileDeleteConfirmation(pinned: pinned))
     }
 }
 
@@ -272,6 +294,36 @@ private struct ProfileDeleteConfirmation: ViewModifier {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The profile and its \(ProfileSummary.caption(entries: profile.entries)) are removed. Active assignments are not changed.")
+        }
+    }
+}
+
+private struct RowLevelProfileDeleteConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let pinned: [ActivationProfile]
+
+    func body(content: Content) -> some View {
+        if let target = pinned.first(where: { $0.id == model.profileToDelete }) {
+            content.inlineProfileDeleteConfirmation(target)
+        } else {
+            content
+        }
+    }
+}
+
+private struct InlineProfileDeleteConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let profile: ActivationProfile
+
+    func body(content: Content) -> some View {
+        content.inlineConfirmation(
+            "Delete \"\(profile.name)\"?",
+            message: "The profile and its \(ProfileSummary.caption(entries: profile.entries)) are removed. Active assignments are not changed.",
+            confirmTitle: "Delete",
+            isPresented: Binding(get: { model.profileToDelete == profile.id },
+                                  set: { if !$0, model.profileToDelete == profile.id { model.profileToDelete = nil } })
+        ) {
+            model.deleteProfile(id: profile.id)
         }
     }
 }

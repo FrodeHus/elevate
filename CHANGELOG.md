@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one), so `winget install` and `winget upgrade` follow the GitHub releases after Microsoft's
   review.
 
+### Fixed
+
+- macOS: the panel's confirmations (Remove tenant, Sign out, Delete profile) did nothing and
+  dismissed the panel on click. A `confirmationDialog` opens its own window, which took key focus
+  from the menu bar panel and closed it before the click reached a button. They now confirm inline,
+  as a card in the panel itself.
+
 ## [1.7.0] - 2026-09-15
 
 ### Changed
