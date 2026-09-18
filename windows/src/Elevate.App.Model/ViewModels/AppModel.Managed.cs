@@ -18,6 +18,34 @@ public sealed partial class AppModel
     public ManagedConfiguration Managed => Settings.Managed;
 
     /// <summary>
+    /// The organization's co-branding, or null when nothing is pushed. Every branded view is bound
+    /// through this, so an unbranded install renders exactly as it did before the feature.
+    /// </summary>
+    /// Fully qualified: the property name shadows the type inside its own body.
+    public Branding? Branding => Core.Managed.Branding.Resolve(Managed);
+
+    /// <summary>The flyout header's second line, under "Elevate"; null when there is none.</summary>
+    public string? HeaderCaption => Branding?.HeaderCaption;
+
+    /// <summary>Whether the header caption row is shown at all.</summary>
+    public bool HasHeaderCaption => HeaderCaption is not null;
+
+    /// <summary>The first-run attribution line, or null when unbranded.</summary>
+    public string? FirstRunLine => Branding?.FirstRunLine;
+
+    public bool HasFirstRunLine => FirstRunLine is not null;
+
+    /// <summary>The "Get help from Contoso IT" label, or null when no help desk is configured.</summary>
+    public string? SupportLinkLabel => Branding is { HasSupport: true } branding
+        ? $"Get help from {branding.SupportLabel}"
+        : null;
+
+    /// <summary>Where that link goes: the help desk URL, or the address as a mailto:.</summary>
+    public Uri? SupportDestination => Branding?.SupportDestination;
+
+    public bool HasSupportLink => SupportDestination is not null;
+
+    /// <summary>
     /// The tenant ids the organization allows, or null when it restricts nothing — which is also
     /// the answer while any allowed entry is unresolved, since a half-applied list would lock the
     /// user out on a guess. Filled by <see cref="ResolveManagedTenantsAsync"/>.

@@ -251,4 +251,59 @@ public class ManagedSettingsTests
             .Contain(w => w.Contains("ManagedProfilesUrl: timed out after 5 s", StringComparison.Ordinal));
         test.Model.ManagedProfilesFetchedAt.Should().BeNull();
     }
+
+    // MARK: Organization co-branding (design 2026-09-18). Mirrors the macOS AppModelManagedTests.
+
+    [Fact]
+    public async Task BrandingIsExposedFromManagedConfiguration()
+    {
+        using var test = await TestModel.BootstrappedAsync(managed: Managed(
+            (ManagedKey.OrganizationName, "Contoso"),
+            (ManagedKey.OrganizationTitleStyle, "managedBy"),
+            (ManagedKey.OrganizationSupportUrl, "https://help.contoso.com")));
+
+        test.Model.HeaderCaption.Should().Be("Managed by Contoso");
+        test.Model.HasHeaderCaption.Should().BeTrue();
+        test.Model.FirstRunLine.Should().Be("Provided by Contoso.");
+        test.Model.SupportLinkLabel.Should().Be("Get help from Contoso IT");
+        test.Model.SupportDestination!.ToString().Should().Be("https://help.contoso.com/");
+    }
+
+    [Fact]
+    public async Task UnbrandedModelHasNoBranding()
+    {
+        using var test = await TestModel.BootstrappedAsync();
+
+        test.Model.Branding.Should().BeNull();
+        test.Model.HeaderCaption.Should().BeNull();
+        test.Model.HasHeaderCaption.Should().BeFalse();
+        test.Model.HasFirstRunLine.Should().BeFalse();
+        test.Model.HasSupportLink.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NoneStyleKeepsTheSupportLinkButDropsTheCaption()
+    {
+        using var test = await TestModel.BootstrappedAsync(managed: Managed(
+            (ManagedKey.OrganizationName, "Contoso"),
+            (ManagedKey.OrganizationTitleStyle, "none"),
+            (ManagedKey.OrganizationSupportEmail, "it@contoso.com")));
+
+        test.Model.HasHeaderCaption.Should().BeFalse();
+        test.Model.HasFirstRunLine.Should().BeTrue();
+        test.Model.SupportDestination!.ToString().Should().Be("mailto:it@contoso.com");
+    }
+
+    [Fact]
+    public async Task DiagnosticsNamesTheOrganization()
+    {
+        using var test = await TestModel.BootstrappedAsync(managed: Managed(
+            (ManagedKey.OrganizationName, "Contoso"),
+            (ManagedKey.OrganizationSupportUrl, "https://help.contoso.com")));
+
+        var text = test.Model.DiagnosticsText();
+
+        text.Should().Contain("Organization: Contoso");
+        text.Should().Contain("https://help.contoso.com/");
+    }
 }

@@ -218,7 +218,16 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Elevate" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <!-- "Elevate" stays the primary mark at full weight; an organization's name is added
+                 beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
+                 line rather than an inline suffix: the row leaves the title about 26 characters,
+                 which "Elevate - Managed by <name>" overruns for almost any real name. -->
+            <StackPanel Grid.Column="0" Spacing="0" VerticalAlignment="Center">
+                <TextBlock Text="Elevate" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock x:Name="OrganizationCaption" Visibility="Collapsed"
+                           FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextTrimming="CharacterEllipsis" MaxLines="1" />
+            </StackPanel>
             <Border Grid.Column="1" x:Name="OfflinePill" Visibility="Collapsed" VerticalAlignment="Center"
                     Background="{ThemeResource ControlFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="9" Padding="7,1"
@@ -298,6 +307,12 @@
             <StackPanel x:Name="SetupView" Visibility="Collapsed" Padding="22,18,22,24" Spacing="10" HorizontalAlignment="Stretch">
                 <views:ChevronGlyph Width="40" Height="40" HorizontalAlignment="Center" />
                 <TextBlock Text="Complete initial setup" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <!-- First run is where a user forms their idea of whose software this is, so the
+                     organization's attribution and help desk sit directly under the title. -->
+                <TextBlock x:Name="SetupOrganizationLine" Visibility="Collapsed" FontSize="13"
+                           TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <HyperlinkButton x:Name="SetupSupportLink" Visibility="Collapsed" HorizontalAlignment="Center" Padding="0" />
                 <TextBlock Text="Elevate can sign in with your own Entra app registration, which covers every role type and stays under your control. The Elevate project also offers a shared multi-tenant app for quick starts, with no SLA and an administrator consent step. Microsoft's Azure CLI app needs no registration but covers Azure resource roles only (no Entra roles or groups)."
                            FontSize="13" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <!-- Point first-time users at the guides on GitHub before they pick a route. -->
