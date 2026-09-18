@@ -42,7 +42,7 @@ public class ScanCommandTests
 
         code.Should().Be(2);
         using var doc = JsonDocument.Parse(stdout);
-        doc.RootElement.GetProperty("summary").GetProperty("high").GetInt32().Should().Be(13);
+        doc.RootElement.GetProperty("summary").GetProperty("high").GetInt32().Should().Be(14);
         doc.RootElement.GetProperty("tool").GetProperty("name").GetString().Should().Be("elevate-audit");
     }
 
@@ -66,13 +66,13 @@ public class ScanCommandTests
         code.Should().Be(0);
         using var doc = JsonDocument.Parse(stdout);
         var summary = doc.RootElement.GetProperty("summary");
-        summary.GetProperty("high").GetInt32().Should().Be(13);
-        summary.GetProperty("medium").GetInt32().Should().Be(5);
+        summary.GetProperty("high").GetInt32().Should().Be(14);
+        summary.GetProperty("medium").GetInt32().Should().Be(9);
         summary.GetProperty("low").GetInt32().Should().Be(5);
         summary.GetProperty("info").GetInt32().Should().Be(2);
         doc.RootElement.GetProperty("hidden").GetInt32().Should().Be(7, "the 5 low and 2 info findings are hidden by --min-severity medium");
         var findings = doc.RootElement.GetProperty("findings").EnumerateArray().ToList();
-        findings.Should().HaveCount(18);
+        findings.Should().HaveCount(23);
         findings.Select(f => f.GetProperty("severity").GetString()).Should().NotContain("low").And.NotContain("info");
     }
 
@@ -88,7 +88,7 @@ public class ScanCommandTests
         code.Should().Be(2);
         File.ReadAllText(html).Should().StartWith("<!doctype html>");
         File.ReadAllText(json).Should().Contain("\"findings\"");
-        stdout.Should().Contain("ENTRA-USER-PERMANENT").And.Contain("13 high");
+        stdout.Should().Contain("ENTRA-USER-PERMANENT").And.Contain("14 high");
     }
 
     [Fact]

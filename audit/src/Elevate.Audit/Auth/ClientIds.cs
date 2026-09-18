@@ -16,7 +16,18 @@ public static class ClientIds
     public const string GraphDefaultScope = "https://graph.microsoft.com/.default";
     public const string ArmDefaultScope = "https://management.azure.com/.default";
 
-    /// <summary>Read-only, in the order shown to the consenting administrator.</summary>
+    /// <summary>
+    /// Reads the PIM entries of the directory audit log, which is the only record of who has actually
+    /// activated an eligibility. Optional: a tenant that declines it still gets a scan, without the
+    /// unused-eligibility rules. See <see cref="GraphReadScopes"/>.
+    /// </summary>
+    public const string ActivationHistoryScope = "https://graph.microsoft.com/AuditLog.Read.All";
+
+    /// <summary>
+    /// Read-only, in the order shown to the consenting administrator. The last one,
+    /// <see cref="ActivationHistoryScope"/>, is optional: if consent for the set is refused the sign-in is
+    /// retried with <see cref="GraphRequiredScopes"/> and the activation history is reported as skipped.
+    /// </summary>
     public static IReadOnlyList<string> GraphReadScopes { get; } =
     [
         "https://graph.microsoft.com/User.Read",
@@ -25,7 +36,11 @@ public static class ClientIds
         "https://graph.microsoft.com/PrivilegedEligibilitySchedule.Read.AzureADGroup",
         "https://graph.microsoft.com/GroupMember.Read.All",
         "https://graph.microsoft.com/User.ReadBasic.All",
+        ActivationHistoryScope,
     ];
+
+    /// <summary>The scopes a scan cannot do without: everything except <see cref="ActivationHistoryScope"/>.</summary>
+    public static IReadOnlyList<string> GraphRequiredScopes { get; } = GraphReadScopes.Where(s => s != ActivationHistoryScope).ToList();
 
     /// <summary>The bare scope names, for docs and the report appendix.</summary>
     public static IReadOnlyList<string> GraphReadScopeNames { get; } = GraphReadScopes.Select(s => s["https://graph.microsoft.com/".Length..]).ToList();
@@ -35,7 +50,7 @@ public static class ClientIds
     /// the named read scopes every time so consent happens once, up front; a custom client and ARM ask for
     /// <c>.default</c>, since what they may do is whatever was consented to them.
     /// </summary>
-    public static (Resource Resource, IReadOnlyList<string> Scopes) ScopesFor(IReadOnlyList<string> requested, bool customGraphClient)
+    public static (Resource Resource, IReadOnlyList<string> Scopes) ScopesFor(IReadOnlyList<string> requested, bool customGraphClient, IReadOnlyList<string>? graphScopes = null)
     {
         ArgumentNullException.ThrowIfNull(requested);
         var isArm = requested.Any(s => s.StartsWith("https://management.azure.com/", StringComparison.OrdinalIgnoreCase));
@@ -44,7 +59,7 @@ public static class ClientIds
             return (Resource.Arm, [ArmDefaultScope]);
         }
 
-        return (Resource.Graph, customGraphClient ? [GraphDefaultScope] : GraphReadScopes);
+        return (Resource.Graph, customGraphClient ? [GraphDefaultScope] : graphScopes ?? GraphReadScopes);
     }
 
     public static bool IsValidClientId(string? value) => Guid.TryParse((value ?? string.Empty).Trim(), out var guid) && guid != Guid.Empty;

@@ -11,7 +11,14 @@ public sealed record ReportSummary(int High, int Medium, int Low, int Info)
     public int Total => High + Medium + Low + Info;
 }
 
-public sealed record ReportOptions(bool AllRoles, IReadOnlyList<string> Ignored, string MinSeverity, bool SkipAzure);
+public sealed record ReportOptions(bool AllRoles, IReadOnlyList<string> Ignored, string MinSeverity, bool SkipAzure, int DormantAfterDays = AuditDefaults.DormantAfterDays);
+
+/// <summary>
+/// The activation history the unused-eligibility rules actually saw. The report states this rather than
+/// the lookback that was asked for, because a tenant keeps directory audit logs for 30 days by default and
+/// a longer window would imply history that is not there.
+/// </summary>
+public sealed record ReportWindow(DateTimeOffset Since, DateTimeOffset Until, int Days, IReadOnlyList<string> Systems);
 
 /// <summary>Shared pluralisation for renderer text (the terminal and HTML hidden-count notes).</summary>
 internal static class RenderText
@@ -30,7 +37,8 @@ public sealed record AuditReport(
     IReadOnlyList<SkippedSource> Skipped,
     ReportSummary Summary,
     int Hidden,
-    IReadOnlyList<Finding> Findings)
+    IReadOnlyList<Finding> Findings,
+    ReportWindow? ActivationWindow = null)
 {
     /// <summary>Every finding, before <c>--min-severity</c>; the HTML summary reads this. Never serialised.</summary>
     [JsonIgnore]
@@ -50,7 +58,7 @@ public sealed record AuditReport(
             snapshot.Tenant,
             snapshot.Account,
             snapshot.ScannedAt,
-            new ReportOptions(options.AllRoles, options.IgnoredRules, options.MinSeverity.ToString().ToLowerInvariant(), options.SkipAzure),
+            new ReportOptions(options.AllRoles, options.IgnoredRules, options.MinSeverity.ToString().ToLowerInvariant(), options.SkipAzure, options.DormantAfterDays),
             scopesRequested,
             snapshot.Skipped,
             new ReportSummary(
@@ -59,7 +67,10 @@ public sealed record AuditReport(
                 findings.Count(f => f.Severity == Severity.Low),
                 findings.Count(f => f.Severity == Severity.Info)),
             findings.Count - visible.Count,
-            visible)
+            visible,
+            snapshot.Activations is { } history
+                ? new ReportWindow(history.Since, history.Until, history.Days, history.Systems.Select(s => s.ToString()).ToList())
+                : null)
         { AllFindings = findings };
     }
 }

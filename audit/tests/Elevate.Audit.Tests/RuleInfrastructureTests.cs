@@ -103,7 +103,7 @@ public class RuleInfrastructureTests
         findings.Select(f => f.Id).Should().Equal("Y-HIGH", "X-LOW");
         RuleRunner.HasHigh(findings).Should().BeTrue();
         RuleRunner.Visible(findings, new AuditOptions(MinSeverity: Severity.Medium)).Select(f => f.Id).Should().Equal("Y-HIGH");
-        RuleRunner.All.Select(r => r.Code).Should().HaveCount(10).And.OnlyHaveUniqueItems();
+        RuleRunner.All.Select(r => r.Code).Should().HaveCount(13).And.OnlyHaveUniqueItems();
     }
 
     private sealed class FakeRule(string code, Severity severity) : IRule

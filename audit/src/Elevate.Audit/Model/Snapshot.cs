@@ -85,6 +85,36 @@ public sealed record AzureAssignmentRecord(
 
 public sealed record SkippedSource(string Source, string Reason);
 
+/// <summary>
+/// One PIM activation seen in the lookback window. <see cref="RoleKeys"/> holds every identifier the
+/// source gave for the role (definition id, template id, display name) because the activation history
+/// and the eligibility rarely name a role the same way; a match on any one of them is a match.
+/// </summary>
+public sealed record ActivationRecord(
+    DateTimeOffset ActivatedAt,
+    string PrincipalId,
+    RoleSystem System,
+    IReadOnlyList<string> RoleKeys,
+    string? Scope);
+
+/// <summary>
+/// The activation history a scan could read. <see cref="Since"/>..<see cref="Until"/> is the window that
+/// was asked for; the tenant's own audit-log retention (30 days by default) may be shorter, which is why
+/// the rules only call an eligibility unused when it was granted before <see cref="Since"/>.
+/// <see cref="Systems"/> lists the role systems whose history was readable — a system missing from it has
+/// no history, and its eligibilities are skipped rather than reported as never used.
+/// </summary>
+public sealed record ActivationHistory(
+    DateTimeOffset Since,
+    DateTimeOffset Until,
+    IReadOnlyList<RoleSystem> Systems,
+    IReadOnlyList<ActivationRecord> Activations)
+{
+    public int Days => (int)Math.Round((Until - Since).TotalDays, MidpointRounding.AwayFromZero);
+
+    public bool Covers(RoleSystem system) => Systems.Contains(system);
+}
+
 /// <summary>Everything one scan read. Immutable; the rules see nothing else.</summary>
 public sealed record Snapshot(
     string Kind,
@@ -104,6 +134,12 @@ public sealed record Snapshot(
     IReadOnlyList<SkippedSource> Skipped)
 {
     public const string KindMarker = "elevate-audit-snapshot";
+
+    /// <summary>
+    /// What the activation lookback read, or null when no history was readable at all. An init-only
+    /// property rather than a constructor parameter so a snapshot saved by an older build still loads.
+    /// </summary>
+    public ActivationHistory? Activations { get; init; }
 
     public static Snapshot Empty(TenantInfo tenant, string account, DateTimeOffset scannedAt, string toolVersion = "0.0.0") =>
         new(KindMarker, toolVersion, tenant, account, scannedAt, [], [], [], [], [], [], [], [], [], []);

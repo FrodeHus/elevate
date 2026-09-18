@@ -128,10 +128,11 @@ public class AzureAndHygieneRulesTests
     }
 
     [Fact]
-    public void All_HasTenRulesInReportOrder()
+    public void All_HasEveryRuleInReportOrder()
     {
         RuleRunner.All.Select(r => r.Code).Should().Equal(
             "ENTRA-USER-PERMANENT", "ENTRA-GROUP-PERMANENT", "ENTRA-GROUP-NOT-PIM", "ENTRA-GROUP-NOT-ASSIGNABLE",
-            "GROUP-MEMBER-PERMANENT", "AZURE-PERMANENT", "SP-PERMANENT", "GUEST-PERMANENT", "ELIGIBLE-NO-END", "GA-COUNT");
+            "GROUP-MEMBER-PERMANENT", "AZURE-PERMANENT", "SP-PERMANENT", "GUEST-PERMANENT",
+            "ELIGIBLE-NEVER-ACTIVATED", "ELIGIBLE-DORMANT", "ELIGIBLE-ORPHANED", "ELIGIBLE-NO-END", "GA-COUNT");
     }
 }

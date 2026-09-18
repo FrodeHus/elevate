@@ -39,7 +39,7 @@ public class ReportAreasTests
     [Fact]
     public void Ordered_ListsFindingAreasInReportOrder_WithoutCoverage()
     {
-        ReportAreas.Ordered.Select(a => a.Id).Should().Equal("entra", "pim-groups", "azure", "guests", "workload", "hygiene", "other");
+        ReportAreas.Ordered.Select(a => a.Id).Should().Equal("entra", "pim-groups", "azure", "guests", "workload", "eligibility", "hygiene", "other");
     }
 
     [Fact]

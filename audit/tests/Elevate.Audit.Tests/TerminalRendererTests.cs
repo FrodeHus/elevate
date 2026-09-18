@@ -62,7 +62,7 @@ public class TerminalRendererTests
 
         TerminalRenderer.Render(Sample(), console, summaryOnly: true);
 
-        Plain(writer.ToString()).Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("13 high").And.Contain("5 medium");
+        Plain(writer.ToString()).Trim().Split('\n').Should().ContainSingle().Which.Should().Contain("14 high").And.Contain("9 medium");
     }
 
     [Fact]

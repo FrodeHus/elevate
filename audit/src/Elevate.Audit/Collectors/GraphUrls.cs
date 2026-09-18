@@ -42,6 +42,15 @@ public static class GraphUrls
 
     public static Uri GetByIds => Graph("/directoryObjects/getByIds");
 
+    /// <summary>
+    /// The PIM entries of the directory audit log from <paramref name="since"/> on: the only record of who
+    /// actually activated an eligibility. <c>loggedByService eq 'PIM'</c> covers both directory roles
+    /// (category <c>RoleManagement</c>) and PIM for Groups; Azure resource activations are not here, they
+    /// come from ARM's own request history. Bounded by the tenant's audit-log retention, 30 days by default.
+    /// </summary>
+    public static Uri DirectoryAudits(DateTimeOffset since) =>
+        Graph($"/auditLogs/directoryAudits?$filter=loggedByService eq 'PIM' and activityDateTime ge {since.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}&$top=999");
+
     public static Uri ManagementGroups => Arm("/providers/Microsoft.Management/managementGroups", "2021-04-01");
 
     public static Uri Subscriptions => Arm("/subscriptions", "2022-12-01");
@@ -54,6 +63,9 @@ public static class GraphUrls
     public static Uri SubscriptionAssignmentInstances(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleAssignmentScheduleInstances", "2020-10-01");
 
     public static Uri SubscriptionEligibilityInstances(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleEligibilityScheduleInstances", "2020-10-01");
+
+    /// <summary>Azure PIM request history: the activations of an Azure resource eligibility. Reader is enough; no new scope.</summary>
+    public static Uri SubscriptionAssignmentRequests(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests", "2020-10-01");
 
     public static Uri SubscriptionRoleDefinitions(string subscriptionId) => Arm($"/subscriptions/{Escape(subscriptionId)}/providers/Microsoft.Authorization/roleDefinitions", "2022-04-01");
 

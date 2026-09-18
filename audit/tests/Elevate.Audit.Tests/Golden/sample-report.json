@@ -13,7 +13,8 @@
     "allRoles": false,
     "ignored": [],
     "minSeverity": "info",
-    "skipAzure": false
+    "skipAzure": false,
+    "dormantAfterDays": 90
   },
   "scopesRequested": [
     "User.Read",
@@ -21,7 +22,8 @@
     "PrivilegedAssignmentSchedule.Read.AzureADGroup",
     "PrivilegedEligibilitySchedule.Read.AzureADGroup",
     "GroupMember.Read.All",
-    "User.ReadBasic.All"
+    "User.ReadBasic.All",
+    "AuditLog.Read.All"
   ],
   "skipped": [
     {
@@ -30,11 +32,11 @@
     }
   ],
   "summary": {
-    "high": 13,
-    "medium": 5,
+    "high": 14,
+    "medium": 9,
     "low": 5,
     "info": 2,
-    "total": 25
+    "total": 30
   },
   "hidden": 0,
   "findings": [
@@ -95,6 +97,40 @@
       "evidence": {
         "assignmentId": "ra-deploy-owner",
         "memberType": "Classic"
+      }
+    },
+    {
+      "id": "ELIGIBLE-ORPHANED",
+      "severity": "high",
+      "principal": {
+        "id": "u-taylor",
+        "displayName": "Taylor Kim",
+        "userPrincipalName": "taylor.kim@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": false
+      },
+      "role": {
+        "id": "rd-sec",
+        "displayName": "Security Administrator",
+        "templateId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Taylor Kim's account is disabled, and still holds this eligibility. Remove the eligibility, or move it behind an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-taylor-sec",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "endDateTime": "2027-01-01T00:00:00+00:00",
+        "memberType": "Direct",
+        "ageDays": 620
       }
     },
     {
@@ -545,6 +581,139 @@
       }
     },
     {
+      "id": "ELIGIBLE-DORMANT",
+      "severity": "medium",
+      "principal": {
+        "id": "u-morgan",
+        "displayName": "Morgan Diaz",
+        "userPrincipalName": "morgan.diaz@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Last activated 2026-03-20, 177 days ago; granted 620 days ago. Remove the eligibility, or move it behind an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-morgan-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Direct",
+        "lastActivatedAt": "2026-03-20T09:15:00+00:00",
+        "ageDays": 620
+      }
+    },
+    {
+      "id": "ELIGIBLE-NEVER-ACTIVATED",
+      "severity": "medium",
+      "principal": {
+        "id": "u-casey",
+        "displayName": "Casey Wong",
+        "userPrincipalName": "casey.wong@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Granted 2025-01-01 (620 days ago) and never activated in the 180 days examined (since 2026-03-17). Remove the eligibility, or move it behind an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-casey-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "endDateTime": "2027-03-01T00:00:00+00:00",
+        "memberType": "Direct",
+        "ageDays": 620
+      }
+    },
+    {
+      "id": "ELIGIBLE-NEVER-ACTIVATED",
+      "severity": "medium",
+      "principal": {
+        "id": "u-jordan",
+        "displayName": "Jordan Lee",
+        "userPrincipalName": "jordan.lee@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "displayName": "Owner",
+        "isPrivileged": true,
+        "system": "azure"
+      },
+      "scope": {
+        "id": "/subscriptions/sub1",
+        "displayName": "Production",
+        "kind": "subscription"
+      },
+      "via": [],
+      "remedy": "Granted 2025-01-01 (620 days ago) and never activated in the 180 days examined (since 2026-03-17). Remove the eligibility, or move it behind an access review.",
+      "portalUrl": "https://portal.azure.com/#@5d3a9c1e-4f7b-4a2d-9e8c-0b6f1a2d3c4e/resource/subscriptions/sub1/users",
+      "evidence": {
+        "assignmentId": "ae-jordan-owner",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Schedule",
+        "ageDays": 620
+      }
+    },
+    {
+      "id": "ELIGIBLE-NEVER-ACTIVATED",
+      "severity": "medium",
+      "principal": {
+        "id": "u-riley",
+        "displayName": "Riley Park",
+        "userPrincipalName": "riley.park@contoso.com",
+        "type": "user",
+        "isGuest": false,
+        "accountEnabled": true
+      },
+      "role": {
+        "id": "rd-ga",
+        "displayName": "Global Administrator",
+        "templateId": "62e90394-69f5-4237-9190-012177145e10",
+        "isPrivileged": true,
+        "system": "entra"
+      },
+      "scope": {
+        "id": "/",
+        "displayName": "Directory",
+        "kind": "directory"
+      },
+      "via": [],
+      "remedy": "Granted 2025-01-01 (620 days ago) and never activated in the 180 days examined (since 2026-03-17). Remove the eligibility, or move it behind an access review.",
+      "portalUrl": "https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ResourceMenuBlade/~/roleassignments/resourceId//resourceType/tenant/provider/aadroles",
+      "evidence": {
+        "assignmentId": "e-riley-ga",
+        "startDateTime": "2025-01-01T00:00:00+00:00",
+        "memberType": "Direct",
+        "ageDays": 620
+      }
+    },
+    {
       "id": "ENTRA-GROUP-NOT-ASSIGNABLE",
       "severity": "medium",
       "principal": {
@@ -852,5 +1021,15 @@
         "memberType": "Classic"
       }
     }
-  ]
+  ],
+  "activationWindow": {
+    "since": "2026-03-17T12:00:00+00:00",
+    "until": "2026-09-13T12:00:00+00:00",
+    "days": 180,
+    "systems": [
+      "Entra",
+      "Group",
+      "Azure"
+    ]
+  }
 }

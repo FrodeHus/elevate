@@ -28,11 +28,15 @@ public sealed class Scanner(
     string toolVersion,
     Action<string> note,
     TimeProvider? clock = null,
-    Action<string>? verbose = null)
+    Action<string>? verbose = null,
+    string? activationHistoryDeclined = null)
 {
     private sealed record WireOrganization(string Id, string? DisplayName);
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+
+    /// <summary>Written by <see cref="CollectActivationsAsync"/> only, and read after it has completed.</summary>
+    private string? _activationsUnavailable;
 
     public async Task<Snapshot> ScanAsync(CancellationToken ct)
     {
@@ -41,14 +45,19 @@ public sealed class Scanner(
         // azureTask` has completed, so there is never more than one writer at a time and no lock is needed.
         var skipped = new List<SkippedSource>();
 
+        var scannedAt = _clock.GetUtcNow();
+        var since = scannedAt.AddDays(-Math.Max(1, options.LookbackDays));
+
         note("Reading directory roles…");
         var directoryTask = new DirectoryRoleCollector(graph, identity, tenantId).CollectAsync(ct);
-        var azureTask = arm is not null && !options.SkipAzure ? CollectAzureAsync(arm, skipped, ct) : Task.FromResult<AzureData?>(null);
+        var azureTask = arm is not null && !options.SkipAzure ? CollectAzureAsync(arm, since, skipped, ct) : Task.FromResult<AzureData?>(null);
         var tenantTask = ReadTenantAsync(ct);
+        var activationTask = activationHistoryDeclined is null ? CollectActivationsAsync(since, ct) : Task.FromResult<IReadOnlyList<ActivationRecord>?>(null);
 
         var directory = await directoryTask.ConfigureAwait(false);
         var azure = await azureTask.ConfigureAwait(false);
         var tenant = await tenantTask.ConfigureAwait(false);
+        var directoryActivations = await activationTask.ConfigureAwait(false);
         if (azure is null && options.SkipAzure)
         {
             skipped.Add(new SkippedSource("azure", "skipped with --skip-azure"));
@@ -129,12 +138,14 @@ public sealed class Scanner(
 
         skipped.AddRange((azure?.Notes ?? []).Select(n => new SkippedSource("azure-management-groups", n)));
 
+        var history = BuildHistory(since, scannedAt, directoryActivations, azure, activationHistoryDeclined ?? _activationsUnavailable, skipped);
+
         return new Snapshot(
             Snapshot.KindMarker,
             toolVersion,
             tenant,
             identity.Upn,
-            _clock.GetUtcNow(),
+            scannedAt,
             directory.Definitions,
             directory.Assignments,
             directory.Eligibilities,
@@ -144,7 +155,63 @@ public sealed class Scanner(
             azure?.RoleDefinitions ?? [],
             azure?.Assignments ?? [],
             azure?.Eligibilities ?? [],
-            skipped);
+            skipped)
+        { Activations = history };
+    }
+
+    /// <summary>
+    /// What the lookback saw, per role system: Entra and PIM for Groups come from the directory audit log,
+    /// Azure from ARM's request history. A system whose history could not be read is left out of
+    /// <see cref="ActivationHistory.Systems"/>, so its eligibilities are skipped rather than reported as
+    /// never used; when no system is readable at all there is no history, and the rules do not run.
+    /// </summary>
+    private static ActivationHistory? BuildHistory(
+        DateTimeOffset since,
+        DateTimeOffset until,
+        IReadOnlyList<ActivationRecord>? directoryActivations,
+        AzureData? azure,
+        string? directoryUnavailable,
+        List<SkippedSource> skipped)
+    {
+        var systems = new List<RoleSystem>();
+        var activations = new List<ActivationRecord>();
+        if (directoryActivations is not null)
+        {
+            systems.Add(RoleSystem.Entra);
+            systems.Add(RoleSystem.Group);
+            activations.AddRange(directoryActivations);
+        }
+        else
+        {
+            skipped.Add(new SkippedSource("activation-history", directoryUnavailable ?? "PIM activation history could not be read, so unused Entra and group eligibilities are not reported."));
+        }
+
+        if (azure is { ActivationsReadable: true })
+        {
+            systems.Add(RoleSystem.Azure);
+            activations.AddRange(azure.Activations);
+        }
+        else if (azure is not null)
+        {
+            skipped.Add(new SkippedSource("activation-history", "Azure PIM request history could not be read, so unused Azure eligibilities are not reported."));
+        }
+
+        return systems.Count == 0 ? null : new ActivationHistory(since, until, systems, activations);
+    }
+
+    private async Task<IReadOnlyList<ActivationRecord>?> CollectActivationsAsync(DateTimeOffset since, CancellationToken ct)
+    {
+        try
+        {
+            return await new ActivationCollector(graph, identity, tenantId).CollectAsync(since, ct).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _activationsUnavailable = e is PimException pe
+                ? $"PIM activation history could not be read: {pe.UserMessage}"
+                : $"PIM activation history could not be read: {e.Message}";
+            return null;
+        }
     }
 
     private string FallbackTenantId() => Guid.TryParse(tenantId, out _) ? tenantId : identity.HomeTenantId;
@@ -164,12 +231,12 @@ public sealed class Scanner(
         }
     }
 
-    private async Task<AzureData?> CollectAzureAsync(GraphTransport transport, List<SkippedSource> skipped, CancellationToken ct)
+    private async Task<AzureData?> CollectAzureAsync(GraphTransport transport, DateTimeOffset since, List<SkippedSource> skipped, CancellationToken ct)
     {
         try
         {
             note("Reading Azure role assignments…");
-            return await new AzureCollector(transport, identity, tenantId).CollectAsync(ct).ConfigureAwait(false);
+            return await new AzureCollector(transport, identity, tenantId).CollectAsync(since, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

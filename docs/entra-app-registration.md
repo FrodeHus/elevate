@@ -206,7 +206,8 @@ permissions and grant admin consent; Elevate itself never asks for them:
 
 `User.Read` (already present), `RoleManagement.Read.Directory`,
 `PrivilegedAssignmentSchedule.Read.AzureADGroup`, `PrivilegedEligibilitySchedule.Read.AzureADGroup`,
-`GroupMember.Read.All`, `User.ReadBasic.All`.
+`GroupMember.Read.All`, `User.ReadBasic.All`, and optionally `AuditLog.Read.All` (for the
+unused-eligibility rules; without it those rules are skipped).
 
 With a custom client the auditor requests `https://graph.microsoft.com/.default`, so it can do
 only what was consented.

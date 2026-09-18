@@ -29,6 +29,8 @@ public class ScannerTests
             """);
         stub.On("GET", "roleAssignmentScheduleInstances?api-version", """{"value":[]}""");
         stub.On("GET", "roleEligibilityScheduleInstances?api-version", """{"value":[]}""");
+        stub.On("GET", "/auditLogs/directoryAudits", """{"value":[]}""");
+        stub.On("GET", "roleAssignmentScheduleRequests?api-version", """{"value":[]}""");
         stub.On("GET", "/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions?", """{"value":[{"id":"/subscriptions/sub1/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635","name":"8e3af657-a8ff-443c-a75c-2fe8c4bcb635","properties":{"roleName":"Owner","type":"BuiltInRole","permissions":[{"actions":["*"]}]}}]}""");
         return stub;
     }
@@ -180,5 +182,50 @@ public class ScannerTests
 
         snapshot.Skipped.Should().ContainSingle(s => s.Source == "groups")
             .Which.Reason.Should().Be("1 nested group(s) could not be read; their members are not included.");
+    }
+
+    [Fact]
+    public async Task Scan_RecordsTheActivationWindow_AndWhichSystemsItCovers()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/auditLogs/directoryAudits", """
+            {"value":[{"id":"x1","activityDateTime":"2026-08-01T08:00:00Z","activityDisplayName":"Add member to role completed (PIM activation)","result":"success","targetResources":[{"id":"u1","type":"User"},{"id":"rd-ga","type":"Role"}]}]}
+            """);
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        var history = snapshot.Activations.Should().NotBeNull().And.Subject.As<ActivationHistory>();
+        history.Since.Should().Be(DateTimeOffset.Parse("2026-03-17T12:00:00Z"), "the lookback is twice the 90-day dormancy threshold");
+        history.Until.Should().Be(DateTimeOffset.Parse("2026-09-13T12:00:00Z"));
+        history.Systems.Should().BeEquivalentTo([RoleSystem.Entra, RoleSystem.Group, RoleSystem.Azure]);
+        history.Activations.Should().ContainSingle().Which.PrincipalId.Should().Be("u1");
+        snapshot.Skipped.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Scan_WhenTheAuditLogIsRefused_SkipsTheHistoryButStillCoversAzure()
+    {
+        var stub = Tenant();
+        stub.On("GET", "/auditLogs/directoryAudits", """{"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}""", 403);
+
+        var snapshot = await Build(stub).ScanAsync(CancellationToken.None);
+
+        snapshot.Skipped.Should().ContainSingle(s => s.Source == "activation-history").Which.Reason.Should().StartWith("PIM activation history could not be read");
+        snapshot.Activations!.Systems.Should().Equal(RoleSystem.Azure);
+    }
+
+    [Fact]
+    public async Task Scan_WhenConsentForTheAuditLogScopeWasDeclined_SaysSoWithoutCallingTheEndpoint()
+    {
+        var stub = Tenant();
+
+        var snapshot = await new Scanner(
+            TestIdentity.Graph(stub), TestIdentity.Arm(stub), TestIdentity.Alex, TestIdentity.TenantId, new AuditOptions(), "1.2.3", _ => { },
+            new FakeTimeProvider(DateTimeOffset.Parse("2026-09-13T12:00:00Z")),
+            activationHistoryDeclined: "Consent for AuditLog.Read.All was declined or is not permitted, so PIM activation history was not read.")
+            .ScanAsync(CancellationToken.None);
+
+        snapshot.Skipped.Should().ContainSingle(s => s.Source == "activation-history").Which.Reason.Should().Contain("AuditLog.Read.All");
+        stub.RequestsMatching("/auditLogs/").Should().BeEmpty();
     }
 }

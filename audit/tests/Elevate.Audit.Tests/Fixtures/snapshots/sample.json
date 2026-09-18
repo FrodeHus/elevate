@@ -167,6 +167,16 @@
       "memberType": "Direct",
       "startDateTime": "2025-01-01T00:00:00+00:00",
       "isPermanent": false
+    },
+    {
+      "id": "e-taylor-sec",
+      "principalId": "u-taylor",
+      "roleDefinitionId": "rd-sec",
+      "directoryScopeId": "/",
+      "memberType": "Direct",
+      "startDateTime": "2025-01-01T00:00:00+00:00",
+      "endDateTime": "2027-01-01T00:00:00+00:00",
+      "isPermanent": false
     }
   ],
   "groups": [
@@ -356,6 +366,14 @@
       "accountEnabled": true
     },
     {
+      "id": "u-taylor",
+      "type": "user",
+      "displayName": "Taylor Kim",
+      "userPrincipalName": "taylor.kim@contoso.com",
+      "isGuest": false,
+      "accountEnabled": false
+    },
+    {
       "id": "sp-deploy",
       "type": "servicePrincipal",
       "displayName": "Deploy Bot",
@@ -474,5 +492,34 @@
       "source": "azure-management-groups",
       "reason": "Azure management groups are not readable by this account; scanned subscriptions only."
     }
-  ]
+  ],
+  "activations": {
+    "since": "2026-03-17T12:00:00+00:00",
+    "until": "2026-09-13T12:00:00+00:00",
+    "systems": [
+      "entra",
+      "group",
+      "azure"
+    ],
+    "activations": [
+      {
+        "activatedAt": "2026-09-01T08:30:00+00:00",
+        "principalId": "u-alex",
+        "system": "group",
+        "roleKeys": [
+          "g-tier0"
+        ],
+        "scope": "g-tier0"
+      },
+      {
+        "activatedAt": "2026-03-20T09:15:00+00:00",
+        "principalId": "u-morgan",
+        "system": "entra",
+        "roleKeys": [
+          "rd-ga"
+        ]
+      }
+    ],
+    "days": 180
+  }
 }

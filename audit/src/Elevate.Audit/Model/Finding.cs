@@ -39,7 +39,19 @@ public sealed record FindingScope(string Id, string DisplayName, ScopeKind Kind)
 
 public sealed record GroupRef(string Id, string DisplayName);
 
-public sealed record FindingEvidence(string AssignmentId, DateTimeOffset? StartDateTime, DateTimeOffset? EndDateTime, AssignmentType? AssignmentType, string? MemberType);
+/// <summary>
+/// <paramref name="LastActivatedAt"/> and <paramref name="AgeDays"/> are set only by the unused-eligibility
+/// rules: when the eligibility was last activated in the window examined (null for "never"), and how many
+/// days it has existed. Both are omitted from the JSON when null.
+/// </summary>
+public sealed record FindingEvidence(
+    string AssignmentId,
+    DateTimeOffset? StartDateTime,
+    DateTimeOffset? EndDateTime,
+    AssignmentType? AssignmentType,
+    string? MemberType,
+    DateTimeOffset? LastActivatedAt = null,
+    int? AgeDays = null);
 
 public sealed record Finding(
     string Id,
