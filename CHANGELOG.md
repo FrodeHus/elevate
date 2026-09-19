@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-19
+
 ### Added
 
 - macOS, Windows and CLI: **the Azure tab is a scope tree, and a subtree is one click.** Azure
@@ -768,7 +770,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/FrodeHus/elevate/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...v1.7.0
 [1.6.7]: https://github.com/FrodeHus/elevate/compare/v1.6.6...v1.6.7
 [1.6.6]: https://github.com/FrodeHus/elevate/compare/v1.6.5...v1.6.6
