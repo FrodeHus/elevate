@@ -34,6 +34,13 @@ public sealed class MsalCliProvider : ITokenProvider
     private readonly Action<string> _say;
     private readonly Lazy<Task> _registered;
 
+    /// <summary>
+    /// Tokens from a claims (step-up) acquisition. MSAL bypasses its own access-token cache when a
+    /// claims request is specified, so the silent call that follows the step-up can hand back the
+    /// token from before it; the retry would then be refused for the same missing claim.
+    /// </summary>
+    private readonly StepUpTokenCache _stepUp = new();
+
     public MsalCliProvider(SignInMethod method, string clientId, TokenCacheStore cache, InteractiveGate gate, InteractiveFlow flow, Action<string> say)
     {
         ArgumentNullException.ThrowIfNull(cache);
@@ -77,6 +84,7 @@ public sealed class MsalCliProvider : ITokenProvider
     public async Task SignOutAsync(Identity identity, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(identity);
+        _stepUp.Forget(identity.Id);
         await _registered.Value.ConfigureAwait(false);
         if (await FindAccountAsync(identity).ConfigureAwait(false) is { } account)
         {
@@ -114,6 +122,13 @@ public sealed class MsalCliProvider : ITokenProvider
     private async Task<string> SilentAsync(Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
+
+        // A forced refresh wants a token minted now, so it skips the step-up token as it skips MSAL's cache.
+        if (!forceRefresh && _stepUp.Token(identity.Id, tenantId, Requested(scopes)) is { } stepped)
+        {
+            return stepped;
+        }
+
         await _registered.Value.ConfigureAwait(false);
         var account = await FindAccountAsync(identity).ConfigureAwait(false)
             ?? throw new PimException(PimErrorKind.InteractionRequired);
@@ -131,6 +146,13 @@ public sealed class MsalCliProvider : ITokenProvider
         var account = await FindAccountAsync(identity).ConfigureAwait(false);
         var result = await _gate.RunAsync(
             () => InteractiveAsync(Requested(scopes), account, tenantId, claims, ct), ct).ConfigureAwait(false);
+
+        // Only a claims acquisition is worth holding: a plain one has nothing MSAL's cache lacks.
+        if (!string.IsNullOrEmpty(claims))
+        {
+            _stepUp.Store(result.AccessToken, identity.Id, tenantId, Requested(scopes));
+        }
+
         return result.AccessToken;
     }
 
@@ -227,6 +249,12 @@ public sealed class MsalCliProvider : ITokenProvider
             return PublicClientApplicationBuilder.Create(clientId)
                 .WithAuthority(AzureCloudInstance.AzurePublic, "organizations")
                 .WithRedirectUri("http://localhost")
+                // "cp1" tells Entra, and the resource, that this client understands a claims
+                // challenge and will re-acquire against it. PIM refuses to honour an authentication
+                // context (`acrs`) from a client that has not said so: it answers the activation
+                // with RoleAssignmentRequestAcrsValidationFailed and re-issues the same challenge,
+                // however many times the token is re-minted. MSAL turns this into `xms_cc`.
+                .WithClientCapabilities(["cp1"])
                 .Build();
         }
         catch (MsalException e)

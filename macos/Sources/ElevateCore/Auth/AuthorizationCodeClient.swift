@@ -108,6 +108,11 @@ public struct AuthorizationCodeClient: Sendable {
 
     private func post(tenant: String, form: [String: String]) async throws -> HTTPResponse {
         let url = URL(string: "https://login.microsoftonline.com/\(tenant)/oauth2/v2.0/token")!
+        // Every token this client mints declares the client capability, the way MSAL declares it
+        // from its configuration: a token without `xms_cc` is one PIM will not accept an
+        // authentication context from, and a refreshed token would otherwise quietly lose it.
+        var form = form
+        form["claims"] = ClaimsChallenge.clientCapabilities
         let body = form.sorted { $0.key < $1.key }.map { "\($0.key)=\(Self.formEncode($0.value))" }.joined(separator: "&")
         return try await http.send(HTTPRequest(method: "POST", url: url, headers: ["Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"], body: Data(body.utf8)))
     }

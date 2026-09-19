@@ -83,4 +83,15 @@ import Foundation
         #expect(AuthorizationCodeClient.resourceScope(for: ["https://graph.microsoft.com/User.Read", "https://graph.microsoft.com/RoleEligibilitySchedule.Read.Directory"]) == "https://graph.microsoft.com/.default")
         #expect(AuthorizationCodeClient.resourceScope(for: ["https://management.azure.com/user_impersonation"]) == "https://management.azure.com/.default")
     }
+
+    @Test func everyTokenRequestDeclaresTheClientCapability() async throws {
+        // Without `xms_cc` in the token, PIM refuses to honour an authentication context, so the
+        // capability has to ride on the refresh too, not only on the sign-in.
+        let http = StubHTTPClient()
+        await http.on("POST", "/tenant-2/oauth2/v2.0/token", body: Data(#"{"token_type":"Bearer","expires_in":100,"access_token":"AT2"}"#.utf8))
+        _ = try await AuthorizationCodeClient(http: http).refresh(refreshToken: "RT", clientId: clientId, tenant: "tenant-2", scopes: ["https://management.azure.com/user_impersonation"])
+        let form = String(decoding: (await http.requests.first!).body!, as: UTF8.self)
+        #expect(form.contains("claims=\(AuthorizationCodeClient.formEncode(ClaimsChallenge.clientCapabilities))"))
+        #expect(ClaimsChallenge.clientCapabilities.contains(#""xms_cc""#) && ClaimsChallenge.clientCapabilities.contains("cp1"))
+    }
 }

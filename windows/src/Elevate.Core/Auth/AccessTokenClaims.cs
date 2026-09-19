@@ -26,6 +26,18 @@ public static class AccessTokenClaims
         return new HashSet<string>(scp.Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     }
 
+    /// <summary>When the token expires (<c>exp</c>), or null when the token is opaque or carries no expiry.</summary>
+    public static DateTimeOffset? Expiry(string accessToken)
+    {
+        using var payload = Payload(accessToken);
+        return payload is not null
+            && payload.RootElement.TryGetProperty("exp", out var value)
+            && value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt64(out var seconds)
+                ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+                : null;
+    }
+
     /// <summary>The caller's object id in the token's tenant (<c>oid</c>), or null when the token is opaque.</summary>
     public static string? ObjectId(string accessToken) => Claim(accessToken, "oid");
 

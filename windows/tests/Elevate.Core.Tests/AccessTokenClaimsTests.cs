@@ -67,4 +67,16 @@ public class AccessTokenClaimsTests
         Scopes.EntitlementAll.Should().Equal("https://graph.microsoft.com/EntitlementMgmt-SubjectAccess.ReadWrite");
         Scopes.EntitlementClaim.Should().Be("EntitlementMgmt-SubjectAccess.ReadWrite");
     }
+
+    [Fact]
+    public void ReadsExpiryFromExpClaim()
+    {
+        var body = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, long> { ["exp"] = 1_700_000_000 });
+        var b64 = Convert.ToBase64String(body).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        AccessTokenClaims.Expiry($"eyJhbGciOiJub25lIn0.{b64}.sig")
+            .Should().Be(DateTimeOffset.FromUnixTimeSeconds(1_700_000_000));
+        AccessTokenClaims.Expiry("not-a-jwt").Should().BeNull();
+        AccessTokenClaims.Expiry(Token(null)).Should().BeNull();
+    }
 }

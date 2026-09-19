@@ -49,6 +49,7 @@ public sealed class MsalTokenProvider : MsalProviderBase, IOwnAppTokenProvider
         await EnsureCacheAsync().ConfigureAwait(false);
         foreach (var identity in identities)
         {
+            ForgetStepUpToken(identity);
             if (await FindAccountAsync(identity).ConfigureAwait(false) is { } account)
             {
                 await Run(() => App.RemoveAsync(account)).ConfigureAwait(false);
@@ -71,6 +72,13 @@ public sealed class MsalTokenProvider : MsalProviderBase, IOwnAppTokenProvider
                 // The broker uses ms-appx-web://microsoft.aad.brokerplugin/{clientId}; localhost is the browser fallback.
                 .WithRedirectUri(AppSettings.LoopbackRedirectUri)
                 .WithBroker(new BrokerOptions(BrokerOptions.OperatingSystems.Windows) { Title = "Elevate" })
+                // "cp1" tells Entra, and the resource, that this client understands a claims
+                // challenge and will re-acquire against it. PIM refuses to honour an authentication
+                // context (`acrs`) from a client that has not said so: it answers the activation
+                // with RoleAssignmentRequestAcrsValidationFailed and re-issues the same challenge,
+                // however many times the token is re-minted. MSAL turns this into the token's
+                // `xms_cc` claim.
+                .WithClientCapabilities(["cp1"])
                 .WithParentActivityOrWindow(parentWindow)
                 .Build();
         }
