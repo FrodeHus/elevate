@@ -132,14 +132,6 @@ jobs:
     if: github.event_name == 'push'
     needs: check
     runs-on: ${{ matrix.os }}
-    # One Certum SimplySign account serves every signing job, and a TOTP code is single-use, so
-    # two logins that overlap make the loser read "invalid user name or token" — which the script
-    # can only see as a rejected credential. This group holds every signing job in the repository,
-    # across workflows, to one login at a time. Not `matrix`-scoped: job-level concurrency may use
-    # only the github, inputs and vars contexts, so the CLI's other legs queue here too.
-    concurrency:
-      group: certum-simplysign
-      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:

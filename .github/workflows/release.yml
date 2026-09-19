@@ -527,17 +527,14 @@ jobs:
   # archive holds just the executable; the .sha256 next to it feeds the formula and the manifest.
   cli:
     name: CLI (${{ matrix.name }})
-    if: github.event_name == 'push'
-    needs: check
+    if: always() && github.event_name == 'push' && needs.check.result == 'success'
+    # Ordered after the Windows app, not dependent on it: its windows leg signs with the same
+    # single-use TOTP as that job, and two overlapping logins make the loser read "invalid user
+    # name or token". A concurrency group cannot serialise them — job-level concurrency cannot
+    # read `matrix`, and one group for the whole matrix cancels queued legs, since only one job
+    # per group may be pending.
+    needs: [check, windows]
     runs-on: ${{ matrix.os }}
-    # One Certum SimplySign account serves every signing job, and a TOTP code is single-use, so
-    # two logins that overlap make the loser read "invalid user name or token" — which the script
-    # can only see as a rejected credential. This group holds every signing job in the repository,
-    # across workflows, to one login at a time. Not `matrix`-scoped: job-level concurrency may use
-    # only the github, inputs and vars contexts, so the CLI's other legs queue here too.
-    concurrency:
-      group: certum-simplysign
-      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
