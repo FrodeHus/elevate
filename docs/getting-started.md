@@ -22,10 +22,10 @@ Pick your platform:
   which also puts the `elevate` command on your PATH on Apple Silicon. Releases are signed and
   notarized, so the app opens without Gatekeeper prompts. After the first launch, its icon (a
   double chevron) sits in the menu bar. Click it to open the panel.
-- **Windows 11.** Download the per-user MSI from the
+- **Windows 11.** `winget install Reothor.Elevate`, or download the per-user MSI from the
   [latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it; the steps,
   including the .NET runtime it needs, are in [windows/README.md](../windows/README.md#install).
-  The MSI installs the app and the `elevate` command for the current user, no admin rights needed.
+  Either installs the app and the `elevate` command for the current user, no admin rights needed.
   The MSI is code-signed (publisher "Open Source Developer Frode Hus"). SmartScreen may still
   ask once while a new release builds reputation: check that the publisher name is shown, then
   choose **More info** and **Run anyway**. Elevate then lives in the notification area:

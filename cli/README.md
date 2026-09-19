@@ -42,9 +42,10 @@ brew install frodehus/elevate/elevate-cli
 
 Shell completions are installed with it. Upgrade with `brew upgrade frodehus/elevate/elevate-cli`.
 
-**Windows, standalone.** `winget install Reothor.Elevate.CLI` (winget
-moderation requires signed binaries, so the manifest is a release artifact until Azure Artifact
-Signing is set up, like the app's). Until then, download `elevate-cli-<version>-win-x64.zip` (or
+**Windows, standalone.** `winget install Reothor.Elevate.CLI`, and
+`winget upgrade Reothor.Elevate.CLI` later. Each release opens its own pull request against
+`microsoft/winget-pkgs`, so the published version can lag the GitHub release by a day or two;
+to take a release the moment it lands, download `elevate-cli-<version>-win-x64.zip` (or
 `-win-arm64.zip`) from the [latest release](https://github.com/FrodeHus/elevate/releases/latest)
 and put `elevate.exe` on your PATH. Do not combine this with the MSI's copy: two `elevate` entries
 on the PATH means whichever comes first wins.
