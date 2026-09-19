@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Windows and CLI: **the Azure tab is a scope tree, and a subtree is one click.** Azure resource
+  eligibility does not scale in a flat list — a platform engineer eligible for Contributor on sixty
+  subscriptions had sixty sibling rows to read and sixty clicks before the single activation Elevate
+  promised. The Windows **Azure** pivot now groups its rows by the hierarchy the ARM scope string
+  already describes: management group, subscription, resource group, resource, each header opening
+  and closing and saying how many roles sit under it. A scope that only passes through — no
+  eligibility of its own, one way down — is folded into the node below and named there
+  ("Alpha / prod"), so a narrow panel spends no row or indent on nothing. In select mode a scope
+  header carries its own checkbox that takes every eligibility under it at once. The search box
+  narrows the tree rather than sitting beside it, now reaches the whole ARM path, and keeps matches
+  in their place in the tree even under a header you had closed. For scripts, `elevate` gains
+  `--under <scope>` (everything at or below a resource group or subscription name, a subscription
+  id, or a whole path, compared step by step so `/subscriptions/abc` never swallows
+  `/subscriptions/abcdef`) and a glob form of `--scope` where a `*` crosses slashes
+  (`--scope "/subscriptions/*"`); `--scope` without a `*` is the substring search it always was.
+  `elevate activate --all` then takes every role the filters and names match instead of insisting
+  each name picks exactly one, which is the scripted form of the subtree checkbox. Management
+  groups sit beside the subscriptions rather than above them, in the panel and for `--under`: ARM
+  writes a management group scope as its own flat path and never repeats it in a subscription's, so
+  the eligibilities alone cannot say which subscriptions belong to which management group. The
+  macOS Azure tab still lists flat; its tree follows.
+  ([#186](https://github.com/FrodeHus/elevate/issues/186))
 - macOS and Windows: the activation sheet no longer signs off with "Active", the word that means
   only that PIM wrote the assignment down. It holds for the first effective-access check and closes
   on **Ready** when the access is already there, on **Activated** when the check has not answered in

@@ -32,7 +32,10 @@ public static class PanelFilter
             return true;
         }
 
-        string?[] fields = [role.DisplayName, role.Detail, role.ViaGroup, tenantName, upn];
+        // The whole ARM path too: a role row only shows the scope's caption, but "prod" should
+        // find an eligibility whose subscription is named only in the path.
+        var path = role.Key.Scope is AzureResourceScope azure ? azure.Scope : null;
+        string?[] fields = [role.DisplayName, role.Detail, role.ViaGroup, tenantName, upn, path];
         return fields.Any(f => Matches(query, f ?? string.Empty));
     }
 }

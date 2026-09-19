@@ -75,6 +75,19 @@ one profile the same way. Requests waiting for *your* approval appear in a pinne
 group above *Active now* with Approve and Deny; a toast announces each new request once, and the
 tray icon carries an orange dot while any are pending.
 
+The **Azure** pivot groups its eligibilities by scope instead of listing them flat: management
+groups, subscriptions, resource groups and resources, each header opening and closing with its
+chevron and saying how many roles sit under it. A scope that only passes through — no eligibility
+of its own and one way down — is folded into the node below it and named there ("Alpha / prod"),
+so the panel does not spend a row and a level of indent on nothing. In select mode a scope header
+carries its own checkbox: one press takes every eligibility under it, which is what
+"Contributor across these twelve subscriptions" costs now. The search box narrows the tree and
+reaches the whole ARM path, and matches stay in place even under a header you had closed.
+
+Management groups sit beside the subscriptions rather than above them: ARM writes a management
+group scope as its own flat path and never repeats it in a subscription's, so the eligibilities
+alone cannot say which subscriptions belong to which management group.
+
 Settings also holds *Start Elevate when I sign in* (a per-user Run entry), *Check for updates*
 (the flyout offers a newer release with a Windows installer once a day, with Open and Dismiss) and *Copy
 diagnostics* (a plain-text report of accounts, tenants, profiles, the shortcut and recent errors,

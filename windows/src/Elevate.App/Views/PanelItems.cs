@@ -179,6 +179,23 @@ public sealed class RoleRow : PanelItem
     /// <summary>Added since the last discovery: a "new" badge and a faint accent tint until the second panel open.</summary>
     public bool IsNew { get => _isNew; set => SetProperty(ref _isNew, value); }
 
+    private int _depth;
+
+    /// <summary>How deep under the Azure pivot's scope tree this row sits; 0 everywhere else.</summary>
+    public int Depth
+    {
+        get => _depth;
+        set
+        {
+            if (SetProperty(ref _depth, value))
+            {
+                OnPropertyChanged(nameof(Indent));
+            }
+        }
+    }
+
+    public Thickness Indent => PanelIndent.For(Depth);
+
     // Derived, for x:Bind (recomputed through the notifications of the properties above).
     public Visibility DetailVisibility => string.IsNullOrEmpty(Detail) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -279,11 +296,125 @@ public sealed class RoleRow : PanelItem
         PolicyTooltip = other.PolicyTooltip;
         RequiresApproval = other.RequiresApproval;
         IsNew = other.IsNew;
+        Depth = other.Depth;
         OnPropertyChanged(string.Empty);
     }
 
     /// <summary>Re-raises every derived property after a change, so x:Bind picks the new value up.</summary>
     public void RaiseAll() => OnPropertyChanged(string.Empty);
+}
+
+/// <summary>
+/// How far a row of the Azure pivot's scope tree is pushed in. The panel is narrow and a
+/// management group path is long, so a step is small and the tree stops indenting after a few
+/// levels rather than squeezing the text off the row — the path on the header says where you are.
+/// </summary>
+public static class PanelIndent
+{
+    private const double Step = 12;
+    private const int MaxSteps = 3;
+
+    public static Thickness For(int depth) => new(Math.Min(Math.Max(depth, 0), MaxSteps) * Step, 0, 0, 0);
+}
+
+/// <summary>
+/// One scope in the Azure pivot's tree: a management group, subscription, resource group or
+/// resource that has roles beneath it. The chevron opens it and the checkbox, in select mode,
+/// takes everything under it in one press.
+/// </summary>
+public sealed class ScopeRow : PanelItem
+{
+    public ScopeRow(TenantKey tenantKey, string scope)
+    {
+        TenantKey = tenantKey;
+        Scope = scope;
+        Key = "scope:" + tenantKey.IdentityId + ":" + tenantKey.TenantId + ":" + scope;
+    }
+
+    public override string Key { get; }
+
+    public TenantKey TenantKey { get; }
+
+    /// <summary>The ARM path this node stands for; the tooltip shows it in full.</summary>
+    public string Scope { get; }
+
+    private string _title = string.Empty;
+    private string? _ancestors;
+    private string _kindLabel = string.Empty;
+    private int _roleCount;
+    private bool _expanded = true;
+    private bool _selectMode;
+    private bool _selectEnabled;
+    private bool? _selected;
+    private int _depth;
+
+    public string Title { get => _title; set => SetProperty(ref _title, value); }
+
+    /// <summary>"Alpha /" — scopes folded into this one because they only passed through.</summary>
+    public string? Ancestors { get => _ancestors; set => SetProperty(ref _ancestors, value); }
+
+    /// <summary>"subscription", "resource group": what kind of scope this is.</summary>
+    public string KindLabel { get => _kindLabel; set => SetProperty(ref _kindLabel, value); }
+
+    /// <summary>Every eligibility at or below this node, so the count says what the checkbox would take.</summary>
+    public int RoleCount { get => _roleCount; set => SetProperty(ref _roleCount, value); }
+
+    public bool Expanded { get => _expanded; set => SetProperty(ref _expanded, value); }
+
+    public bool SelectMode { get => _selectMode; set => SetProperty(ref _selectMode, value); }
+
+    /// <summary>False when nothing under the node can be activated — all active already, or view-only.</summary>
+    public bool SelectEnabled { get => _selectEnabled; set => SetProperty(ref _selectEnabled, value); }
+
+    /// <summary>Three-state: null when only part of the subtree is chosen.</summary>
+    public bool? Selected { get => _selected; set => SetProperty(ref _selected, value); }
+
+    public int Depth
+    {
+        get => _depth;
+        set
+        {
+            if (SetProperty(ref _depth, value))
+            {
+                OnPropertyChanged(nameof(Indent));
+            }
+        }
+    }
+
+    // Derived, for x:Bind.
+    public Thickness Indent => PanelIndent.For(Depth);
+
+    public string ChevronGlyph => Expanded ? "" : "";
+
+    public string ChevronLabel => Expanded ? $"Collapse {Title}" : $"Expand {Title}";
+
+    public Visibility AncestorsVisibility => string.IsNullOrEmpty(Ancestors) ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility SelectVisibility => SelectMode ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>"12 roles" beside the name: what a press of the checkbox would select.</summary>
+    public string CountText => RoleCount == 1 ? "1 role" : string.Create(CultureInfo.InvariantCulture, $"{RoleCount} roles");
+
+    public string SelectLabel => RoleCount == 1
+        ? $"Select the role under {Title}"
+        : string.Create(CultureInfo.InvariantCulture, $"Select all {RoleCount} roles under {Title}");
+
+    public string Tooltip => string.IsNullOrEmpty(Ancestors) ? Scope : Ancestors + " " + Title + "\n" + Scope;
+
+    public void CopyFrom(ScopeRow other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        Title = other.Title;
+        Ancestors = other.Ancestors;
+        KindLabel = other.KindLabel;
+        RoleCount = other.RoleCount;
+        Expanded = other.Expanded;
+        SelectMode = other.SelectMode;
+        SelectEnabled = other.SelectEnabled;
+        Selected = other.Selected;
+        Depth = other.Depth;
+        OnPropertyChanged(string.Empty);
+    }
 }
 
 /// <summary>One request awaiting this user's decision, in the pinned "Approvals" group.</summary>
@@ -538,10 +669,13 @@ public sealed partial class PanelItemTemplateSelector : DataTemplateSelector
 
     public DataTemplate? Approval { get; set; }
 
+    public DataTemplate? Scope { get; set; }
+
     protected override DataTemplate? SelectTemplateCore(object item) => item switch
     {
         RoleRow => Role,
         ApprovalRow => Approval,
+        ScopeRow => Scope,
         _ => Note,
     };
 
@@ -798,10 +932,58 @@ public static class PanelListBuilder
             group.Add(new NoteRow(prefix + "note", EmptyText(model, tenant)) { ConfigureTenant = manual ? tenant.Key : null });
         }
 
+        if (model.PanelTab == PanelTab.Azure)
+        {
+            // The Azure pivot reads its scope strings as the hierarchy they are; the tree is
+            // flattened back into rows so it still lives in the panel's one list.
+            AddScopeTreeRows(model, group, tenant, now);
+            return;
+        }
+
         foreach (var role in roles)
         {
             group.Add(RoleRowFor(model, role, now));
         }
+    }
+
+    /// <summary>The Azure pivot's rows: a header for each scope that branches, its roles beneath it.</summary>
+    private static void AddScopeTreeRows(AppModel model, PanelGroup group, TenantContext tenant, DateTimeOffset now)
+    {
+        var tree = model.AzureTree(tenant.Key);
+        foreach (var entry in ScopeTree.Flatten(tree, n => model.IsScopeCollapsed(tenant.Key, n)))
+        {
+            if (entry.Role is { } role)
+            {
+                var row = RoleRowFor(model, role, now);
+                row.Depth = entry.Depth;
+                group.Add(row);
+                continue;
+            }
+
+            group.Add(ScopeRowFor(model, tenant, entry.Node!, entry.Depth));
+        }
+    }
+
+    private static ScopeRow ScopeRowFor(AppModel model, TenantContext tenant, ScopeNode node, int depth)
+    {
+        var selectable = model.SubtreeKeys(node);
+        return new ScopeRow(tenant.Key, node.Scope)
+        {
+            Title = node.Title,
+            Ancestors = node.Ancestors.Count == 0 ? null : string.Join(" / ", node.Ancestors) + " /",
+            KindLabel = ArmScope.Label(node.Kind),
+            RoleCount = node.RoleCount,
+            Depth = depth,
+            Expanded = !model.IsScopeCollapsed(tenant.Key, node),
+            SelectMode = model.SelectMode,
+            SelectEnabled = selectable.Count > 0,
+            Selected = model.SubtreeState(node) switch
+            {
+                AppModel.SubtreeSelection.All => true,
+                AppModel.SubtreeSelection.Some => null,
+                _ => false,
+            },
+        };
     }
 
     private static string EmptyText(AppModel model, TenantContext tenant) => (model.PanelTab, tenant.DiscoveryMode) switch
@@ -1016,6 +1198,9 @@ public static class PanelListBuilder
                         break;
                     case ApprovalRow approval when f is ApprovalRow freshApproval:
                         approval.CopyFrom(freshApproval);
+                        break;
+                    case ScopeRow scope when f is ScopeRow freshScope:
+                        scope.CopyFrom(freshScope);
                         break;
                     default:
                         break;

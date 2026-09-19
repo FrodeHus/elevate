@@ -17,18 +17,19 @@ public static class RoleCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
+        var under = CommonOptions.Under();
         var active = new Option<bool>("--active") { Description = "Only roles that are active, pending or scheduled." };
         var filter = new Argument<string?>("filter") { Description = "Only roles whose name contains this text.", Arity = ArgumentArity.ZeroOrOne };
         var command = new Command("roles", "List the roles and groups you are eligible for, with their status.")
         {
-            filter, account, tenant, kind, scope, active,
+            filter, account, tenant, kind, scope, under, active,
         };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var roleFilter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var roleFilter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RefreshAsync(context, roleFilter, ct).ConfigureAwait(false);
             var now = DateTimeOffset.UtcNow;
             var text = parse.GetValue(filter);

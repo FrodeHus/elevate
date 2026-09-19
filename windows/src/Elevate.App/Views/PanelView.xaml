@@ -11,7 +11,8 @@
         <!-- One eligible role, or one active assignment in the summary. -->
         <DataTemplate x:Key="RoleRowTemplate" x:DataType="views:RoleRow">
             <!-- A role added since the last discovery gets a faint accent tint; the "new" badge carries the meaning. -->
-            <Grid MinHeight="44" Padding="14,6,14,6" ColumnSpacing="10" Background="{x:Bind RowBrush, Mode=OneWay}"
+            <!-- Margin, not padding: on the Azure pivot the row sits under its scope in the tree. -->
+            <Grid MinHeight="44" Padding="14,6,14,6" Margin="{x:Bind Indent, Mode=OneWay}" ColumnSpacing="10" Background="{x:Bind RowBrush, Mode=OneWay}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -132,7 +133,42 @@
             </StackPanel>
         </DataTemplate>
 
-        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" Approval="{StaticResource ApprovalRowTemplate}" />
+        <!--
+            One scope of the Azure pivot's tree. The chevron opens it; in select mode the checkbox
+            takes every eligibility under it at once, and says how many that is.
+        -->
+        <DataTemplate x:Key="ScopeRowTemplate" x:DataType="views:ScopeRow">
+            <Grid MinHeight="32" Padding="14,4,14,4" Margin="{x:Bind Indent, Mode=OneWay}" ColumnSpacing="8"
+                  ToolTipService.ToolTip="{x:Bind Tooltip, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" MinWidth="0" Padding="0" Margin="0,0,-4,0" VerticalAlignment="Center" IsThreeState="True"
+                          Visibility="{x:Bind SelectVisibility, Mode=OneWay}" IsChecked="{x:Bind Selected, Mode=OneWay}"
+                          IsEnabled="{x:Bind SelectEnabled, Mode=OneWay}" Click="OnScopeSelectClick"
+                          AutomationProperties.Name="{x:Bind SelectLabel, Mode=OneWay}" />
+                <Button Grid.Column="1" Style="{StaticResource SubtleButtonStyle}" Width="20" Height="20" Click="OnScopeChevronClick"
+                        AutomationProperties.Name="{x:Bind ChevronLabel, Mode=OneWay}">
+                    <FontIcon Glyph="{x:Bind ChevronGlyph, Mode=OneWay}" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Button>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <!-- The folded pass-through scopes, dimmed: "Alpha / prod" reads as one place. -->
+                    <TextBlock Text="{x:Bind Ancestors, Mode=OneWay}" Visibility="{x:Bind AncestorsVisibility, Mode=OneWay}"
+                               FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="13" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    <TextBlock Text="{x:Bind KindLabel, Mode=OneWay}" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Grid.Column="3" Text="{x:Bind CountText, Mode=OneWay}" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </DataTemplate>
+
+        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" Approval="{StaticResource ApprovalRowTemplate}" Scope="{StaticResource ScopeRowTemplate}" />
 
         <!-- Group headers: the pinned "Approvals" and "Active now" groups, an account row, or a tenant header. -->
         <DataTemplate x:Key="GroupHeaderTemplate" x:DataType="views:PanelGroup">

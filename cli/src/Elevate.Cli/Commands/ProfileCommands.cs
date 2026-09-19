@@ -109,9 +109,10 @@ public static class ProfileCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
+        var under = CommonOptions.Under();
         var fromActive = new Option<bool>("--from-active") { Description = "Use everything that is active right now instead of naming roles." };
         var update = new Option<bool>("--update") { Description = "Replace the roles of an existing profile with this name." };
-        var command = new Command("save", "Save a set of roles as a profile.") { name, roles, account, tenant, kind, scope, fromActive, update };
+        var command = new Command("save", "Save a set of roles as a profile.") { name, roles, account, tenant, kind, scope, under, fromActive, update };
         command.SetAction(async (parse, ct) =>
         {
             var context = CommandContext.From(parse);
@@ -119,7 +120,7 @@ public static class ProfileCommands
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
             // Refused before the roles are read: a name the organization publishes is never saved over.
             session.RefuseIfManagedName(parse.GetValue(name)!);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             await RoleCommands.RefreshAsync(context, filter, ct).ConfigureAwait(false);
             var terms = parse.GetValue(roles) ?? [];
             IReadOnlyList<RoleKey> keys;
