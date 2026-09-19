@@ -91,8 +91,24 @@ struct TenantRoles: View {
                 }
                 .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
-            ForEach(roles) { role in RoleRow(role: role) }
+            if model.panelTab == .azure {
+                // The Azure tab reads its scope strings as the hierarchy they are; the tree is
+                // flattened back into rows so it still lives in the panel's one list.
+                ForEach(scopeTreeRows) { entry in
+                    if let role = entry.role {
+                        RoleRow(role: role).padding(.leading, PanelIndent.for(entry.depth))
+                    } else {
+                        ScopeRow(tenant: tenant, node: entry.node, depth: entry.depth)
+                    }
+                }
+            } else {
+                ForEach(roles) { role in RoleRow(role: role) }
+            }
         }
+    }
+
+    private var scopeTreeRows: [ScopeTreeEntry] {
+        ScopeTree.flatten(model.azureTree(for: tenant.id), isCollapsed: { model.isScopeCollapsed(tenant.id, $0) })
     }
 
     private var emptyText: String {

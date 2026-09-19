@@ -28,6 +28,31 @@ extension AppModel {
     func toggleTenant(_ key: TenantKey) { if collapsedTenants.contains(key) { collapsedTenants.remove(key) } else { collapsedTenants.insert(key) } }
     func toggleIdentity(_ id: String) { if collapsedIdentities.contains(id) { collapsedIdentities.remove(id) } else { collapsedIdentities.insert(id) } }
 
+    // MARK: The Azure tab's scope tree
+
+    /// The Azure tab's eligibilities for one tenant, as the management group / subscription /
+    /// resource group / resource tree the scope strings already describe. Built from the filtered
+    /// rows, so a search narrows the tree rather than sitting beside it.
+    func azureTree(for tenantKey: TenantKey) -> [ScopeNode] {
+        ScopeTree.build(roles(for: tenantKey, tab: .azure))
+    }
+
+    /// A scope node's collapsed state is per tenant: the same scope can be reached by two accounts.
+    static func scopeNodeKey(_ tenantKey: TenantKey, _ node: ScopeNode) -> String {
+        "\(tenantKey.identityId)|\(tenantKey.tenantId)|\(node.scope)"
+    }
+
+    /// While a search is running every match stays visible in its place in the tree, so a closed
+    /// node does not hide a row the user is looking at.
+    func isScopeCollapsed(_ tenantKey: TenantKey, _ node: ScopeNode) -> Bool {
+        !isFiltering && collapsedScopes.contains(Self.scopeNodeKey(tenantKey, node))
+    }
+
+    func toggleScope(_ tenantKey: TenantKey, _ node: ScopeNode) {
+        let key = Self.scopeNodeKey(tenantKey, node)
+        if collapsedScopes.contains(key) { collapsedScopes.remove(key) } else { collapsedScopes.insert(key) }
+    }
+
     // MARK: Search
 
     var isFiltering: Bool { PanelFilter.isActive(searchQuery) }
@@ -139,5 +164,50 @@ extension AppModel {
     func toggleSelection(_ key: RoleKey) {
         guard canActivate(key) else { return }
         if selection.contains(key) { selection.remove(key) } else { selection.insert(key) }
+    }
+
+    /// Where a scope node's checkbox stands: nothing under it chosen, some of it, or all of it.
+    enum SubtreeSelection { case none, some, all }
+
+    /// The roles a scope node's checkbox acts on: everything at or below it that can actually be
+    /// activated. A role already active, or view-only, is not something the checkbox can take, so
+    /// it is left out of both the count and the toggle.
+    func subtreeKeys(_ node: ScopeNode) -> [RoleKey] {
+        node.allRoles.map(\.key).filter(canSelect)
+    }
+
+    /// Whether a role's own checkbox would be enabled: activatable, and not already active,
+    /// scheduled or awaiting approval — there is nothing for a bulk activation to do with those.
+    /// A failed one can be chosen again.
+    func canSelect(_ key: RoleKey) -> Bool {
+        guard canActivate(key) else { return false }
+        guard let assignment = assignment(for: key) else { return true }
+        if case .failed = assignment.status { return true }
+        return false
+    }
+
+    func subtreeState(_ node: ScopeNode) -> SubtreeSelection {
+        let keys = subtreeKeys(node)
+        guard !keys.isEmpty else { return .none }
+        let chosen = keys.count { selection.contains($0) }
+        if chosen == 0 { return .none }
+        return chosen == keys.count ? .all : .some
+    }
+
+    /// "Select every eligibility under this scope", and pressing it again lets them all go. A
+    /// partly chosen subtree fills up rather than emptying: the checkbox is offering the rest.
+    /// Returns how many keys the press added or removed, for the confirmation the row shows.
+    @discardableResult
+    func toggleSubtree(_ node: ScopeNode) -> Int {
+        let keys = subtreeKeys(node)
+        guard !keys.isEmpty else { return 0 }
+        if subtreeState(node) == .all {
+            let removed = keys.count { selection.contains($0) }
+            selection.subtract(keys)
+            return removed
+        }
+        let added = keys.count { !selection.contains($0) }
+        selection.formUnion(keys)
+        return added
     }
 }
