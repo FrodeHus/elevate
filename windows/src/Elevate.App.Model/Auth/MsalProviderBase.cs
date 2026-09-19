@@ -15,6 +15,13 @@ public abstract class MsalProviderBase : ITokenProvider
     private readonly InteractiveGate _gate;
     private readonly Lazy<Task> _registered;
 
+    /// <summary>
+    /// Tokens from a claims (step-up) acquisition. MSAL bypasses its own access-token cache when a
+    /// claims request is specified, so the silent call that follows the step-up can hand back the
+    /// token from before it; the retry would then be refused for the same missing claim.
+    /// </summary>
+    private readonly StepUpTokenCache _stepUp = new();
+
     protected MsalProviderBase(IPublicClientApplication app, TokenCache cache, InteractiveGate gate)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -53,6 +60,7 @@ public abstract class MsalProviderBase : ITokenProvider
     public async Task SignOutAsync(Identity identity, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
+        ForgetStepUpToken(identity);
         await EnsureCacheAsync().ConfigureAwait(false);
         if (await FindAccountAsync(identity).ConfigureAwait(false) is { } account)
         {
@@ -77,6 +85,14 @@ public abstract class MsalProviderBase : ITokenProvider
         Identity identity, string tenantId, IReadOnlyList<string> scopes, bool forceRefresh, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(scopes);
+
+        // A forced refresh wants a token minted now, so it skips the step-up token as it skips MSAL's cache.
+        if (!forceRefresh && _stepUp.Token(identity.Id, tenantId, Requested(scopes)) is { } stepped)
+        {
+            return stepped;
+        }
+
         await EnsureCacheAsync().ConfigureAwait(false);
         var account = await FindAccountAsync(identity).ConfigureAwait(false)
             ?? throw new PimException(PimErrorKind.InteractionRequired);
@@ -95,10 +111,24 @@ public abstract class MsalProviderBase : ITokenProvider
         var result = await _gate.RunAsync(
             () => Interactive(Requested(scopes), account, tenantId, claims, account is null ? Prompt.SelectAccount : Prompt.NoPrompt, ct), ct)
             .ConfigureAwait(false);
+
+        // Only a claims acquisition is worth holding: a plain one has nothing MSAL's cache lacks.
+        if (!string.IsNullOrEmpty(claims))
+        {
+            _stepUp.Store(result.AccessToken, identity.Id, tenantId, Requested(scopes));
+        }
+
         return result.AccessToken;
     }
 
     protected Task EnsureCacheAsync() => _registered.Value;
+
+    /// <summary>Drops any step-up token held for an identity that is going away.</summary>
+    protected void ForgetStepUpToken(Identity identity)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        _stepUp.Forget(identity.Id);
+    }
 
     protected async Task<IAccount?> FindAccountAsync(Identity identity)
     {

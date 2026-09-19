@@ -57,6 +57,13 @@ public sealed class FirstPartyTokenProvider : MsalProviderBase
             return PublicClientApplicationBuilder.Create(clientId.Trim())
                 .WithAuthority(AzureCloudInstance.AzurePublic, "organizations")
                 .WithRedirectUri(AppSettings.LoopbackRedirectUri)
+                // "cp1" tells Entra, and the resource, that this client understands a claims
+                // challenge and will re-acquire against it. PIM refuses to honour an authentication
+                // context (`acrs`) from a client that has not said so: it answers the activation
+                // with RoleAssignmentRequestAcrsValidationFailed and re-issues the same challenge,
+                // however many times the token is re-minted. MSAL turns this into the token's
+                // `xms_cc` claim.
+                .WithClientCapabilities(["cp1"])
                 .WithParentActivityOrWindow(parentWindow)
                 .Build();
         }

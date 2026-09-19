@@ -133,6 +133,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- macOS, Windows and CLI: **a role behind a Conditional Access authentication context could not be
+  activated at all.** The activation was refused, the browser step-up was completed, and the retry
+  was refused again with the same message — "the sign-in did not satisfy it" — however many times
+  it was repeated. Two faults, both on the path between the step-up and the retry:
+
+  Elevate never declared the `cp1` client capability, so its tokens carried no `xms_cc` claim. PIM
+  will not honour an authentication context (`acrs`) from a client that has not said it understands
+  a claims challenge: it answered every activation with `RoleAssignmentRequestAcrsValidationFailed`
+  and re-issued the same challenge, even for a token that plainly carried the context. Elevate has
+  always handled claims challenges, so it now says so — through MSAL's client configuration on
+  macOS, Windows and the CLI, and as an `xms_cc` claims request on every token the loopback
+  providers mint themselves, refreshes included, since a refreshed token would otherwise lose it.
+
+  And the token the step-up produced was thrown away: the retry asked MSAL silently for "the" token
+  for those scopes, and MSAL bypasses its access-token cache whenever a claims request is specified
+  and makes no promise to write the result back into it, so the retry could go out with the token
+  from *before* the step-up. The step-up token is now held for its own lifetime and is the one the
+  retry sends, which also spares the second and third role behind the same context their own
+  browser round trip.
+
 - macOS: the panel's confirmations (Remove tenant, Sign out, Delete profile) did nothing and
   dismissed the panel on click. A `confirmationDialog` opens its own window, which took key focus
   from the menu bar panel and closed it before the click reached a button. They now confirm inline,

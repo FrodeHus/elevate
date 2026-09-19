@@ -15,6 +15,12 @@ public enum AccessTokenClaims {
         return Set(scp.split(separator: " ").map(String.init))
     }
 
+    /// When the token expires (`exp`), or nil when the token is opaque or carries no expiry.
+    public static func expiry(_ accessToken: String) -> Date? {
+        guard let exp = payload(accessToken)?["exp"] as? NSNumber else { return nil }
+        return Date(timeIntervalSince1970: exp.doubleValue)
+    }
+
     /// The caller's object id in the token's tenant (`oid`), or nil when the token is opaque.
     public static func objectId(_ accessToken: String) -> String? {
         payload(accessToken)?["oid"] as? String

@@ -27,6 +27,15 @@ import Foundation
         }
     }
 
+    @Test func readsExpiryFromExpClaim() {
+        let body = try! JSONSerialization.data(withJSONObject: ["exp": 1_700_000_000])
+        let b64 = body.base64EncodedString().replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_").trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        #expect(AccessTokenClaims.expiry("eyJhbGciOiJub25lIn0.\(b64).sig") == Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(AccessTokenClaims.expiry("not-a-jwt") == nil)
+        #expect(AccessTokenClaims.expiry(token(scp: nil)) == nil)
+    }
+
     @Test func opaqueOrScopelessTokenIsUnknown() {
         #expect(AccessTokenClaims.permitsEntraActivation("not-a-jwt") == nil)
         #expect(AccessTokenClaims.permitsEntraActivation(token(scp: nil)) == nil)
