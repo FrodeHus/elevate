@@ -16,7 +16,11 @@ public enum PanelFilter {
 
     public static func matches(query: String, role: EligibleRole, tenantName: String, upn: String) -> Bool {
         guard isActive(query) else { return true }
-        let fields = [role.displayName, role.detail ?? "", role.viaGroup ?? "", tenantName, upn]
+        // The whole ARM path too: a role row only shows the scope's caption, but "prod" should find
+        // an eligibility whose subscription is named only in the path.
+        let path: String
+        if case .azureResource(let scope, _) = role.key.scope { path = scope } else { path = "" }
+        let fields = [role.displayName, role.detail ?? "", role.viaGroup ?? "", tenantName, upn, path]
         return fields.contains { matches(query: query, text: $0) }
     }
 }
