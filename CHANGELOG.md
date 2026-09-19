@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the eligibilities alone cannot say which subscriptions belong to which management group. The
   macOS Azure tab still lists flat; its tree follows.
   ([#186](https://github.com/FrodeHus/elevate/issues/186))
+- macOS: the panel's search box reaches an Azure role's whole scope path, not just the caption the
+  row shows, so typing part of a subscription id or a resource group that is only named in the path
+  now finds it. The rest of the Azure tab's scope tree follows.
+  ([#194](https://github.com/FrodeHus/elevate/issues/194))
 - macOS and Windows: the activation sheet no longer signs off with "Active", the word that means
   only that PIM wrote the assignment down. It holds for the first effective-access check and closes
   on **Ready** when the access is already there, on **Activated** when the check has not answered in

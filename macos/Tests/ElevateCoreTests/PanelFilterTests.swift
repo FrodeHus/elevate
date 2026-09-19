@@ -26,6 +26,12 @@ import Foundation
         #expect(!PanelFilter.matches(query: "reader\n", text: "Group owner"))
     }
 
+    @Test func reachesTheArmPathEvenWhenNoCaptionShowsIt() {
+        // The row shows "Pay-As-You-Go · subscription"; the subscription id is only in the path.
+        #expect(PanelFilter.matches(query: "s1", role: role, tenantName: "Contoso", upn: "u@contoso.com"))
+        #expect(PanelFilter.matches(query: "/subscriptions/", role: role, tenantName: "Contoso", upn: "u@contoso.com"))
+    }
+
     @Test func ignoresDiacritics() {
         var r = role
         r.displayName = "Sécurité"
