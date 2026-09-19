@@ -8,8 +8,9 @@ name: Signing check
 on:
   workflow_dispatch:
 
+# Shared with the release workflows' signing jobs: one Certum account, one login at a time.
 concurrency:
-  group: "${{ github.workflow }}"
+  group: certum-simplysign
   cancel-in-progress: false
 
 jobs:

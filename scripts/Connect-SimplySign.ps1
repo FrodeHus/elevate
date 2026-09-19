@@ -248,7 +248,7 @@ for ($elapsed = 0; $elapsed -lt 180; $elapsed += 5) {
         exit 0
     }
     if (Get-AppWindows | Where-Object { $_ -ne $login }) {
-        if ($retries -ge 3) { throw "SimplySign rejected the credentials $retries times; check the account name, the otpauth URI and the clock." }
+        if ($retries -ge 3) { throw "SimplySign refused the login $retries times. The likeliest cause is another signing job holding the account: a TOTP code is single-use, so whichever login lands second reads 'invalid user name or token'. Check that no other run is signing, then the account name, the otpauth URI and the clock." }
         $retries++
         if (Dismiss-Modals $login) {
             Start-Sleep -Milliseconds 500
