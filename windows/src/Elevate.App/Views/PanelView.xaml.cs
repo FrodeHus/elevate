@@ -621,6 +621,55 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    private static ScopeRow? Scope(object sender) => (sender as FrameworkElement)?.DataContext as ScopeRow;
+
+    /// <summary>
+    /// The subtree checkbox: every eligibility under this scope in one press. The model finds the
+    /// node again from the current tree rather than the row holding one, so a refresh that arrived
+    /// between the draw and the click cannot select something that is no longer there.
+    /// </summary>
+    private void OnScopeSelectClick(object sender, RoutedEventArgs e)
+    {
+        if (Scope(sender) is not { } row || _model is null || Node(row) is not { } node)
+        {
+            return;
+        }
+
+        _model.ToggleSubtree(node);
+    }
+
+    private void OnScopeChevronClick(object sender, RoutedEventArgs e)
+    {
+        if (Scope(sender) is not { } row || _model is null || Node(row) is not { } node)
+        {
+            return;
+        }
+
+        _model.ToggleScope(row.TenantKey, node);
+    }
+
+    /// <summary>The tree node a scope row stands for, as the model sees it now.</summary>
+    private ScopeNode? Node(ScopeRow row) =>
+        _model is null ? null : Find(_model.AzureTree(row.TenantKey), row.Scope);
+
+    private static ScopeNode? Find(IEnumerable<ScopeNode> nodes, string scope)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Scope.Equals(scope, StringComparison.OrdinalIgnoreCase))
+            {
+                return node;
+            }
+
+            if (Find(node.Children, scope) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     private void OnBulkActivate(object sender, RoutedEventArgs e)
     {
         if (_model is null || _model.Selection.Count == 0)

@@ -40,6 +40,7 @@ public static class RunCommands
         var tenant = CommonOptions.Tenant();
         var kind = CommonOptions.Kind();
         var scope = CommonOptions.Scope();
+        var under = CommonOptions.Under();
         var duration = new Option<string?>("--duration", "-d") { Description = "How long the roles stay active, e.g. 30m. Default: 10m (or the policy maximum when lower), just enough for one command; the durations remembered for 'activate' and the profile are left alone." };
         var reason = new Option<string?>("--reason", "-r") { Description = "Justification. Default: the remembered reason; prompted when required and missing." };
         var ticket = new Option<string?>("--ticket") { Description = "Ticket number, when a policy asks for one." };
@@ -51,7 +52,7 @@ public static class RunCommands
         var iKnow = new Option<bool>("--i-know") { Description = "Acknowledge the Graph scope ceiling, which --export-token graph needs." };
         var run = new Command("run", "Activate roles or a profile, wait until they are active, then run a command and exit with its code.")
         {
-            profile, roles, command, account, tenant, kind, scope, duration, reason, ticket, ticketSystem, deactivateAfter, settle, timeout, exportToken, iKnow,
+            profile, roles, command, account, tenant, kind, scope, under, duration, reason, ticket, ticketSystem, deactivateAfter, settle, timeout, exportToken, iKnow,
         };
         run.SetAction(async (parse, ct) =>
         {
@@ -91,7 +92,7 @@ public static class RunCommands
 
             context.RequireSignedIn();
             var session = await context.SessionAsync(ct).ConfigureAwait(false);
-            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope);
+            var filter = CommonOptions.Filter(parse, account, tenant, kind, scope, under);
             var chosenProfile = profileName is null
                 ? null
                 : session.FindProfile(profileName) ?? throw new CliException($"No profile matches '{profileName}'. 'elevate profiles' lists them.", ExitCodes.NotFound);

@@ -9,10 +9,15 @@ flyout, windows, tray states and tokens; open the file in a browser, it follows 
 
 ## Install
 
-Download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
-[latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it. The MSI
-installs for the current user into `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a
-Start Menu entry and can launch Elevate when it finishes. It also installs the `elevate`
+```powershell
+winget install Reothor.Elevate
+```
+
+Or download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
+[latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it: both routes
+install the same per-user MSI. It installs for the current user into
+`%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a Start Menu entry and can launch
+Elevate when it finishes. It also installs the `elevate`
 command-line tool into a `cli` subfolder (`%LOCALAPPDATA%\Programs\Elevate\cli`) and adds that
 subfolder to your user PATH, so `elevate --version` works in a new terminal (an already-open
 terminal needs to be restarted). If you also installed the standalone CLI with winget
@@ -30,10 +35,10 @@ for an independent check:
 (Get-FileHash .\Elevate-<version>-x64.msi).Hash
 ```
 
-Upgrade by running a newer MSI; uninstall from Settings > Apps, which removes the app, the CLI
-and the PATH entry. Or install and upgrade with winget: `winget install Reothor.Elevate` (each
-release is submitted to `microsoft/winget-pkgs` and published once Microsoft's checks pass, so
-the newest version may lag the GitHub release by a day or two); see [Release](#release).
+Upgrade with `winget upgrade Reothor.Elevate` or by running a newer MSI; uninstall from
+Settings > Apps, which removes the app, the CLI and the PATH entry. Each release opens its own
+pull request against `microsoft/winget-pkgs`, so the published version may lag the GitHub
+release by a day or two; see [Release](#release).
 
 ## Use
 
@@ -74,6 +79,19 @@ last reason and duration when the policy allows it, and a **global shortcut** (S
 one profile the same way. Requests waiting for *your* approval appear in a pinned **Approvals**
 group above *Active now* with Approve and Deny; a toast announces each new request once, and the
 tray icon carries an orange dot while any are pending.
+
+The **Azure** pivot groups its eligibilities by scope instead of listing them flat: management
+groups, subscriptions, resource groups and resources, each header opening and closing with its
+chevron and saying how many roles sit under it. A scope that only passes through — no eligibility
+of its own and one way down — is folded into the node below it and named there ("Alpha / prod"),
+so the panel does not spend a row and a level of indent on nothing. In select mode a scope header
+carries its own checkbox: one press takes every eligibility under it, which is what
+"Contributor across these twelve subscriptions" costs now. The search box narrows the tree and
+reaches the whole ARM path, and matches stay in place even under a header you had closed.
+
+Management groups sit beside the subscriptions rather than above them: ARM writes a management
+group scope as its own flat path and never repeats it in a subscription's, so the eligibilities
+alone cannot say which subscriptions belong to which management group.
 
 Settings also holds *Start Elevate when I sign in* (a per-user Run entry), *Check for updates*
 (the flyout offers a newer release with a Windows installer once a day, with Open and Dismiss) and *Copy

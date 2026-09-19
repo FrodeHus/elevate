@@ -70,6 +70,41 @@ public sealed partial class AppModel
         Touch();
     }
 
+    // MARK: The Azure pivot's scope tree
+
+    /// <summary>
+    /// The Azure pivot's eligibilities for one tenant, as the management group / subscription /
+    /// resource group / resource tree the scope strings already describe. Built from the filtered
+    /// rows, so a search narrows the tree rather than sitting beside it.
+    /// </summary>
+    public IReadOnlyList<ScopeNode> AzureTree(TenantKey tenantKey) =>
+        ScopeTree.Build(RolesFor(tenantKey, PanelTab.Azure));
+
+    /// <summary>A scope node's collapsed state is per tenant: the same scope can be reached by two accounts.</summary>
+    public static string ScopeNodeKey(TenantKey tenantKey, ScopeNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return $"{tenantKey.IdentityId}|{tenantKey.TenantId}|{node.Scope}";
+    }
+
+    /// <summary>
+    /// While a search is running every match stays visible in its place in the tree, so a closed
+    /// node does not hide a row the user is looking at.
+    /// </summary>
+    public bool IsScopeCollapsed(TenantKey tenantKey, ScopeNode node) =>
+        !IsFiltering && CollapsedScopes.Contains(ScopeNodeKey(tenantKey, node));
+
+    public void ToggleScope(TenantKey tenantKey, ScopeNode node)
+    {
+        var key = ScopeNodeKey(tenantKey, node);
+        if (!CollapsedScopes.Remove(key))
+        {
+            CollapsedScopes.Add(key);
+        }
+
+        Touch();
+    }
+
     // MARK: Search
 
     public bool IsFiltering => PanelFilter.IsActive(SearchQuery);
@@ -218,6 +253,89 @@ public sealed partial class AppModel
 
             return kinds.Contains(RoleScopeKind.Group) ? "item" : "role";
         }
+    }
+
+    /// <summary>Where a scope node's checkbox stands: nothing under it chosen, some of it, or all of it.</summary>
+    public enum SubtreeSelection { None, Some, All }
+
+    /// <summary>
+    /// The roles a scope node's checkbox acts on: everything at or below it that can actually be
+    /// activated. A role already active, or view-only, is not something the checkbox can take, so
+    /// it is left out of both the count and the toggle.
+    /// </summary>
+    public IReadOnlyList<RoleKey> SubtreeKeys(ScopeNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return [.. node.AllRoles.Select(r => r.Key).Where(CanSelect)];
+    }
+
+    /// <summary>
+    /// Whether a role's own checkbox would be enabled: activatable, and not already active,
+    /// scheduled or awaiting approval — there is nothing for a bulk activation to do with those.
+    /// A failed one can be chosen again.
+    /// </summary>
+    public bool CanSelect(RoleKey key)
+    {
+        if (!CanActivate(key))
+        {
+            return false;
+        }
+
+        return Assignment(key) is not { } assignment || assignment.Status.Kind == AssignmentStatusKind.Failed;
+    }
+
+    public SubtreeSelection SubtreeState(ScopeNode node)
+    {
+        var keys = SubtreeKeys(node);
+        if (keys.Count == 0)
+        {
+            return SubtreeSelection.None;
+        }
+
+        var chosen = keys.Count(Selection.Contains);
+        if (chosen == 0)
+        {
+            return SubtreeSelection.None;
+        }
+
+        return chosen == keys.Count ? SubtreeSelection.All : SubtreeSelection.Some;
+    }
+
+    /// <summary>
+    /// "Select every eligibility under this scope", and pressing it again lets them all go. A
+    /// partly chosen subtree fills up rather than emptying: the checkbox is offering the rest.
+    /// Returns how many keys the press added or removed, for the confirmation the row shows.
+    /// </summary>
+    public int ToggleSubtree(ScopeNode node)
+    {
+        var keys = SubtreeKeys(node);
+        if (keys.Count == 0)
+        {
+            return 0;
+        }
+
+        var changed = 0;
+        if (SubtreeState(node) == SubtreeSelection.All)
+        {
+            changed = keys.Count(Selection.Remove);
+        }
+        else
+        {
+            foreach (var key in keys)
+            {
+                if (Selection.Add(key))
+                {
+                    changed++;
+                }
+            }
+        }
+
+        if (changed > 0)
+        {
+            Touch();
+        }
+
+        return changed;
     }
 
     public void ToggleSelection(RoleKey key)

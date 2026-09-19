@@ -16,8 +16,10 @@ namespace Elevate.App.ViewModels;
 public sealed partial class AppModel
 {
     /// <summary>
-    /// Roles being probed, and how far they have got. A role is absent once it is ready, or once
-    /// there was nothing to observe: the row is then a plain active row, which is what it was
+    /// Roles that have been probed since they were activated, and where each got to. A role stays
+    /// here once it settles — <see cref="PropagationState.Ready"/> is what lets the activation
+    /// dialog close on "Ready" rather than on the word PIM would have used. Only Propagating and
+    /// Unconfirmed change a row; the other two read as a plain active row, which is what it was
     /// before this existed. Live state; never persisted.
     /// </summary>
     public Dictionary<RoleKey, PropagationState> Propagation { get; } = [];
@@ -113,11 +115,10 @@ public sealed partial class AppModel
     }
 
     /// <summary>
-    /// Records where a role got to. Ready and Unobservable both leave a plain active row — the
-    /// first because it is ready, the second because there was never anything to say — but only
-    /// Ready is worth a notification.
+    /// Records where a role got to, and tells the user when that is worth an interruption: the
+    /// moment it becomes usable, and the moment it is clear it has not.
     /// </summary>
-    private void Settle(int generation, PropagationOutcome outcome)
+    internal void Settle(int generation, PropagationOutcome outcome)
     {
         if (generation != ConfigGeneration || !Propagation.ContainsKey(outcome.RoleKey))
         {
@@ -133,21 +134,50 @@ public sealed partial class AppModel
             return;
         }
 
+        Propagation[outcome.RoleKey] = outcome.State;
         switch (outcome.State)
         {
             case PropagationState.Ready:
-                Propagation.Remove(outcome.RoleKey);
                 _ = NotifyReadyAsync(outcome.RoleKey);
                 break;
-            case PropagationState.Unobservable:
-                Propagation.Remove(outcome.RoleKey);
+            case PropagationState.Unconfirmed:
+                // Whoever activated this has almost certainly moved on; the row alone would leave
+                // them believing a role works when it does not. No quiet window here — reaching
+                // the deadline means the wait was long enough to have been noticed.
+                _ = NotifyUnconfirmedAsync(outcome.RoleKey, outcome.Detail);
                 break;
             default:
-                Propagation[outcome.RoleKey] = outcome.State;
                 break;
         }
 
         Touch();
+    }
+
+    /// <summary>
+    /// Waits for <paramref name="keys"/> to stop propagating, up to <paramref name="within"/>, and
+    /// answers whether every one of them is in effect. The activation dialog holds for this so it
+    /// can close on an honest word instead of on the "active" the service would have given it.
+    /// </summary>
+    public async Task<bool> SettledInEffectAsync(IReadOnlyList<RoleKey> keys, TimeSpan within, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        if (keys.Count == 0)
+        {
+            return false;
+        }
+
+        var deadline = DateTimeOffset.UtcNow + within;
+        while (keys.Any(k => Propagation.GetValueOrDefault(k, PropagationState.Unobservable) == PropagationState.Propagating))
+        {
+            if (DateTimeOffset.UtcNow >= deadline || ct.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+        }
+
+        return keys.All(k => Propagation.GetValueOrDefault(k, PropagationState.Unobservable) == PropagationState.Ready);
     }
 
     /// <summary>
@@ -172,6 +202,19 @@ public sealed partial class AppModel
     /// Slightly over the watcher's first interval, which is the soonest a probe can confirm.
     /// </summary>
     internal static readonly TimeSpan QuietPropagation = TimeSpan.FromSeconds(8);
+
+    /// <summary>Says the role is active but does not work yet, and what usually explains that.</summary>
+    private async Task NotifyUnconfirmedAsync(RoleKey key, string? cause)
+    {
+        if (!Active.ContainsKey(key))
+        {
+            return;
+        }
+
+        await Notifier.NotifyAsync(
+            $"{SummaryName(key)} is active but not in effect",
+            cause ?? PropagationHints.LikelyCause(key.Scope.Kind));
+    }
 
     private void Finish(RoleKey key, CancellationTokenSource cts)
     {

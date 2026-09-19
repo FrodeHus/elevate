@@ -67,7 +67,8 @@ struct AppModelPropagationTests {
         model.watchPropagation([activated(key, started: started)])
         try await settled(model, key)
 
-        #expect(model.propagation[key] == nil)
+        #expect(model.propagation[key] == .ready)
+        // Ready is recorded but says nothing on the row: the row is simply active again.
         #expect(model.propagationNote(for: key) == nil)
         // The notification is posted from a detached task; give it a turn.
         try await Task.sleep(for: .milliseconds(50))
@@ -86,7 +87,7 @@ struct AppModelPropagationTests {
         try await settled(model, key)
         try await Task.sleep(for: .milliseconds(50))
 
-        #expect(model.propagation[key] == nil)
+        #expect(model.propagation[key] == .ready)
         let notes = await notifier.notifications
         #expect(notes.isEmpty)
     }
@@ -101,7 +102,7 @@ struct AppModelPropagationTests {
         model.watchPropagation([activated(key)])
         try await settled(model, key)
 
-        #expect(model.propagation[key] == nil)
+        #expect(model.propagation[key] == .unobservable)
         #expect(model.propagationNote(for: key) == nil)
     }
 
@@ -128,6 +129,57 @@ struct AppModelPropagationTests {
         model.watchPropagation([ActivationOutcome(roleKey: key, result: .pendingApproval(pending))])
 
         #expect(model.propagation.isEmpty)
+    }
+
+    @Test func anUnconfirmedRoleIsAnnouncedRatherThanLeftOnTheRow() async throws {
+        // Whoever activated it has moved on; the row alone would leave them trusting a dead role.
+        let notifier = RecordingNotifier()
+        let model = await makePropagationModel(token: nil, notifier: notifier)
+        defer { cleanup(model) }
+        let key = Self.entraKey
+        model.active[key] = Sample.assignment(key)
+        model.propagation[key] = .propagating
+
+        model.settle(PropagationOutcome(roleKey: key, state: .unconfirmed,
+                                        detail: PropagationHints.likelyCause(.entraDirectory)),
+                     generation: model.configGeneration)
+        try await Task.sleep(for: .milliseconds(50))
+
+        let notes = await notifier.notifications
+        #expect(notes.count == 1)
+        #expect(notes.first?.title.contains("not in effect") == true)
+        #expect(notes.first?.body == PropagationHints.likelyCause(.entraDirectory))
+    }
+
+    @Test func settledInEffectIsTrueOnlyWhenEveryRoleIsConfirmed() async throws {
+        let model = await makePropagationModel(token: nil)
+        defer { cleanup(model) }
+        let ready = Self.entraKey
+        let unobservable = Sample.key(.group(groupId: "grp-1", accessId: .owner))
+
+        model.propagation[ready] = .ready
+        #expect(await model.settledInEffect([ready], within: 0.2))
+
+        model.propagation[unobservable] = .unobservable
+        #expect(!(await model.settledInEffect([ready, unobservable], within: 0.2)))
+
+        // A role nobody probed is not evidence of anything either.
+        #expect(!(await model.settledInEffect([Sample.key(.entraDirectory(roleDefinitionId: "other", directoryScopeId: "/"))], within: 0.2)))
+        #expect(!(await model.settledInEffect([], within: 0.2)))
+    }
+
+    @Test func settledInEffectGivesUpAtTheHoldRatherThanWaitingOut() async throws {
+        // The sheet closes on whatever the probe has by then; it never holds the user for minutes.
+        let model = await makePropagationModel(token: nil)
+        defer { cleanup(model) }
+        let key = Self.entraKey
+        model.propagation[key] = .propagating
+
+        let started = Date.now
+        let inEffect = await model.settledInEffect([key], within: 0.25)
+
+        #expect(!inEffect)
+        #expect(Date.now.timeIntervalSince(started) < 3)
     }
 
     @Test func aRoleThatIsNotBeingWatchedIsNotPropagating() async throws {

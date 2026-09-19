@@ -26,12 +26,13 @@ tenants, and finding your way around the panel. The rest of the user guides are 
 
 - **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install). The cask
   and the pkg also install the `elevate` CLI; the DMG is the app alone.
-- **Windows 11**: per-user MSI, which installs the app and the `elevate` CLI, see
-  [windows/README.md](windows/README.md#install).
-- **CLI on its own** (Linux, Intel Macs, servers): a single binary from the release, see
-  [cli/README.md](cli/README.md#install).
-- **Audit tool**: Homebrew formula `frodehus/elevate/elevate-audit`, or a single binary from the
-  release, see [docs/audit.md](docs/audit.md#1-install).
+- **Windows 11**: `winget install Reothor.Elevate`, or the per-user MSI from the release; either
+  installs the app and the `elevate` CLI, see [windows/README.md](windows/README.md#install).
+- **CLI on its own** (Linux, Intel Macs, servers): `winget install Reothor.Elevate.CLI` on
+  Windows, or a single binary from the release, see [cli/README.md](cli/README.md#install).
+- **Audit tool**: `winget install Reothor.Elevate.Audit` on Windows, the Homebrew formula
+  `frodehus/elevate/elevate-audit`, or a single binary from the release, see
+  [docs/audit.md](docs/audit.md#1-install).
 
 The app and the CLI sign in with an Entra app registration — your own, a company one, or the project's
 optional [shared Elevate app](docs/shared-app-registration.md), which has no SLA; the Microsoft
@@ -120,12 +121,6 @@ Contributions are welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md) for 
 build and test commands, and the conventions this repository keeps. Bugs and feature requests go to
 the [issue tracker](https://github.com/FrodeHus/elevate/issues); what changed in each release is in
 [CHANGELOG.md](CHANGELOG.md).
-
-## Roadmap
-
-- **Windows: winget** — the first `Reothor.Elevate`, `Reothor.Elevate.CLI` and
-  `Reothor.Elevate.Audit` submissions are in `microsoft/winget-pkgs` review; every release
-  after that opens its update pull requests automatically.
 
 ## License
 

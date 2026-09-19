@@ -42,9 +42,10 @@ brew install frodehus/elevate/elevate-cli
 
 Shell completions are installed with it. Upgrade with `brew upgrade frodehus/elevate/elevate-cli`.
 
-**Windows, standalone.** `winget install Reothor.Elevate.CLI` (winget
-moderation requires signed binaries, so the manifest is a release artifact until Azure Artifact
-Signing is set up, like the app's). Until then, download `elevate-cli-<version>-win-x64.zip` (or
+**Windows, standalone.** `winget install Reothor.Elevate.CLI`, and
+`winget upgrade Reothor.Elevate.CLI` later. Each release opens its own pull request against
+`microsoft/winget-pkgs`, so the published version can lag the GitHub release by a day or two;
+to take a release the moment it lands, download `elevate-cli-<version>-win-x64.zip` (or
 `-win-arm64.zip`) from the [latest release](https://github.com/FrodeHus/elevate/releases/latest)
 and put `elevate.exe` on your PATH. Do not combine this with the MSI's copy: two `elevate` entries
 on the PATH means whichever comes first wins.
@@ -121,12 +122,35 @@ case-insensitive) or by the eight-character **id** from `elevate roles`; `--tena
 `--kind entra|azure|groups` and `--scope` narrow the match, and a term that still matches several
 roles lists them instead of guessing.
 
+For Azure resource roles there are two ways to reach a whole slice of the hierarchy, both reading
+the ARM scope path that the eligibility already carries:
+
+- `--under <scope>` takes everything at or below one scope. The value is a resource group or
+  subscription name, a subscription id, or a whole path — `--under prod-rg`,
+  `--under /subscriptions/1111…`. Comparison is step by step, so `/subscriptions/abc` never
+  swallows `/subscriptions/abcdef`.
+- `--scope` with a `*` in it becomes a glob over the whole path, where `*` crosses slashes:
+  `--scope "/subscriptions/*"` is every eligibility in every subscription, and
+  `--scope "*/resourceGroups/prod-*"` is every resource group whose name starts with `prod-`.
+  Without a `*` it stays the substring search over the path and the scope's caption that it has
+  always been.
+
+A management group covers only its own eligibilities, not the subscriptions beneath it: ARM writes
+a management group scope as its own flat path and never repeats it in a subscription's, so the
+eligibilities alone cannot say which subscriptions belong to it.
+
+Both narrow the candidates, and a name that still matches several roles is still an error. When
+matching several is the point, `elevate activate --all` takes all of them —
+`elevate activate Contributor --all --under /subscriptions/1111…` activates Contributor
+everywhere in that subscription, and with no name at all `--all` takes every eligible role the
+filters leave. This is the scripted form of the panel's subtree checkbox.
+
 | Command | What it does |
 |---|---|
 | `elevate` / `elevate status` | What is active, awaiting approval or scheduled, with time left. |
 | `elevate roles [filter]` | Everything you are eligible for, with policy notes and status. `--active` shows only what is active or pending. |
 | `elevate watch` | A live countdown table until Ctrl+C; re-reads the service every 60 s (`--interval`). |
-| `elevate activate <role…>` | Activate. Duration and reason default to what was used last for that role, then to the policy; `--duration 2h`, `--reason`, `--ticket`, `--at 14:30` (or `+2h`) and `--wait` override. `--wait` waits for the role to be *usable*, not just reported active: it waits out provisioning, then checks the access is genuinely in effect. A role that is already active is left alone. With no role named, a checklist is offered in a terminal. |
+| `elevate activate <role…>` | Activate. Duration and reason default to what was used last for that role, then to the policy; `--duration 2h`, `--reason`, `--ticket`, `--at 14:30` (or `+2h`) and `--wait` override. `--wait` waits for the role to be *usable*, not just reported active: it waits out provisioning, then checks the access is genuinely in effect. A role that is already active is left alone. With no role named, a checklist is offered in a terminal. `--all` takes every role the filters and names match instead of insisting each name picks exactly one, which is how a script activates a whole subtree with `--under` or a glob `--scope`. |
 | `elevate extend <role…>` | Deactivate and re-activate, so the clock starts over. Refused for approval-required roles, which would leave you without the role while the request waits. |
 | `elevate deactivate <role…>` / `elevate cancel <role…>` | Deactivate an active role; withdraw a request that is awaiting approval or scheduled. |
 | `elevate run [--profile NAME] [--role ROLE…] -- <command>` | Activate what is named (roles already active are left alone, pending ones are waited for), wait until every one is active, approvals included, then run the command with the terminal's own stdin and stdout and exit with its code. Activations last 10 minutes by default, just enough for one command (`--duration` overrides; the durations remembered for `activate` and the profile are untouched). `--deactivate-after` deactivates what this call activated once the command exits; `--settle 2m` bounds the check that the roles are really in effect before running anyway (`--settle 0` runs as soon as PIM reports them active, keeping the old 30 s pause for groups); `--timeout 1h` bounds the wait for the activations themselves (default 15 m). `--export-token arm` puts a token in the command's own environment as `ELEVATE_ARM_TOKEN`, for a command that cannot call `elevate token` itself. |
