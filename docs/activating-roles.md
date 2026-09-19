@@ -110,6 +110,19 @@ The **Azure** tab lists eligibilities on management groups, subscriptions, resou
 individual resources. The first Azure activation in a tenant asks you to consent to Azure
 Service Management; no administrator is needed.
 
+Rather than listing them flat, the tab groups them by scope: each header opens and closes with its
+chevron and says how many roles sit under it. A scope that only passes through — no eligibility of
+its own and one way down — is folded into the node below it and named there ("Alpha / prod"), so
+the panel does not spend a row and a level of indent on nothing; a scope leading to a single role
+gets no header at all, and the role row stands where the header would have. In select mode a scope
+header carries its own checkbox: one press takes every eligibility under it, which is what
+"Contributor across these twelve subscriptions" costs now. A half-filled checkbox means part of the
+subtree is already ticked, and pressing it takes the rest.
+
+Management groups sit beside the subscriptions rather than above them: ARM writes a management
+group scope as its own flat path and never repeats it in a subscription's, so the eligibilities
+alone cannot say which subscriptions belong to which management group.
+
 ![The Groups tab with PIM for Groups memberships](images/tutorials/panel-groups.png)
 
 The **Groups** tab lists PIM for Groups memberships and ownerships. Activating one makes you a
@@ -121,6 +134,10 @@ Elevate re-reads your roles shortly after a group activation so those show up to
 Click the magnifier in the header and type. The panel keeps only the roles, tenants and accounts
 that match, across all tabs. Press Escape or clear the field to see everything again; the filter
 never survives closing the panel.
+
+On the Azure tab the search narrows the tree itself rather than sitting beside it, and it reaches
+the whole ARM path — so a subscription id finds its roles even when no caption on the row shows it.
+Matches stay in place, including under a header you had closed.
 
 ## Notifications and the menu bar
 

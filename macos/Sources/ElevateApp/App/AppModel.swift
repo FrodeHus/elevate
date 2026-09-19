@@ -68,6 +68,9 @@ final class AppModel {
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
     var collapsedTenants: Set<TenantKey> = []
     var collapsedIdentities: Set<String> = []
+    /// Collapsed Azure scope nodes, keyed by `scopeNodeKey(_:_:)`. In-memory like the other two,
+    /// and scopes start open, so nothing is hidden on first sight.
+    var collapsedScopes: Set<String> = []
     var selection: Set<RoleKey> = []
     var startupError: String?
     /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.
