@@ -316,7 +316,7 @@ jobs:
             echo '    brew trust frodehus/elevate'
             echo '    brew install frodehus/elevate/elevate-audit'
             echo
-            echo 'Windows: `winget install Reothor.Elevate.Audit` (the manifest goes to winget-pkgs with each release and is published once Microsoft's checks pass, usually within a day or two), or download `elevate-audit-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate-audit.exe` on your PATH.'
+            echo 'Windows: `winget install Reothor.Elevate.Audit` (the manifest goes to winget-pkgs with each release and is published once Microsoft'"'"'s checks pass, usually within a day or two), or download `elevate-audit-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate-audit.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-audit-'"$VERSION"'-checksums.txt`. See [docs/audit.md](https://github.com/'"${{ github.repository }}"'/blob/main/docs/audit.md).'
             echo

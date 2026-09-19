@@ -775,7 +775,7 @@ jobs:
             echo
             echo '    brew install frodehus/elevate/elevate-cli'
             echo
-            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` (the manifest goes to winget-pkgs with each release and is published once Microsoft's checks pass, usually within a day or two), or download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
+            echo 'Windows: `Elevate-'"$VERSION"'-x64.msi` (or `-arm64.msi`) installs `elevate.exe` in a `cli` folder under the app and adds that folder to your PATH. Standalone: `winget install Reothor.Elevate.CLI` (the manifest goes to winget-pkgs with each release and is published once Microsoft'"'"'s checks pass, usually within a day or two), or download `elevate-cli-'"$VERSION"'-win-x64.zip` (or `-win-arm64.zip`) below and put `elevate.exe` on your PATH.'
             echo
             echo 'Or download the archive for your platform below and unpack it anywhere on your PATH. Verify with `sha256sum -c elevate-cli-'"$VERSION"'-checksums.txt`. See [cli/README.md](https://github.com/'"${{ github.repository }}"'/blob/main/cli/README.md).'
             if [ "$MAC_SIGNED" != "1" ]; then
