@@ -9,10 +9,15 @@ flyout, windows, tray states and tokens; open the file in a browser, it follows 
 
 ## Install
 
-Download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
-[latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it. The MSI
-installs for the current user into `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a
-Start Menu entry and can launch Elevate when it finishes. It also installs the `elevate`
+```powershell
+winget install Reothor.Elevate
+```
+
+Or download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
+[latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it: both routes
+install the same per-user MSI. It installs for the current user into
+`%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a Start Menu entry and can launch
+Elevate when it finishes. It also installs the `elevate`
 command-line tool into a `cli` subfolder (`%LOCALAPPDATA%\Programs\Elevate\cli`) and adds that
 subfolder to your user PATH, so `elevate --version` works in a new terminal (an already-open
 terminal needs to be restarted). If you also installed the standalone CLI with winget
@@ -30,10 +35,10 @@ for an independent check:
 (Get-FileHash .\Elevate-<version>-x64.msi).Hash
 ```
 
-Upgrade by running a newer MSI; uninstall from Settings > Apps, which removes the app, the CLI
-and the PATH entry. Or install and upgrade with winget: `winget install Reothor.Elevate` (each
-release is submitted to `microsoft/winget-pkgs` and published once Microsoft's checks pass, so
-the newest version may lag the GitHub release by a day or two); see [Release](#release).
+Upgrade with `winget upgrade Reothor.Elevate` or by running a newer MSI; uninstall from
+Settings > Apps, which removes the app, the CLI and the PATH entry. Each release opens its own
+pull request against `microsoft/winget-pkgs`, so the published version may lag the GitHub
+release by a day or two; see [Release](#release).
 
 ## Use
 
