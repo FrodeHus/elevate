@@ -16,8 +16,9 @@
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="ElevateWarningBrush" Color="#FF9F0A" />
                 </ResourceDictionary>
+                <!-- High contrast draws the header glyphs in the window text colour whatever brush is set; this keeps the lookup resolving. -->
                 <ResourceDictionary x:Key="HighContrast">
-                    <SolidColorBrush x:Key="ElevateWarningBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ElevateWarningBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <!-- Icon-only header buttons: no fill or border at rest, the standard subtle hover fill. -->
