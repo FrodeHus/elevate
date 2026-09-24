@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- CLI: **`elevate watch` no longer keeps listing activations that have ended.** When a re-read
+  failed — a sign-in it could not renew silently, a dropped network — the table kept the last rows
+  it had, including activations whose end time had since passed. `watch` now drops a row as soon as
+  its end has passed, whether or not the last read got through.
+
 ## [1.8.0] - 2026-09-19
 
 ### Added
