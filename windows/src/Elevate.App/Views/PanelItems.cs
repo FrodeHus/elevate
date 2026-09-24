@@ -566,7 +566,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     /// <summary>
     /// A background refresh could not renew the tenant's sign-in silently, so the rows shown may be
     /// stale until the user presses Refresh. Not an error, but it must not read as a quiet limitation:
-    /// the glyph turns to a caution-coloured warning.
+    /// the glyph turns to an orange warning, as on macOS.
     /// </summary>
     public bool AwaitingSignIn { get => _awaitingSignIn; set => Set(ref _awaitingSignIn, value); }
 
@@ -621,7 +621,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     public string IssuesGlyph => HasError || AwaitingSignIn ? "" : "";
 
     public Brush IssuesBrush => (Brush)Application.Current.Resources[
-        HasError ? "SystemFillColorCriticalBrush" : AwaitingSignIn ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
+        HasError ? "SystemFillColorCriticalBrush" : AwaitingSignIn ? "ElevateWarningBrush" : "TextFillColorSecondaryBrush"];
 
     public string IssuesTooltip => string.Join("\n", Issues.Select(i => i.Title));
 
