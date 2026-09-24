@@ -518,6 +518,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     private bool _busy;
     private string? _signInHelp;
     private bool _needsSignIn;
+    private bool _awaitingSignIn;
     private bool _signInEnabled;
     private string? _signInTooltip;
 
@@ -559,8 +560,15 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         }
     }
 
-    /// <summary>A failed discovery or refresh turns the glyph red; limitations alone leave it orange.</summary>
+    /// <summary>A failed discovery or refresh turns the glyph red; limitations alone leave it grey.</summary>
     public bool HasError { get => _hasError; set => Set(ref _hasError, value); }
+
+    /// <summary>
+    /// A background refresh could not renew the tenant's sign-in silently, so the rows shown may be
+    /// stale until the user presses Refresh. Not an error, but it must not read as a quiet limitation:
+    /// the glyph turns to an orange warning, as on macOS.
+    /// </summary>
+    public bool AwaitingSignIn { get => _awaitingSignIn; set => Set(ref _awaitingSignIn, value); }
 
     public bool Busy { get => _busy; set => Set(ref _busy, value); }
 
@@ -609,14 +617,16 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
 
     public Visibility IssuesVisibility => Issues.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
-    /// <summary>A filled warning triangle for a failure, an info glyph for mere limitations.</summary>
-    public string IssuesGlyph => HasError ? "" : "";
+    /// <summary>A filled warning triangle for a failure or a pending sign-in, an info glyph for mere limitations.</summary>
+    public string IssuesGlyph => HasError || AwaitingSignIn ? "" : "";
 
-    public Brush IssuesBrush => (Brush)Application.Current.Resources[HasError ? "SystemFillColorCriticalBrush" : "TextFillColorSecondaryBrush"];
+    public Brush IssuesBrush => (Brush)Application.Current.Resources[
+        HasError ? "SystemFillColorCriticalBrush" : AwaitingSignIn ? "ElevateWarningBrush" : "TextFillColorSecondaryBrush"];
 
     public string IssuesTooltip => string.Join("\n", Issues.Select(i => i.Title));
 
-    public string IssuesLabel => Issues.Count == 1 ? "1 limitation" : $"{Issues.Count} limitations";
+    public string IssuesLabel => !HasError && AwaitingSignIn ? "Sign-in needed"
+        : Issues.Count == 1 ? "1 limitation" : $"{Issues.Count} limitations";
 
     public Visibility BusyVisibility => Busy ? Visibility.Visible : Visibility.Collapsed;
 
@@ -642,6 +652,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         Manual = other.Manual;
         Issues = other.Issues;
         HasError = other.HasError;
+        AwaitingSignIn = other.AwaitingSignIn;
         Busy = other.Busy;
         NeedsSignIn = other.NeedsSignIn;
         SignInEnabled = other.SignInEnabled;
@@ -905,7 +916,8 @@ public static class PanelListBuilder
             issues.Add(new TenantIssue("Discovery or refresh failed", error));
         }
 
-        if (model.TenantsAwaitingSignIn.Contains(tenant.Key))
+        group.AwaitingSignIn = model.TenantsAwaitingSignIn.Contains(tenant.Key);
+        if (group.AwaitingSignIn)
         {
             issues.Add(new TenantIssue(
                 "Sign-in needed to refresh",

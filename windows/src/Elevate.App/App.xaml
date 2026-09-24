@@ -8,6 +8,19 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+            <!-- The macOS system orange, so a warning reads the same on both platforms; Fluent's caution colour turns yellow in dark mode. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ElevateWarningBrush" Color="#FF9500" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ElevateWarningBrush" Color="#FF9F0A" />
+                </ResourceDictionary>
+                <!-- High contrast draws the header glyphs in the window text colour whatever brush is set; this keeps the lookup resolving. -->
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="ElevateWarningBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <!-- Icon-only header buttons: no fill or border at rest, the standard subtle hover fill. -->
             <Style x:Key="SubtleButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="Background" Value="Transparent" />

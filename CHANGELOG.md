@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also marked with an orange warning on its header instead of the grey info glyph that plain
   limitations use; press Refresh to sign in.
 
+- Windows: **expired activations no longer linger after the PC wakes.** As on macOS, a background
+  refresh that could not renew a sign-in silently kept the tenant's last-known rows, including
+  activations that had ended meanwhile. Elevate now drops an activation a minute after its end
+  time, whether or not the tenant could be read. A tenant waiting for a sign-in to refresh is also
+  marked with an orange warning on its header instead of the grey info glyph that plain
+  limitations use; press Refresh to sign in.
+
 - CLI: **`elevate watch` no longer keeps listing activations that have ended.** When a re-read
   failed — a sign-in it could not renew silently, a dropped network — the table kept the last rows
   it had, including activations whose end time had since passed. `watch` now drops a row as soon as
