@@ -601,8 +601,27 @@ final class AppModel {
                 try? await Task.sleep(for: .seconds(30))
                 guard let self else { return }
                 self.clock = .now
+                await self.dropLapsedAssignments()
             }
         }
+    }
+
+    /// How long past its end an activation is kept, so the "expired" notification — due a few
+    /// seconds after the end — fires before the reschedule below would withdraw it.
+    private static let lapseGrace: TimeInterval = 60
+
+    /// A refresh that cannot read a tenant (a sign-in it cannot renew silently, a failed request)
+    /// keeps that tenant's known rows. The end times are known, though: once one has passed, the
+    /// row is gone whatever the service would say, and must not linger with a Deactivate button.
+    private func dropLapsedAssignments() async {
+        let cutoff = Date.now.addingTimeInterval(-Self.lapseGrace)
+        let lapsed = active.values.filter { $0.hasLapsed(at: cutoff) }.map(\.roleKey)
+        guard !lapsed.isEmpty else { return }
+        for key in lapsed {
+            active[key] = nil
+            stopWatchingPropagation(key)
+        }
+        await rescheduleNotifications()
     }
 
     private func startTimer() {
