@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS: **expired activations no longer linger after the Mac wakes.** When a background refresh
+  could not renew a sign-in silently — a browser sign-in account after a long sleep, for example —
+  the tenant kept its last-known rows, and activations that had ended meanwhile stayed in **Active
+  now** with a Deactivate that could only fail. Elevate now drops an activation a minute after its
+  end time, whether or not the tenant could be read. A tenant waiting for a sign-in to refresh is
+  also marked with an orange warning on its header instead of the grey info glyph that plain
+  limitations use; press Refresh to sign in.
+
 ## [1.8.0] - 2026-09-19
 
 ### Added
