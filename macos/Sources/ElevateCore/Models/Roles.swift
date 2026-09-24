@@ -75,6 +75,14 @@ public struct ActiveAssignment: Codable, Hashable, Sendable, Identifiable {
         self.endDateTime = endDateTime
         self.status = status
     }
+
+    /// Whether this activation's window is over by `now`, whatever the last read said. A refresh
+    /// that cannot reach a tenant keeps its known rows; this is what lets the app drop the ones
+    /// that have ended meanwhile. Requests and failures have no window of their own and never lapse.
+    public func hasLapsed(at now: Date) -> Bool {
+        guard status == .active || status == .scheduled, let endDateTime else { return false }
+        return endDateTime <= now
+    }
 }
 
 public struct TicketInfo: Codable, Hashable, Sendable {

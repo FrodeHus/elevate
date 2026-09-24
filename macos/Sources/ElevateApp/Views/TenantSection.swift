@@ -149,6 +149,8 @@ struct TenantPills: View {
         return out
     }
     private var hasError: Bool { (model.tenantErrors[tenant.id] ?? tenant.lastDiscoveryError) != nil }
+    /// Not an error, but the rows shown may be stale until the user signs in, so it must not read as a quiet limitation.
+    private var needsSignIn: Bool { model.tenantsAwaitingSignIn.contains(tenant.id) }
 
     var body: some View {
         if tenant.discoveryMode == .manualRoles {
@@ -160,14 +162,15 @@ struct TenantPills: View {
         let issues = issues
         if !issues.isEmpty {
             Button { showingIssues.toggle() } label: {
-                Image(systemName: hasError ? "exclamationmark.triangle.fill" : "info.circle")
-                    .font(.caption).foregroundStyle(hasError ? .red : .secondary)
+                Image(systemName: hasError || needsSignIn ? "exclamationmark.triangle.fill" : "info.circle")
+                    .font(.caption).foregroundStyle(hasError ? .red : needsSignIn ? .orange : .secondary)
                     .frame(width: 16, height: 16).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(issues.map(\.title).joined(separator: "\n"))
             .accessibilityLabel(hasError
                 ? (issues.count == 1 ? "1 error" : "\(issues.count) errors")
+                : needsSignIn ? "Sign-in needed"
                 : (issues.count == 1 ? "1 limitation" : "\(issues.count) limitations"))
             .popover(isPresented: $showingIssues, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
