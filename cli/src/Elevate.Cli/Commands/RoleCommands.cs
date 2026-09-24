@@ -151,6 +151,9 @@ public static class RoleCommands
                             lastRead = DateTimeOffset.UtcNow;
                         }
 
+                        // A read that failed (a sign-in it could not renew, a dropped network)
+                        // leaves the last rows in place; one whose end has passed is over regardless.
+                        session.DropLapsedAssignments(DateTimeOffset.UtcNow);
                         live.UpdateTarget(Render(session, lastRead));
                     }
                 }

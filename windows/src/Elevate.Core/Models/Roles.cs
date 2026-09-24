@@ -89,6 +89,16 @@ public sealed record ActiveAssignment(
         : this(roleKey, assignmentId, startDateTime, endDateTime, status, scheduleId, activationRequestId)
     {
     }
+
+    /// <summary>
+    /// Whether this activation's window is over by <paramref name="now"/>, whatever the last read
+    /// said. A refresh that cannot reach a tenant keeps its known rows; this is what lets a caller
+    /// drop the ones that have ended meanwhile. Requests and failures have no window of their own
+    /// and never lapse.
+    /// </summary>
+    public bool HasLapsed(DateTimeOffset now) =>
+        Status.Kind is AssignmentStatusKind.Active or AssignmentStatusKind.Scheduled
+        && EndDateTime is { } end && end <= now;
 }
 
 public sealed record TicketInfo(string Number, string System);

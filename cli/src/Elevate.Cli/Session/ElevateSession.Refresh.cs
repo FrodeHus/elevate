@@ -18,6 +18,25 @@ public sealed partial class ElevateSession
 
     public Task RefreshAllAsync(CancellationToken ct = default) => RefreshAsync(State.Tenants.Select(t => t.Key).ToList(), ct);
 
+    /// <summary>
+    /// Drops every row whose activation window has ended by <paramref name="now"/>. A refresh that
+    /// cannot read a tenant keeps its known rows, so a long-running view (<c>watch</c>) would
+    /// otherwise go on listing activations that are already over. Returns whether anything went.
+    /// </summary>
+    public bool DropLapsedAssignments(DateTimeOffset now)
+    {
+        var dropped = false;
+        Mutate(() =>
+        {
+            foreach (var key in Active.Where(p => p.Value.HasLapsed(now)).Select(p => p.Key).ToList())
+            {
+                Active.Remove(key);
+                dropped = true;
+            }
+        });
+        return dropped;
+    }
+
     public async Task RefreshTenantAsync(TenantKey key, CancellationToken ct = default, IReadOnlySet<RoleScopeKind>? requestedKinds = null)
     {
         if (Identity(key.IdentityId) is not { } identity || Tenant(key) is not { } tenant)

@@ -27,6 +27,23 @@ public class SessionTests
     }
 
     [Fact]
+    public async Task DropLapsedAssignmentsRemovesOnlyRowsWhoseEndHasPassed()
+    {
+        using var t = new TestSession();
+        var now = DateTimeOffset.UtcNow;
+        t.Entra.Assignments.Add(new ActiveAssignment(TestSession.EntraKey("r1"), "a", now, now.AddHours(1), AssignmentStatus.Active));
+        t.Entra.Assignments.Add(new ActiveAssignment(TestSession.EntraKey("r2"), "b", now, now.AddHours(3), AssignmentStatus.Active));
+        t.Entra.Assignments.Add(new ActiveAssignment(TestSession.EntraKey("r3"), "p", now, null, AssignmentStatus.PendingApproval));
+        await t.Session.RefreshAllAsync();
+
+        // Two hours on, with no read since (the one a sleep or a lost sign-in would have skipped).
+        t.Session.DropLapsedAssignments(now.AddHours(2)).Should().BeTrue();
+
+        t.Session.Active.Keys.Should().BeEquivalentTo([TestSession.EntraKey("r2"), TestSession.EntraKey("r3")]);
+        t.Session.DropLapsedAssignments(now.AddHours(2)).Should().BeFalse("nothing is left to drop");
+    }
+
+    [Fact]
     public async Task ConsentRefusalSwitchesTenantToManualRoles()
     {
         using var t = new TestSession();
