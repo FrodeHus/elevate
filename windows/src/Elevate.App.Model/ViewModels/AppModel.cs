@@ -604,11 +604,42 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             {
                 Clock = DateTimeOffset.UtcNow;
                 Touch();
+                await DropLapsedAssignmentsAsync(Clock);
             }
         }
         catch (OperationCanceledException)
         {
         }
+    }
+
+    /// <summary>
+    /// How long past its end an activation is kept, so the "expired" toast — due a few seconds
+    /// after the end — fires before the reschedule below would withdraw it.
+    /// </summary>
+    private static readonly TimeSpan LapseGrace = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// A refresh that cannot read a tenant (a sign-in it cannot renew silently, a failed request)
+    /// keeps that tenant's known rows. The end times are known, though: once one has passed, the
+    /// row is gone whatever the service would say, and must not linger with a Deactivate button.
+    /// </summary>
+    internal async Task DropLapsedAssignmentsAsync(DateTimeOffset now)
+    {
+        var cutoff = now - LapseGrace;
+        var lapsed = Active.Values.Where(a => a.HasLapsed(cutoff)).Select(a => a.RoleKey).ToList();
+        if (lapsed.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var key in lapsed)
+        {
+            Active.Remove(key);
+            StopWatchingPropagation(key);
+        }
+
+        Touch();
+        await RescheduleNotificationsAsync();
     }
 
     private async Task RunRefreshTimerAsync(CancellationToken ct)
