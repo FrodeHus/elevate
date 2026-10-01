@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-01
+
 ### Added
 
 - Windows: **the MSI can install for all users of a PC.** Run it as before and it installs for the
@@ -812,7 +814,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/FrodeHus/elevate/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/FrodeHus/elevate/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...v1.7.0
 [1.6.7]: https://github.com/FrodeHus/elevate/compare/v1.6.6...v1.6.7
