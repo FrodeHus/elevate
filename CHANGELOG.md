@@ -14,9 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ALLUSERS=1` (`msiexec /i Elevate-<version>-x64.msi ALLUSERS=1`) and it installs into
   `%ProgramFiles%\Elevate` instead, with the Start Menu entry for everyone and the CLI on the
   system PATH; that needs an administrator, and is what an Intune deployment in the device
-  context wants. An upgrade keeps the scope of the install it replaces: a newer MSI run on a PC
-  with a per-machine Elevate upgrades that one, and so asks for an administrator. Installing for
-  all users does not remove a copy a user installed for themselves; uninstall that one first.
+  context wants. Upgrade a per-machine install the same way, with `ALLUSERS=1`; without it the
+  installer stops and says so, where it would otherwise put a second, per-user copy next to it.
+  Installing for all users does not remove a copy a user installed for themselves; uninstall that
+  one first.
   See [docs/enterprise/windows-intune.md](docs/enterprise/windows-intune.md). (#205)
 
 ### Fixed

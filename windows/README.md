@@ -34,10 +34,10 @@ msiexec /i Elevate-<version>-x64.msi ALLUSERS=1
 
 That installs into `%ProgramFiles%\Elevate`, puts the Start Menu entry in everyone's Start Menu
 and adds the `cli` subfolder to the system PATH. Settings, accounts and saved sign-ins stay per
-user either way. An upgrade keeps the scope of the install it replaces, so on a PC with a
-per-machine Elevate a newer MSI upgrades that one and needs an administrator. A per-machine
-install does not remove a copy a user installed for themselves: uninstall the per-user one first,
-or the PC ends up with both.
+user either way. Upgrade a per-machine install the same way, with `ALLUSERS=1`: run without it,
+the installer stops with a message saying so, because it would otherwise put a second, per-user
+copy next to the per-machine one. A per-machine install does not remove a copy a user installed
+for themselves: uninstall the per-user one first, or the PC ends up with both.
 
 The MSI, the app and the bundled CLI are code-signed with a Certum certificate; the publisher
 shows as "Open Source Developer Frode Hus". SmartScreen can still show "Windows protected your
@@ -178,8 +178,10 @@ authoring"): per user by default, per machine with `ALLUSERS=1`. Windows Install
 must not name a per-user or a per-machine location outright; the validation step (ICE105 among
 others) fails the build if it does. The PATH entry and the shortcut are each two components, one
 per scope, chosen by a condition on `ALLUSERS`. A registry search for the per-machine install
-switches a plain `msiexec /i` to per-machine, so an upgrade never lands next to the install it
-should replace. Windows Installer writes the Add/Remove Programs key of a per-user install under
+feeds a launch condition that refuses a per-user install on such a PC, so an upgrade never lands
+next to the install it should replace. (Switching the install to per-machine at that point is
+not an option: Windows Installer settles the scope before any action runs, and a switched
+install removes the old version and then fails.) Windows Installer writes the Add/Remove Programs key of a per-user install under
 HKLM too, keyed to the user who installed it; that is its own behaviour, not the package's.
 `winget/New-Manifest.ps1` fills the templates in `winget/templates` with the release URLs and
 hashes.

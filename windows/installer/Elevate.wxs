@@ -54,22 +54,18 @@
       </Directory>
     </StandardDirectory>
 
-    <!-- An upgrade stays in the scope of the install it replaces. Left alone, a plain
-         `msiexec /i` (what winget and a double click run) on a PC with a per-machine Elevate
-         would install a second, per-user copy next to it: a per-user install skips per-machine
-         products when it looks for the version to replace. The per-machine install leaves
-         CliOnSystemPath under HKLM (its HKMU root); finding it switches this install to
-         per-machine before FindRelatedProducts runs, which then needs an administrator. -->
+    <!-- A per-user install is refused on a PC that has the per-machine Elevate. It would not
+         replace it: a per-user install skips per-machine products when it looks for the version
+         to upgrade, and the PC would end up with two copies. The per-machine install leaves
+         CliOnSystemPath under HKLM (its HKMU root); that is what the search finds.
+         Switching the install to per-machine here instead (setting ALLUSERS) does not work:
+         Windows Installer has settled the scope, and whether to elevate, before any action runs,
+         and a switched install removes the old version and then fails with error 1925. -->
     <Property Id="PERMACHINEINSTALL">
       <RegistrySearch Id="PerMachineInstall" Root="HKLM" Key="Software\Reothor\Elevate" Name="CliOnSystemPath" Type="raw" />
     </Property>
-    <SetProperty Id="ALLUSERS" Value="1" After="AppSearch" Sequence="both" Condition="PERMACHINEINSTALL AND NOT ALLUSERS AND NOT Installed" />
-    <InstallExecuteSequence>
-      <AppSearch Sequence="10" />
-    </InstallExecuteSequence>
-    <InstallUISequence>
-      <AppSearch Sequence="10" />
-    </InstallUISequence>
+    <Launch Condition="Installed OR ALLUSERS OR NOT PERMACHINEINSTALL"
+            Message="Elevate is installed for all users of this PC. To upgrade it, an administrator runs this installer with ALLUSERS=1 (msiexec /i &lt;file&gt; ALLUSERS=1)." />
 
     <Feature Id="Main" Title="Elevate" Level="1">
       <ComponentGroupRef Id="PublishedFiles" />

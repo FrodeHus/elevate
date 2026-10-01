@@ -64,9 +64,9 @@ over:
 
 - A per-machine install does not remove a copy a user installed for themselves, and such a PC
   ends up with both. Uninstall the per-user deployment first.
-- An upgrade keeps the scope of the install it replaces. On a PC with the per-machine Elevate, a
-  newer MSI upgrades that one even without `ALLUSERS=1` and fails for a user who is not an
-  administrator, so enable **Disable the update check** and let Intune deliver new versions.
+- Upgrades need `ALLUSERS=1` too, as in the install command above. On a PC with the per-machine
+  Elevate, the MSI run without it (a double click, `winget upgrade`) stops with a message and
+  changes nothing, so enable **Disable the update check** and let Intune deliver new versions.
 
 ## 2. Import the administrative template
 
