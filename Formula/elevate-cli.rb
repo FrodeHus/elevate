@@ -1,7 +1,7 @@
 class ElevateCli < Formula
   desc "Just-in-time Entra, Azure and PIM for Groups activation from the terminal"
   homepage "https://github.com/FrodeHus/elevate"
-  version "1.8.0"
+  version "1.8.1"
   license "MIT"
 
   # The CLI now ships inside the Elevate cask (via the pkg) and the MSI. This formula is kept for
@@ -11,22 +11,22 @@ class ElevateCli < Formula
   on_macos do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-osx-arm64.tar.gz"
-      sha256 "85ef687118cc54565dbdbdd7f2135027f3c162e8616e7297195116883d501324"
+      sha256 "9ef41a9900ab4c48113c4c9ed1ca356d1bc81df27a37d5aec4ae2a1609e701a7"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-osx-x64.tar.gz"
-      sha256 "5cc6c2b54ce99e766418f87d111ff711817bf2dbe3efb240e9202fb99fc2ccf8"
+      sha256 "3cb8011b100909d1515a92f4fda75fcd99892f21fddb0b043fe4971f427ccfe2"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-linux-arm64.tar.gz"
-      sha256 "c15c45a23694d93c6454377ad6966684e2c98daa456e0e9d859fd216349eb095"
+      sha256 "6b12291133fc0e8479faee311d56b201d9ec51494a44aa544066fb56b830b2bf"
     end
     on_intel do
       url "https://github.com/FrodeHus/elevate/releases/download/v#{version}/elevate-cli-#{version}-linux-x64.tar.gz"
-      sha256 "32b9b7b961720acefdb8f6227291db9358f1cf7064ff3251e672460e9a9d6098"
+      sha256 "3c8a4583c72c93d593f9594ef9ae1e6ee3d1e681d3014c40dd1560c8c060523b"
     end
   end
 
