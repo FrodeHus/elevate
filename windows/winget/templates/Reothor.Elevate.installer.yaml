@@ -2,7 +2,6 @@
 PackageIdentifier: Reothor.Elevate
 PackageVersion: {{VERSION}}
 InstallerType: wix
-Scope: user
 InstallModes:
 - interactive
 - silent
