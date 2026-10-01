@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Windows: **`winget upgrade Reothor.Elevate` no longer refuses the new version.** It answered "A
+  newer package version is available in a configured source, but it does not apply to your system
+  or requirements": the winget manifest declared the installer as user scope, while Windows
+  registers a per-user MSI where winget reads it as machine scope, so winget ruled every installer
+  out. The manifest no longer declares a scope. This takes effect with the manifest of the next
+  release; to get from 1.7.0 to 1.8.0, run the 1.8.0 MSI from the release page. (#205)
+
 - macOS: **expired activations no longer linger after the Mac wakes.** When a background refresh
   could not renew a sign-in silently — a browser sign-in account after a long sleep, for example —
   the tenant kept its last-known rows, and activations that had ended meanwhile stayed in **Active
