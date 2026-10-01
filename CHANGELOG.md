@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Windows: **the MSI can install for all users of a PC.** Run it as before and it installs for the
+  current user into `%LOCALAPPDATA%\Programs\Elevate` with no administrator rights. Run it with
+  `ALLUSERS=1` (`msiexec /i Elevate-<version>-x64.msi ALLUSERS=1`) and it installs into
+  `%ProgramFiles%\Elevate` instead, with the Start Menu entry for everyone and the CLI on the
+  system PATH; that needs an administrator, and is what an Intune deployment in the device
+  context wants. An upgrade keeps the scope of the install it replaces: a newer MSI run on a PC
+  with a per-machine Elevate upgrades that one, and so asks for an administrator. Installing for
+  all users does not remove a copy a user installed for themselves; uninstall that one first.
+  See [docs/enterprise/windows-intune.md](docs/enterprise/windows-intune.md). (#205)
+
 ### Fixed
 
 - macOS: **expired activations no longer linger after the Mac wakes.** When a background refresh

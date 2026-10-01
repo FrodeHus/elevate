@@ -1,8 +1,8 @@
 # Elevate for Windows
 
 The Windows 11 counterpart of the macOS menu bar app: a system-tray flyout for just-in-time
-Microsoft Entra and Azure PIM role activation, built with WinUI 3 on .NET 10, installed from a
-per-user MSI downloaded from the GitHub releases or installed with winget.
+Microsoft Entra and Azure PIM role activation, built with WinUI 3 on .NET 10, installed from an
+MSI downloaded from the GitHub releases or installed with winget.
 
 UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the
 flyout, windows, tray states and tokens; open the file in a browser, it follows the OS theme).
@@ -15,7 +15,7 @@ winget install Reothor.Elevate
 
 Or download `Elevate-<version>-x64.msi` (or `-arm64.msi` for Arm PCs) from the
 [latest release](https://github.com/FrodeHus/elevate/releases/latest) and run it: both routes
-install the same per-user MSI. It installs for the current user into
+install the same MSI. It installs for the current user into
 `%LOCALAPPDATA%\Programs\Elevate` (no admin rights), adds a Start Menu entry and can launch
 Elevate when it finishes. It also installs the `elevate`
 command-line tool into a `cli` subfolder (`%LOCALAPPDATA%\Programs\Elevate\cli`) and adds that
@@ -24,6 +24,20 @@ terminal needs to be restarted). If you also installed the standalone CLI with w
 (`Reothor.Elevate.CLI`), uninstall one of them so a single `elevate` is on the PATH. It needs the
 .NET 10 runtime (`winget install Microsoft.DotNet.Runtime.10`); the Windows App SDK runtime is
 bundled. Windows 11 (build 22000) or newer.
+
+To install for every user of the PC instead, run the MSI with `ALLUSERS=1` from an elevated
+prompt (or accept the UAC prompt):
+
+```powershell
+msiexec /i Elevate-<version>-x64.msi ALLUSERS=1
+```
+
+That installs into `%ProgramFiles%\Elevate`, puts the Start Menu entry in everyone's Start Menu
+and adds the `cli` subfolder to the system PATH. Settings, accounts and saved sign-ins stay per
+user either way. An upgrade keeps the scope of the install it replaces, so on a PC with a
+per-machine Elevate a newer MSI upgrades that one and needs an administrator. A per-machine
+install does not remove a copy a user installed for themselves: uninstall the per-user one first,
+or the PC ends up with both.
 
 The MSI, the app and the bundled CLI are code-signed with a Certum certificate; the publisher
 shows as "Open Source Developer Frode Hus". SmartScreen can still show "Windows protected your
@@ -153,11 +167,20 @@ winget validate --manifest winget/manifests/r/Reothor/Elevate/1.0.0
 
 `installer/build.ps1` publishes the app framework-dependent with the Windows App SDK self-contained,
 and also publishes the CLI (`../cli/src/Elevate.Cli`) self-contained per architecture, signing
-`elevate.exe` when `-Sign` is given, and passes it to WiX as `CliDir`. It builds the per-user MSI
-with WiX v5 (`installer/Elevate.wxs`) and signs the MSI with the Certum certificate named by
+`elevate.exe` when `-Sign` is given, and passes it to WiX as `CliDir`. It builds the MSI
+with WiX v5 (`installer/Elevate.wxs`), validates it with `wix msi validate`, and signs the MSI with the Certum certificate named by
 `CERTUM_KEY_ID` when `-Sign` is given (the SimplySign session must already be open). The MSI's `Cli` component installs `elevate.exe` under
-`cli\` and adds that subfolder to the user's PATH (HKCU; the package is per-user, so the machine
-PATH is out of reach).
+`cli\`, and that subfolder goes on the PATH.
+
+The package is dual-purpose (`Scope="perUserOrMachine"`, Windows Installer's "single package
+authoring"): per user by default, per machine with `ALLUSERS=1`. Windows Installer redirects
+`ProgramFiles64Folder`, `ProgramMenuFolder` and the `HKMU` registry root to match, so the source
+must not name a per-user or a per-machine location outright; the validation step (ICE105 among
+others) fails the build if it does. The PATH entry and the shortcut are each two components, one
+per scope, chosen by a condition on `ALLUSERS`. A registry search for the per-machine install
+switches a plain `msiexec /i` to per-machine, so an upgrade never lands next to the install it
+should replace. Windows Installer writes the Add/Remove Programs key of a per-user install under
+HKLM too, keyed to the user who installed it; that is its own behaviour, not the package's.
 `winget/New-Manifest.ps1` fills the templates in `winget/templates` with the release URLs and
 hashes.
 

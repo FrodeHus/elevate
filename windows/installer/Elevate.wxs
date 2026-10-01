@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Elevate for Windows: a per-user MSI that installs the published app into
-  %LOCALAPPDATA%\Programs\Elevate with a Start Menu shortcut and the elevate CLI on the user's
-  PATH. Built by build.ps1 for x64 and arm64 with `wix build`, which needs the WixToolset.UI.wixext
+  Elevate for Windows: a dual-purpose MSI (Windows Installer "single package authoring") that
+  installs the published app with a Start Menu shortcut and the elevate CLI on the PATH.
+
+    per user (the default, no elevation)       %LOCALAPPDATA%\Programs\Elevate, the user's PATH
+    per machine (msiexec /i ... ALLUSERS=1)    %ProgramFiles%\Elevate, the system PATH
+
+  Scope="perUserOrMachine" authors ALLUSERS=2 and MSIINSTALLPERUSER=1; Windows Installer then
+  redirects ProgramFiles64Folder, ProgramMenuFolder and the HKMU registry root to the per-user or
+  the per-machine location. Nothing here may name a per-user or a per-machine location outright:
+  build.ps1 validates the package, and ICE105 rejects a dual-purpose package that does.
+
+  Built by build.ps1 for x64 and arm64 with `wix build`, which needs the WixToolset.UI.wixext
   extension for the exit-dialog checkbox.
 
   Preprocessor variables (all passed by build.ps1):
@@ -11,7 +20,7 @@
     CliDir      the dotnet publish output of the CLI for this architecture (holds elevate.exe)
 
   The CLI is installed into a `cli` subfolder of the install folder (and that subfolder, not
-  the install folder itself, is put on the user's PATH: %LOCALAPPDATA%\Programs\Elevate\cli):
+  the install folder itself, is put on the PATH):
   elevate.exe and the app's Elevate.exe are the same name on a case-insensitive file system and
   cannot share a directory.
 -->
@@ -20,12 +29,12 @@
            Manufacturer="Reothor"
            Version="$(var.Version)"
            UpgradeCode="7B2E8C3A-5D41-4F0B-9C6E-2A1F3D4E5B60"
-           Scope="perUser"
+           Scope="perUserOrMachine"
            Language="1033"
            InstallerVersion="500"
            Compressed="yes">
 
-    <SummaryInformation Description="Elevate: just-in-time Entra and Azure PIM role activation from the system tray, with the elevate CLI on the user's PATH"
+    <SummaryInformation Description="Elevate: just-in-time Entra and Azure PIM role activation from the system tray, with the elevate CLI on the PATH"
                         Manufacturer="Reothor" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of Elevate is already installed." />
@@ -36,21 +45,39 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/FrodeHus/elevate" />
     <Property Id="ARPHELPLINK" Value="https://github.com/FrodeHus/elevate/issues" />
 
-    <!-- %LOCALAPPDATA%\Programs\Elevate -->
-    <StandardDirectory Id="LocalAppDataFolder">
-      <Directory Id="ProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="Elevate">
-          <!-- The CLI lives one level down: elevate.exe and the app's Elevate.exe are the same
-               name on a case-insensitive file system and cannot share a directory. -->
-          <Directory Id="CLIFOLDER" Name="cli" />
-        </Directory>
+    <!-- %LOCALAPPDATA%\Programs\Elevate per user, %ProgramFiles%\Elevate per machine. -->
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="Elevate">
+        <!-- The CLI lives one level down: elevate.exe and the app's Elevate.exe are the same
+             name on a case-insensitive file system and cannot share a directory. -->
+        <Directory Id="CLIFOLDER" Name="cli" />
       </Directory>
     </StandardDirectory>
+
+    <!-- An upgrade stays in the scope of the install it replaces. Left alone, a plain
+         `msiexec /i` (what winget and a double click run) on a PC with a per-machine Elevate
+         would install a second, per-user copy next to it: a per-user install skips per-machine
+         products when it looks for the version to replace. The per-machine install leaves
+         CliOnSystemPath under HKLM (its HKMU root); finding it switches this install to
+         per-machine before FindRelatedProducts runs, which then needs an administrator. -->
+    <Property Id="PERMACHINEINSTALL">
+      <RegistrySearch Id="PerMachineInstall" Root="HKLM" Key="Software\Reothor\Elevate" Name="CliOnSystemPath" Type="raw" />
+    </Property>
+    <SetProperty Id="ALLUSERS" Value="1" After="AppSearch" Sequence="both" Condition="PERMACHINEINSTALL AND NOT ALLUSERS AND NOT Installed" />
+    <InstallExecuteSequence>
+      <AppSearch Sequence="10" />
+    </InstallExecuteSequence>
+    <InstallUISequence>
+      <AppSearch Sequence="10" />
+    </InstallUISequence>
 
     <Feature Id="Main" Title="Elevate" Level="1">
       <ComponentGroupRef Id="PublishedFiles" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="StartMenuShortcutAllUsers" />
       <ComponentRef Id="Cli" />
+      <ComponentRef Id="CliOnUserPath" />
+      <ComponentRef Id="CliOnSystemPath" />
     </Feature>
 
     <!-- Everything `dotnet publish` produced, including the self-contained Windows App SDK runtime. -->
@@ -59,21 +86,38 @@
     </ComponentGroup>
 
     <!-- The elevate CLI in its own `cli` subfolder (it cannot share INSTALLFOLDER with the app's
-         Elevate.exe on a case-insensitive file system), with that subfolder appended to the
-         user's PATH so `elevate` resolves in any new terminal. A per-user package can only write
-         HKCU, hence System="no"; the entry is removed on uninstall (Permanent="no"). -->
+         Elevate.exe on a case-insensitive file system). -->
     <Component Id="Cli" Directory="CLIFOLDER" Guid="3E7A9C15-2B4D-4F86-A1C3-8D5E6F7A9B02">
       <File Id="ElevateCli" Source="$(var.CliDir)\elevate.exe" KeyPath="yes" />
-      <Environment Id="CliOnUserPath" Name="PATH" Value="[CLIFOLDER]" Action="set" Part="last" Permanent="no" System="no" />
-      <RemoveFolder Id="RemoveCliFolder" Directory="CLIFOLDER" On="uninstall" />
     </Component>
 
-    <!-- A per-user install has no reliable file key path; the registry value stands in for it. -->
-    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="9F1D6A2B-3C4E-4D5F-8A7B-6C5D4E3F2A10">
+    <!-- The `cli` subfolder appended to the PATH so `elevate` resolves in any new terminal: the
+         user's PATH in a per-user install, the system PATH in a per-machine one. One Environment
+         row cannot be both, hence two components and a condition on the context Windows Installer
+         settled on (it resets ALLUSERS to 1 or to nothing). The entry goes on uninstall. -->
+    <Component Id="CliOnUserPath" Directory="CLIFOLDER" Guid="5C0E8B41-7D2A-4E93-B6F1-0A9D3C7E5F14" Condition="NOT ALLUSERS">
+      <RegistryValue Root="HKMU" Key="Software\Reothor\Elevate" Name="CliOnUserPath" Type="integer" Value="1" KeyPath="yes" />
+      <Environment Id="CliOnUserPath" Name="PATH" Value="[CLIFOLDER]" Action="set" Part="last" Permanent="no" System="no" />
+    </Component>
+    <Component Id="CliOnSystemPath" Directory="CLIFOLDER" Guid="A1D4F6C2-9B3E-4705-8E2C-6F1B0D9A7C35" Condition="ALLUSERS">
+      <RegistryValue Root="HKMU" Key="Software\Reothor\Elevate" Name="CliOnSystemPath" Type="integer" Value="1" KeyPath="yes" />
+      <Environment Id="CliOnSystemPath" Name="PATH" Value="[CLIFOLDER]" Action="set" Part="last" Permanent="no" System="yes" />
+    </Component>
+
+    <!-- The Start Menu shortcut, in the user's Start Menu or in the all-users one. Two components
+         for the same reason as the PATH entry, and one more: a single component would be shared
+         by a per-user and a per-machine install on the same PC, and removing one of them would
+         then leave its shortcut behind. A shortcut is per-user data to the validator even in the
+         all-users Start Menu, so ICE57 wants an HKCU key path for both. -->
+    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="9F1D6A2B-3C4E-4D5F-8A7B-6C5D4E3F2A10" Condition="NOT ALLUSERS">
       <Shortcut Id="ElevateShortcut" Name="Elevate" Description="Activate Entra and Azure PIM roles"
                 Target="[INSTALLFOLDER]Elevate.exe" WorkingDirectory="INSTALLFOLDER" Icon="ElevateIcon" />
-      <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
       <RegistryValue Root="HKCU" Key="Software\Reothor\Elevate" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+    <Component Id="StartMenuShortcutAllUsers" Directory="ProgramMenuFolder" Guid="D7B2E905-4A1C-4F68-9E3D-2C8A5B6F1E47" Condition="ALLUSERS">
+      <Shortcut Id="ElevateShortcutAllUsers" Name="Elevate" Description="Activate Entra and Azure PIM roles"
+                Target="[INSTALLFOLDER]Elevate.exe" WorkingDirectory="INSTALLFOLDER" Icon="ElevateIcon" />
+      <RegistryValue Root="HKCU" Key="Software\Reothor\Elevate" Name="InstalledForAllUsers" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
     <!-- Launch after install (the checkbox on the exit dialog, on by default). -->
