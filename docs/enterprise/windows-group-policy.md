@@ -13,9 +13,10 @@ open the tray app, click **Add account…** and sign in.
 - `Elevate-enterprise-kit-<version>.zip` from the
   [latest release](https://github.com/FrodeHus/elevate/releases/latest), unzipped. You want
   `windows/Elevate.admx` and `windows/en-US/Elevate.adml`.
-- Elevate installed on the PCs. The per-user MSI is described in
-  [windows/README.md](../../windows/README.md#install); deploy it however you deploy other per-user
-  software, or with Intune ([windows-intune.md](windows-intune.md)).
+- Elevate installed on the PCs. The MSI is described in
+  [windows/README.md](../../windows/README.md#install): per user by default, or for all users of
+  the PC with `ALLUSERS=1`. Deploy it however you deploy other software, or with Intune
+  ([windows-intune.md](windows-intune.md)).
 
 The keys, their types and their registry shapes are in [keys.md](keys.md). Push only what you want
 to take away from users: every policy you enable is locked, and one you leave **Not configured**
@@ -100,7 +101,7 @@ Elevate reads the policy at its **next launch**: quit the tray app and start it 
   any warnings.
 - **Copy diagnostics** includes a `Managed configuration:` section naming the source
   (`Windows policy`) and the key names — never the values.
-- The MSI installs the `elevate` CLI in a `cli` folder under the app, on the user's PATH; it reads
+- The MSI installs the `elevate` CLI in a `cli` folder under the app, on the PATH; it reads
   the same registry keys: `elevate config` marks each value's `Source` as `managed`, and
   `elevate config managed` prints the origin, the keys and the warnings.
 

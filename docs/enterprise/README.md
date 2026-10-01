@@ -69,9 +69,10 @@ Both come from the [latest release](https://github.com/FrodeHus/elevate/releases
   a copy of `keys.md`, and a worked example of one company's finished configuration in every
   format. The same files live in [`enterprise/`](../../enterprise/) in the repository.
 
-Windows is installed from the per-user MSI as before; there is no separate enterprise build. The
-Windows MSI installs the CLI in a `cli` folder under the app and adds that folder to the user's
-PATH. For Linux, Intel Macs and servers the CLI is a single binary from the same release
+Windows is installed from the same MSI as before; there is no separate enterprise build. It
+installs per user by default and for all users of the PC with `ALLUSERS=1`
+([windows-intune.md](windows-intune.md#per-device-instead)). The MSI installs the CLI in a `cli`
+folder under the app and adds that folder to the PATH. For Linux, Intel Macs and servers the CLI is a single binary from the same release
 ([cli.md](cli.md)).
 
 ## Uninstalling
@@ -91,7 +92,8 @@ running the three commands, or an Intune shell script, does the same across the 
 users run `brew uninstall --cask frodehus/elevate/elevate`, which performs the same steps.
 
 **Windows.** `msiexec /x Elevate-<version>-x64.msi /qn` (or Settings → Apps) removes the app, the
-CLI and the PATH entry the MSI added.
+CLI and the PATH entry the MSI added. A per-machine install is removed the same way, by an
+administrator.
 
 ## How you verify, whatever you used
 
