@@ -1,7 +1,8 @@
 # Elevate product page
 
 A self-contained static site for GitHub Pages: HTML, CSS and progressive JavaScript. No build,
-package manager, external fonts, analytics or runtime service is required. This site is independent
+package manager, external fonts or runtime service is required. The only third-party request is
+the Cloudflare Web Analytics beacon (see [Analytics](#analytics)). This site is independent
 of the macOS, Windows and CLI builds.
 
 ## Preview and validate
@@ -74,6 +75,15 @@ Design references: [Apple materials](https://developer.apple.com/design/human-in
 and the [WCAG 2.2 quick reference](https://www.w3.org/WAI/WCAG22/quickref/). The page uses glass
 selectively, visible keyboard focus, semantic landmarks, responsive layouts and user-controlled
 feature switching. It does not auto-rotate panels or gate content behind animation.
+
+## Analytics
+
+`index.html`, `audit.html`, `privacy.html` and `terms.html` load the Cloudflare Web Analytics
+beacon; figures are in the Cloudflare dashboard under **Web Analytics**. The token in the snippet
+is public. `consent.html` must never load it, because the callback address carries the tenant ID
+and consent result, and `audit-sample.html` is a sample report rather than a page to count. The
+validator enforces both lists and rejects any other external script. Keep the "Visiting this
+website" section of `privacy.html` in step with what the beacon does.
 
 ## Consent result
 

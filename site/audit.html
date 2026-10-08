@@ -38,6 +38,12 @@
       .audit-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 28px; }
       .audit-note { border-left: 3px solid var(--blue); padding-left: 16px; color: var(--muted); }
     </style>
+    <!-- Cloudflare Web Analytics. Never add this to consent.html: its URL carries tenant details. -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "6ef562dfa0294b0f9a483432e2aecb00"}'
+    ></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

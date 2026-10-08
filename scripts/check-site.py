@@ -8,6 +8,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
+# The one permitted third-party script, and the only pages allowed to load it. consent.html is
+# excluded because its address carries the tenant ID and consent result.
+BEACON = "https://static.cloudflareinsights.com/beacon.min.js"
+COUNTED = {"index.html", "audit.html", "privacy.html", "terms.html"}
 errors = []
 
 
@@ -18,6 +22,7 @@ class Page(HTMLParser):
         self.links = []
         self.assets = []
         self.h1_count = 0
+        self.beacons = 0
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -29,7 +34,9 @@ class Page(HTMLParser):
             self.ids.add(attrs["id"])
         if tag == "a":
             self.links.append(attrs.get("href", ""))
-        if tag in ("img", "script") and attrs.get("src"):
+        if tag == "script" and attrs.get("src") == BEACON:
+            self.beacons += 1
+        elif tag in ("img", "script") and attrs.get("src"):
             self.assets.append(attrs["src"])
         if tag == "link" and attrs.get("rel") in ("stylesheet", "icon"):
             self.assets.append(attrs.get("href", ""))
@@ -46,6 +53,9 @@ for document in sorted(SITE.glob("*.html")):
     pages[document.resolve()] = page
     if page.h1_count != 1:
         errors.append(f"{document.name}: must have exactly one h1")
+    if page.beacons != (document.name in COUNTED):
+        errors.append(f"{document.name}: analytics beacon must appear "
+                      f"{'once' if document.name in COUNTED else 'nowhere'} on this page")
 if (SITE / "index.html").resolve() not in pages:
     sys.exit("Missing site/index.html")
 
