@@ -8,6 +8,11 @@
   URLs point at the GitHub release for tag v<version>. Validate the result with
   `winget validate manifests\r\Reothor\Elevate\<version>`.
 
+  The installer template declares no Scope on purpose. Windows Installer writes the Uninstall key
+  of a per-user MSI under HKLM, so winget reads an installed Elevate as machine scope; with
+  `Scope: user` in the manifest it rejects every installer on upgrade ("does not apply to your
+  system or requirements").
+
 .PARAMETER Version
   The release version, e.g. 1.0.0.
 

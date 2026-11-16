@@ -19,7 +19,8 @@ app, click **Add account…** and sign in — they are never asked for a client 
   `Microsoft.DotNet.Runtime.10` first, or make it a dependency of the app below.
 
 The MSI installs per user into `%LOCALAPPDATA%\Programs\Elevate` and needs no administrator
-rights, so it is deployed as a Win32 app in the **user** install context. The MSI is code-signed
+rights, so the steps below deploy it as a Win32 app in the **user** install context. To install
+it once for every user of a PC instead, see [Per device instead](#per-device-instead). The MSI is code-signed
 (publisher "Open Source Developer Frode Hus"); see [windows/README.md](../../windows/README.md#install).
 
 The keys you can push are in [keys.md](keys.md). Push only what you want to take away from users:
@@ -46,6 +47,26 @@ every key you send is locked.
    exists** — with **Associated with a 32-bit app on 64-bit clients** left off. (A version-based
    rule on the same file works too, and makes upgrades explicit.)
 6. Assign it to a **user** group, not a device group, and create the app.
+
+### Per device instead
+
+The same MSI installs for all users of the PC when it is run with `ALLUSERS=1`: into
+`%ProgramFiles%\Elevate`, with the Start Menu entry for everyone and the CLI on the system PATH.
+Change these settings from the steps above:
+
+- Install command: `msiexec /i "Elevate-<version>-x64.msi" /qn ALLUSERS=1`
+- **Install behavior: System**.
+- Detection rule: path `%ProgramFiles%\Elevate`, file `Elevate.exe`.
+- Assign it to a **device** group.
+
+Settings, accounts and saved sign-ins stay per user. Two things to know before switching a fleet
+over:
+
+- A per-machine install does not remove a copy a user installed for themselves, and such a PC
+  ends up with both. Uninstall the per-user deployment first.
+- Upgrades need `ALLUSERS=1` too, as in the install command above. On a PC with the per-machine
+  Elevate, the MSI run without it (a double click, `winget upgrade`) stops with a message and
+  changes nothing, so enable **Disable the update check** and let Intune deliver new versions.
 
 ## 2. Import the administrative template
 
@@ -98,7 +119,7 @@ Then in the app:
 - **Copy diagnostics** produces a report with a `Managed configuration:` section naming the source
   (`Windows policy`) and the key names — never the values.
 
-The MSI installs the `elevate` CLI in a `cli` folder under the app, on the user's PATH; it reads
+The MSI installs the `elevate` CLI in a `cli` folder under the app, on the PATH; it reads
 the same registry keys:
 
 ```

@@ -12,6 +12,12 @@
     <link rel="icon" type="image/png" href="assets/icon.png" />
     <link rel="stylesheet" href="styles.css" />
     <title>Privacy Statement — Elevate</title>
+    <!-- Cloudflare Web Analytics. Never add this to consent.html: its URL carries tenant details. -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "6ef562dfa0294b0f9a483432e2aecb00"}'
+    ></script>
   </head>
   <body class="legal-page">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -29,7 +35,7 @@
         <p class="section-label">Elevate</p>
         <h1>Privacy Statement</h1>
         <p class="legal-date">
-          Last updated: <time datetime="2026-09-10">10 September 2026</time>
+          Last updated: <time datetime="2026-10-08">8 October 2026</time>
         </p>
         <p>How the Elevate website, apps and project support handle data.</p>
       </header>
@@ -58,18 +64,31 @@
         <section id="website">
           <h2>Visiting this website</h2>
           <p>
-            The Elevate website does not add analytics, advertising, tracking
-            pixels, cookies or browser storage. It has no sign-in form and does
-            not request access to your Microsoft account. Fonts, images and
-            scripts are served with the site. The copy-command button writes the
-            displayed command to your clipboard only when you click it; it does
-            not read your clipboard.
+            The Elevate website does not add advertising, tracking pixels,
+            cookies or browser storage. It has no sign-in form and does not
+            request access to your Microsoft account. Fonts, images and the
+            site’s own scripts are served with the site. The copy-command button
+            writes the displayed command to your clipboard only when you click
+            it; it does not read your clipboard.
+          </p>
+          <p>
+            To count visits, the public pages load a script from Cloudflare Web
+            Analytics. It reports the page address, the referring page and
+            page-load timings to Cloudflare, which receives your IP address and
+            browser details with that request as with any web request. It sets
+            no cookies, uses no browser storage and does not follow you across
+            sites; the maintainer sees aggregate figures only. The admin-consent
+            result page does not load it, so tenant details in that page’s
+            address are not sent to Cloudflare. See the
+            <a href="https://www.cloudflare.com/privacypolicy/"
+              >Cloudflare Privacy Policy</a
+            >.
           </p>
           <p>
             The site is hosted on GitHub Pages. GitHub states that it logs
             visitors’ IP addresses for security purposes, including visits made
-            without signing in. Hosting therefore involves data processing even
-            though the Elevate website has no analytics. See
+            without signing in. Hosting therefore involves data processing
+            separately from the visit counting above. See
             <a
               href="https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages#data-collection"
               >GitHub Pages data collection</a

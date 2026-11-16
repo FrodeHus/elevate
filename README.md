@@ -26,7 +26,7 @@ tenants, and finding your way around the panel. The rest of the user guides are 
 
 - **macOS 26**: Homebrew cask or DMG, see [macos/README.md](macos/README.md#install). The cask
   and the pkg also install the `elevate` CLI; the DMG is the app alone.
-- **Windows 11**: `winget install Reothor.Elevate`, or the per-user MSI from the release; either
+- **Windows 11**: `winget install Reothor.Elevate`, or the MSI from the release; either
   installs the app and the `elevate` CLI, see [windows/README.md](windows/README.md#install).
 - **CLI on its own** (Linux, Intel Macs, servers): `winget install Reothor.Elevate.CLI` on
   Windows, or a single binary from the release, see [cli/README.md](cli/README.md#install).

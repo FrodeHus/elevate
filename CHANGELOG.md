@@ -31,7 +31,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the chip row as a one-role profile; it runs, renames and unpins like any other pinned profile
   and counts towards the four pins.
 
+## [1.8.1] - 2026-10-01
+
+### Added
+
+- Windows: **the MSI can install for all users of a PC.** Run it as before and it installs for the
+  current user into `%LOCALAPPDATA%\Programs\Elevate` with no administrator rights. Run it with
+  `ALLUSERS=1` (`msiexec /i Elevate-<version>-x64.msi ALLUSERS=1`) and it installs into
+  `%ProgramFiles%\Elevate` instead, with the Start Menu entry for everyone and the CLI on the
+  system PATH; that needs an administrator, and is what an Intune deployment in the device
+  context wants. Upgrade a per-machine install the same way, with `ALLUSERS=1`; without it the
+  installer stops and says so, where it would otherwise put a second, per-user copy next to it.
+  Installing for all users does not remove a copy a user installed for themselves; uninstall that
+  one first.
+  See [docs/enterprise/windows-intune.md](docs/enterprise/windows-intune.md). (#205)
+
 ### Fixed
+
+- Windows: **`winget upgrade Reothor.Elevate` no longer refuses the new version.** It answered "A
+  newer package version is available in a configured source, but it does not apply to your system
+  or requirements": the winget manifest declared the installer as user scope, while Windows
+  registers a per-user MSI where winget reads it as machine scope, so winget ruled every installer
+  out. The manifest no longer declares a scope. This takes effect with the manifest of the next
+  release; to get from 1.7.0 to 1.8.0, run the 1.8.0 MSI from the release page. (#205)
 
 - macOS: **expired activations no longer linger after the Mac wakes.** When a background refresh
   could not renew a sign-in silently — a browser sign-in account after a long sleep, for example —
@@ -816,7 +838,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/FrodeHus/elevate/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/FrodeHus/elevate/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...v1.7.0
 [1.6.7]: https://github.com/FrodeHus/elevate/compare/v1.6.6...v1.6.7

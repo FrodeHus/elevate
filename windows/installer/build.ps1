@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-  Publishes Elevate and the CLI for Windows and builds the per-user MSI for each architecture.
+  Publishes Elevate and the CLI for Windows and builds the MSI for each architecture.
 
 .DESCRIPTION
   For every architecture: publishes the app and the CLI, then `wix build` of Elevate.wxs into
-  out\Elevate-<version>-<arch>.msi with a .sha256 next to it; the MSI installs both and puts the
-  folder on the user's PATH. Signs the app's executable and assemblies, elevate.exe and the MSI
+  out\Elevate-<version>-<arch>.msi with a .sha256 next to it; the MSI installs both, per user by
+  default or per machine with ALLUSERS=1, and puts the CLI's folder on the PATH. The package is
+  validated with `wix msi validate`. Signs the app's executable and assemblies, elevate.exe and the MSI
   with signtool and the Certum code-signing certificate when -Sign is given. Needs the .NET 10 SDK and WiX v5
   (`dotnet tool install --global wix --version 5.0.2`).
 
@@ -91,6 +92,12 @@ foreach ($arch in $Architectures) {
     wix build (Join-Path $installer "Elevate.wxs") -arch $arch -d "Version=$Version" -d "PublishDir=$publishDir" `
         -d "CliDir=$cliDir" -ext WixToolset.UI.wixext -b $installer -o $msi
     if ($LASTEXITCODE -ne 0) { throw "wix build failed for $arch" }
+
+    # The package is dual-purpose (per user or per machine), which holds only while nothing in it
+    # names a per-user or a per-machine location outright; ICE105 and its neighbours check that.
+    # ICE03 is left out: it rejects the language ids of the Windows App SDK's resource DLLs.
+    wix msi validate -sice ICE03 $msi
+    if ($LASTEXITCODE -ne 0) { throw "wix msi validate failed for $arch" }
 
     if ($Sign) { Sign-File $msi }
 
