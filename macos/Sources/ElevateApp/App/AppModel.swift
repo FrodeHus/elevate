@@ -64,7 +64,9 @@ final class AppModel {
 
     var selectMode = false { didSet { if !selectMode { selection.removeAll() } } }
     /// Panel search. Not persisted; changing it drops the bulk selection since rows may disappear.
-    var searchQuery = "" { didSet { if searchQuery != oldValue { selection.removeAll() } } }
+    var searchQuery = "" { didSet { if searchQuery != oldValue { selection.removeAll(); highlightedRole = nil } } }
+    /// The row the arrow keys are on; nil while the keyboard is still in the filter field.
+    var highlightedRole: RoleKey?
     /// Collapsed state lives here, not in view @State: rows inside the lazy panel list are recreated as they scroll.
     var collapsedTenants: Set<TenantKey> = []
     var collapsedIdentities: Set<String> = []

@@ -15,7 +15,6 @@ struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
-    @State private var showSearch = false
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -36,13 +35,23 @@ struct PanelView: View {
             .padding(.vertical, 6)
             Divider()
             ProfilesRow()
-            if showSearch {
+            // Always there while there is a list to filter, and focused when the panel opens.
+            if !model.identities.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
                         .textFieldStyle(.plain)
                         .focused($searchFocused)
-                        .onExitCommand { closeSearch() }
+                        .onExitCommand { model.searchQuery = "" }
+                        // The keyboard stays in the field; the arrows move a highlight through the rows.
+                        .onKeyPress(.downArrow) { model.moveHighlight(1); return .handled }
+                        .onKeyPress(.upArrow) { model.moveHighlight(-1); return .handled }
+                        .onSubmit {
+                            guard let key = model.returnTarget else { return }
+                            if NSEvent.modifierFlags.contains(.option) {
+                                Task { if await !model.quickActivate(key) { open(.activate([key])) } }
+                            } else { open(.activate([key])) }
+                        }
                     if !model.searchQuery.isEmpty {
                         Button { model.searchQuery = "" } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear filter")
@@ -135,6 +144,7 @@ struct PanelView: View {
             } else {
                 // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
                 // to zero; size it from the measured content instead, capped so long lists scroll.
+                ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                         ApprovalsSection()
@@ -165,6 +175,8 @@ struct PanelView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }
                 .frame(height: min(max(contentHeight, 44), PanelMetrics.maxListHeight))
+                .onChange(of: model.highlightedRole) { _, key in if let key { proxy.scrollTo(key) } }
+                }
             }
             if model.selectMode {
                 Divider()
@@ -190,9 +202,7 @@ struct PanelView: View {
             footer
         }
         .frame(width: PanelMetrics.width)
-        .onChange(of: showSearch) { _, on in
-            if on { searchFocused = true } else { model.searchQuery = "" }
-        }
+        .onAppear { searchFocused = true }
     }
 
     /// One line under the bulk bar naming what is picked per tab, so a selection spanning tabs is
@@ -206,8 +216,6 @@ struct PanelView: View {
         guard !parts.isEmpty else { return nil }
         return "\(model.selectionCount) selected · \(parts.joined(separator: ", ")) — switch tabs to add more"
     }
-
-    private func closeSearch() { showSearch = false }
 
     private func open(_ route: PanelRoute) {
         openWindow(value: route)
@@ -240,8 +248,7 @@ struct PanelView: View {
             Spacer()
             // Shortcuts fire while the panel is key; the app has no visible menu bar to list them,
             // so the tooltips carry them.
-            Toggle(isOn: $showSearch) { Image(systemName: "magnifyingglass") }
-                .toggleStyle(.button)
+            Button { searchFocused = true } label: { Image(systemName: "magnifyingglass") }
                 .keyboardShortcut("f")
                 .help("Filter roles and groups (⌘F)")
                 .accessibilityLabel("Search")

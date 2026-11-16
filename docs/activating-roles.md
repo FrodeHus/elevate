@@ -131,9 +131,15 @@ Elevate re-reads your roles shortly after a group activation so those show up to
 
 ## Searching
 
-Click the magnifier in the header and type. The panel keeps only the roles, tenants and accounts
-that match, across all tabs. Press Escape or clear the field to see everything again; the filter
-never survives closing the panel.
+Open the panel and type: the filter field already has the focus. The panel keeps only the roles,
+tenants and accounts that match, across all tabs. Press Escape or clear the field to see
+everything again; the filter never survives closing the panel.
+
+Down and Up move through the role rows, and Return (Enter) activates the one you are on. With
+nothing picked, Return activates the top match of what you typed.
+
+To keep a single role one click away, right-click it and choose **Add to favorites**. It joins the
+pinned profiles at the top of the panel as a one-role profile.
 
 On the Azure tab the search narrows the tree itself rather than sitting beside it, and it reaches
 the whole ARM path — so a subscription id finds its roles even when no caption on the row shows it.

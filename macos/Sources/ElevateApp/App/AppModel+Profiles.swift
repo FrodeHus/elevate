@@ -123,6 +123,30 @@ extension AppModel {
         return true
     }
 
+    // MARK: Favorites
+
+    /// A favorite role is a pinned one-role profile of the user's own, so it runs, syncs and unpins like any other chip.
+    func isFavorite(_ key: RoleKey) -> Bool { favoriteProfile(key)?.pinned == true }
+
+    private func favoriteProfile(_ key: RoleKey) -> ActivationProfile? {
+        state.profiles.first { $0.entries.count == 1 && $0.entries[0].roleKey == key }
+    }
+
+    /// Pins a one-role profile for `key` (reusing one that exists), or unpins it. Returns false,
+    /// having set `notice`, when it could not be pinned.
+    @discardableResult
+    func setFavorite(_ key: RoleKey, name: String, _ favorite: Bool) -> Bool {
+        let existing = favoriteProfile(key)
+        guard favorite else { return existing.map { setPinned(id: $0.id, false) } ?? true }
+        // Checked before saving, so a full row does not leave an unpinned profile behind.
+        if existing?.pinned != true, !canPinAnotherProfile {
+            notice = "The favorites row is full (\(ProfilePins.limit)). Unpin one to add \(name)."
+            return false
+        }
+        guard let profile = existing ?? saveProfile(name: name, keys: [key]) else { return false }
+        return setPinned(id: profile.id, true)
+    }
+
     // MARK: In-place editing (the Profiles window)
 
     /// An empty profile to fill in the Profiles window; the caller selects it there.

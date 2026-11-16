@@ -57,7 +57,7 @@
 
         <!-- Start at -->
         <StackPanel Grid.Row="3" x:Name="ScheduleRow" Orientation="Horizontal" Spacing="12">
-            <ToggleSwitch x:Name="ScheduleToggle" Header="" OnContent="Start at" OffContent="Start now" Toggled="OnScheduleToggled" MinWidth="0" />
+            <ToggleSwitch x:Name="ScheduleToggle" Header="" OnContent="Start later" OffContent="Start later" Toggled="OnScheduleToggled" MinWidth="0" />
             <DatePicker x:Name="StartDate" Visibility="Collapsed" />
             <TimePicker x:Name="StartTime" Visibility="Collapsed" MinuteIncrement="5" />
         </StackPanel>
@@ -87,10 +87,11 @@
 
         <InfoBar Grid.Row="6" x:Name="Failure" IsOpen="False" IsClosable="False" Severity="Error" />
 
-        <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" TabFocusNavigation="Local">
+            <!-- Tab reaches the default button first, although Cancel is drawn first. -->
             <ProgressRing x:Name="Running" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
-            <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" MinWidth="90" />
-            <Button x:Name="SubmitButton" Content="Activate" Style="{StaticResource AccentButtonStyle}" Click="OnSubmit" MinWidth="120" />
+            <Button x:Name="CancelButton" TabIndex="1" Content="Cancel" Click="OnCancel" MinWidth="90" />
+            <Button x:Name="SubmitButton" TabIndex="0" Content="Activate" Style="{StaticResource AccentButtonStyle}" Click="OnSubmit" MinWidth="120" />
         </StackPanel>
     </Grid>
 </Window>

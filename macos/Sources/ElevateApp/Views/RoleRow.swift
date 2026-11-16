@@ -51,8 +51,20 @@ struct RoleRow: View {
         .padding(.vertical, 3)
         .padding(.leading, PanelMetrics.roleInset)
         .padding(.trailing, PanelMetrics.trailingInset)
-        .background(model.isNewRole(role.key) ? Color.accentColor.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+        .background(Color.accentColor.opacity(highlighted ? 0.25 : model.isNewRole(role.key) ? 0.08 : 0), in: RoundedRectangle(cornerRadius: 6))
+        .accessibilityAddTraits(highlighted ? .isSelected : [])
+        .id(role.key) // the arrow keys scroll the highlighted row into view
+        .contentShape(Rectangle())
+        .contextMenu {
+            let favorite = model.isFavorite(role.key)
+            Button(favorite ? "Remove from favorites" : "Add to favorites") {
+                // The scope is part of the name: "Contributor" alone does not tell two favorites apart.
+                model.setFavorite(role.key, name: role.detail.map { "\(role.displayName) · \($0)" } ?? role.displayName, !favorite)
+            }
+        }
     }
+
+    private var highlighted: Bool { model.highlightedRole == role.key }
 
     private var statusDot: some View {
         RoleStatusIndicator(status: assignment?.status, deactivation: model.deactivationProgress[role.key],

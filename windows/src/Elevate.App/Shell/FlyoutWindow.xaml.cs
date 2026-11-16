@@ -97,6 +97,7 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.Show(true);
         PInvoke.SetForegroundWindow(Handle);
         Activate();
+        Panel.FocusSearch();
     }
 
     public void Hide()

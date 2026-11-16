@@ -278,10 +278,6 @@
                 <TextBlock Text="offline" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
             <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                <ToggleButton x:Name="SearchToggle" Width="32" Height="32" Padding="0" Click="OnSearchToggle"
-                              AutomationProperties.Name="Search">
-                    <FontIcon Glyph="&#xE721;" FontSize="14" />
-                </ToggleButton>
                 <ToggleButton x:Name="SelectToggle" Width="32" Height="32" Padding="0" Click="OnSelectToggle"
                               ToolTipService.ToolTip="Select several roles to activate together" AutomationProperties.Name="Select roles">
                     <FontIcon Glyph="&#xE762;" FontSize="14" />
@@ -315,7 +311,7 @@
         </Grid>
 
         <!-- Search -->
-        <Grid Grid.Row="3" x:Name="SearchRow" Visibility="Collapsed" Padding="12,4,12,6"
+        <Grid Grid.Row="3" x:Name="SearchRow" Padding="12,4,12,6"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <TextBox x:Name="SearchBox" PlaceholderText="Filter roles" TextChanged="OnSearchChanged" KeyDown="OnSearchKeyDown" />
         </Grid>
@@ -384,6 +380,7 @@
             </StackPanel>
 
             <ListView x:Name="List" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False"
+                      PreviewKeyDown="OnListKeyDown" ContextRequested="OnListContext"
                       ItemsSource="{x:Bind GroupedSource.View, Mode=OneWay}" ItemTemplateSelector="{StaticResource ItemSelector}">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">

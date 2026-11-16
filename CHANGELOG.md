@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Windows: **the flyout is built for the keyboard, from tester feedback.** The filter box is always
+  shown and has the focus when the flyout opens, so you can type straight away (the search button
+  is gone; Ctrl+F still jumps to the box). Enter activates the top match, Down moves into the list,
+  the arrow keys move between rows and Enter activates the focused one. In the activation and
+  run-profile windows the reason is focused, Enter activates (Shift+Enter adds a line), Tab goes
+  from the reason to **Activate** before **Cancel**, and the scheduling switch reads **Start later**
+  instead of "Start now".
+
+- macOS: **the panel opens ready to type, from the same feedback.** The filter field is always
+  shown and focused when the panel opens (the magnifier and ⌘F jump back to it). Down and Up move a
+  highlight through the role rows and Return activates the highlighted role, or the top match when
+  nothing is highlighted. In the activation and run-profile sheets the reason field has the focus.
+
+### Added
+
+- macOS: **favorite a single role.** Right-click a role and choose **Add to favorites**; as on
+  Windows it becomes a pinned one-role profile in the chip row.
+
+- Windows: **favorite a single role.** Right-click a role and choose **Add to favorites** to pin it
+  to the chip row as a one-role profile; it runs, renames and unpins like any other pinned profile
+  and counts towards the four pins.
+
 ## [1.8.1] - 2026-10-01
 
 ### Added
