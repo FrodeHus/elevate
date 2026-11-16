@@ -25,18 +25,13 @@ public sealed partial class PanelView : UserControl
     private AppModel? _model;
     private FlyoutWindow? _window;
     private bool _syncingPivot;
-    private bool _searchOpen;
 
     public PanelView()
     {
         InitializeComponent();
         GroupedSource.Source = _groups;
         QuickStartShared.Content = SharedAppConsent.QuickStartLabel;
-        Accelerate(SearchToggle, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", () =>
-        {
-            SearchToggle.IsChecked = SearchToggle.IsChecked != true;
-            OnSearchToggle(SearchToggle, new RoutedEventArgs());
-        });
+        Accelerate(SearchBox, Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, "Filter roles and groups (Ctrl+F)", FocusSearch);
         Accelerate(RefreshButton, Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, "Refresh (F5)", () => OnRefresh(RefreshButton, new RoutedEventArgs()));
         // The comma has no VirtualKey member, and a KeyboardAccelerator refuses a raw key code (the
         // 1.2.8 startup crash), so Ctrl+, is read off the key event instead.
@@ -144,6 +139,9 @@ public sealed partial class PanelView : UserControl
             App.Log("Panel refresh failed: " + e);
         }
 
+        // The filter is always there while there is a list to filter.
+        SearchRow.Visibility = List.Visibility;
+
         ContentChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -167,8 +165,6 @@ public sealed partial class PanelView : UserControl
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
-        SearchToggle.IsChecked = _searchOpen;
-        SearchRow.Visibility = _searchOpen ? Visibility.Visible : Visibility.Collapsed;
         if (model.Notice is { } notice)
         {
             NoticeBar.Message = notice;
@@ -415,32 +411,11 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>The flyout opens showing everything: the filter is closed and cleared.</summary>
-    public void ResetSearch()
-    {
-        _searchOpen = false;
-        SearchBox.Text = string.Empty;
-        SearchToggle.IsChecked = false;
-        SearchRow.Visibility = Visibility.Collapsed;
-    }
+    /// <summary>The flyout opens showing everything: the filter is cleared.</summary>
+    public void ResetSearch() => SearchBox.Text = string.Empty;
 
-    private void OnSearchToggle(object sender, RoutedEventArgs e)
-    {
-        _searchOpen = SearchToggle.IsChecked == true;
-        SearchRow.Visibility = _searchOpen ? Visibility.Visible : Visibility.Collapsed;
-        if (_searchOpen)
-        {
-            SearchBox.Focus(FocusState.Programmatic);
-        }
-        else
-        {
-            SearchBox.Text = string.Empty;
-            if (_model is not null)
-            {
-                _model.SearchQuery = string.Empty;
-            }
-        }
-    }
+    /// <summary>The flyout opens ready to type in: called once the window is active, or the focus does not take.</summary>
+    public void FocusSearch() => SearchBox.Focus(FocusState.Programmatic);
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
     {
@@ -452,11 +427,76 @@ public sealed partial class PanelView : UserControl
 
     private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == Windows.System.VirtualKey.Escape)
+        switch (e.Key)
         {
-            SearchToggle.IsChecked = false;
-            OnSearchToggle(sender, e);
+            // Escape clears a filter first; with nothing to clear it is left to close the flyout.
+            case Windows.System.VirtualKey.Escape when SearchBox.Text.Length > 0:
+                SearchBox.Text = string.Empty;
+                e.Handled = true;
+                break;
+            case Windows.System.VirtualKey.Down:
+                e.Handled = (List.ContainerFromIndex(0) as Control)?.Focus(FocusState.Keyboard) == true;
+                break;
+            // Enter takes the top match, but only once something was typed: on the unfiltered list
+            // it would open whichever role happens to be first.
+            case Windows.System.VirtualKey.Enter when SearchBox.Text.Length > 0:
+                if (_groups.SelectMany(g => g).OfType<RoleRow>().FirstOrDefault(CanActivate) is { } top)
+                {
+                    Activate(top);
+                    e.Handled = true;
+                }
+
+                break;
+            default:
+                break;
+        }
+    }
+
+    /// <summary>Arrow keys move between rows on their own (the ListView's doing); this adds Enter, and Up from the first row back to the filter.</summary>
+    private void OnListKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        // Only a focused row: Enter on a button inside one already presses that button.
+        if (FocusManager.GetFocusedElement(XamlRoot) is not ListViewItem item)
+        {
+            return;
+        }
+
+        if (e.Key == Windows.System.VirtualKey.Enter && item.Content is RoleRow row && CanActivate(row))
+        {
+            Activate(row);
             e.Handled = true;
+        }
+        else if (e.Key == Windows.System.VirtualKey.Up && List.IndexFromContainer(item) == 0)
+        {
+            FocusSearch();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Right-click (or the menu key on a focused row): favorites, which are pinned one-role profiles.</summary>
+    private void OnListContext(UIElement sender, ContextRequestedEventArgs e)
+    {
+        var source = e.OriginalSource as FrameworkElement;
+        var row = source is ListViewItem { Content: RoleRow focused } ? focused : source?.DataContext as RoleRow;
+        if (_model is not { } model || row is null || source is null)
+        {
+            return;
+        }
+
+        var key = row.RoleKey;
+        // The scope is part of the name: "Contributor" alone does not tell two favorites apart.
+        var name = string.IsNullOrEmpty(row.Detail) ? row.Name : $"{row.Name} · {row.Detail}";
+        var favorite = model.IsFavorite(key);
+        var menu = new MenuFlyout();
+        menu.Items.Add(Item(favorite ? "Remove from favorites" : "Add to favorites", () => model.SetFavorite(key, name, !favorite)));
+        e.Handled = true;
+        if (e.TryGetPosition(source, out var point))
+        {
+            menu.ShowAt(source, point);
+        }
+        else
+        {
+            menu.ShowAt(source);
         }
     }
 
@@ -569,13 +609,20 @@ public sealed partial class PanelView : UserControl
 
     private static RoleRow? Row(object sender) => (sender as FrameworkElement)?.DataContext as RoleRow;
 
-    private async void OnActivateClick(object sender, RoutedEventArgs e)
+    private void OnActivateClick(object sender, RoutedEventArgs e)
     {
-        if (Row(sender) is not { } row)
+        if (Row(sender) is { } row)
         {
-            return;
+            Activate(row);
         }
+    }
 
+    /// <summary>Whether the row offers Activate or Extend right now; what Enter may press.</summary>
+    private static bool CanActivate(RoleRow row) =>
+        row.ActivateVisibility == Visibility.Visible || row.ExtendVisibility == Visibility.Visible;
+
+    private async void Activate(RoleRow row)
+    {
         // Ctrl-click activates with the last reason and duration when the policy allows it.
         if (IsControlDown() && _model is not null && await _model.QuickActivateAsync(row.RoleKey))
         {

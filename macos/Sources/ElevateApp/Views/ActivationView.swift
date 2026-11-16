@@ -15,6 +15,7 @@ struct ActivationView: View {
 
     @State private var items: [Item] = []
     @State private var justification = ""
+    @FocusState private var reasonFocused: Bool
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
@@ -60,6 +61,8 @@ struct ActivationView: View {
             }
             startAtRow
             TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
+                .focused($reasonFocused)
+                .onSubmit { Task { await submit() } }
             if needsTicket {
                 HStack {
                     TextField("Ticket number", text: $ticketNumber)
@@ -197,6 +200,7 @@ struct ActivationView: View {
     private var emptyCell: some View { Color.clear.frame(width: 0, height: 0) }
 
     private func load() {
+        reasonFocused = true
         rowResults.removeAll()
         items = keys.compactMap { key in
             guard let role = model.role(for: key) else { return nil }
@@ -212,6 +216,8 @@ struct ActivationView: View {
     }
 
     private func submit() async {
+        // Return in the reason field and the default button can both land here.
+        guard canSubmit else { return }
         rowResults.removeAll()
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil

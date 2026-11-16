@@ -9,6 +9,7 @@ extension AppModel {
     func panelOpened() {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         searchQuery = ""
+        highlightedRole = nil
         var trackersChanged = false
         for tenant in state.tenants {
             var tracker = state.roleTracker(tenant.id)

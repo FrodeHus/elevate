@@ -120,6 +120,36 @@ internal static class DialogWindows
         return await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary;
     }
 
+    /// <summary>
+    /// The reason box is where the dialog starts: focused, with a remembered reason selected so
+    /// typing replaces it, and Enter presses <paramref name="submit"/>. Shift+Enter is left to the
+    /// box, which adds a line.
+    /// </summary>
+    public static void ReasonFirst(Microsoft.UI.Xaml.Controls.TextBox reason, Microsoft.UI.Xaml.Controls.Button submit)
+    {
+        reason.Loaded += (_, _) =>
+        {
+            reason.Focus(FocusState.Programmatic);
+            reason.SelectAll();
+        };
+        // Preview: a box that accepts Return handles Enter itself before KeyDown reaches anyone.
+        reason.PreviewKeyDown += (_, e) =>
+        {
+            var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+            if (e.Key != Windows.System.VirtualKey.Enter || shift.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+            {
+                return;
+            }
+
+            // Handled even when the button is disabled: Enter never adds a line.
+            e.Handled = true;
+            if (submit.IsEnabled)
+            {
+                new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(submit).Invoke();
+            }
+        };
+    }
+
     /// <summary>Enter anywhere in the window presses the default button, unless a multi-line box has focus.</summary>
     public static void DefaultButton(FrameworkElement root, Microsoft.UI.Xaml.Controls.Button button)
     {

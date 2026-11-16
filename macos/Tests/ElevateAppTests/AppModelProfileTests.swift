@@ -18,6 +18,44 @@ struct AppModelProfileTests {
         return model
     }
 
+    @Test func favoriteIsAPinnedOneRoleProfileAndStopsAtThePinLimit() async {
+        let model = await loadedModel()
+        #expect(model.setFavorite(Sample.entraKey, name: "Reader", true))
+        #expect(model.isFavorite(Sample.entraKey))
+        #expect(model.pinnedProfiles.map(\.name) == ["Reader"])
+        // Unpinning keeps the profile; favoriting again reuses it instead of adding a duplicate.
+        #expect(model.setFavorite(Sample.entraKey, name: "Reader", false))
+        #expect(!model.isFavorite(Sample.entraKey))
+        #expect(model.setFavorite(Sample.entraKey, name: "Reader", true))
+        #expect(model.profiles.count == 1)
+
+        for i in 1..<ProfilePins.limit {
+            #expect(model.setPinned(id: model.saveProfile(name: "P\(i)", keys: [Sample.entraKey, Sample.azureKey])!.id, true))
+        }
+        #expect(!model.setFavorite(Sample.groupKey, name: "Group", true))
+        #expect(model.notice?.contains("full") == true)
+        #expect(model.profiles.count == ProfilePins.limit)
+        cleanup(model)
+    }
+
+    @Test func arrowKeysWalkTheVisibleRowsAndReturnTakesTheTopMatchOnlyWhenFiltering() async {
+        let model = await loadedModel()
+        model.panelTab = .roles
+        #expect(model.navigableRoles == [Sample.entraKey])
+        #expect(model.returnTarget == nil)
+        model.moveHighlight(1)
+        model.moveHighlight(1)
+        #expect(model.highlightedRole == Sample.entraKey)
+        #expect(model.returnTarget == Sample.entraKey)
+        model.moveHighlight(-1)
+        #expect(model.highlightedRole == nil)
+        model.searchQuery = "Global"
+        #expect(model.returnTarget == Sample.entraKey)
+        model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)
+        #expect(model.returnTarget == nil)
+        cleanup(model)
+    }
+
     @Test func pinningStopsAtTheLimit() async {
         let model = await loadedModel()
         let profiles = (0...ProfilePins.limit).compactMap { model.saveProfile(name: "P\($0)", keys: [Sample.entraKey]) }

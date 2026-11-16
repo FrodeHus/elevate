@@ -7,6 +7,7 @@ struct RunProfileView: View {
     let profileId: UUID
     @State private var items: [ProfilePlanItem] = []
     @State private var justification = ""
+    @FocusState private var reasonFocused: Bool
     @State private var ticketNumber = ""
     @State private var ticketSystem = ""
     @State private var running = false
@@ -48,6 +49,8 @@ struct RunProfileView: View {
             if !finished {
                 startAtRow
                 TextField("Reason", text: $justification, axis: .vertical).lineLimit(2...4)
+                .focused($reasonFocused)
+                .onSubmit { Task { await submit() } }
                 if needsTicket {
                     HStack { TextField("Ticket number", text: $ticketNumber); TextField("Ticket system", text: $ticketSystem) }
                 }
@@ -153,6 +156,7 @@ struct RunProfileView: View {
     }
 
     private func load() {
+        reasonFocused = true
         rowResults.removeAll()
         items = model.plan(for: profileId)
         if finished || justification.isEmpty { justification = profile?.lastJustification ?? "" }
@@ -165,6 +169,8 @@ struct RunProfileView: View {
     }
 
     private func submit() async {
+        // Return in the reason field and the default button can both land here.
+        guard canSubmit else { return }
         rowResults.removeAll()
         running = true
         let ticket = needsTicket && !ticketNumber.isEmpty ? TicketInfo(number: ticketNumber, system: ticketSystem) : nil

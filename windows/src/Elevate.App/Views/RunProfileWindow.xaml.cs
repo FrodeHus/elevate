@@ -51,6 +51,7 @@ public sealed partial class RunProfileWindow : Window
         _profileId = profileId;
         DialogWindows.Configure(this, "Run profile", 600, 560, Root, autoHeight: true);
         DialogWindows.DefaultButton(Root, SubmitButton);
+        DialogWindows.ReasonFirst(Reason, SubmitButton);
         _seenRunRequest = model.RunRequests.GetValueOrDefault(profileId);
         Load();
         _model.Changed += OnModelChanged;

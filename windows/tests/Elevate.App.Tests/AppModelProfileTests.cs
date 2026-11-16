@@ -79,6 +79,32 @@ public class AppModelProfileTests
     }
 
     [Fact]
+    public async Task FavoriteIsAPinnedOneRoleProfileAndStopsAtThePinLimit()
+    {
+        using var test = await ModelAsync();
+        var model = test.Model;
+
+        model.SetFavorite(Sample.EntraKey, "Reader", true).Should().BeTrue();
+        model.IsFavorite(Sample.EntraKey).Should().BeTrue();
+        model.PinnedProfiles.Should().ContainSingle(p => p.Name == "Reader" && p.Entries.Single().RoleKey == Sample.EntraKey);
+
+        // Unpinning keeps the profile; favoriting again reuses it instead of adding a duplicate.
+        model.SetFavorite(Sample.EntraKey, "Reader", false).Should().BeTrue();
+        model.IsFavorite(Sample.EntraKey).Should().BeFalse();
+        model.SetFavorite(Sample.EntraKey, "Reader", true).Should().BeTrue();
+        model.Profiles.Should().ContainSingle();
+
+        for (var i = 1; i < ProfilePins.Limit; i++)
+        {
+            model.SetPinned(model.SaveProfile($"P{i}", [Sample.EntraKey, Sample.AzureKey])!.Id, true).Should().BeTrue();
+        }
+
+        model.SetFavorite(Sample.GroupKey, "Group", true).Should().BeFalse();
+        model.Notice.Should().Contain("full");
+        model.Profiles.Should().HaveCount(ProfilePins.Limit);
+    }
+
+    [Fact]
     public async Task SaveProfileOrdersEntriesAndRemembersDurations()
     {
         using var test = await ModelAsync();

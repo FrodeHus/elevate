@@ -52,6 +52,7 @@ public sealed partial class ActivationWindow : Window
         var isBulk = keys.Count > 1;
         DialogWindows.Configure(this, isBulk ? $"Activate {keys.Count} roles" : "Activate role", isBulk ? 600 : 420, isBulk ? 520 : 440, Root, autoHeight: true);
         DialogWindows.DefaultButton(Root, SubmitButton);
+        DialogWindows.ReasonFirst(Reason, SubmitButton);
         Load();
         _model.Changed += OnModelChanged;
         Closed += (_, _) => _model.Changed -= OnModelChanged;

@@ -83,6 +83,43 @@ extension AppModel {
         return identities.filter { !visibleTenants(for: $0.id).isEmpty }
     }
 
+    // MARK: Keyboard navigation
+
+    /// The role rows as the list draws them, top to bottom: what the arrow keys walk.
+    var navigableRoles: [RoleKey] {
+        visibleIdentities.filter { !collapsedIdentities.contains($0.id) }.flatMap { identity -> [RoleKey] in
+            let tenants = visibleTenants(for: identity.id)
+            // A sole tenant is folded into the account row and has no collapse state of its own.
+            return tenants.filter { tenants.count == 1 || !collapsedTenants.contains($0.id) }.flatMap { tenant -> [RoleKey] in
+                panelTab == .azure
+                    ? ScopeTree.flatten(azureTree(for: tenant.id), isCollapsed: { isScopeCollapsed(tenant.id, $0) }).compactMap { $0.role?.key }
+                    : roles(for: tenant.id, tab: panelTab).map(\.key)
+            }
+        }
+    }
+
+    /// Moves the highlight by one row. Stepping up off the first row clears it: back to the filter.
+    func moveHighlight(_ step: Int) {
+        let keys = navigableRoles
+        guard let current = highlightedRole.flatMap({ keys.firstIndex(of: $0) }) else {
+            highlightedRole = step > 0 ? keys.first : nil
+            return
+        }
+        let next = current + step
+        highlightedRole = next < 0 ? nil : keys[min(next, keys.count - 1)]
+    }
+
+    /// What Return activates: the highlighted row, or the top match once something was typed (on
+    /// the unfiltered list it would be whichever role happens to be first). Nil when that row has
+    /// no Activate button of its own.
+    var returnTarget: RoleKey? {
+        guard !selectMode else { return nil }
+        let offersActivate = { (key: RoleKey) in self.assignment(for: key) == nil && self.canActivate(key) }
+        let keys = navigableRoles
+        if let highlightedRole, keys.contains(highlightedRole) { return offersActivate(highlightedRole) ? highlightedRole : nil }
+        return isFiltering ? keys.first(where: offersActivate) : nil
+    }
+
     // MARK: Summary
 
     /// Name for the summary row; before the eligible list has loaded only the key is known.

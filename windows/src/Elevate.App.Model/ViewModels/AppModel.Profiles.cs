@@ -177,6 +177,35 @@ public sealed partial class AppModel
         return true;
     }
 
+    /// <summary>A favorite role is a pinned one-role profile of the user's own, so it runs, syncs and unpins like any other chip.</summary>
+    public bool IsFavorite(RoleKey key) => FavoriteProfile(key) is { Pinned: true };
+
+    private ActivationProfile? FavoriteProfile(RoleKey key) =>
+        State.Profiles.Find(p => p.Entries.Count == 1 && p.Entries[0].RoleKey == key);
+
+    /// <summary>
+    /// Pins a one-role profile for <paramref name="key"/> (reusing one that exists), or unpins it.
+    /// Returns false, having set <see cref="Notice"/>, when it could not be pinned.
+    /// </summary>
+    public bool SetFavorite(RoleKey key, string name, bool favorite)
+    {
+        var profile = FavoriteProfile(key);
+        if (!favorite)
+        {
+            return profile is null || SetPinned(profile.Id, false);
+        }
+
+        // Checked before saving, so a full row does not leave an unpinned profile behind.
+        if (profile is not { Pinned: true } && !CanPinAnotherProfile)
+        {
+            Notice = $"The favorites row is full ({ProfilePins.Limit}). Unpin one to add {name}.";
+            return false;
+        }
+
+        profile ??= SaveProfile(name, [key]);
+        return profile is not null && SetPinned(profile.Id, true);
+    }
+
     /// <summary>
     /// Reorders the user's profiles. The managed ones are listed after them and cannot be moved,
     /// so offsets that reach into that tail are ignored rather than applied to the wrong profile.
