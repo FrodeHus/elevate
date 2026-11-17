@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-16
+
 ### Changed
 
 - macOS and Windows: **roles show at launch.** The app remembers the roles from the last session
@@ -843,7 +845,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/FrodeHus/elevate/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/FrodeHus/elevate/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/FrodeHus/elevate/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/FrodeHus/elevate/compare/v1.6.7...v1.7.0
