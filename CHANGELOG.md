@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.9.0] - 2026-11-16
-
 ### Changed
 
 - macOS and Windows: **roles show at launch.** The app remembers the roles from the last session
   and shows them as soon as it starts, while the refresh runs in the background. Activating a role
   you have lost since then fails with "You are no longer eligible for this role" and refreshes
   that tenant's list.
+
+- macOS: **no search button in the panel, as on Windows since 1.9.0.** The filter field is always
+  shown, so the magnifier is gone; ⌘F still jumps back to the field.
+
+## [1.9.0] - 2026-11-16
+
+### Changed
 
 - Windows: **the flyout is built for the keyboard, from tester feedback.** The filter box is always
   shown and has the focus when the flyout opens, so you can type straight away (the search button
