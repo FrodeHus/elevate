@@ -248,10 +248,12 @@ struct PanelView: View {
             Spacer()
             // Shortcuts fire while the panel is key; the app has no visible menu bar to list them,
             // so the tooltips carry them.
-            Button { searchFocused = true } label: { Image(systemName: "magnifyingglass") }
+            // The filter field is always shown, so no search button (as on Windows); ⌘F still jumps back to it.
+            Button("") { searchFocused = true }
                 .keyboardShortcut("f")
-                .help("Filter roles and groups (⌘F)")
-                .accessibilityLabel("Search")
+                .frame(width: 0, height: 0)
+                .opacity(0)
+                .accessibilityHidden(true)
             Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
                 .toggleStyle(.button)
                 .help("Select several roles to activate together")
