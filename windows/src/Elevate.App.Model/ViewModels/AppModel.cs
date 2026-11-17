@@ -377,6 +377,8 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             Roles.Remove(key);
         }
 
+        SaveRolesCache();
+
         RemoveWhere(Active, k => k.IdentityId == identityId);
         RemoveWhere(Progress, k => k.IdentityId == identityId);
         RemoveWhere(TenantErrors, k => k.IdentityId == identityId);
@@ -560,6 +562,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
             }
         }
 
+        LoadRolesCache();
         Persist();
         // Neither the timers nor the hot key needs the network, and both are started first so a
         // slow tenant lookup cannot delay the shortcut the user may already be pressing.
@@ -707,6 +710,64 @@ public sealed partial class AppModel : ObservableObject, IDisposable
         foreach (var key in PolicyCache.Keys.Where(matches).ToList())
         {
             PolicyCache.Remove(key);
+        }
+    }
+
+    public const string RolesCacheFile = "roles-cache.json";
+
+    /// <summary>One tenant's rows in <see cref="RolesCacheFile"/>; a list because JSON keys must be strings.</summary>
+    internal sealed record CachedTenantRoles(TenantKey Tenant, List<EligibleRole> Roles);
+
+    private string RolesCachePath => Path.Combine(_store.Directory, RolesCacheFile);
+
+    /// <summary>
+    /// Seeds <see cref="Roles"/> with last session's discovered rows so the flyout is usable at once;
+    /// the first refresh replaces them. Policies stay out of <c>PolicyCache</c>, so that refresh
+    /// still re-reads them. A role the user has since lost fails at activation with a clear message.
+    /// </summary>
+    private void LoadRolesCache()
+    {
+        List<CachedTenantRoles>? cached;
+        try
+        {
+            cached = File.Exists(RolesCachePath) ? JsonSerializer.Deserialize<List<CachedTenantRoles>>(File.ReadAllBytes(RolesCachePath), Core.Json.Options) : null;
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        // Only tenants still configured, and not accounts that must sign in first: refresh skips those.
+        foreach (var entry in cached ?? [])
+        {
+            if (Tenant(entry.Tenant) is null || SignInNeeded.Contains(entry.Tenant.IdentityId) || Roles.ContainsKey(entry.Tenant))
+            {
+                continue;
+            }
+
+            var discovered = entry.Roles.Where(r => r.Source == RoleSource.Discovered).ToList();
+            Roles[entry.Tenant] = [.. ManualRoleSource.Merge(discovered, ManualRoleSource.EligibleRoles(State.ManualRoles, entry.Tenant))];
+        }
+    }
+
+    /// <summary>Rewrites the cache from <see cref="Roles"/>; also run on removals so signed-out rows leave the disk.</summary>
+    internal void SaveRolesCache()
+    {
+        if (!Bootstrapped)
+        {
+            return;
+        }
+
+        try
+        {
+            var entries = Roles.Select(kv => new CachedTenantRoles(kv.Key, kv.Value)).ToList();
+            var temp = RolesCachePath + ".tmp";
+            File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(entries, Core.Json.Options));
+            File.Move(temp, RolesCachePath, overwrite: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // A cache only: the next refresh writes it again.
         }
     }
 

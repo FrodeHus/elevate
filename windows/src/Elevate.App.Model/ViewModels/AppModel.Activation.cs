@@ -166,6 +166,7 @@ public sealed partial class AppModel
         }
 
         var consentBlocked = new HashSet<TenantKey>();
+        var lostEligibility = new HashSet<TenantKey>();
         foreach (var outcome in outcomes)
         {
             RecordProfileOutcome(profileRunId, outcome);
@@ -198,6 +199,14 @@ public sealed partial class AppModel
                             PimErrorKind.Unexpected, $"Deactivated, but re-activation failed: {error.UserMessage}"));
                     }
 
+                    // Typically a row from the launch cache for a role the user has since lost: say so, and re-read the list.
+                    if (error.Kind == PimErrorKind.NotEligible)
+                    {
+                        Progress[request.RoleKey] = new ActivationResult.Failed(new PimException(
+                            PimErrorKind.Unexpected, "You are no longer eligible for this role. The role list is being refreshed."));
+                        lostEligibility.Add(request.RoleKey.TenantKey);
+                    }
+
                     // Spec §8 step 4: an activation refused for consent puts the tenant in manual mode.
                     if (error.Kind == PimErrorKind.ConsentRequired)
                     {
@@ -216,6 +225,11 @@ public sealed partial class AppModel
                 default:
                     break;
             }
+        }
+
+        foreach (var tenantKey in lostEligibility)
+        {
+            _ = RefreshAsync(tenantKey, interactive: false);
         }
 
         foreach (var tenantKey in consentBlocked)
