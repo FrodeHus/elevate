@@ -404,6 +404,7 @@ public sealed partial class AppModel
             .OrderBy(r => r.DisplayName, StringComparer.Ordinal)
             .ToList();
         Roles[key] = [.. ManualRoleSource.Merge(discovered, manual)];
+        SaveRolesCache();
         // Only a full, error-free discovery may move the new-role baseline: a partial or failed
         // read would otherwise report the missing kinds as new when they come back.
         if (requestedKinds is null && errors.Count == 0 && !consentBlocked)

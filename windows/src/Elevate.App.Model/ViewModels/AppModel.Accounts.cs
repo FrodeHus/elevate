@@ -654,6 +654,7 @@ public sealed partial class AppModel
         TenantsAwaitingSignIn.Remove(key);
         State.RemoveTenant(key);
         Roles.Remove(key);
+        SaveRolesCache();
         foreach (var roleKey in Active.Keys.Where(k => k.TenantKey == key).ToList())
         {
             Active.Remove(roleKey);

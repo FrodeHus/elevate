@@ -14,7 +14,8 @@ final class AppModel {
     // Persisted. Setter internal: mutated by +Accounts, +Refresh, +Activation and +Profiles.
     var state = AppState()
     // Session. Setters internal: mutated by the feature extensions listed above.
-    var roles: [TenantKey: [EligibleRole]] = [:]
+    // Also kept on disk (`rolesCacheFile`) so a launch shows last session's rows before the first refresh.
+    var roles: [TenantKey: [EligibleRole]] = [:] { didSet { saveRolesCache() } }
     var active: [RoleKey: ActiveAssignment] = [:]
     var busy: Set<TenantKey> = []
     var tenantErrors: [TenantKey: String] = [:]
@@ -562,6 +563,7 @@ final class AppModel {
             notice = "Could not read saved sign-ins from the Keychain; your accounts were kept."
             logError("Could not read saved sign-ins from the Keychain")
         }
+        loadRolesCache()
         persist()
         // Neither the timer nor the hot key needs the network, and both are started first so a
         // slow tenant lookup cannot delay the shortcut the user may already be pressing.
@@ -671,6 +673,28 @@ final class AppModel {
             }
             approvals[key] = nil
         }
+    }
+
+    static let rolesCacheFile = "roles-cache.json"
+    private var rolesCacheURL: URL { store.directory.appendingPathComponent(Self.rolesCacheFile) }
+
+    /// Seeds `roles` with last session's discovered rows so the panel is usable at once; the first
+    /// refresh replaces them. Policies stay out of `policyCache`, so that refresh still re-reads them.
+    /// A role the user has since lost fails at activation with a clear message (`AppModel+Activation`).
+    private func loadRolesCache() {
+        guard let data = try? Data(contentsOf: rolesCacheURL),
+              let cached = try? GraphJSON.decoder.decode([TenantKey: [EligibleRole]].self, from: data) else { return }
+        // Only tenants still configured, and not accounts that must sign in first: refresh skips those.
+        for tenant in state.tenants where roles[tenant.id] == nil && !signInNeeded.contains(tenant.id.identityId) {
+            guard let discovered = cached[tenant.id]?.filter({ $0.source == .discovered }) else { continue }
+            roles[tenant.id] = ManualRoleSource.merge(discovered: discovered, manual: ManualRoleSource.eligibleRoles(from: state.manualRoles, tenantKey: tenant.id))
+        }
+    }
+
+    /// Never before `bootstrap()`, which would write an empty list over the cache it has yet to read.
+    private func saveRolesCache() {
+        guard bootstrapped, let data = try? GraphJSON.encoder.encode(roles) else { return }
+        try? data.write(to: rolesCacheURL, options: .atomic)
     }
 
     // internal for every AppModel+* extension

@@ -95,6 +95,7 @@ extension AppModel {
         }
         guard generation == configGeneration else { return [] }
         var consentBlocked: Set<TenantKey> = []
+        var lostEligibility: Set<TenantKey> = []
         for outcome in outcomes {
             if let profileRunId { recordProfileOutcome(outcome, runId: profileRunId) }
             progress[outcome.roleKey] = outcome.result
@@ -112,6 +113,11 @@ extension AppModel {
                 if deactivated.contains(request.roleKey) {
                     progress[request.roleKey] = .failed(.unexpected(status: 0, body: "Deactivated, but re-activation failed: \(error.userMessage)"))
                 }
+                // Typically a row from the launch cache for a role the user has since lost: say so, and re-read the list.
+                if error == .notEligible {
+                    progress[request.roleKey] = .failed(.unexpected(status: 0, body: "You are no longer eligible for this role. The role list is being refreshed."))
+                    lostEligibility.insert(request.roleKey.tenantKey)
+                }
                 // Spec §8 step 4: an activation refused for consent puts the tenant in manual mode.
                 if error == .consentRequired { consentBlocked.insert(request.roleKey.tenantKey) }
                 // A first-party sign-in refused for the write scope: the tenant's Entra rows become view-only.
@@ -121,6 +127,9 @@ extension AppModel {
                     state.upsertTenant(t)
                 }
             }
+        }
+        for tenantKey in lostEligibility {
+            Task { await self.refresh(tenantKey, interactive: false) }
         }
         for tenantKey in consentBlocked {
             guard var t = self.tenant(tenantKey) else { continue }
