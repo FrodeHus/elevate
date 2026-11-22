@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-11-22
+
 ### Fixed
 
 - macOS: **the panel's role list no longer opens blank after the Mac wakes from sleep.**
@@ -856,7 +858,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/FrodeHus/elevate/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/FrodeHus/elevate/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/FrodeHus/elevate/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/FrodeHus/elevate/compare/v1.8.0...v1.8.1
