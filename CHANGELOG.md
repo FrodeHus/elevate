@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows: **the installer builds again**, after a newer build image stopped the 1.10.1 release
+  before it was published. This release also carries the macOS fix listed under 1.10.1.
+
 ## [1.10.1] - 2026-11-22
 
 ### Fixed
