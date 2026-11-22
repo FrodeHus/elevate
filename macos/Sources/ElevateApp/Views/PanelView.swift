@@ -15,6 +15,7 @@ struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
+    @State private var listGeneration = 0
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -175,6 +176,9 @@ struct PanelView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }
                 .frame(height: min(max(contentHeight, 44), PanelMetrics.maxListHeight))
+                // The lazy stack can come back from display sleep with no rows realised, and its height depends on them.
+                .id(listGeneration)
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification)) { _ in listGeneration += 1 }
                 .onChange(of: model.highlightedRole) { _, key in if let key { proxy.scrollTo(key) } }
                 }
             }

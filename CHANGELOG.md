@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS: **the panel's role list no longer opens blank after the Mac wakes from sleep.**
+
 ## [1.10.0] - 2026-11-17
 
 ### Changed
