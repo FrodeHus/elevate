@@ -370,7 +370,7 @@ public sealed partial class RunProfileWindow : Window
         try
         {
             // Unchecked roles never reach the model: no request, no run entry, no remembered duration.
-            var outcomes = await _model.RunProfileAsync(_profileId, [.. _rows.Where(r => r.Included).Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
+            var outcomes = await _model.RunProfileAsync(_profileId, (ProfilePlanItem[])[.. _rows.Where(r => r.Included).Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
             foreach (var outcome in outcomes)
             {
                 if (_rows.FirstOrDefault(r => r.Item.RoleKey == outcome.RoleKey) is { } row) row.Result = outcome.Result;

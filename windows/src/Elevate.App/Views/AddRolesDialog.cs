@@ -59,7 +59,7 @@ internal sealed partial class AddRolesDialog : ContentDialog
     }
 
     /// <summary>The keys ticked when the dialog closed with Add.</summary>
-    public IReadOnlyList<RoleKey> Picked => [.. _picked];
+    public IReadOnlyList<RoleKey> Picked => (RoleKey[])[.. _picked];
 
     private void Fill()
     {

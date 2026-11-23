@@ -842,7 +842,7 @@ public static class PanelListBuilder
         {
             // Each tenant header carries its own status glyph; the account-level badge only covers
             // the moment before any tenant is known.
-            group.Issues = [new TenantIssue("Entra roles are view-only", reason)];
+            group.Issues = (TenantIssue[])[new TenantIssue("Entra roles are view-only", reason)];
         }
 
         return MarkSignInNeeded(model, identity, group);
@@ -870,7 +870,7 @@ public static class PanelListBuilder
         group.SignInEnabled = allowed && !signingIn;
         group.SignInTooltip = allowed ? $"Sign in again as {identity.Upn}" : AppModel.DisallowedMethodCaption;
         group.Busy = group.Busy || signingIn;
-        group.Issues = [new TenantIssue("Sign-in needed", SignInNeededHelp), .. group.Issues];
+        group.Issues = (TenantIssue[])[new TenantIssue("Sign-in needed", SignInNeededHelp), .. group.Issues];
         group.HasError = true;
         return group;
     }

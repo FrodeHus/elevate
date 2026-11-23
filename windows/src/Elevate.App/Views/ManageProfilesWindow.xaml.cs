@@ -188,7 +188,7 @@ public sealed partial class ManageProfilesWindow : Window
         }
 
         // SwiftUI move semantics: the destination is the slot before the move, so a move down skips itself.
-        _model.MoveProfiles([from], to > from ? to + 1 : to);
+        _model.MoveProfiles((int[])[from], to > from ? to + 1 : to);
     }
 
     private void OnNewProfile(object sender, RoutedEventArgs e)

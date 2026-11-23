@@ -30,7 +30,7 @@ internal sealed class DeactivationWindow : Window
         : this(model, run.ProfileName, run.Entries.Where(e => !e.Completed), run.StartedAt, run.ProfileId) { }
 
     public DeactivationWindow(AppModel model, ActiveAssignment assignment)
-        : this(model, model.SummaryName(assignment.RoleKey), [new ProfileRun.Entry(assignment, model.SummaryName(assignment.RoleKey))], null) { }
+        : this(model, model.SummaryName(assignment.RoleKey), (ProfileRun.Entry[])[new ProfileRun.Entry(assignment, model.SummaryName(assignment.RoleKey))], null) { }
 
     private DeactivationWindow(AppModel model, string name, IEnumerable<ProfileRun.Entry> entries, DateTimeOffset? startedAt, Guid? profileId = null)
     {

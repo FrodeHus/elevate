@@ -28,8 +28,6 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <!-- Generated XAML/CsWin32 code and the WinRT projections raise analyzer warnings we cannot fix here. -->
     <NoWarn>$(NoWarn);CA1416;CA1812;CA1852;CA2000;CA1001;CS8632;CsWinRT1028;CsWinRT1030</NoWarn>
-    <!-- The app is neither trimmed nor AOT-compiled, so a newer build image must not fail it on those checks. -->
-    <CsWinRTAotWarningLevel>0</CsWinRTAotWarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
