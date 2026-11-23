@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-11-23
+
 ### Fixed
 
 - Windows: **the installer builds again**, after a newer build image stopped the 1.10.1 release
@@ -863,7 +865,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.10.2...HEAD
+[1.10.2]: https://github.com/FrodeHus/elevate/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/FrodeHus/elevate/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/FrodeHus/elevate/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/FrodeHus/elevate/compare/v1.8.1...v1.9.0
