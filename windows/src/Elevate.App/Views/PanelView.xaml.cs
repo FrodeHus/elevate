@@ -574,7 +574,7 @@ public sealed partial class PanelView : UserControl
             return;
         }
 
-        App.Current.OpenSaveProfile([.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
+        App.Current.OpenSaveProfile((RoleKey[])[.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
     }
 
     // MARK: Approvals
@@ -629,7 +629,7 @@ public sealed partial class PanelView : UserControl
             return;
         }
 
-        App.Current.OpenActivation([row.RoleKey]);
+        App.Current.OpenActivation((RoleKey[])[row.RoleKey]);
     }
 
     private void OnExtendClick(object sender, RoutedEventArgs e) => OnActivateClick(sender, e);
@@ -724,7 +724,7 @@ public sealed partial class PanelView : UserControl
             return;
         }
 
-        App.Current.OpenActivation([.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
+        App.Current.OpenActivation((RoleKey[])[.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
     }
 
     // MARK: Group actions

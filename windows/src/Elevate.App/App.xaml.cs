@@ -81,7 +81,7 @@ public partial class App : Application
             if (Model.PendingExtend is { } key)
             {
                 Model.PendingExtend = null;
-                OpenActivation([key]);
+                OpenActivation((RoleKey[])[key]);
             }
 
             if (Model.PendingProfileRun is { } profileId)
@@ -238,10 +238,10 @@ public partial class App : Application
                 OpenAccessPackages(tenant.Key);
                 break;
             case "activation" when tenant is not null:
-                OpenActivation([.. model.RolesFor(tenant.Key).Take(1).Select(r => r.Key)]);
+                OpenActivation((RoleKey[])[.. model.RolesFor(tenant.Key).Take(1).Select(r => r.Key)]);
                 break;
             case "bulk" when tenant is not null:
-                OpenActivation([.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
+                OpenActivation((RoleKey[])[.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
                 break;
             case "registration" when identity is not null:
                 OpenChangeRegistration(identity.Id);
@@ -253,7 +253,7 @@ public partial class App : Application
                 OpenDiscoverTenants(identity.Id);
                 break;
             case "save-profile" when tenant is not null:
-                OpenSaveProfile([.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
+                OpenSaveProfile((RoleKey[])[.. model.Roles.Values.SelectMany(r => r).Take(3).Select(r => r.Key)]);
                 break;
             case "manage-profiles":
                 OpenManageProfiles();
