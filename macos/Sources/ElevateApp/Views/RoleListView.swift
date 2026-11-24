@@ -82,7 +82,7 @@ struct RoleListView: View {
 
     private var allTenantsRowCount: Int {
         model.visibleIdentities.reduce(0) { total, identity in
-            total + model.visibleTenants(for: identity.id).reduce(0) { $0 + model.listRows(for: $1.id).count }
+            total + model.visibleTenants(for: identity.id).reduce(0) { $0 + model.roles(for: $1.id, tab: model.panelTab).count }
         }
     }
 
@@ -109,7 +109,7 @@ struct RoleListView: View {
                 }
             }
         }
-        if model.homeIsEmpty && !model.isFiltering && model.profiles.isEmpty { selectRolesHint }
+        if model.homeIsEmpty && !model.isFiltering && !model.selectMode && model.profiles.isEmpty { selectRolesHint }
     }
 
     @ViewBuilder private func tenantContent(_ key: TenantKey) -> some View {
@@ -135,7 +135,7 @@ struct RoleListView: View {
                     .buttonStyle(.plain).foregroundStyle(.tint)
                 }
             } header: {
-                eligibleBar(count: rows.count)
+                eligibleBar(count: model.roles(for: key, tab: model.panelTab).count)
             }
         }
     }

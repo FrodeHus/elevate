@@ -30,7 +30,7 @@ import Foundation
     @Test func roleDefinitionWithoutIsPrivilegedDecodesAsNotPrivileged() throws {
         let missing = try JSONDecoder().decode(EntraDirectoryProvider.RoleDefinitionRef.self, from: Data(#"{"id":"a","displayName":"A"}"#.utf8))
         let unknown = try JSONDecoder().decode(EntraDirectoryProvider.RoleDefinitionRef.self, from: Data(#"{"id":"a","isPrivileged":null}"#.utf8))
-        #expect(missing.isPrivileged != true && unknown.isPrivileged != true)
+        #expect(missing.isPrivileged == nil && unknown.isPrivileged == nil)
     }
 
     @Test func listsOnlyActivatedAssignmentsAndMergesPending() async throws {

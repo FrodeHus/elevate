@@ -253,7 +253,7 @@ private struct ProfileEditor: View {
 
     private var pinnedBinding: Binding<Bool> {
         Binding(get: { profile.pinned }, set: { on in
-            pinHint = model.setPinned(id: profile.id, on) ? nil : "Unpin another first: \(ProfilePins.limit) is the most the row holds"
+            pinHint = model.setPinned(id: profile.id, on) ? nil : "Unpin another first: the sidebar holds \(ProfilePins.limit) pinned profiles"
         })
     }
 

@@ -12,6 +12,9 @@ extension AppModel {
         highlightedRole = nil
         panelIsOpen = true
         browsing = false
+        // A "Sign out …?" card or the all-profiles popover must not be waiting when the panel comes back.
+        signOutRequest = nil
+        allProfilesOpen = false
         forgetVanishedProfiles()
         reopenProfileSelection()
         var trackersChanged = false

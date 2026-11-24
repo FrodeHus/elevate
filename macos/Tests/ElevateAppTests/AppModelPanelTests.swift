@@ -5,7 +5,6 @@ import ElevateCore
 
 @MainActor
 struct AppModelPanelTests {
-    /// Builds a model holding one Entra, one Azure and one group role in the same tenant.
     @Test func allTabShowsEveryKindInOrder() async {
         let model = await modelWithOneOfEachKind()
         model.panelTab = .all
@@ -21,6 +20,31 @@ struct AppModelPanelTests {
         #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .all)
         UserDefaults(suiteName: suite)!.set("roles", forKey: AppSettings.panelTabKey)
         #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .roles)
+    }
+
+    @Test func theScopedTenantSurvivesARelaunchAndClearingItForgetsIt() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        func settings() -> AppSettings { AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none) }
+        #expect(settings().panelTenant == nil)
+        let fresh = settings()
+        fresh.panelTenant = Sample.tenantKey
+        #expect(settings().panelTenant == Sample.tenantKey)
+        fresh.panelTenant = nil
+        #expect(settings().panelTenant == nil)
+    }
+
+    @Test func privilegeComesFromTheFlagOrTheCatalogueButNeverForGroups() async {
+        let model = await modelWithOneOfEachKind()
+        let flagged = Sample.key(.entraDirectory(roleDefinitionId: "custom-role", directoryScopeId: "/"))
+        model.roles[Sample.tenantKey] = [EligibleRole(key: flagged, displayName: "Custom", source: .discovered, policy: .manualDefault, isPrivileged: true)]
+        #expect(model.isPrivileged(flagged))
+        // Not loaded, flag unknown: the catalogue (Global Administrator) and the Azure ids (Owner) still say so.
+        #expect(model.isPrivileged(Sample.key(.entraDirectory(roleDefinitionId: "62e90394-69f5-4237-9190-012177145e10", directoryScopeId: "/"))))
+        #expect(model.isPrivileged(Sample.key(.azureResource(scope: "/subscriptions/s1", roleDefinitionId: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"))))
+        #expect(!model.isPrivileged(Sample.entraKey))
+        #expect(!model.isPrivileged(Sample.groupKey))
+        cleanup(model)
     }
 
     @Test func sidebarSectionsStartExpandedAndRememberBeingCollapsed() {
@@ -45,6 +69,7 @@ struct AppModelPanelTests {
         cleanup(model)
     }
 
+    /// Builds a model holding one Entra, one Azure and one group role in the same tenant.
     private func modelWithOneOfEachKind() async -> AppModel {
         var state = AppState()
         state.identities = [Sample.identity()]

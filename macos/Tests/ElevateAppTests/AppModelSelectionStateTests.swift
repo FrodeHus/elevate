@@ -307,4 +307,13 @@ struct AppModelSelectionStateTests {
         #expect(!model.browsing)
         cleanup(model)
     }
+
+    @Test func reopeningThePanelDropsAStaleSignOutCardAndTheProfilesPopover() async {
+        let model = await makeTwoTenantModel()
+        model.signOutRequest = "id-1"
+        model.allProfilesOpen = true
+        model.panelOpened()
+        #expect(model.signOutRequest == nil && !model.allProfilesOpen)
+        cleanup(model)
+    }
 }

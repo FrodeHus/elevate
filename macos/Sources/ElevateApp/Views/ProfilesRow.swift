@@ -83,7 +83,7 @@ struct AllProfilesPopover: View {
         if model.setPinned(id: p.id, !p.pinned) {
             pinHint = nil
         } else {
-            pinHint = "Unpin one first: \(ProfilePins.limit) is the most the row holds"
+            pinHint = "Unpin one first: the sidebar holds \(ProfilePins.limit) pinned profiles"
         }
     }
 }

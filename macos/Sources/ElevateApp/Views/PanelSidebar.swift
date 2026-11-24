@@ -149,6 +149,7 @@ private struct ProfilesSection: View {
                     .buttonStyle(.plain)
                     .help("All profiles: search, run, pin and manage")
                     .accessibilityLabel("All profiles, \(model.profiles.count)")
+                    .accessibilityAddTraits(!pinnedSelected && selection.isProfile ? .isSelected : [])
                     .popover(isPresented: $model.allProfilesOpen, arrowEdge: .trailing) {
                         AllProfilesPopover(dismiss: { model.allProfilesOpen = false })
                     }

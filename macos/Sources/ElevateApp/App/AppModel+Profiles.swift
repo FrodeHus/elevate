@@ -139,9 +139,9 @@ extension AppModel {
     func setFavorite(_ key: RoleKey, name: String, _ favorite: Bool) -> Bool {
         let existing = favoriteProfile(key)
         guard favorite else { return existing.map { setPinned(id: $0.id, false) } ?? true }
-        // Checked before saving, so a full row does not leave an unpinned profile behind.
+        // Checked before saving, so a full sidebar does not leave an unpinned profile behind.
         if existing?.pinned != true, !canPinAnotherProfile {
-            notice = "The favorites row is full (\(ProfilePins.limit)). Unpin one to add \(name)."
+            notice = "The sidebar holds \(ProfilePins.limit) pinned profiles. Unpin one to add \(name)."
             return false
         }
         guard let profile = existing ?? saveProfile(name: name, keys: [key]) else { return false }
