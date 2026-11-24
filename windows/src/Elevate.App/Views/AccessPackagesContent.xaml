@@ -46,7 +46,7 @@
             <SelectorBarItem x:Name="DeclinedTab" Text="Declined" />
         </SelectorBar>
 
-        <TextBox Grid.Row="2" x:Name="Search" PlaceholderText="Search packages" TextChanged="OnSearchChanged" AutomationProperties.Name="Search packages" />
+        <TextBox Grid.Row="2" x:Name="Search" PlaceholderText="Search packages" TextChanged="OnSearchChanged" KeyDown="OnSearchKeyDown" AutomationProperties.Name="Search packages" />
 
         <Grid Grid.Row="3">
             <ListView x:Name="List" SelectionMode="None" IsItemClickEnabled="False" ItemTemplate="{StaticResource PackageRowTemplate}">

@@ -215,6 +215,18 @@ public sealed partial class AccessPackagesContent : UserControl
         _rows.Clear();
     }
 
+    public void FocusSearch() => Search.Focus(FocusState.Programmatic);
+
+    /// <summary>Escape with text in the box clears it; only an empty box lets Escape close the view.</summary>
+    private void OnSearchKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Escape && Search.Text.Length > 0)
+        {
+            Search.Text = string.Empty;
+            e.Handled = true;
+        }
+    }
+
     private void OnModelChanged(object? sender, EventArgs e) => Update();
 
     private AccessPackageSnapshot Snapshot => _model.AccessPackageSnapshot(_key) ?? new AccessPackageSnapshot();

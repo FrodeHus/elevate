@@ -88,7 +88,6 @@ public sealed partial class FlyoutWindow : Window
     internal void Show(RECT? anchor)
     {
         Model.PanelOpened();
-        Panel.ResetSearch();
         Panel.Refresh();
         _shown = true;
         _shownAt = DateTimeOffset.UtcNow;
@@ -97,7 +96,7 @@ public sealed partial class FlyoutWindow : Window
         AppWindow.Show(true);
         PInvoke.SetForegroundWindow(Handle);
         Activate();
-        Panel.FocusSearch();
+        Panel.FocusDefault();
     }
 
     public void Hide()

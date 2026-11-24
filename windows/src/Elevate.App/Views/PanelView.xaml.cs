@@ -177,10 +177,20 @@ public sealed partial class PanelView : UserControl
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
+        // Escape or a model reset can change the query while the box has focus elsewhere.
+        if (SearchBox.Text != model.SearchQuery)
+        {
+            SearchBox.Text = model.SearchQuery;
+        }
+
         if (model.Notice is { } notice)
         {
-            // As content, so an unbroken address wraps by character inside the column instead of clipping.
-            NoticeBar.Content = new TextBlock { Text = notice, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 6, 0, 8) };
+            // As content, so an unbroken address wraps by character inside the column instead of clipping; kept when the text is unchanged.
+            if (NoticeBar.Content is not TextBlock { } shown || shown.Text != notice)
+            {
+                NoticeBar.Content = new TextBlock { Text = notice, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 6, 0, 8) };
+            }
+
             NoticeBar.IsOpen = true;
         }
         else
@@ -277,7 +287,7 @@ public sealed partial class PanelView : UserControl
                 parts.Add($"{groups} group{(groups == 1 ? "" : "s")}");
             }
 
-            BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch pivots to add more" : string.Empty;
+            BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch tabs to add more" : string.Empty;
             BulkHint.Visibility = parts.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         }
     }
@@ -506,11 +516,25 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>The flyout opens showing everything: the filter is cleared.</summary>
-    public void ResetSearch() => SearchBox.Text = string.Empty;
-
     /// <summary>The flyout opens ready to type in: called once the window is active, or the focus does not take.</summary>
     public void FocusSearch() => SearchBox.Focus(FocusState.Programmatic);
+
+    /// <summary>Focus for the flyout opening: the field of the view on screen, since the filter row is hidden on a profile or packages.</summary>
+    public void FocusDefault()
+    {
+        if (ProfileView.Visibility == Visibility.Visible)
+        {
+            ProfileRun.FocusReason();
+        }
+        else if (PackagesView.Visibility == Visibility.Visible)
+        {
+            PackagesView.FocusSearch();
+        }
+        else
+        {
+            FocusSearch();
+        }
+    }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
     {
