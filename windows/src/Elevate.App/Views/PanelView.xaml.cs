@@ -7,6 +7,7 @@ using Elevate.Core.Support;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -24,6 +25,8 @@ public sealed partial class PanelView : UserControl
     private readonly DispatcherQueueTimer _clock;
     private AppModel? _model;
     private FlyoutWindow? _window;
+    // The profile the run control is bound to; null while no profile is in the main view.
+    private Guid? _boundProfile;
 
     public PanelView()
     {
@@ -152,7 +155,7 @@ public sealed partial class PanelView : UserControl
     public event EventHandler? ContentChanged;
 
     /// <summary>Whether the grouped list is showing; the flyout keeps a fixed height while it is.</summary>
-    public bool ListVisible => List.Visibility == Visibility.Visible;
+    public bool ListVisible => List.Visibility == Visibility.Visible || ProfileView.Visibility == Visibility.Visible;
 
     private void Draw(AppModel model)
     {
@@ -219,15 +222,18 @@ public sealed partial class PanelView : UserControl
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
-        List.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
-        if (!bodyHidden)
+        var profileId = !bodyHidden && model.PanelContent is PanelContent.Profile p ? p.Id : (Guid?)null;
+        List.Visibility = bodyHidden || profileId is not null ? Visibility.Collapsed : Visibility.Visible;
+        if (!bodyHidden && profileId is null)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
+        DrawProfile(model, profileId);
+
         Sidebar.Draw(model);
 
-        BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
+        BulkBar.Visibility = model.SelectMode && profileId is null ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
         {
             var count = model.SelectionCount;
@@ -261,15 +267,49 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    /// <summary>Binds the run control to the profile in the main view, and lets it go when the view is left.</summary>
+    private void DrawProfile(AppModel model, Guid? profileId)
+    {
+        ProfileView.Visibility = profileId is null ? Visibility.Collapsed : Visibility.Visible;
+        if (profileId == _boundProfile)
+        {
+            return;
+        }
+
+        _boundProfile = profileId;
+        if (profileId is { } id)
+        {
+            ProfileRun.Bind(model, id, compact: true);
+            ProfileView.ChangeView(0, 0, null, disableAnimation: true);
+            // Reason takes focus once the view is laid out, so a draft reopens ready to type into.
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ProfileRun.FocusReason);
+        }
+        else
+        {
+            ProfileRun.Unbind();
+        }
+    }
+
     /// <summary>
     /// Home and the role list carry the Elevate mark with the organization's caption and the offline
     /// pill; a tenant view carries the tenant, its home tag, its account and the tenant's own actions.
     /// </summary>
     private void DrawHeader(AppModel model)
     {
+        var profile = model.PanelContent is PanelContent.Profile pc ? model.Profile(pc.Id) : null;
         var tenant = model.PanelContent is PanelContent.Tenant t ? model.Tenant(t.Key) : null;
         var identity = tenant is null ? null : model.Identity(tenant.IdentityId);
-        HeaderTitle.Text = tenant?.DisplayName ?? "Elevate";
+        HeaderTitle.Text = profile?.Name ?? tenant?.DisplayName ?? "Elevate";
+        ProfileIcon.Visibility = profile is null ? Visibility.Collapsed : Visibility.Visible;
+        SelectToggle.Visibility = profile is null ? Visibility.Visible : Visibility.Collapsed;
+        PinButton.Visibility = Visibility.Collapsed;
+        if (profile is not null)
+        {
+            DrawProfileHeader(model, profile);
+            return;
+        }
+
+        AutomationProperties.SetName(TenantMenuButton, "Tenant menu");
         HomeTag.Visibility = tenant?.Source == TenantSource.Home ? Visibility.Visible : Visibility.Collapsed;
         var caption = tenant is null ? model.HeaderCaption : identity?.Upn;
         OrganizationCaption.Text = caption ?? string.Empty;
@@ -279,6 +319,41 @@ public sealed partial class PanelView : UserControl
         AccessPackagesButton.Visibility = tenant?.AccessPackagesAvailable == true ? Visibility.Visible : Visibility.Collapsed;
         TenantMenuButton.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
         SearchBox.PlaceholderText = tenant is null ? "Filter roles" : $"Filter roles in {tenant.DisplayName}";
+    }
+
+    /// <summary>The profile's title block: name, "N roles · M tenants" with the shortcut when bound, pin and the profile menu.</summary>
+    private void DrawProfileHeader(AppModel model, ActivationProfile profile)
+    {
+        var tenants = profile.Entries.Select(e => e.RoleKey.TenantKey).Distinct().Count();
+        var caption = $"{ProfileSummary.Caption(profile.Entries)} · {tenants} tenant{(tenants == 1 ? "" : "s")}";
+        if (model.Settings.HotKeyProfileId == profile.Id && model.Settings.HotKey is { } hotKey)
+        {
+            caption += " · " + hotKey.Display;
+        }
+
+        HomeTag.Visibility = OfflinePill.Visibility = AccessPackagesButton.Visibility = Visibility.Collapsed;
+        OrganizationCaption.Text = caption;
+        OrganizationCaption.Visibility = Visibility.Visible;
+        TenantMenuButton.Visibility = Visibility.Visible;
+        AutomationProperties.SetName(TenantMenuButton, "Profile actions");
+        // A published profile is the organization's: no pin of its own.
+        PinButton.Visibility = profile.Source == ProfileSource.Managed ? Visibility.Collapsed : Visibility.Visible;
+        var resources = Application.Current.Resources;
+        PinGlyph.Glyph = profile.Pinned ? "" : "";
+        PinGlyph.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources[profile.Pinned ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush"];
+        var tip = profile.Pinned ? "Unpin from flyout" : "Pin to flyout";
+        PinButton.IsEnabled = profile.Pinned || model.CanPinAnotherProfile;
+        ToolTipService.SetToolTip(PinButton, PinButton.IsEnabled ? tip : ProfileActions.PinRefusedHint);
+        AutomationProperties.SetName(PinButton, tip);
+    }
+
+    private void OnPinProfile(object sender, RoutedEventArgs e)
+    {
+        if (_model?.PanelContent is PanelContent.Profile p && _model.Profile(p.Id) is { } profile
+            && !_model.SetPinned(p.Id, !profile.Pinned))
+        {
+            ToolTipService.SetToolTip(PinButton, ProfileActions.PinRefusedHint);
+        }
     }
 
     private void OnHeaderAccessPackages(object sender, RoutedEventArgs e)
@@ -291,6 +366,12 @@ public sealed partial class PanelView : UserControl
 
     private void OnHeaderTenantMenu(object sender, RoutedEventArgs e)
     {
+        if (_model?.PanelContent is PanelContent.Profile p)
+        {
+            ProfileActions.Menu(_model, p.Id, XamlRoot, inPanel: true).ShowAt((FrameworkElement)sender);
+            return;
+        }
+
         if (_model?.ScopeTenant is { } key && _model.Tenant(key) is { } tenant)
         {
             PanelMenus.TenantMenu(_model, tenant, XamlRoot).ShowAt((FrameworkElement)sender);

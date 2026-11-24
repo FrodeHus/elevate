@@ -352,6 +352,8 @@
                  after it rather than sitting under the title in an Auto column, which would grow to the
                  caption's full width and push the tools off the right edge for a long name. -->
             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                <FontIcon x:Name="ProfileIcon" Glyph="&#xE945;" FontSize="14" Visibility="Collapsed" VerticalAlignment="Center"
+                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                 <TextBlock x:Name="HeaderTitle" Text="Elevate" FontSize="16" FontWeight="SemiBold" MaxWidth="170"
                            TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
                 <TextBlock x:Name="HomeTag" Text="home" Visibility="Collapsed" FontSize="11" VerticalAlignment="Center"
@@ -370,6 +372,10 @@
             <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" x:Name="AccessPackagesButton" Content="Access packages…" Visibility="Collapsed"
                     Style="{StaticResource SmallButtonStyle}" VerticalAlignment="Center" Click="OnHeaderAccessPackages"
                     ToolTipService.ToolTip="Request access packages in this tenant" />
+            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" x:Name="PinButton" Visibility="Collapsed" Style="{StaticResource SubtleButtonStyle}"
+                    Width="32" Height="32" Padding="0" VerticalAlignment="Center" Click="OnPinProfile">
+                <FontIcon x:Name="PinGlyph" Glyph="&#xE734;" FontSize="14" />
+            </Button>
             <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" x:Name="TenantMenuButton" Visibility="Collapsed" Style="{StaticResource SubtleButtonStyle}"
                     Width="32" Height="32" Padding="0" VerticalAlignment="Center" Click="OnHeaderTenantMenu" AutomationProperties.Name="Tenant menu">
                 <FontIcon Glyph="&#xE712;" FontSize="14" />
@@ -454,6 +460,11 @@
                     <Button Content="Grant admin consent…" Click="OnGrantSharedConsent" HorizontalAlignment="Stretch" />
                 </StackPanel>
             </StackPanel>
+
+            <!-- A profile in the main view: the run form, compact, scrolling inside the 720 cap. -->
+            <ScrollViewer x:Name="ProfileView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <views:RunProfileContent x:Name="ProfileRun" Margin="12" />
+            </ScrollViewer>
 
             <ListView x:Name="List" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False"
                       PreviewKeyDown="OnListKeyDown" ContextRequested="OnListContext"

@@ -13,7 +13,7 @@
         </Grid.RowDefinitions>
 
         <!-- One boxed group per tenant, each headed by the tenant name with the account as caption. -->
-        <ScrollViewer Grid.Row="0" MaxHeight="320" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="RowsScroll" Grid.Row="0" MaxHeight="320" VerticalScrollBarVisibility="Auto">
             <StackPanel x:Name="Rows" Spacing="8" />
         </ScrollViewer>
 

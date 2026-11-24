@@ -66,6 +66,9 @@ public sealed partial class RunProfileContent : UserControl
         _model = model;
         _profileId = profileId;
         _compact = compact;
+        // The flyout scrolls the whole form; the run window caps the role list on its own.
+        RowsScroll.MaxHeight = compact ? double.PositiveInfinity : 320;
+        RowsScroll.VerticalScrollBarVisibility = compact ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
         _session = null;
         _layout = string.Empty;
         Attach();
@@ -264,27 +267,34 @@ public sealed partial class RunProfileContent : UserControl
         return grid;
     }
 
-    /// <summary>The 380-wide layout: the picker and the status sit under the role name instead of in columns.</summary>
+    /// <summary>
+    /// The 380-wide layout: the duration is a small borderless drop-down (<c>5 h ⌄</c>) at the trailing
+    /// edge of the name's line; the status sits on the detail line beneath the name.
+    /// </summary>
     private static Grid CompactRow(Row row)
     {
-        var grid = new Grid { Padding = new Thickness(10, 6, 10, 6), MinHeight = 40 };
-        var stack = new StackPanel { Spacing = 4 };
+        var grid = new Grid { Padding = new Thickness(10, 6, 10, 6), MinHeight = 40, ColumnSpacing = 4 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var stack = new StackPanel { Spacing = 0 };
         stack.Children.Add(Lead(row));
-        var under = new Grid { ColumnSpacing = 8, Margin = new Thickness(CheckBoxGlyphWidth + 4, 0, 0, 0) };
-        under.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        under.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var status = TenantGroupBox.StatusCell(row.Ring, row.Status, HorizontalAlignment.Left);
+        status.Margin = new Thickness(CheckBoxGlyphWidth + 4, 1, 0, 0);
+        stack.Children.Add(status);
+        grid.Children.Add(stack);
         if (row.Duration is { } picker)
         {
-            picker.MinWidth = 110;
-            picker.VerticalAlignment = VerticalAlignment.Center;
-            under.Children.Add(picker);
+            picker.MinWidth = 0;
+            picker.MinHeight = 28;
+            picker.FontSize = 12;
+            picker.Padding = new Thickness(8, 0, 0, 0);
+            picker.BorderThickness = new Thickness(0);
+            picker.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            picker.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetColumn(picker, 1);
+            grid.Children.Add(picker);
         }
 
-        var status = TenantGroupBox.StatusCell(row.Ring, row.Status, HorizontalAlignment.Left);
-        Grid.SetColumn(status, 1);
-        under.Children.Add(status);
-        stack.Children.Add(under);
-        grid.Children.Add(stack);
         return grid;
     }
 
