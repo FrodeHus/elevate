@@ -19,6 +19,7 @@ public sealed partial class AppModel
         Browsing = false;
         ForgetVanishedProfiles();
         ReopenProfileSelection();
+        Touch();
         CountPanelOpenForTrackers();
         if (!Bootstrapped || !IsOnline || Identities.Count == 0)
         {

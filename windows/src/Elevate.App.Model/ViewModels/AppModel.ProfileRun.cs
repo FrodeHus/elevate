@@ -50,6 +50,7 @@ public sealed partial class AppModel
         session.ScheduleStart = false;
         session.StartAt = DateTimeOffset.Now.AddHours(1);
         ClearProgress(session.Items.Select(i => i.RoleKey));
+        Touch();
     }
 
     public async Task SubmitRunAsync(Guid id)
@@ -64,6 +65,7 @@ public sealed partial class AppModel
         session.MutableRowResults.Clear();
         session.Failure = null;
         session.Running = true;
+        Touch();
         var attempted = session.ToActivate.Count;
         var ticket = session.NeedsTicket && !string.IsNullOrWhiteSpace(session.TicketNumber)
             ? new TicketInfo(session.TicketNumber.Trim(), session.TicketSystem.Trim())
@@ -78,26 +80,33 @@ public sealed partial class AppModel
         {
             outcomes = await RunProfileAsync(id, chosen, session.Justification.Trim(), ticket, start);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
-            session.Failure = ex.Message;
+            // Cancellations too: a session left Running is exempt from every drop rule and never ends.
+            session.Failure = string.IsNullOrWhiteSpace(ex.Message) ? ex.GetType().Name : ex.Message;
+            LogError($"Profile run: {Describe(ex)}");
+        }
+        finally
+        {
+            foreach (var outcome in outcomes)
+            {
+                session.MutableRowResults[outcome.RoleKey] = outcome.Result;
+            }
+
+            // A role may have become active after the plan was made; the execution recheck skipped it.
+            session.Items = [.. session.Items.Select(item =>
+                item.Disposition == ProfilePlanDisposition.Activate && !session.Excluded.Contains(item.RoleKey)
+                && outcomes.All(o => o.RoleKey != item.RoleKey) && Active.TryGetValue(item.RoleKey, out var current)
+                    ? item with { Disposition = current.Status.Kind == AssignmentStatusKind.Active ? ProfilePlanDisposition.AlreadyActive : ProfilePlanDisposition.Pending }
+                    : item)];
+            session.Running = false;
+            session.Finished = true;
+            Touch();
         }
 
-        foreach (var outcome in outcomes)
-        {
-            session.MutableRowResults[outcome.RoleKey] = outcome.Result;
-        }
-
-        // A role may have become active after the plan was made; the execution recheck skipped it.
-        session.Items = [.. session.Items.Select(item =>
-            item.Disposition == ProfilePlanDisposition.Activate && !session.Excluded.Contains(item.RoleKey)
-            && outcomes.All(o => o.RoleKey != item.RoleKey) && Active.TryGetValue(item.RoleKey, out var current)
-                ? item with { Disposition = current.Status.Kind == AssignmentStatusKind.Active ? ProfilePlanDisposition.AlreadyActive : ProfilePlanDisposition.Pending }
-                : item)];
-        session.Running = false;
-        session.Finished = true;
-        Touch();
-        if (!PanelIsOpen && !RunWindowsOpen.Contains(id))
+        // A failed run posts no toast: empty outcomes would read as a success. The failure stays on
+        // the session, and the unseen result reopens the panel on it.
+        if (session.Failure is null && !PanelIsOpen && !RunWindowsOpen.Contains(id))
         {
             await NotifyOutcomeAsync(Profile(id)?.Name ?? "Profile", outcomes, attempted);
         }
@@ -119,10 +128,15 @@ public sealed partial class AppModel
         if (_runSessions.TryGetValue(id, out var session))
         {
             session.ResultsSeen = true;
+            Touch();
         }
     }
 
-    public void PanelClosed() => PanelIsOpen = false;
+    public void PanelClosed()
+    {
+        PanelIsOpen = false;
+        Touch();
+    }
 
     /// <summary>Per-row progress of a run in flight, kept on the session so it exists with the flyout hidden too.</summary>
     private void MirrorProgressIntoRunSessions()

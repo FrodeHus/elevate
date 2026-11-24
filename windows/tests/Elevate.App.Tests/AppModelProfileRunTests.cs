@@ -10,12 +10,20 @@ namespace Elevate.App.Tests;
 
 public class AppModelProfileRunTests
 {
-    private static async Task<(TestModel Test, Guid Id)> ModelAsync()
+    private static async Task<(TestModel Test, Guid Id)> ModelAsync(Exception? activationThrows = null)
     {
         var http = new StubHttpClient();
         http.On("GET", "roleAssignmentSchedule", """{"value":[]}""");
         http.On("GET", "/me", """{"id":"principal-1"}""");
-        http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
+        if (activationThrows is not null)
+        {
+            http.On("POST", "roleAssignmentScheduleRequests", (_, _) => throw activationThrows);
+        }
+        else
+        {
+            http.On("POST", "roleAssignmentScheduleRequests", Fixtures.Text("entra-activate-response"), 201);
+        }
+
         var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
         var test = await TestModel.BootstrappedAsync(state, http: http, online: true);
         test.Model.Roles[Sample.TenantKey] = [Sample.Role(Sample.EntraKey, "Global Reader")];
@@ -199,5 +207,81 @@ public class AppModelProfileRunTests
         test.Model.Progress[Sample.EntraKey] = result;
         test.Model.Touch();
         session.RowResults[Sample.EntraKey].Should().Be(result);
+    }
+
+    [Fact]
+    public async Task EveryChangeToTheRunStateNotifies()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        var model = test.Model;
+        var changes = 0;
+        model.Changed += (_, _) => changes++;
+
+        void Fires(string what, Action act)
+        {
+            var before = changes;
+            act();
+            changes.Should().BeGreaterThan(before, what);
+        }
+
+        model.ShowProfile(id);
+        Fires("reset", () => model.ResetRunSession(id));
+        Fires("mark seen", () => model.MarkRunSeen(id));
+        Fires("panel open keeping the draft", () => model.PanelOpened());
+        Fires("panel closed", () => model.PanelClosed());
+
+        // The first notification of a submit must come before the activation finishes.
+        var atStart = -1;
+        model.Changed += (_, _) =>
+        {
+            if (atStart < 0 && model.RunSession(id).Running)
+            {
+                atStart = changes;
+            }
+        };
+        await model.SubmitRunAsync(id);
+        atStart.Should().BeGreaterThan(-1, "Running = true must be announced before the await");
+    }
+
+    public static TheoryData<Exception> Failures => new()
+    {
+        // Ordinary exceptions are turned into Failed outcomes inside the activation; only a
+        // cancellation escapes it, which is the case that used to leave a session Running.
+        new OperationCanceledException("timed out"),
+        new TaskCanceledException("http timeout"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Failures))]
+    public async Task ASubmitThatThrowsEndsFinishedWithTheFailureAndDropsOnLeaving(Exception failure)
+    {
+        var (test, id) = await ModelAsync(failure);
+        using var _ = test;
+        var model = test.Model;
+        model.ShowProfile(id);
+        var session = model.RunSession(id);
+        var changes = 0;
+        model.Changed += (_, _) => changes++;
+
+        await model.SubmitRunAsync(id);
+
+        session.Running.Should().BeFalse();
+        session.Finished.Should().BeTrue();
+        session.Failure.Should().NotBeNullOrEmpty();
+        changes.Should().BeGreaterThan(0);
+        model.Select(new PanelSelection.AllTenants());
+        model.RunSessions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AFailedRunPostsNoOutcomeToast()
+    {
+        var (test, id) = await ModelAsync(new OperationCanceledException("timed out"));
+        using var _ = test;
+        test.Model.ShowProfile(id);
+        await test.Model.SubmitRunAsync(id);
+        test.Model.RunSession(id).Failure.Should().NotBeNullOrEmpty();
+        test.Notifier.Posted.Should().BeEmpty();
     }
 }
