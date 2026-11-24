@@ -19,15 +19,18 @@ extension AppModel {
 
     var homeIsEmpty: Bool { approvals(in: nil).isEmpty && activeRows(in: nil).isEmpty }
 
-    var totalActiveCount: Int { activeAssignments(in: nil).count }
+    /// The sidebar's counts: what "Active now" would list, whatever the filter says.
+    var totalActiveCount: Int { ActiveSummary.order(Array(active.values)).count }
+
+    private func hasError(_ key: TenantKey) -> Bool { (tenantErrors[key] ?? tenant(key)?.lastDiscoveryError) != nil }
 
     /// What a collapsed TENANTS header warns about: an account that must sign in again, or any tenant with an error.
     var sidebarNeedsAttention: Bool {
-        !signInNeeded.isEmpty || state.tenants.contains { tenantErrors[$0.id] != nil }
+        !signInNeeded.isEmpty || state.tenants.contains { hasError($0.id) }
     }
 
     func sidebarMark(for key: TenantKey) -> TenantMark {
-        let n = active.values.count { $0.roleKey.tenantKey == key }
-        return n > 0 ? .active(n) : tenantErrors[key] != nil ? .error : .none
+        let n = ActiveSummary.order(Array(active.values)).count { $0.roleKey.tenantKey == key }
+        return n > 0 ? .active(n) : hasError(key) ? .error : .none
     }
 }

@@ -107,4 +107,24 @@ struct AppModelHomeTests {
         #expect(model.sidebarMark(for: Sample.tenantKey) == .active(2))
         cleanup(model)
     }
+
+    @Test func sidebarMarkAndAttentionAlsoReadTheStoredDiscoveryError() async {
+        let model = await makeHomeModel()
+        model.state.tenants[0].lastDiscoveryError = "discovery failed"
+        #expect(model.sidebarMark(for: Sample.tenantKey) == .error)
+        #expect(model.sidebarNeedsAttention)
+        cleanup(model)
+    }
+
+    @Test func sidebarCountsIgnoreTheFilterAndLeaveOutFailedEntries() async {
+        let model = await makeHomeModel()
+        model.active = [Sample.entraKey: Sample.assignment(Sample.entraKey),
+                        Sample.azureKey: ActiveAssignment(roleKey: Sample.azureKey, assignmentId: "f", startDateTime: .now, endDateTime: nil,
+                                                          status: .failed("x"))]
+        #expect(model.totalActiveCount == 1)
+        #expect(model.sidebarMark(for: Sample.tenantKey) == .active(1))
+        model.searchQuery = "no such role"
+        #expect(model.totalActiveCount == 1)
+        cleanup(model)
+    }
 }
