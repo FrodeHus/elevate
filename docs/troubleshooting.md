@@ -54,8 +54,8 @@ choose **Sign in again** from its menu; the account's tenants are dimmed until i
 
 ## A refresh or discovery failed
 
-A red triangle on a tenant's header or sidebar row means the last refresh hit an error. Hover for the message,
-or click for the full list. Typical causes:
+A red triangle on a tenant's header or sidebar row means the last refresh hit an error. Hover for the message;
+click the pill on the tenant's header for the full list. Typical causes:
 
 - No network. The header shows **offline** and Elevate resumes on its own.
 - A step-up sign-in was dismissed. Press the refresh button and complete it.

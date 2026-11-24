@@ -42,8 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - macOS and Windows: **the sidebar's sections collapse, and Escape steps back.** **PROFILES** and
   **TENANTS** fold away (a collapsed header still shows the profile count, or the active count and
-  a warning), and Elevate remembers it. Exactly one sidebar row is filled in the accent colour:
-  the selected profile, tenant or **All tenants**. Escape dismisses one thing per press: the
+  a warning), and Elevate remembers it. One sidebar row is filled in the accent colour:
+  the selected profile, tenant or **All tenants** (the **All N** control stands in for an unpinned
+  profile, and nothing is filled while **PROFILES** is collapsed). Escape dismisses one thing per press: the
   access package form, the access packages, the filter, a profile, select mode, then browsing back
   to Home. It never changes the selected tenant, and with nothing left it closes the panel. On
   Windows, confirmations (sign out, remove a tenant, delete a profile) are dialogs; on macOS they

@@ -28,8 +28,8 @@ you its state:
 Small captions under a role name explain what activating it involves: **MFA** means Microsoft
 will ask you to verify again, **approval** means someone has to approve first, and **via
 <group>** means you hold the eligibility through a group. Azure roles show the scope under the
-name, such as a resource group or subscription; hover it for the full path. Groups say **Group
-membership** or **Group ownership** so they can be told from roles.
+name, such as a resource group or subscription; hover it for the full path. On the **All** list,
+groups say **Group membership** or **Group ownership** so they can be told from roles.
 
 ### Privileged roles
 

@@ -145,8 +145,9 @@ thing at a time.
   a warning when something needs you.
 - **Add account…** is at the bottom of the sidebar.
 
-Exactly one row in the sidebar is filled with the accent colour: the profile, tenant or **All
-tenants** the main view is showing.
+One row in the sidebar is filled with the accent colour: the profile, tenant or **All tenants**
+the main view is showing. When the profile on screen is not pinned, the **All N** control is filled
+instead, and with **PROFILES** collapsed no control shows it.
 
 **The main view** (right) opens on **Home** when **All tenants** is selected, and on a tenant when
 that was the last thing you looked at:

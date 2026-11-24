@@ -38,7 +38,7 @@ role) a star.
   and that is what **All N** is for. Names that do not fit are cut; hover for the full name, the
   role count and the global shortcut if one is bound.
 - Pin from the All list, from a profile's menu, from the star in a profile's header, or from the
-  Profiles window. When four are already pinned, the star refuses and says so; unpin one first.
+  Profiles window. When four are already pinned, the star in a profile's header is disabled and the All list says why; unpin one first.
 - With profiles but nothing pinned, the section shows only **All N**. With no profiles at all,
   the section is hidden.
 - Click **PROFILES** to collapse the section; the header then shows how many profiles you have.
