@@ -34,7 +34,7 @@ public sealed partial class AppModel
 
                 var count = VisibleIdentities.Sum(i => VisibleTenants(i.Id).Sum(t => RolesFor(t.Key, PanelTab).Count));
                 blocks.Add(new PanelBlock(PanelBlockKind.Eligible, count, NoMatches: IsFiltering && count == 0));
-                if (idle && Profiles.Count == 0)
+                if (idle && Profiles.Count == 0 && !SelectMode)
                 {
                     blocks.Add(new PanelBlock(PanelBlockKind.SelectRoles));
                 }

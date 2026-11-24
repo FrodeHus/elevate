@@ -66,6 +66,7 @@ public sealed partial class AppModel
         {
             case PanelSelection.AllTenants:
                 Settings.PanelTenant = null;
+                _browsing = false;
                 SetSelectedProfile(null);
                 break;
             case PanelSelection.Tenant t:
@@ -171,13 +172,14 @@ public sealed partial class AppModel
         {
             CloseAccessPackages();
         }
+        else if (PanelSelection is PanelSelection.Profile)
+        {
+            // Before the filter: its box is hidden on a profile, so a stored query is not what the user sees.
+            SetSelectedProfile(null);
+        }
         else if (SearchQuery.Length > 0)
         {
             SearchQuery = string.Empty;
-        }
-        else if (PanelSelection is PanelSelection.Profile)
-        {
-            SetSelectedProfile(null);
         }
         else if (SelectMode)
         {

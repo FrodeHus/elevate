@@ -47,7 +47,8 @@ public sealed partial class AppModel
 
     public bool HomeIsEmpty => ApprovalsIn(null).Count == 0 && ActiveAssignments(null).Count == 0;
 
-    public int TotalActiveCount => ActiveAssignments(null).Count;
+    /// <summary>Every entry Active now can show, whatever the filter, so it matches the per-tenant marks.</summary>
+    public int TotalActiveCount => ActiveSummary.Order(Active.Values).Count;
 
     public bool ProfilesCollapsed => Settings.CollapsedProfiles;
 
@@ -71,7 +72,7 @@ public sealed partial class AppModel
 
     public TenantMark SidebarMark(TenantKey key)
     {
-        var n = Active.Values.Count(a => a.RoleKey.TenantKey == key);
+        var n = ActiveSummary.Order(Active.Values.Where(a => a.RoleKey.TenantKey == key)).Count;
         return n > 0 ? new TenantMark(TenantMarkKind.Active, n)
             : (TenantErrors.GetValueOrDefault(key) ?? Tenant(key)?.LastDiscoveryError) is not null ? new TenantMark(TenantMarkKind.Error, 0)
             : new TenantMark(TenantMarkKind.None, 0);

@@ -63,6 +63,15 @@ public class AppModelPanelBlocksTests
     }
 
     [Fact]
+    public async Task SelectModeHidesTheSelectRolesHint()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.SelectMode = true;
+
+        Kinds(test).Should().NotContain(PanelBlockKind.SelectRoles);
+    }
+
+    [Fact]
     public async Task NothingActiveShowsTheCardThenTheListThenTheSelectRolesHint()
     {
         using var test = await TwoTenantsAsync();

@@ -150,13 +150,14 @@ public class AppModelSelectionStateTests
         model.Select(new PanelSelection.Profile(profile.Id));
         model.SearchQuery = "read";
 
-        model.HandleEscape().Should().BeTrue();
-        model.SearchQuery.Should().BeEmpty();
-        model.SelectedProfile.Should().Be(profile.Id);
-
+        // The filter box is hidden on a profile, so the profile goes first and the query stays stored.
         model.HandleEscape().Should().BeTrue();
         model.SelectedProfile.Should().BeNull();
+        model.SearchQuery.Should().Be("read");
         model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+
+        model.HandleEscape().Should().BeTrue();
+        model.SearchQuery.Should().BeEmpty();
 
         model.HandleEscape().Should().BeFalse();
         model.ScopeTenant.Should().Be(One);

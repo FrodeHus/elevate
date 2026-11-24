@@ -152,4 +152,34 @@ public class AppModelHomeTests
         model.SidebarMark(One).Should().Be(new TenantMark(TenantMarkKind.Active, 1));
         model.SidebarMark(Two).Kind.Should().Be(TenantMarkKind.None);
     }
+
+    [Fact]
+    public async Task TheSidebarCountsIgnoreTheFilterAndFailedEntries()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var a = EntraIn("id-1", "tenant-1");
+        var failed = Sample.Key(new EntraDirectoryScope("r-failed", "/"), "id-1", "tenant-1");
+        model.Active[a] = Started(a, 100);
+        model.Active[failed] = Started(failed, 100, AssignmentStatus.Failed("denied"));
+        model.SearchQuery = "zzz-matches-nothing";
+
+        model.TotalActiveCount.Should().Be(1);
+        model.SidebarMark(One).Should().Be(new TenantMark(TenantMarkKind.Active, 1));
+    }
+
+    [Fact]
+    public async Task SelectingAllTenantsLeavesBrowsingAndShowsHome()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Active[Sample.EntraKey] = Sample.Assignment(Sample.EntraKey);
+        model.Browsing = true;
+        model.PanelContent.Should().Be(new PanelContent.RoleList());
+
+        model.Select(new PanelSelection.AllTenants());
+
+        model.Browsing.Should().BeFalse();
+        model.PanelContent.Should().Be(new PanelContent.Home());
+    }
 }
