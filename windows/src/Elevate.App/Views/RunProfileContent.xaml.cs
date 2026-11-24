@@ -159,6 +159,11 @@ public sealed partial class RunProfileContent : UserControl
             foreach (var row in _rows)
             {
                 UpdateStatus(row, session);
+                // Compact rows put the status on its own line: with nothing to say, the line goes.
+                if (_compact && row.Status.Parent is FrameworkElement cell)
+                {
+                    cell.Visibility = row.Status.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+                }
             }
 
             UpdateButtons(session);

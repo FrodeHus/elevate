@@ -113,12 +113,53 @@ public class AppModelProfileRunTests
         var (test, id) = await ModelAsync();
         using var _ = test;
         test.Model.ShowProfile(id);
+        test.Model.PanelOpened();
         test.Model.RunSession(id).Finished = true;
         test.Model.MarkRunSeen(id);
         test.Model.PanelClosed();
         test.Model.PanelOpened();
         test.Model.SelectedProfile.Should().BeNull();
         test.Model.RunSessions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AFinishWhileThePanelIsHiddenIsNotMarkedSeenUntilItReopensOnTheProfile()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        test.Model.PanelOpened();
+        test.Model.ShowProfile(id);
+        test.Model.PanelClosed();
+        test.Model.RunSession(id).Finished = true;
+
+        // The bound control redraws on every change even while hidden.
+        test.Model.MarkRunSeen(id);
+        test.Model.RunSession(id).ResultsSeen.Should().BeFalse();
+
+        test.Model.PanelOpened();
+        test.Model.SelectedProfile.Should().Be(id);
+        test.Model.RunSessions.Should().ContainKey(id);
+
+        // Now on screen: the control's mark counts, and the next reopen goes Home.
+        test.Model.MarkRunSeen(id);
+        test.Model.RunSession(id).ResultsSeen.Should().BeTrue();
+        test.Model.PanelClosed();
+        test.Model.PanelOpened();
+        test.Model.SelectedProfile.Should().BeNull();
+        test.Model.RunSessions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ARunWindowMarksResultsSeenWhileThePanelIsClosed()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        test.Model.RunWindowsOpen.Add(id);
+        test.Model.RunSession(id).Finished = true;
+
+        test.Model.MarkRunSeen(id);
+
+        test.Model.RunSession(id).ResultsSeen.Should().BeTrue();
     }
 
     [Fact]
@@ -254,8 +295,8 @@ public class AppModelProfileRunTests
 
         model.ShowProfile(id);
         Fires("reset", () => model.ResetRunSession(id));
-        Fires("mark seen", () => model.MarkRunSeen(id));
         Fires("panel open keeping the draft", () => model.PanelOpened());
+        Fires("mark seen", () => model.MarkRunSeen(id));
         Fires("panel closed", () => model.PanelClosed());
 
         // The first notification of a submit must come before the activation finishes.

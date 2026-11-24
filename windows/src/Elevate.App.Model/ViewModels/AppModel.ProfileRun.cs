@@ -123,9 +123,11 @@ public sealed partial class AppModel
         Select(new PanelSelection.Profile(id));
     }
 
+    /// <summary>Only counts when the results can be on screen: the open flyout on this profile, or its run window.</summary>
     public void MarkRunSeen(Guid id)
     {
-        if (_runSessions.TryGetValue(id, out var session))
+        var onScreen = (PanelIsOpen && SelectedProfile == id) || RunWindowsOpen.Contains(id);
+        if (onScreen && _runSessions.TryGetValue(id, out var session))
         {
             session.ResultsSeen = true;
             Touch();
