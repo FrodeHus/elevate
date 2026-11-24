@@ -98,6 +98,8 @@ private struct SidebarRowButton<Label: View>: View {
 private struct SectionHeader<Badge: View>: View {
     let title: LocalizedStringKey
     let accessibilityName: String
+    /// What the badge says, for VoiceOver while collapsed (the button's label hides its children).
+    var collapsedSummary = ""
     @Binding var collapsed: Bool
     @ViewBuilder let badge: () -> Badge
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -116,7 +118,7 @@ private struct SectionHeader<Badge: View>: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(collapsed ? "Expand \(accessibilityName)" : "Collapse \(accessibilityName)")
-        .accessibilityValue(collapsed ? "collapsed" : "expanded")
+        .accessibilityValue(collapsed ? "collapsed" + (collapsedSummary.isEmpty ? "" : ", \(collapsedSummary)") : "expanded")
     }
 }
 
@@ -132,7 +134,7 @@ private struct ProfilesSection: View {
         let pinnedSelected = pinned.contains { selection == .profile($0.id) }
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                SectionHeader(title: "Profiles", accessibilityName: "profiles",
+                SectionHeader(title: "Profiles", accessibilityName: "profiles", collapsedSummary: "\(model.profiles.count)",
                               collapsed: Binding(get: { model.settings.sidebarProfilesCollapsed }, set: { model.settings.sidebarProfilesCollapsed = $0 })) {
                     Text("\(model.profiles.count)").font(.caption).monospacedDigit()
                 }
@@ -201,7 +203,9 @@ private struct TenantsSection: View {
         @Bindable var model = model
         let total = model.totalActiveCount
         VStack(alignment: .leading, spacing: 2) {
-            SectionHeader(title: "Tenants", accessibilityName: "tenants", collapsed: Binding(get: { model.settings.sidebarTenantsCollapsed }, set: { model.settings.sidebarTenantsCollapsed = $0 })) {
+            SectionHeader(title: "Tenants", accessibilityName: "tenants",
+                          collapsedSummary: ([total > 0 ? "\(total) active" : nil, model.sidebarNeedsAttention ? "needs attention" : nil].compactMap { $0 }).joined(separator: ", "),
+                          collapsed: Binding(get: { model.settings.sidebarTenantsCollapsed }, set: { model.settings.sidebarTenantsCollapsed = $0 })) {
                 HStack(spacing: 4) {
                     if model.sidebarNeedsAttention {
                         Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange)

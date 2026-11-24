@@ -51,6 +51,7 @@ struct AccessPackagesView: View {
     var body: some View {
         // Sized from the measured content, as in the role list: a ScrollView reports no ideal height here.
         ScrollView { page }
+            .onExitCommand { model.handleEscape() }
             .frame(height: min(max(contentHeight, 44), max(availableHeight, 44)))
             .task(id: tenantKey) { await reload() }
             .onChange(of: model.accessPackagesTab) { _, _ in Task { await model.pollAccessPackages(tenantKey) } }
@@ -67,7 +68,6 @@ struct AccessPackagesView: View {
             .pickerStyle(.segmented).labelsHidden()
             TextField("Search packages", text: $search)
                 .focused($searchFocused)
-                .onExitCommand { model.handleEscape() }
             if let consentError {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Access packages are not permitted in this tenant.", systemImage: "info.circle")

@@ -276,6 +276,7 @@ struct DurationPicker: View {
                 } label: { Text(label(duration)).font(.caption) }
                 .menuStyle(.borderlessButton).fixedSize()
                 .accessibilityLabel("Duration")
+                .accessibilityValue(label(duration))
             } else {
                 Picker("Duration", selection: $duration) {
                     ForEach(options, id: \.self) { d in Text(label(d)).tag(d) }

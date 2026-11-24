@@ -10,7 +10,11 @@ extension AppModel {
             guard let key = settings.panelTenant, tenant(key) != nil, !signInNeeded.contains(key.identityId) else { return nil }
             return key
         }
-        set { settings.panelTenant = newValue }
+        // Any change of tenant, however it comes about, leaves that tenant's access packages.
+        set {
+            settings.panelTenant = newValue
+            closeAccessPackages()
+        }
     }
 
     var panelSelection: PanelSelection {

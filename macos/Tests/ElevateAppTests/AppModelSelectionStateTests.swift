@@ -169,6 +169,24 @@ struct AppModelSelectionStateTests {
         cleanup(model)
     }
 
+    @Test func changingTheTenantWithoutSelectDropsStaleAccessPackages() async {
+        let model = await makeTwoTenantModel()
+        model.openAccessPackages(Sample.tenantKey)
+        model.beginPackageRequest(Self.package)
+        model.searchAllTenants()
+        #expect(model.accessPackagesTenant == nil && model.requestingPackage == nil)
+        model.openAccessPackages(Sample.tenantKey)
+        model.scopeTenant = nil
+        #expect(model.accessPackagesTenant == nil)
+        // The next Escape is not swallowed by packages that are no longer shown.
+        model.openAccessPackages(Sample.tenantKey)
+        model.searchAllTenants()
+        model.browsing = true
+        model.handleEscape()
+        #expect(!model.browsing)
+        cleanup(model)
+    }
+
     @Test func openingAccessPackagesFromTheAllTenantsListSelectsThatTenant() async {
         let model = await makeTwoTenantModel()
         model.openAccessPackages(Self.otherKey)

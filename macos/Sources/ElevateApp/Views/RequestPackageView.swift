@@ -27,6 +27,7 @@ struct RequestPackageView: View {
     var body: some View {
         // Sized from the measured content, as in the role list: a ScrollView reports no ideal height here.
         ScrollView { content }
+            .onExitCommand { model.handleEscape() }
             .frame(height: min(max(contentHeight, 44), max(availableHeight, 44)))
             .task { await load() }
     }
@@ -54,7 +55,7 @@ struct RequestPackageView: View {
             HStack {
                 if submitting { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("Cancel") { model.endPackageRequest() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { model.endPackageRequest() }
                 if let selected, selected.requiresAnswers {
                     Button("Open in My Access") {
                         NSWorkspace.shared.open(AccessPackageProvider.myAccessURL(tenantId: tenantKey.tenantId, packageId: package.id))
