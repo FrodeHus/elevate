@@ -134,4 +134,40 @@ struct AppModelProfileRunTests {
         #expect(model.runSession(for: id).excluded.isEmpty)
         cleanup(model)
     }
+
+    private func managedModel() async -> AppModel {
+        var state = AppState()
+        state.identities = [Sample.identity()]
+        state.tenants = [Sample.tenant(tenantId: AppModelManagedProfilesTests.tenantId)]
+        let values: [String: Any] = ["ManagedProfiles": AppModelManagedProfilesTests.document()]
+        let model = await makeModel(state: state, managed: ManagedConfiguration.load(from: DictionaryManagedSource(values)))
+        model.roles[AppModelManagedProfilesTests.tenantKey] = [Sample.role(AppModelManagedProfilesTests.entraKey, name: "Global Reader")]
+        return model
+    }
+
+    @Test func aManagedProfileWhoseRolesAreLoadingKeepsItsDraftAcrossReopen() async {
+        let model = await managedModel()
+        let id = AppModelManagedProfilesTests.managedId
+        model.showProfile(id)
+        model.runSession(for: id).justification = "deploy"
+        // A refresh is under way: no eligible roles are known for now.
+        model.roles = [:]
+        model.panelClosed()
+        model.panelOpened()
+        #expect(model.selectedProfile == id)
+        #expect(model.runSessions[id]?.justification == "deploy")
+        cleanup(model)
+    }
+
+    @Test func aManagedProfileRemovedFromTheDocumentLosesSessionAndSelection() async {
+        let model = await managedModel()
+        let id = AppModelManagedProfilesTests.managedId
+        model.showProfile(id)
+        model.inlineProfileSet = .empty
+        model.panelClosed()
+        model.panelOpened()
+        #expect(model.selectedProfile == nil)
+        #expect(model.runSessions[id] == nil)
+        cleanup(model)
+    }
 }

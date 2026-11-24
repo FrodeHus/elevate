@@ -89,9 +89,12 @@ extension AppModel {
         if selectedProfile == id { selectedProfile = nil }
     }
 
-    /// Managed profiles come and go with the published document and the roles it resolves against.
+    /// A profile is gone when it is neither the user's nor in the published document. A managed
+    /// profile that resolves to nothing while roles load is still published, so it stays; a run
+    /// in progress is never dropped.
     func forgetVanishedProfiles() {
-        for id in Set(runSessions.keys).union(selectedProfile.map { [$0] } ?? []) where profile(id: id) == nil {
+        for id in Set(runSessions.keys).union(selectedProfile.map { [$0] } ?? [])
+        where profile(id: id) == nil && !isManagedProfile(id) && runSessions[id]?.running != true {
             forgetProfile(id)
         }
     }
