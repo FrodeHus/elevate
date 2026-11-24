@@ -15,6 +15,7 @@ struct RoleListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if tenant == nil && model.homeIsEmpty && !model.isFiltering { nothingActiveCard }
             if tenant == nil {
                 tabs.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabsHeight = $0 }
             }
@@ -34,6 +35,28 @@ struct RoleListView: View {
                 .onChange(of: model.highlightedRole) { _, key in if let key { proxy.scrollTo(key) } }
             }
         }
+    }
+
+    private var nothingActiveCard: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Nothing active").font(.headline)
+                Text("You hold no elevated access right now.").font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            Divider()
+        }
+    }
+
+    private var selectRolesHint: some View {
+        HStack(spacing: 8) {
+            Text("Activate the same roles often? Select them and save a profile to run with one click.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button("Select roles") { model.selectMode = true }.controlSize(.small)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
     private var tabs: some View {
@@ -76,6 +99,7 @@ struct RoleListView: View {
                 }
             }
         }
+        if model.homeIsEmpty && !model.isFiltering && model.profiles.isEmpty { selectRolesHint }
     }
 
     @ViewBuilder private func tenantContent(_ key: TenantKey) -> some View {

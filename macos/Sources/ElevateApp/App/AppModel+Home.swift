@@ -8,7 +8,7 @@ extension AppModel {
     /// Whether the row's Extend button is offered: past Entra's five minute lock, inside the extend
     /// window, and the role does not need approval.
     func canExtendNow(_ key: RoleKey, now: Date = .now) -> Bool {
-        guard let a = assignment(for: key), 300 - now.timeIntervalSince(a.startDateTime ?? .distantPast) <= 0 else { return false }
+        guard let a = assignment(for: key), 300 - now.timeIntervalSince(a.startDateTime) <= 0 else { return false }
         return ExtendWindow.canExtend(a, policy: role(for: key)?.policy ?? .manualDefault, now: now)
     }
 

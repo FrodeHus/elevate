@@ -13,6 +13,8 @@ struct AssignmentControls: View {
     var policy: RolePolicy = .manualDefault
     /// The summary never offers Activate (its rows are already active or pending).
     var allowActivate: Bool = true
+    /// Drawn inside the expiring-soon card: the card shows the time left, and Extend is the prominent button.
+    var hero = false
 
     @State private var successVisible = true
 
@@ -43,11 +45,13 @@ struct AssignmentControls: View {
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 let lockedFor = 300 - ctx.date.timeIntervalSince(start)
                 HStack(spacing: 8) {
-                    Text(assignment?.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        // Hugs its text: "46 min" and "7 h 58 min" differ too much for one fixed
-                        // column, and a wide one pushed Deactivate into truncation in select mode.
-                        .fixedSize().frame(minWidth: PanelMetrics.countdownWidth, alignment: .trailing)
+                    if !hero {
+                        Text(assignment?.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            // Hugs its text: "46 min" and "7 h 58 min" differ too much for one fixed
+                            // column, and a wide one pushed Deactivate into truncation in select mode.
+                            .fixedSize().frame(minWidth: PanelMetrics.countdownWidth, alignment: .trailing)
+                    }
                     // PIM calls it active; only a probe can call it usable. The countdown stays —
                     // the clock started when PIM recorded the activation — but the row says which.
                     if let note = model.propagationNote(for: key) {
@@ -55,14 +59,7 @@ struct AssignmentControls: View {
                             .help(model.propagationTooltip(for: key) ?? "")
                     }
                     if model.canExtendNow(key, now: ctx.date) {
-                        Button("Extend") {
-                            if NSEvent.modifierFlags.contains(.option) {
-                                Task { if await !model.quickActivate(key) { open(.activate([key])) } }
-                            } else { open(.activate([key])) }
-                        }
-                            .controlSize(.small)
-                            .disabled(!model.isOnline)
-                            .help("Extend by activating again; Option-click to extend with the last reason")
+                        if hero { extendButton(key).buttonStyle(.borderedProminent) } else { extendButton(key) }
                     }
                     Button("Deactivate") { Task { await model.deactivate(key) } }
                         .controlSize(.small)
@@ -105,6 +102,17 @@ struct AssignmentControls: View {
                       : "Activate this role. Option-click to activate with the last reason and duration")
             }
         }
+    }
+
+    private func extendButton(_ key: RoleKey) -> some View {
+        Button("Extend") {
+            if NSEvent.modifierFlags.contains(.option) {
+                Task { if await !model.quickActivate(key) { open(.activate([key])) } }
+            } else { open(.activate([key])) }
+        }
+        .controlSize(.small)
+        .disabled(!model.isOnline)
+        .help("Extend by activating again; Option-click to extend with the last reason")
     }
 
     private func open(_ route: PanelRoute) {

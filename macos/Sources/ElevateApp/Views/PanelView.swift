@@ -156,8 +156,9 @@ struct PanelView: View {
             } else {
                 switch model.panelContent {
                 case .tenant(let key): RoleListView(tenant: key, availableHeight: listHeight)
-                // Home and the profile view arrive with their own tasks; until then they show the list.
-                case .roleList, .home, .profile: RoleListView(tenant: nil, availableHeight: listHeight)
+                case .home: HomeView(availableHeight: listHeight)
+                // The profile view arrives with its own task; until then it shows the list.
+                case .roleList, .profile: RoleListView(tenant: nil, availableHeight: listHeight)
                 }
             }
             Spacer(minLength: 0)
