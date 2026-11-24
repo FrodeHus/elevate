@@ -91,18 +91,26 @@ struct TenantRoles: View {
                 }
                 .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
-            if model.panelTab == .azure {
-                // The Azure tab reads its scope strings as the hierarchy they are; the tree is
-                // flattened back into rows so it still lives in the panel's one list.
-                ForEach(scopeTreeRows) { entry in
-                    if let role = entry.role {
-                        RoleRow(role: role).padding(.leading, PanelIndent.for(entry.depth))
-                    } else {
-                        ScopeRow(tenant: tenant, node: entry.node, depth: entry.depth)
-                    }
-                }
+            if model.panelTab == .all {
+                ForEach(model.roles(for: tenant.id, tab: .roles)) { role in RoleRow(role: role) }
+                azureTreeRows
+                ForEach(model.roles(for: tenant.id, tab: .groups)) { role in RoleRow(role: role) }
+            } else if model.panelTab == .azure {
+                azureTreeRows
             } else {
                 ForEach(roles) { role in RoleRow(role: role) }
+            }
+        }
+    }
+
+    /// The Azure tab reads its scope strings as the hierarchy they are; the tree is
+    /// flattened back into rows so it still lives in the panel's one list.
+    @ViewBuilder private var azureTreeRows: some View {
+        ForEach(scopeTreeRows) { entry in
+            if let role = entry.role {
+                RoleRow(role: role).padding(.leading, PanelIndent.for(entry.depth))
+            } else {
+                ScopeRow(tenant: tenant, node: entry.node, depth: entry.depth)
             }
         }
     }
@@ -113,6 +121,7 @@ struct TenantRoles: View {
 
     private var emptyText: String {
         switch (model.panelTab, tenant.discoveryMode) {
+        case (.all, _): "No eligible roles or groups."
         case (.groups, _): "No eligible groups."
         case (.azure, .manualRoles): "No roles configured."
         case (.azure, _): tenant.azureUnavailableReason ?? "No eligible Azure resource roles."

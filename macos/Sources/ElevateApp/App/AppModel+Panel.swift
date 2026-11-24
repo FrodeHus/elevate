@@ -19,6 +19,7 @@ extension AppModel {
 
     static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
         switch tab {
+        case .all: [.entraDirectory, .azureResource, .group]
         case .roles: [.entraDirectory]
         case .azure: [.azureResource]
         case .groups: [.group]
@@ -91,11 +92,25 @@ extension AppModel {
             let tenants = visibleTenants(for: identity.id)
             // A sole tenant is folded into the account row and has no collapse state of its own.
             return tenants.filter { tenants.count == 1 || !collapsedTenants.contains($0.id) }.flatMap { tenant -> [RoleKey] in
-                panelTab == .azure
-                    ? ScopeTree.flatten(azureTree(for: tenant.id), isCollapsed: { isScopeCollapsed(tenant.id, $0) }).compactMap { $0.role?.key }
-                    : roles(for: tenant.id, tab: panelTab).map(\.key)
+                listRows(for: tenant.id)
             }
         }
+    }
+
+    /// One tenant's role rows in display order for the current tab; the All tab stacks the three kinds.
+    func listRows(for tenantKey: TenantKey) -> [RoleKey] {
+        let azure = { ScopeTree.flatten(self.azureTree(for: tenantKey), isCollapsed: { self.isScopeCollapsed(tenantKey, $0) }).compactMap { $0.role?.key } }
+        switch panelTab {
+        case .all: return roles(for: tenantKey, tab: .roles).map(\.key) + azure() + roles(for: tenantKey, tab: .groups).map(\.key)
+        case .azure: return azure()
+        case .roles, .groups: return roles(for: tenantKey, tab: panelTab).map(\.key)
+        }
+    }
+
+    /// The All tab mixes kinds, so a group row says which of its two accesses it is.
+    func groupCaption(_ key: RoleKey) -> String? {
+        guard case .group(_, let access) = key.scope else { return nil }
+        return access == .owner ? "Group ownership" : "Group membership"
     }
 
     /// Moves the highlight by one row. Stepping up off the first row clears it: back to the filter.

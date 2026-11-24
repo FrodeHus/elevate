@@ -37,6 +37,9 @@ struct RoleRow: View {
                     Text(via == "group" ? "via group" : "via \(via)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         .help("This eligibility is granted through a group; activating it activates the role for you")
                 }
+                if model.panelTab == .all, let caption = model.groupCaption(role.key) {
+                    Text(caption).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                }
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
                 if assignment == nil, let notes = PolicyNotes.caption(for: role.policy) {
                     Text(notes).font(.caption2).foregroundStyle(.secondary).lineLimit(1)

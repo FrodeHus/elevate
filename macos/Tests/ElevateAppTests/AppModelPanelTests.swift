@@ -6,6 +6,31 @@ import ElevateCore
 @MainActor
 struct AppModelPanelTests {
     /// Builds a model holding one Entra, one Azure and one group role in the same tenant.
+    @Test func allTabShowsEveryKindInOrder() async {
+        let model = await modelWithOneOfEachKind()
+        model.panelTab = .all
+        #expect(model.roles(for: Sample.tenantKey, tab: .all).count == 3)
+        #expect(model.listRows(for: Sample.tenantKey) == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        #expect(model.navigableRoles == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        cleanup(model)
+    }
+
+    @Test func tabDefaultsToAllWhenNothingIsStoredAndKeepsAStoredTab() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .all)
+        UserDefaults(suiteName: suite)!.set("roles", forKey: AppSettings.panelTabKey)
+        #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .roles)
+    }
+
+    @Test func groupCaptionNamesMembershipAndOwnership() async {
+        let model = await modelWithOneOfEachKind()
+        #expect(model.groupCaption(Sample.groupKey) == "Group membership")
+        #expect(model.groupCaption(Sample.key(.group(groupId: "g", accessId: .owner))) == "Group ownership")
+        #expect(model.groupCaption(Sample.entraKey) == nil)
+        cleanup(model)
+    }
+
     private func modelWithOneOfEachKind() async -> AppModel {
         var state = AppState()
         state.identities = [Sample.identity()]

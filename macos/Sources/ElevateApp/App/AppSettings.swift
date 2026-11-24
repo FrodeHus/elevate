@@ -188,7 +188,7 @@ final class AppSettings {
         storedClientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         pinnedClientId = defaults.string(forKey: Self.pinnedClientIdKey) ?? ""
-        panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
+        panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .all
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
         collapsedApprovals = defaults.bool(forKey: Self.collapsedApprovalsKey)
         lastApprovalJustification = defaults.string(forKey: Self.lastApprovalJustificationKey) ?? ""
