@@ -15,9 +15,13 @@ struct RoleListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if tenant == nil && model.homeIsEmpty && !model.isFiltering { nothingActiveCard }
             if tenant == nil {
-                tabs.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabsHeight = $0 }
+                // The card and the tabs together are what the list gives up its height for.
+                VStack(spacing: 0) {
+                    if model.homeIsEmpty && !model.isFiltering { nothingActiveCard }
+                    tabs
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabsHeight = $0 }
             }
             // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
             // to zero; size it from the measured content instead, capped so long lists scroll.
