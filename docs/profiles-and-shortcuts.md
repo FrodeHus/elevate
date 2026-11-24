@@ -134,6 +134,10 @@ the profile view are the same, **Ctrl-click** a profile in the sidebar to run it
 **Enter** in the All list runs the first match, and **Add roles…** opens a dialog. Confirmations,
 such as deleting a profile, are dialogs rather than cards inside the panel.
 
+![The Windows sidebar with three pinned profiles, All 3, and the tenants below](images/tutorials/windows-profiles-row.png)
+
+![A profile in the Windows flyout: Incident response with its roles grouped by tenant, a duration menu on each, the Reason field and Activate 4](images/tutorials/windows-panel-profile.png)
+
 ![The Windows Profiles window with the list on the left and the editor on the right](images/tutorials/windows-manage-profiles.png)
 
 ## A global keyboard shortcut

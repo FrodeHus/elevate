@@ -7,6 +7,8 @@ MSI downloaded from the GitHub releases or installed with winget.
 UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the
 flyout, windows, tray states and tokens; open the file in a browser, it follows the OS theme).
 
+![The Windows flyout on one tenant: pinned profiles and tenants in the sidebar, the Eligible bar with its All, Entra, Azure and Groups tabs, and privileged roles marked with a crown](../docs/images/panel-windows.png)
+
 ## Install
 
 ```powershell
