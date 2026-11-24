@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate home flyout on Windows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 516px; height: 780px; display: flex; background: #202020">
+<dc-import name="Rail" selected="all" win="{{ yes }}" hint-size="136px,780px"></dc-import>
+<div style="width: 380px; height: 780px; box-sizing: border-box; display: flex; flex-direction: column; background: #202020; color: #FFFFFF; font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.3">
+
+<div style="display: flex; align-items: center; gap: 4px; padding: 10px 12px 8px">
+<span style="flex: 1; display: flex; flex-direction: column">
+<span style="font-weight: 600">Elevate</span>
+<span style="font-size: 12px; color: #C5C5C5">Managed by Contoso IT</span>
+</span>
+<button aria-label="Select roles" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5l1.2 1.2 2-2.4M8.5 4.5h5M2.5 11l1.2 1.2 2-2.4M8.5 11.5h5"/></svg>
+</button>
+<button aria-label="Refresh" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 4px">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5V5h-2.5"/></svg>
+</button>
+</div>
+
+<label style="display: flex; align-items: center; gap: 8px; height: 32px; margin: 0 12px; padding: 0 10px; border-radius: 4px; background: #1A1A1A; border: 1px solid rgba(255,255,255,0.09); border-bottom: 2px solid {{accent}}; box-sizing: border-box">
+<input type="text" aria-label="Filter roles" placeholder="Filter roles" style="flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #FFFFFF; font: inherit">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C5C5C5" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+</label>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 12px">
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 600; color: #C5C5C5; padding-bottom: 2px">Approvals · 1</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; background: #2B2B2B; border: 1px solid rgba(255,255,255,0.06)">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+<span style="font-weight: 600">Sam Chen</span>
+<span style="font-size: 13px">Exchange Administrator</span>
+<span style="font-size: 12px; color: #C5C5C5">Contoso · 2 h · 14 minutes ago</span>
+</span>
+<button style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); font-size: 12px">Deny</button>
+<button style="height: 28px; padding: 0 10px; border-radius: 4px; background: {{accent}}; color: #000000; font-size: 12px; font-weight: 600">Approve</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 600; color: #C5C5C5; padding-bottom: 2px">Active now · 3</div>
+<div style="padding: 10px 12px; border-radius: 8px; background: #2B2B2B; border: 1px solid #F5B53D; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #6CCB5F; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+<span style="font-weight: 600">Global Reader</span>
+<span style="font-size: 12px; color: #C5C5C5">Contoso · alex.rivera@contoso.com</span>
+</span>
+<span style="font-size: 18px; font-weight: 600; color: #F5B53D">7 min</span>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="flex: 1; height: 30px; border-radius: 4px; background: {{accent}}; color: #000000; font-weight: 600">Extend</button>
+<button style="flex: 1; height: 30px; box-sizing: border-box; border-radius: 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09)">Deactivate</button>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 2px solid #6CCB5F; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span>User Administrator</span>
+<span style="font-size: 12px; color: #C5C5C5">Contoso · propagating (~3 min)</span>
+</span>
+<span style="font-size: 12px; color: #C5C5C5">2 h 40 min</span>
+<button style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); font-size: 12px">Deactivate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px">
+<span style="width: 8px; height: 8px; border-radius: 2px; background: #F59E3D; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span>Global Administrator</span>
+<span style="font-size: 12px; color: #C5C5C5">Contoso · awaiting approval</span>
+</span>
+<button style="height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); font-size: 12px">Cancel</button>
+</div>
+</div>
+
+<button style="display: flex; align-items: center; gap: 8px; height: 40px; box-sizing: border-box; padding: 0 12px; border-radius: 4px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); text-align: left">
+<span style="flex: 1">Browse all roles</span>
+<span style="font-size: 12px; color: #C5C5C5">31 in 6 tenants</span>
+<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#C5C5C5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+</button>
+</div>
+
+<div style="display: flex; align-items: center; height: 40px; padding: 0 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px">
+<button style="flex: 1; text-align: left">Settings…</button>
+<button style="flex: 1; text-align: right">Quit</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#60CDFF","options":["#60CDFF","#E0A5F0","#6CCB5F"]},"$preview":{"width":516,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#60CDFF', yes: true };
+}
+}
+</script>
+</body>
+</html>

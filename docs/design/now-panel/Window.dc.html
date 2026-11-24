@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate windowed layout</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 780px; height: 580px; box-sizing: border-box; display: flex; background: #1E1F22; color: #F5F5F7; font-family: -apple-system, system-ui, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.3">
+
+<nav aria-label="Sections" style="width: 210px; flex: none; box-sizing: border-box; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; background: #18191B; border-right: 1px solid rgba(255,255,255,0.08)">
+<label style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; margin-bottom: 8px; border-radius: 7px; background: #2A2B2F">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+<input type="text" aria-label="Search" placeholder="Search" style="flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #F5F5F7; font: inherit">
+</label>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; text-align: left">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #34D17A"></span>
+<span style="flex: 1">Active now</span>
+<span style="font-size: 12px; color: #34D17A">2</span>
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; text-align: left">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C7C7CC" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1">Profiles</span>
+<span style="font-size: 12px; color: #A1A1AA">2</span>
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; text-align: left">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C7C7CC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg>
+<span style="flex: 1">Approvals</span>
+<span style="font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: {{accentFill}}; color: #FFFFFF">1</span>
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; text-align: left">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C7C7CC" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M2 5 8 2l6 3v6l-6 3-6-3zM2 5l6 3 6-3M8 8v6"/></svg>
+<span style="flex: 1">Access packages</span>
+</button>
+
+<div style="padding: 14px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">TENANTS</div>
+<button aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; border-radius: 7px; background: rgba(255,255,255,0.1); text-align: left">
+<span style="width: 22px; height: 22px; border-radius: 6px; background: {{accentFill}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">C</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 600">Contoso</span>
+<span style="font-size: 11px; color: #A1A1AA">alex@contoso.com</span>
+</span>
+<span style="font-size: 12px; color: #34D17A">1</span>
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; border-radius: 7px; text-align: left">
+<span style="width: 22px; height: 22px; border-radius: 6px; background: #3F4046; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">F</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span>Fabrikam</span>
+<span style="font-size: 11px; color: #A1A1AA">ops.rivera@fabrikam.com</span>
+</span>
+<span style="font-size: 12px; color: #F5B53D">1</span>
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; border-radius: 7px; text-align: left">
+<span style="width: 22px; height: 22px; border-radius: 6px; background: #3F4046; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none">R</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span>Reothor Lab</span>
+<span style="font-size: 11px; color: #A1A1AA">alex@contoso.com · guest</span>
+</span>
+</button>
+
+<span style="flex: 1"></span>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; color: #C7C7CC; text-align: left">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+Add account
+</button>
+<button style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 7px; color: #C7C7CC; text-align: left">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 5h7M12 5h2M2 11h2M7 11h7"/><circle cx="10.5" cy="5" r="1.5"/><circle cx="5.5" cy="11" r="1.5"/></svg>
+Settings
+</button>
+</nav>
+
+<main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 12px; padding: 14px 18px 10px">
+<h1 style="margin: 0; font-size: 17px; font-weight: 600">Contoso</h1>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">home</span>
+<span style="flex: 1"></span>
+<div style="display: flex; padding: 2px; border-radius: 8px; background: #2A2B2F">
+<button style="height: 24px; padding: 0 12px; border-radius: 6px; background: #4A4B52; font-weight: 600">Entra 7</button>
+<button style="height: 24px; padding: 0 12px; border-radius: 6px; color: #D4D4D8">Azure 4</button>
+<button style="height: 24px; padding: 0 12px; border-radius: 6px; color: #D4D4D8">Groups 1</button>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; padding: 4px 18px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA; border-bottom: 1px solid rgba(255,255,255,0.08)">
+<span>ROLE</span><span>REQUIRES</span><span>MAX</span><span></span>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 8px">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #34D17A; flex: none"></span><span style="font-weight: 500">Application Administrator</span></span>
+<span style="color: #A1A1AA">MFA</span>
+<span style="color: #A1A1AA">8 h</span>
+<span style="text-align: right; font-variant-numeric: tabular-nums; color: #34D17A">52:10 left</span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span><span>Billing Administrator</span></span>
+<span style="color: #A1A1AA">MFA</span>
+<span style="color: #A1A1AA">8 h</span>
+<span style="text-align: right"><button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px {{accent}}">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid {{accent}}; flex: none"></span><span style="font-weight: 600">Global Administrator</span></span>
+<span style="color: #D4D4D8">MFA · approval</span>
+<span style="color: #D4D4D8">1 h</span>
+<span style="text-align: right; font-size: 12px; color: {{accent}}">Composing</span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span><span>Global Reader</span></span>
+<span style="color: #A1A1AA">None</span>
+<span style="color: #A1A1AA">8 h</span>
+<span style="text-align: right"><button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span><span>Intune Administrator</span></span>
+<span style="color: #A1A1AA">MFA · ticket</span>
+<span style="color: #A1A1AA">4 h</span>
+<span style="text-align: right"><button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span><span>Security Administrator</span></span>
+<span style="color: #A1A1AA">MFA</span>
+<span style="color: #A1A1AA">8 h</span>
+<span style="text-align: right"><button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button></span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 130px 60px 96px; column-gap: 12px; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span><span>Security Reader</span></span>
+<span style="color: #A1A1AA">None</span>
+<span style="color: #A1A1AA">8 h</span>
+<span style="text-align: right"><button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button></span>
+</div>
+</div>
+
+<form style="margin: 0; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; background: #232427; border-top: 1px solid rgba(255,255,255,0.08)">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-weight: 600">Activate Global Administrator</span>
+<span style="color: #A1A1AA">· needs approval from Privileged Role Admins</span>
+</div>
+<div style="display: flex; gap: 10px; align-items: flex-end">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #A1A1AA">Start
+<select style="height: 30px; padding: 0 8px; border-radius: 7px; border: 0; background: #2A2B2F; color: #F5F5F7; font: inherit; font-size: 13px"><option>Now</option><option>Later…</option></select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #A1A1AA">Duration
+<select style="height: 30px; padding: 0 8px; border-radius: 7px; border: 0; background: #2A2B2F; color: #F5F5F7; font: inherit; font-size: 13px"><option>1 h</option><option>30 min</option></select>
+</label>
+<label style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #A1A1AA">Reason
+<input type="text" value="Break-glass review for INC-4471" style="height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 7px; border: 0; background: #2A2B2F; color: #F5F5F7; font: inherit; font-size: 13px">
+</label>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 7px; background: rgba(255,255,255,0.1)">Cancel</button>
+<button type="button" style="height: 30px; padding: 0 14px; border-radius: 7px; background: {{accentFill}}; color: #FFFFFF; font-weight: 600">Request</button>
+</div>
+</form>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4C9BFF","options":["#4C9BFF","#B48CF2","#34D17A"]},"accentFill":{"editor":"color","default":"#0A6CDB","options":["#0A6CDB","#7A4FD1","#187A45"]},"$preview":{"width":780,"height":580}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#4C9BFF', accentFill: this.props.accentFill ?? '#0A6CDB' };
+}
+}
+</script>
+</body>
+</html>

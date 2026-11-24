@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate status-first panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+kbd{font:inherit}
+</style>
+</helmet>
+<div style="width: 380px; height: 700px; box-sizing: border-box; padding: 14px; display: flex; flex-direction: column; gap: 14px; background: #1E1F22; color: #F5F5F7; font-family: -apple-system, system-ui, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.3">
+
+<div style="display: flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 16 16" fill="#34D17A" aria-hidden="true"><path d="M8 1.5 13 3.5v4c0 3-2 5.5-5 7-3-1.5-5-4-5-7v-4z"/></svg>
+<span style="font-size: 15px; font-weight: 600">2 active</span>
+<span style="color: #A1A1AA">· next expires in 4 min</span>
+<span style="flex: 1"></span>
+<button aria-label="Search" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; color: #C7C7CC">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+</button>
+<button aria-label="Settings" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; color: #C7C7CC">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 5h7M12 5h2M2 11h2M7 11h7"/><circle cx="10.5" cy="5" r="1.5"/><circle cx="5.5" cy="11" r="1.5"/></svg>
+</button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="padding: 12px; border-radius: 12px; background: #2A2B2F; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px #F5B53D">
+<div style="display: flex; align-items: flex-start; gap: 10px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600">Contributor</span>
+<span style="font-size: 12px; color: #A1A1AA">Fabrikam Dev · ops.rivera@fabrikam.com</span>
+</span>
+<span style="font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #F5B53D">04:31</span>
+</div>
+<div role="img" aria-label="8 percent of the hour left" style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1)"><div style="width: 8%; height: 4px; border-radius: 2px; background: #F5B53D"></div></div>
+<div style="display: flex; gap: 8px">
+<button style="flex: 1; height: 28px; border-radius: 7px; background: {{accentFill}}; color: #FFFFFF; font-weight: 600">Extend 1 h</button>
+<button style="flex: 1; height: 28px; border-radius: 7px; background: rgba(255,255,255,0.1)">Deactivate</button>
+</div>
+</div>
+
+<div style="padding: 12px; border-radius: 12px; background: #2A2B2F; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: flex-start; gap: 10px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600">Application Administrator</span>
+<span style="font-size: 12px; color: #A1A1AA">Contoso · alex@contoso.com</span>
+</span>
+<span style="font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #34D17A">52:10</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div role="img" aria-label="87 percent of the hour left" style="flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1)"><div style="width: 87%; height: 4px; border-radius: 2px; background: #34D17A"></div></div>
+<button style="height: 24px; padding: 0 10px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Deactivate</button>
+</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">WAITING ON YOU · 1</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #2A2B2F">
+<span style="width: 28px; height: 28px; border-radius: 50%; background: #3F4046; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex: none">SC</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+<span style="font-weight: 500">Sam Chen · Exchange Administrator</span>
+<span style="font-size: 12px; color: #A1A1AA">“Mailbox migration, CHG-2291”</span>
+</span>
+<button style="height: 26px; padding: 0 10px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Deny</button>
+<button style="height: 26px; padding: 0 10px; border-radius: 6px; background: {{accentFill}}; color: #FFFFFF; font-size: 12px; font-weight: 600">Approve</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: center">
+<span style="flex: 1; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">PROFILES</span>
+<button style="font-size: 12px; color: {{accent}}">Manage</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #2A2B2F; text-align: left">
+<span style="display: flex; align-items: center; gap: 6px; width: 100%">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="{{accent}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1"></span>
+<kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌃⌥1</kbd>
+</span>
+<span style="font-weight: 600">Incident response</span>
+<span style="font-size: 12px; color: #A1A1AA">2 roles · 2 tenants</span>
+</button>
+<button style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #2A2B2F; text-align: left">
+<span style="display: flex; align-items: center; gap: 6px; width: 100%">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="{{accent}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1"></span>
+<kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌃⌥2</kbd>
+</span>
+<span style="font-weight: 600">Read only</span>
+<span style="font-size: 12px; color: #A1A1AA">2 roles · Contoso</span>
+</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA; padding-bottom: 4px">YOU USE MOST</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 36px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">Global Reader</span>
+<span style="font-size: 11px; color: #A1A1AA">Contoso · Entra</span>
+</span>
+<button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 36px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">Key Vault Administrator</span>
+<span style="font-size: 11px; color: #A1A1AA">Contoso Production · Azure</span>
+</span>
+<button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 36px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">SOC Tier 2</span>
+<span style="font-size: 11px; color: #A1A1AA">Fabrikam · Group</span>
+</span>
+<button style="height: 26px; padding: 0 12px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+</div>
+
+<span style="flex: 1"></span>
+<button style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px; background: #2A2B2F; text-align: left">
+<span style="flex: 1; font-weight: 500">All eligible roles</span>
+<span style="font-size: 12px; color: #A1A1AA">14 in 2 tenants</span>
+<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4C9BFF","options":["#4C9BFF","#B48CF2","#34D17A"]},"accentFill":{"editor":"color","default":"#0A6CDB","options":["#0A6CDB","#7A4FD1","#187A45"]},"$preview":{"width":380,"height":700}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#4C9BFF', accentFill: this.props.accentFill ?? '#0A6CDB' };
+}
+}
+</script>
+</body>
+</html>

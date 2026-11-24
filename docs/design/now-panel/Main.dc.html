@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate command bar panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+kbd{font:inherit}
+</style>
+</helmet>
+<div style="width: 420px; height: 640px; box-sizing: border-box; display: flex; flex-direction: column; background: #1E1F22; color: #F5F5F7; font-family: -apple-system, system-ui, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.3">
+
+<div style="padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08)">
+<label style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: 10px; background: #2A2B2F; box-shadow: 0 0 0 2px {{accent}}">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+<input type="text" aria-label="Search roles, tenants and profiles" placeholder="Search roles, tenants, profiles" style="flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #F5F5F7; font: inherit; font-size: 15px">
+<kbd style="font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌥⌘E</kbd>
+</label>
+<div style="display: flex; align-items: center; gap: 6px">
+<button style="height: 24px; padding: 0 10px; border-radius: 12px; background: {{accentFill}}; color: #FFFFFF; font-size: 12px; font-weight: 600">All</button>
+<button style="height: 24px; padding: 0 10px; border-radius: 12px; background: #2A2B2F; color: #D4D4D8; font-size: 12px">Entra</button>
+<button style="height: 24px; padding: 0 10px; border-radius: 12px; background: #2A2B2F; color: #D4D4D8; font-size: 12px">Azure</button>
+<button style="height: 24px; padding: 0 10px; border-radius: 12px; background: #2A2B2F; color: #D4D4D8; font-size: 12px">Groups</button>
+<span style="flex: 1"></span>
+<button style="display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; color: #A1A1AA; font-size: 12px">All tenants
+<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>
+</button>
+</div>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 8px; display: flex; flex-direction: column">
+
+<div style="padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">ACTIVE · 2</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #34D17A; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">Application Administrator</span>
+<span style="font-size: 11px; color: #A1A1AA">Contoso · alex@contoso.com</span>
+</span>
+<span style="font-variant-numeric: tabular-nums; color: #34D17A">52:10</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 2px; background: #F5B53D; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">Contributor</span>
+<span style="font-size: 11px; color: #A1A1AA">Fabrikam Dev · Subscription</span>
+</span>
+<span style="font-variant-numeric: tabular-nums; color: #F5B53D">04:31</span>
+</div>
+
+<div style="padding: 10px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">PROFILES</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C7C7CC" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1; font-weight: 500">Incident response</span>
+<span style="font-size: 12px; color: #A1A1AA">2 roles</span>
+<kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌃⌥1</kbd>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#C7C7CC" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1; font-weight: 500">Read only</span>
+<span style="font-size: 12px; color: #A1A1AA">2 roles</span>
+<kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌃⌥2</kbd>
+</div>
+
+<div style="padding: 10px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">RECENT</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 8px; background: {{accentFill}}">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #FFFFFF; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 600; color: #FFFFFF">Global Reader</span>
+<span style="font-size: 11px; color: #FFFFFF">Contoso · 1 h · “Reviewing sign-in logs”</span>
+</span>
+<span style="font-size: 12px; color: #FFFFFF">Activate</span>
+<kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.22); color: #FFFFFF">↵</kbd>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-weight: 500">Key Vault Administrator</span>
+<span style="font-size: 11px; color: #A1A1AA">Contoso Production · Subscription</span>
+</span>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">Azure</span>
+</div>
+
+<div style="padding: 10px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">ELIGIBLE · 14</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1">Billing Administrator</span>
+<span style="font-size: 12px; color: #A1A1AA">Contoso</span>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">Entra</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1">Global Administrator</span>
+<span style="font-size: 12px; color: #A1A1AA">Contoso</span>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">Entra</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1">SOC Tier 2</span>
+<span style="font-size: 12px; color: #A1A1AA">Fabrikam</span>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">Group</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1">Security Administrator</span>
+<span style="font-size: 12px; color: #A1A1AA">Contoso</span>
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: #C7C7CC">Entra</span>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; height: 40px; padding: 0 14px; border-top: 1px solid rgba(255,255,255,0.08); background: #232427; font-size: 12px; color: #C7C7CC">
+<span style="display: flex; align-items: center; gap: 5px"><kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1)">↵</kbd>Activate</span>
+<span style="display: flex; align-items: center; gap: 5px"><kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1)">⌘↵</kbd>With options</span>
+<span style="display: flex; align-items: center; gap: 5px"><kbd style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,0.1)">⌘K</kbd>Actions</span>
+<span style="flex: 1"></span>
+<button aria-label="Settings" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 5h7M12 5h2M2 11h2M7 11h7"/><circle cx="10.5" cy="5" r="1.5"/><circle cx="5.5" cy="11" r="1.5"/></svg>
+</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4C9BFF","options":["#4C9BFF","#B48CF2","#34D17A"]},"accentFill":{"editor":"color","default":"#0A6CDB","options":["#0A6CDB","#7A4FD1","#187A45"]},"$preview":{"width":420,"height":640}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#4C9BFF', accentFill: this.props.accentFill ?? '#0A6CDB' };
+}
+}
+</script>
+</body>
+</html>

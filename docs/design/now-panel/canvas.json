@@ -1,0 +1,29 @@
+{
+ "v": 3,
+ "createdOnFiles": {"v": 1, "at": "2026-11-24T12:00:00Z"},
+ "title": "Elevate UI alternatives",
+ "launch": {"view": "canvas", "page": "now"},
+ "pages": [{"id": "directions", "name": "Directions"}, {"id": "now", "name": "B · Now, refined"}],
+ "boards": {
+  "Main.dc.html": {"x": 0, "y": 0, "w": 420, "h": 640, "title": "A · Command bar", "radius": 14},
+  "Now.dc.html": {"x": 500, "y": 0, "w": 380, "h": 700, "title": "B · Now", "radius": 14},
+  "Window.dc.html": {"x": 960, "y": 0, "w": 780, "h": 580, "title": "C · Window", "radius": 12},
+  "NowHome.dc.html": {"x": 0, "y": 0, "w": 516, "h": 780, "title": "Home · all tenants", "radius": 14, "page": "now"},
+  "NowTenant.dc.html": {"x": 596, "y": 0, "w": 516, "h": 780, "title": "One tenant", "radius": 14, "page": "now"},
+  "NowSearch.dc.html": {"x": 1192, "y": 0, "w": 516, "h": 780, "title": "Roles: search and browse", "radius": 14, "page": "now"},
+  "NowSelect.dc.html": {"x": 1788, "y": 0, "w": 516, "h": 780, "title": "Roles: select mode", "radius": 14, "page": "now"},
+  "NowEmpty.dc.html": {"x": 2384, "y": 0, "w": 516, "h": 780, "title": "Nothing active", "radius": 14, "page": "now"},
+  "NowWindows.dc.html": {"x": 2980, "y": 0, "w": 516, "h": 780, "title": "Home · Windows", "radius": 8, "page": "now"},
+  "Rail.dc.html": {"x": 3576, "y": 0, "w": 136, "h": 780, "title": "Accounts and tenants sidebar (shared)", "page": "now"},
+  "NowProfile.dc.html": {"x": 3792, "y": 0, "w": 516, "h": 780, "title": "Profile selected", "radius": 14, "page": "now"}
+ },
+ "order": ["Main.dc.html", "Now.dc.html", "Window.dc.html", "NowHome.dc.html", "NowTenant.dc.html", "NowSearch.dc.html", "NowSelect.dc.html", "NowEmpty.dc.html", "NowWindows.dc.html", "Rail.dc.html", "NowProfile.dc.html"],
+ "notes": {
+  "title": {"x": 0, "y": -300, "text": "Elevate: three panel directions", "kind": "title1", "maxW": 1740},
+  "noteA": {"x": 0, "y": 780, "w": 420, "fill": "blue", "text": "A · Command bar\nAfter 1Password Quick Access and Raycast. Search is focused on open; Entra, Azure and Groups are one list with a type tag. Enter activates with the remembered reason and duration.\nCost: weakest for browsing what you are eligible for."},
+  "noteB": {"x": 500, "y": 780, "w": 380, "fill": "green", "text": "B · Now\nAfter Tailscale's mini player and Control Center. Opens on what is active, what waits on you, and your profiles. The full role list is one step away.\nCost: a first-time user sees little until they pin or use something."},
+  "noteC": {"x": 960, "y": 780, "w": 420, "fill": "orange", "text": "C · Window\nAfter Tailscale's windowed app and Docker Desktop. A sidebar for tenants and sections, policy shown per role, activation composed inline instead of in a dialog.\nCost: no longer a glance; needs the tray icon to stay a quick status view."},
+  "titleNow": {"x": 0, "y": -300, "text": "B · Now, refined", "kind": "title1", "maxW": 4308, "page": "now"}
+ },
+ "designSystems": []
+}

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate profile view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+input[type=checkbox]{margin:0;width:15px;height:15px;flex:none}
+kbd{font:inherit}
+</style>
+</helmet>
+<div style="width: 516px; height: 780px; display: flex; background: #1E1F22">
+<dc-import name="Rail" selected="incident" hint-size="136px,780px"></dc-import>
+<div style="width: 380px; height: 780px; box-sizing: border-box; display: flex; flex-direction: column; background: #1E1F22; color: #F5F5F7; font-family: -apple-system, system-ui, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.3">
+
+<div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08)">
+<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="{{accent}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: 15px; font-weight: 600">Incident response</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #A1A1AA">3 roles · 2 tenants<kbd style="padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">⌃⌥E</kbd></span>
+</span>
+<button aria-label="Unpin from panel" aria-pressed="true" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: {{accent}}">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l1.8 3.8 4.2.5-3.1 2.9.8 4.1L8 11.3l-3.7 2 .8-4.1L2 6.3l4.2-.5z"/></svg>
+</button>
+<button aria-label="Profile menu: edit, manage profiles, delete" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: #C7C7CC"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></button>
+</div>
+
+<form style="flex: 1; min-height: 0; margin: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px">
+
+<div style="border-radius: 12px; background: #2A2B2F; padding: 4px 12px 6px">
+<div style="display: flex; align-items: center; gap: 6px; height: 32px"><span style="font-weight: 600">Contoso</span><span style="font-size: 11px; color: #A1A1AA">alex.rivera@contoso.com</span></div>
+<div style="display: flex; align-items: center; gap: 10px; height: 44px; border-top: 1px solid rgba(255,255,255,0.08)">
+<input type="checkbox" checked aria-label="Include Security Administrator" style="accent-color: {{accent}}">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Security Administrator</span><span style="font-size: 11px; color: #A1A1AA">MFA</span></span>
+<select aria-label="Duration for Security Administrator" style="height: 26px; padding: 0 6px; border-radius: 6px; border: 0; background: #3A3B40; color: #F5F5F7; font: inherit; font-size: 12px"><option>2 h</option><option>1 h</option><option>30 min</option></select>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 44px; border-top: 1px solid rgba(255,255,255,0.08); color: #A1A1AA">
+<input type="checkbox" disabled aria-label="Global Reader, skipped">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Global Reader</span><span style="font-size: 11px">via IT Readers</span></span>
+<span style="font-size: 12px; color: #34D17A">already active · skipped</span>
+</div>
+</div>
+
+<div style="border-radius: 12px; background: #2A2B2F; padding: 4px 12px 6px">
+<div style="display: flex; align-items: center; gap: 6px; height: 32px"><span style="font-weight: 600">Fabrikam</span><span style="font-size: 11px; color: #A1A1AA">ops.rivera@fabrikam.com</span></div>
+<div style="display: flex; align-items: center; gap: 10px; height: 44px; border-top: 1px solid rgba(255,255,255,0.08)">
+<input type="checkbox" checked aria-label="Include Contributor" style="accent-color: {{accent}}">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Contributor</span><span style="font-size: 11px; color: #A1A1AA">Fabrikam Dev · Subscription</span></span>
+<select aria-label="Duration for Contributor" style="height: 26px; padding: 0 6px; border-radius: 6px; border: 0; background: #3A3B40; color: #F5F5F7; font: inherit; font-size: 12px"><option>1 h</option><option>30 min</option></select>
+</div>
+</div>
+
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #A1A1AA">REASON
+<textarea rows="2" style="box-sizing: border-box; width: 100%; padding: 8px 10px; border-radius: 9px; border: 0; background: #2A2B2F; color: #F5F5F7; font: inherit; font-size: 13px; font-weight: 400; letter-spacing: 0; resize: none">Investigating sign-in alerts for INC-4471</textarea>
+</label>
+
+<label style="display: flex; align-items: center; gap: 10px">
+<input type="checkbox" style="accent-color: {{accent}}">
+<span style="flex: 1">Start at</span>
+<span style="font-size: 12px; color: #A1A1AA">now</span>
+</label>
+
+<span style="flex: 1"></span>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="flex: 1; font-size: 12px; color: #A1A1AA">2 of 3 will activate. Your browser opens for MFA.</span>
+<button type="button" style="height: 30px; padding: 0 16px; border-radius: 8px; background: {{accentFill}}; color: #FFFFFF; font-weight: 600">Activate 2</button>
+</div>
+</form>
+
+<div style="display: flex; align-items: center; height: 36px; padding: 0 14px; border-top: 1px solid rgba(255,255,255,0.08); color: #C7C7CC">
+<button style="flex: 1; text-align: left">Settings…</button>
+<button style="flex: 1; text-align: right">Quit</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4C9BFF","options":["#4C9BFF","#B48CF2","#34D17A"]},"accentFill":{"editor":"color","default":"#0A6CDB","options":["#0A6CDB","#7A4FD1","#187A45"]},"$preview":{"width":516,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#4C9BFF', accentFill: this.props.accentFill ?? '#0A6CDB' };
+}
+}
+</script>
+</body>
+</html>

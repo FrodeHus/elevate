@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Elevate panel with nothing active</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 516px; height: 780px; display: flex; background: #1E1F22">
+<dc-import name="Rail" selected="all" hint-size="136px,780px"></dc-import>
+<div style="width: 380px; height: 780px; box-sizing: border-box; display: flex; flex-direction: column; background: #1E1F22; color: #F5F5F7; font-family: -apple-system, system-ui, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 13px; line-height: 1.3">
+
+<div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px 8px">
+<span style="flex: 1; font-size: 14px; font-weight: 600">Elevate</span>
+<button aria-label="Select roles" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: #C7C7CC">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5l1.2 1.2 2-2.4M8.5 4.5h5M2.5 11l1.2 1.2 2-2.4M8.5 11.5h5"/></svg>
+</button>
+<button aria-label="Refresh" style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: #C7C7CC">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5V5h-2.5"/></svg>
+</button>
+</div>
+
+<div style="padding: 0 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08)">
+<label style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; background: #2A2B2F; box-shadow: 0 0 0 2px {{accent}}">
+<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+<input type="text" aria-label="Filter roles" placeholder="Filter roles" style="flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #F5F5F7; font: inherit; font-size: 14px">
+</label>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #2A2B2F">
+<svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5 13 3.5v4c0 3-2 5.5-5 7-3-1.5-5-4-5-7v-4z"/></svg>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+<span style="font-weight: 600">Nothing active</span>
+<span style="font-size: 12px; color: #A1A1AA">You hold no elevated access right now.</span>
+</span>
+</div>
+<div style="display: flex; padding: 2px; border-radius: 8px; background: #2A2B2F">
+<button aria-pressed="true" style="flex: 1; height: 24px; border-radius: 6px; background: #4A4B52; font-weight: 600">All</button>
+<button style="flex: 1; height: 24px; border-radius: 6px; color: #D4D4D8">Entra</button>
+<button style="flex: 1; height: 24px; border-radius: 6px; color: #D4D4D8">Azure</button>
+<button style="flex: 1; height: 24px; border-radius: 6px; color: #D4D4D8">Groups</button>
+</div>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 8px; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px">
+<span style="width: 24px; height: 24px; border-radius: 50%; background: {{accentFill}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex: none">AR</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 600">Alex Rivera</span><span style="font-size: 11px; color: #A1A1AA">alex.rivera@contoso.com</span></span>
+<button aria-label="Account menu" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; color: #C7C7CC"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px; border-radius: 7px; background: #26272B">
+<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>
+<span style="font-weight: 600">Contoso</span><span style="font-size: 11px; color: #A1A1AA">home</span>
+<span style="flex: 1"></span>
+<button aria-label="Tenant menu" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; color: #C7C7CC"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Application Administrator</span><span style="font-size: 11px; color: #A1A1AA">MFA</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Exchange Administrator</span><span style="font-size: 11px; color: #A1A1AA">MFA</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Global Administrator</span><span style="font-size: 11px; color: #A1A1AA">approval · MFA</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Request</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Global Reader</span><span style="font-size: 11px; color: #A1A1AA">via IT Readers</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">Key Vault Administrator</span><span style="font-size: 11px; color: #A1A1AA">Contoso Production · Subscription</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Request</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px">
+<span style="width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #A1A1AA; flex: none"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 500">SOC Tier 2</span><span style="font-size: 11px; color: #A1A1AA">Group membership</span></span>
+<button style="height: 24px; padding: 0 9px; border-radius: 6px; background: rgba(255,255,255,0.1); font-size: 12px">Activate</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px; margin-top: 6px; border-radius: 7px; background: #26272B">
+<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>
+<span style="font-weight: 600">Northwind Traders</span>
+<span style="font-size: 11px; padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #C7C7CC">manual roles</span>
+<span style="flex: 1"></span>
+<span style="font-size: 12px; color: #A1A1AA">3 roles</span>
+<button aria-label="Tenant menu" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; color: #C7C7CC"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg></button>
+</div>
+
+<span style="flex: 1"></span>
+<div style="display: flex; align-items: center; gap: 10px; margin: 0 6px 6px; padding: 10px 12px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.22)">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="{{accent}}" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M9 1.5 3.5 9H8l-1 5.5L12.5 7H8z"/></svg>
+<span style="flex: 1; font-size: 12px; color: #C7C7CC">Activate the same roles often? Select them and save a profile to run with one click.</span>
+<button style="font-size: 12px; font-weight: 600; color: {{accent}}">Select roles</button>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; height: 36px; padding: 0 14px; border-top: 1px solid rgba(255,255,255,0.08); color: #C7C7CC">
+<button style="flex: 1; text-align: left">Settings…</button>
+<button style="flex: 1; text-align: right">Quit</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4C9BFF","options":["#4C9BFF","#B48CF2","#34D17A"]},"accentFill":{"editor":"color","default":"#0A6CDB","options":["#0A6CDB","#7A4FD1","#187A45"]},"$preview":{"width":516,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#4C9BFF', accentFill: this.props.accentFill ?? '#0A6CDB' };
+}
+}
+</script>
+</body>
+</html>
