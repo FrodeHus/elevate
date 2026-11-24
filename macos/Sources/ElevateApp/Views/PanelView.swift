@@ -32,6 +32,8 @@ struct PanelView: View {
             // Nothing left to dismiss: close the panel (a MenuBarExtra window is an ordinary key window).
             Button("") { if !model.handleEscape() { NSApp.keyWindow?.close() } }
                 .keyboardShortcut(.cancelAction)
+                // An open confirmation card's own Cancel must be the only live Escape.
+                .disabled(model.confirmationIsOpen)
                 .opacity(0)
                 .accessibilityHidden(true)
         }

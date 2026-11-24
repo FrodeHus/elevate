@@ -79,6 +79,7 @@ final class AppModel {
     /// request form replaces that list. Never persisted; `select` clears both.
     var accessPackagesTenant: TenantKey?
     var requestingPackage: AccessPackage?
+    var openConfirmations = 0
     var accessPackagesTab = AccessPackageTab.available
     /// The profile open in the main view. Never persisted.
     var selectedProfile: UUID? {

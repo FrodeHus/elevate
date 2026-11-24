@@ -222,6 +222,24 @@ struct AppModelSelectionStateTests {
         cleanup(model)
     }
 
+    @Test func openConfirmationCardsAreCountedAndNeverGoNegative() async {
+        let model = await makeTwoTenantModel()
+        #expect(!model.confirmationIsOpen)
+        model.confirmationOpened()
+        model.confirmationOpened()
+        #expect(model.confirmationIsOpen)
+        model.confirmationClosed()
+        #expect(model.confirmationIsOpen)
+        model.confirmationClosed()
+        #expect(!model.confirmationIsOpen)
+        model.confirmationClosed()   // an unbalanced close must not owe a later open
+        model.confirmationOpened()
+        #expect(model.confirmationIsOpen)
+        model.confirmationClosed()
+        #expect(!model.confirmationIsOpen)
+        cleanup(model)
+    }
+
     @Test func openingAccessPackagesFromTheAllTenantsListSelectsThatTenant() async {
         let model = await makeTwoTenantModel()
         model.openAccessPackages(Self.otherKey)

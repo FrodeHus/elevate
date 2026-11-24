@@ -49,6 +49,7 @@ private struct InlineConfirmCard: View {
     let confirmTitle: String
     let cancel: () -> Void
     let confirm: () -> Void
+    @Environment(AppModel.self) private var model
     @FocusState private var cancelFocused: Bool
 
     var body: some View {
@@ -88,6 +89,7 @@ private struct InlineConfirmCard: View {
         .padding(.horizontal, PanelMetrics.headerInset)
         .padding(.bottom, 8)
         .accessibilityElement(children: .contain)
-        .onAppear { cancelFocused = true }
+        .onAppear { cancelFocused = true; model.confirmationOpened() }
+        .onDisappear { model.confirmationClosed() }
     }
 }

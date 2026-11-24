@@ -51,6 +51,11 @@ extension AppModel {
         accessPackagesTab = .available
     }
 
+    /// Inline confirmation cards on screen. While one is open its own Cancel is the only Escape handler.
+    var confirmationIsOpen: Bool { openConfirmations > 0 }
+    func confirmationOpened() { openConfirmations += 1 }
+    func confirmationClosed() { openConfirmations = max(openConfirmations - 1, 0) }
+
     func beginPackageRequest(_ package: AccessPackage) { requestingPackage = package }
     func endPackageRequest() { requestingPackage = nil }
 
