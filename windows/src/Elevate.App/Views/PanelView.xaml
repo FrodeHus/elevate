@@ -168,11 +168,88 @@
             </Grid>
         </DataTemplate>
 
-        <views:PanelItemTemplateSelector x:Key="ItemSelector" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" Approval="{StaticResource ApprovalRowTemplate}" Scope="{StaticResource ScopeRowTemplate}" />
+        <!-- The soonest-expiring active role when Extend applies: a card with the time left large and an amber outline. The root's data context is the wrapped row, so the buttons share the row handlers. -->
+        <DataTemplate x:Key="HeroRowTemplate" x:DataType="views:HeroRow">
+            <Grid DataContext="{x:Bind Role}" Margin="12,8,12,8" Padding="12,10,12,10" ColumnSpacing="10" CornerRadius="8" BorderThickness="2"
+                  BorderBrush="{ThemeResource SystemFillColorCautionBrush}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Role.Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{x:Bind Role.Detail, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Role.DetailTooltip, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind Role.Countdown, Mode=OneWay}" FontSize="22" FontWeight="SemiBold" Margin="0,4,0,0"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Extend" Style="{StaticResource SmallAccentButtonStyle}" Visibility="{x:Bind Role.ExtendVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind Role.ExtendEnabled, Mode=OneWay}" Click="OnExtendClick"
+                            ToolTipService.ToolTip="Extend by activating again; Ctrl-click to extend with the last reason" />
+                    <Button Content="Deactivate" Style="{StaticResource SmallButtonStyle}" Visibility="{x:Bind Role.DeactivateVisibility, Mode=OneWay}"
+                            IsEnabled="{x:Bind Role.DeactivateEnabled, Mode=OneWay}" Click="OnDeactivateClick"
+                            ToolTipService.ToolTip="{x:Bind Role.DeactivateTooltip, Mode=OneWay}" />
+                    <ProgressRing Width="16" Height="16" IsActive="True" Visibility="{x:Bind Role.InFlightVisibility, Mode=OneWay}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Browse all roles (a full-width button with its count), "N more in other tenants" (a link) and the Select roles hint. -->
+        <DataTemplate x:Key="ActionRowTemplate" x:DataType="views:ActionRow">
+            <Grid>
+                <Button Style="{StaticResource SubtleButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="14,8,14,8" CornerRadius="0"
+                        Visibility="{x:Bind BrowseVisibility, Mode=OneWay}" Click="OnActionClick" AutomationProperties.Name="{x:Bind Text, Mode=OneWay}">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="{x:Bind Text, Mode=OneWay}" FontSize="14" />
+                            <TextBlock Text="{x:Bind Caption, Mode=OneWay}" Visibility="{x:Bind CaptionVisibility, Mode=OneWay}" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <FontIcon Grid.Column="1" Glyph="&#xE76C;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+                </Button>
+                <HyperlinkButton Content="{x:Bind Text, Mode=OneWay}" Visibility="{x:Bind LinkVisibility, Mode=OneWay}" Click="OnActionClick"
+                                 FontSize="12" Margin="22,2,14,2" Padding="4,2" />
+                <Grid Visibility="{x:Bind HintVisibility, Mode=OneWay}" Padding="14,8,14,8" ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Bind Caption, Mode=OneWay}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button Grid.Column="1" Content="{x:Bind Text, Mode=OneWay}" Style="{StaticResource SmallButtonStyle}" Click="OnActionClick" VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="EmptyCardTemplate" x:DataType="views:EmptyCardRow">
+            <StackPanel Padding="14,10,14,10" Spacing="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" />
+                <TextBlock Text="{x:Bind Body}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <views:PanelItemTemplateSelector x:Key="ItemSelector" Hero="{StaticResource HeroRowTemplate}" Action="{StaticResource ActionRowTemplate}" EmptyCard="{StaticResource EmptyCardTemplate}" Role="{StaticResource RoleRowTemplate}" Note="{StaticResource NoteRowTemplate}" Approval="{StaticResource ApprovalRowTemplate}" Scope="{StaticResource ScopeRowTemplate}" />
 
         <!-- Group headers: the pinned "Approvals" and "Active now" groups, an account row, or a tenant header. -->
         <DataTemplate x:Key="GroupHeaderTemplate" x:DataType="views:PanelGroup">
-            <Grid Padding="10,6,6,6" ColumnSpacing="8" Background="{x:Bind HeaderBrush, Mode=OneWay}"
+          <Grid>
+            <!-- "Eligible · N" with the All / Entra / Azure / Groups control at the right: it narrows the eligible rows only. -->
+            <Grid Visibility="{x:Bind EligibleBarVisibility, Mode=OneWay}" Padding="14,5,10,5" ColumnSpacing="8" MinHeight="36"
+                  Background="{x:Bind HeaderBrush, Mode=OneWay}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <views:SegmentedPivots Grid.Column="1" Compact="True" Width="196" Selected="{x:Bind Tab, Mode=OneWay}" SelectionChanged="OnPivotChanged" />
+            </Grid>
+            <Grid Visibility="{x:Bind StandardHeaderVisibility, Mode=OneWay}" Padding="10,6,6,6" ColumnSpacing="8" Background="{x:Bind HeaderBrush, Mode=OneWay}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,1" MinHeight="40">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -232,6 +309,7 @@
                     <FontIcon Glyph="&#xE712;" FontSize="14" />
                 </Button>
             </Grid>
+          </Grid>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -255,12 +333,13 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header: title, offline pill, tools -->
-        <Grid Grid.Row="0" Padding="14,10,8,4" ColumnSpacing="8">
+        <!-- Header: title, offline pill, tools. On a tenant view the title is the tenant, with its account beneath, Access packages… and the tenant menu. -->
+        <Grid Grid.Row="0" Padding="14,10,8,6" ColumnSpacing="6">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -269,14 +348,16 @@
             </Grid.RowDefinitions>
             <!-- "Elevate" stays the primary mark at full weight; an organization's name is added
                  beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
-                 line rather than an inline suffix: the row leaves the title about 26 characters,
-                 which "Elevate - Managed by <name>" overruns for almost any real name. -->
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Elevate" FontSize="16" FontWeight="SemiBold" />
-            <!-- The caption sits on its own row spanning the star column rather than under the title
-                 in an Auto column: an Auto column grows to the caption's full width, which pushed the
-                 offline pill and the refresh button off the right edge for a long name. Here the star
-                 column bounds it, so a name too long for the row is ellipsised instead. -->
-            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" x:Name="OrganizationCaption" Visibility="Collapsed"
+                 line rather than an inline suffix. The caption spans the star column and the ones
+                 after it rather than sitting under the title in an Auto column, which would grow to the
+                 caption's full width and push the tools off the right edge for a long name. -->
+            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                <TextBlock x:Name="HeaderTitle" Text="Elevate" FontSize="16" FontWeight="SemiBold" MaxWidth="170"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
+                <TextBlock x:Name="HomeTag" Text="home" Visibility="Collapsed" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" x:Name="OrganizationCaption" Visibility="Collapsed"
                        FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" />
             <Border Grid.Row="0" Grid.Column="1" x:Name="OfflinePill" Visibility="Collapsed" VerticalAlignment="Center"
@@ -285,7 +366,15 @@
                     ToolTipService.ToolTip="No network connection; refreshes and requests are paused">
                 <TextBlock Text="offline" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
-            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+            <!-- A real button (bordered, small), not text beside the name; still opens the access packages window for now. -->
+            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" x:Name="AccessPackagesButton" Content="Access packages…" Visibility="Collapsed"
+                    Style="{StaticResource SmallButtonStyle}" VerticalAlignment="Center" Click="OnHeaderAccessPackages"
+                    ToolTipService.ToolTip="Request access packages in this tenant" />
+            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" x:Name="TenantMenuButton" Visibility="Collapsed" Style="{StaticResource SubtleButtonStyle}"
+                    Width="32" Height="32" Padding="0" VerticalAlignment="Center" Click="OnHeaderTenantMenu" AutomationProperties.Name="Tenant menu">
+                <FontIcon Glyph="&#xE712;" FontSize="14" />
+            </Button>
+            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="4" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                 <ToggleButton x:Name="SelectToggle" Width="32" Height="32" Padding="0" Click="OnSelectToggle"
                               ToolTipService.ToolTip="Select several roles to activate together" AutomationProperties.Name="Select roles">
                     <FontIcon Glyph="&#xE762;" FontSize="14" />
@@ -296,9 +385,6 @@
                 </Button>
             </StackPanel>
         </Grid>
-
-        <!-- Pivots: a segmented picker like the macOS panel -->
-        <views:SegmentedPivots Grid.Row="1" x:Name="Pivots" Margin="14,2,14,8" SelectionChanged="OnPivotChanged" />
 
         <!-- Search -->
         <Grid Grid.Row="3" x:Name="SearchRow" Padding="12,4,12,6"

@@ -14,7 +14,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 namespace Elevate.App.Views;
 
 /// <summary>
-/// The flyout's content: header, pivots, search, notices, the grouped list (pinned "Active now",
+/// The flyout's content: header, search, notices, the grouped list (pinned "Active now",
 /// account rows, tenant headers, role rows), the bulk bar and the footer. Redrawn from the model on
 /// every change by reconciling the row objects, so the list keeps its scroll position.
 /// </summary>
@@ -24,7 +24,6 @@ public sealed partial class PanelView : UserControl
     private readonly DispatcherQueueTimer _clock;
     private AppModel? _model;
     private FlyoutWindow? _window;
-    private bool _syncingPivot;
 
     public PanelView()
     {
@@ -160,8 +159,7 @@ public sealed partial class PanelView : UserControl
         OfflinePill.Visibility = model.IsOnline ? Visibility.Collapsed : Visibility.Visible;
         // Absent unless the organization pushed OrganizationName with a style other than "none",
         // so an unbranded install draws the header exactly as it did before.
-        OrganizationCaption.Text = model.HeaderCaption ?? string.Empty;
-        OrganizationCaption.Visibility = model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed;
+        DrawHeader(model);
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
@@ -205,8 +203,6 @@ public sealed partial class PanelView : UserControl
             TokenHintBar.IsOpen = false;
         }
 
-        SyncPivot(model.PanelTab);
-
         // Same precedence as the macOS panel: first run wins, then a startup failure stands in for the
         // body (the error bar above is what the user sees), then the empty state, then the list.
         var setup = !model.IsConfigured && model.Identities.Count == 0;
@@ -224,7 +220,6 @@ public sealed partial class PanelView : UserControl
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
         List.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
-        Pivots.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
         if (!bodyHidden)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
@@ -266,6 +261,65 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    /// <summary>
+    /// Home and the role list carry the Elevate mark with the organization's caption and the offline
+    /// pill; a tenant view carries the tenant, its home tag, its account and the tenant's own actions.
+    /// </summary>
+    private void DrawHeader(AppModel model)
+    {
+        var tenant = model.PanelContent is PanelContent.Tenant t ? model.Tenant(t.Key) : null;
+        var identity = tenant is null ? null : model.Identity(tenant.IdentityId);
+        HeaderTitle.Text = tenant?.DisplayName ?? "Elevate";
+        HomeTag.Visibility = tenant?.Source == TenantSource.Home ? Visibility.Visible : Visibility.Collapsed;
+        var caption = tenant is null ? model.HeaderCaption : identity?.Upn;
+        OrganizationCaption.Text = caption ?? string.Empty;
+        OrganizationCaption.Visibility = tenant is null ? (model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed)
+            : string.IsNullOrEmpty(caption) ? Visibility.Collapsed : Visibility.Visible;
+        OfflinePill.Visibility = tenant is null && !model.IsOnline ? Visibility.Visible : Visibility.Collapsed;
+        AccessPackagesButton.Visibility = tenant?.AccessPackagesAvailable == true ? Visibility.Visible : Visibility.Collapsed;
+        TenantMenuButton.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
+        SearchBox.PlaceholderText = tenant is null ? "Filter roles" : $"Filter roles in {tenant.DisplayName}";
+    }
+
+    private void OnHeaderAccessPackages(object sender, RoutedEventArgs e)
+    {
+        if (_model?.ScopeTenant is { } key)
+        {
+            App.Current.OpenAccessPackages(key);
+        }
+    }
+
+    private void OnHeaderTenantMenu(object sender, RoutedEventArgs e)
+    {
+        if (_model?.ScopeTenant is { } key && _model.Tenant(key) is { } tenant)
+        {
+            PanelMenus.TenantMenu(_model, tenant, XamlRoot).ShowAt((FrameworkElement)sender);
+        }
+    }
+
+    private void OnActionClick(object sender, RoutedEventArgs e)
+    {
+        if (_model is null || (sender as FrameworkElement)?.DataContext is not ActionRow row)
+        {
+            return;
+        }
+
+        switch (row.Action)
+        {
+            case PanelAction.BrowseAll:
+                _model.Browsing = true;
+                break;
+            case PanelAction.SearchAllTenants:
+                _model.SearchAllTenants();
+                break;
+            case PanelAction.SelectRoles:
+                _model.SelectMode = true;
+                break;
+            default:
+                break;
+        }
+    }
+
     /// <summary>Once a second while the flyout is open: countdowns, the deactivation lock, Extend.</summary>
     private void Tick()
     {
@@ -279,7 +333,8 @@ public sealed partial class PanelView : UserControl
         {
             foreach (var item in group)
             {
-                if (item is not RoleRow row || row.Status is RowStatus.None or RowStatus.Failed)
+                var row = item as RoleRow ?? (item as HeroRow)?.Role;
+                if (row is null || row.Status is RowStatus.None or RowStatus.Failed)
                 {
                     continue;
                 }
@@ -287,19 +342,6 @@ public sealed partial class PanelView : UserControl
                 var assignment = _model.Assignment(row.RoleKey);
                 PanelListBuilder.Fill(_model, row, assignment, row.ViewOnlyReason, now, allowActivate: !row.IsSummary);
             }
-        }
-    }
-
-    private void SyncPivot(PanelTab tab)
-    {
-        _syncingPivot = true;
-        try
-        {
-            Pivots.Selected = tab;
-        }
-        finally
-        {
-            _syncingPivot = false;
         }
     }
 
@@ -412,12 +454,10 @@ public sealed partial class PanelView : UserControl
 
     private void OnPivotChanged(object? sender, PanelTab tab)
     {
-        if (_syncingPivot || _model is null)
+        if (_model is not null)
         {
-            return;
+            _model.PanelTab = tab;
         }
-
-        _model.PanelTab = tab;
     }
 
     private void OnNoticeClosed(InfoBar sender, InfoBarClosedEventArgs args)

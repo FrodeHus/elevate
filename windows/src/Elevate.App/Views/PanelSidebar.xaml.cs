@@ -495,6 +495,9 @@ public sealed partial class PanelSidebar : UserControl
     {
         var fill = Res(background);
         var text = Res(foreground);
+        // SubtleButtonStyle sets a transparent Background itself, which hides the resource override at rest.
+        button.Background = fill;
+        button.Foreground = text;
         foreach (var name in new[] { "ButtonBackground", "ButtonBackgroundPointerOver", "ButtonBackgroundPressed" })
         {
             button.Resources[name] = fill;

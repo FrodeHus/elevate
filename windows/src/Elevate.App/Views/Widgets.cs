@@ -221,6 +221,26 @@ public sealed partial class SegmentedPivots : ContentControl
         Apply();
     }
 
+    public static readonly DependencyProperty CompactProperty = DependencyProperty.Register(
+        nameof(Compact), typeof(bool), typeof(SegmentedPivots), new PropertyMetadata(false, (d, _) => ((SegmentedPivots)d).ApplySize()));
+
+    /// <summary>The small variant that sits in the Eligible bar's header row.</summary>
+    public bool Compact
+    {
+        get => (bool)GetValue(CompactProperty);
+        set => SetValue(CompactProperty, value);
+    }
+
+    private void ApplySize()
+    {
+        foreach (var button in _buttons)
+        {
+            button.Height = button.MinHeight = Compact ? 22 : 30;
+            button.FontSize = Compact ? 11 : 13;
+            button.Padding = new Thickness(Compact ? 4 : 6, 0, Compact ? 4 : 6, 0);
+        }
+    }
+
     /// <summary>Raised when the user picks a segment; not when <see cref="Selected"/> is set from code.</summary>
     public event EventHandler<PanelTab>? SelectionChanged;
 
