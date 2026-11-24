@@ -191,6 +191,28 @@ Both render the same content view over the same run session.
 - Not configured, startup error, no accounts: today's setup, error and no-accounts views fill the
   main view; the sidebar shows only Add account….
 
+### 3.7 Changes after the first hands-on test (2026-11-24)
+
+These override 3.4 and 3.5 where they differ. Both platforms.
+
+- **Access packages button.** In the tenant header it is drawn as a button (bordered, small), not
+  as plain text beside the tenant name.
+- **Access packages in the panel.** The button no longer opens a window. The main view shows the
+  tenant's access packages (the content of today's access packages window, laid out for 380
+  wide), with the tenant header kept and a back control to the tenant's role list. Requesting a
+  package shows the request form in the main view too; submitting or cancelling returns to the
+  package list. Escape steps back one level (form, then package list, then role list). Selecting
+  anything in the sidebar leaves it. The access packages window and the request sheet/window are
+  removed if nothing else opens them.
+- **Tabs in the Eligible bar.** The All / Entra / Azure / Groups control moves into the
+  `Eligible · N` header row, right-aligned and small. It filters only the eligible list;
+  `Active now` stays a separate block above. On Home's embedded list (3.6) and the all-tenants
+  list the control sits in the first header row above the eligible rows.
+- **Compact durations in the profile view.** Each role keeps its own duration, shown as a small
+  borderless menu (`5 h ⌄`) at the trailing edge of the role's first line, in place of the
+  full-width picker under the name. `MFA` and status move to the left of it or to the detail line.
+  The run window (non-compact) may keep its wider layout.
+
 ## 4. What changes outside the panel
 
 - `RunProfileView` (macOS) and `RunProfileWindow` (Windows) are split into a content view used by
