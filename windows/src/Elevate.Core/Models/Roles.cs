@@ -31,7 +31,9 @@ public sealed record EligibleRole(
     // Secondary caption, e.g. the Azure scope's display name and type. Null for Entra roles.
     string? Detail = null,
     // Name of the group that grants this eligibility; null for a direct eligibility.
-    string? ViaGroup = null);
+    string? ViaGroup = null,
+    // Microsoft's privileged flag for the role; false when the service does not say, and for an old cache.
+    bool IsPrivileged = false);
 
 public enum AssignmentStatusKind { Active, PendingApproval, PendingProvisioning, Scheduled, Failed }
 

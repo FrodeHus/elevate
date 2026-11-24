@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Elevate.Core.Auth;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Networking;
 using Elevate.Core.Support;
@@ -153,7 +154,8 @@ public sealed class AzureResourceProvider : IPimProvider
                 RoleSource.Discovered,
                 RolePolicy.ManualDefault,
                 Detail: Caption(i.Properties.ExpandedProperties),
-                ViaGroup: viaGroup));
+                ViaGroup: viaGroup,
+                IsPrivileged: PrivilegedRoles.IsAzure(i.Properties.RoleDefinitionId)));
         }
 
         return
