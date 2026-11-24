@@ -1,19 +1,19 @@
 import SwiftUI
 import ElevateCore
 
-/// Policy choice plus justification for one package; hands off to My Access when the chosen
-/// policy asks questions Elevate does not collect.
-struct RequestPackageSheet: View {
+/// Policy choice plus justification for one package, in the panel's main view; hands off to My
+/// Access when the chosen policy asks questions Elevate does not collect.
+struct RequestPackageView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
     let tenantKey: TenantKey
     let package: AccessPackage
-    let onSubmitted: () -> Void
+    var availableHeight: CGFloat = PanelMetrics.maxHeight
 
     @State private var requirements: [PolicyRequirement] = []
     @State private var selectedPolicyId: String?
     @State private var justification = ""
     @State private var loading = true
+    @State private var contentHeight: CGFloat = 0
     @State private var loadError: String?
     @State private var submitting = false
     @State private var submitError: String?
@@ -25,6 +25,13 @@ struct RequestPackageSheet: View {
     }
 
     var body: some View {
+        // Sized from the measured content, as in the role list: a ScrollView reports no ideal height here.
+        ScrollView { content }
+            .frame(height: min(max(contentHeight, 44), max(availableHeight, 44)))
+            .task { await load() }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Request \(package.displayName)").font(.headline)
@@ -47,11 +54,11 @@ struct RequestPackageSheet: View {
             HStack {
                 if submitting { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { model.endPackageRequest() }.keyboardShortcut(.cancelAction)
                 if let selected, selected.requiresAnswers {
                     Button("Open in My Access") {
                         NSWorkspace.shared.open(AccessPackageProvider.myAccessURL(tenantId: tenantKey.tenantId, packageId: package.id))
-                        dismiss()
+                        model.endPackageRequest()
                     }
                     .keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
                 } else {
@@ -60,9 +67,8 @@ struct RequestPackageSheet: View {
                 }
             }
         }
-        .padding(18)
-        .frame(width: 440)
-        .task { await load() }
+        .padding(12)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
     }
 
     private var policyPicker: some View {
@@ -130,8 +136,8 @@ struct RequestPackageSheet: View {
                                            policyId: requirements.count > 1 ? selected.id : nil,
                                            justification: justification.trimmingCharacters(in: .whitespacesAndNewlines))
             submitError = nil
-            onSubmitted()
-            dismiss()
+            model.accessPackagesTab = .requested
+            model.endPackageRequest()
         } catch {
             submitError = (error as? PIMError)?.userMessage ?? error.localizedDescription
         }

@@ -5,7 +5,6 @@ import ElevateCore
 /// account is named once on its own row above; repeating it here read as noise.
 struct TenantHeader: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
     let identity: Identity
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -40,7 +39,7 @@ struct TenantHeader: View {
                 // green dots on the rows below already carry the colour.
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary) }
                 if tenant.accessPackagesAvailable == true {
-                    Button { open(.accessPackages(tenant.id)) } label: {
+                    Button { model.openAccessPackages(tenant.id) } label: {
                         Image(systemName: "shippingbox")
                     }
                     .buttonStyle(.bordered).controlSize(.small)
@@ -54,11 +53,6 @@ struct TenantHeader: View {
         }
         .pinnedHeaderChrome()
         .removeTenantConfirmation(tenant, isPresented: $confirmRemove)
-    }
-
-    private func open(_ route: PanelRoute) {
-        openWindow(value: route)
-        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
@@ -206,10 +200,7 @@ struct TenantMenuItems: View {
     @Binding var confirmRemove: Bool
     var body: some View {
         if tenant.accessPackagesAvailable == true {
-            Button("Access packages…") {
-                openWindow(value: PanelRoute.accessPackages(tenant.id))
-                NSApp.activate(ignoringOtherApps: true)
-            }
+            Button("Access packages…") { model.openAccessPackages(tenant.id) }
         }
         Button("Configure known PIM roles…") {
             openWindow(value: PanelRoute.configureRoles(tenant.id))

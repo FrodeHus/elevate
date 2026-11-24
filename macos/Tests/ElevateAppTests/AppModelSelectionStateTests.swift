@@ -128,6 +128,57 @@ struct AppModelSelectionStateTests {
         cleanup(model)
     }
 
+    private static let package = AccessPackage(id: "pkg-1", displayName: "Finance Reporting Tools")
+
+    @Test func accessPackagesAndTheRequestFormReplaceTheTenantView() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        model.openAccessPackages(Sample.tenantKey)
+        #expect(model.panelContent == .accessPackages(Sample.tenantKey))
+        model.beginPackageRequest(Self.package)
+        #expect(model.panelContent == .requestPackage(Sample.tenantKey, Self.package))
+        model.endPackageRequest()
+        #expect(model.panelContent == .accessPackages(Sample.tenantKey))
+        cleanup(model)
+    }
+
+    @Test func escapeStepsBackFormThenPackagesThenTheRoleListThenWhatItDidBefore() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        model.openAccessPackages(Sample.tenantKey)
+        model.beginPackageRequest(Self.package)
+        model.handleEscape()
+        #expect(model.panelContent == .accessPackages(Sample.tenantKey))
+        model.handleEscape()
+        #expect(model.panelContent == .tenant(Sample.tenantKey))
+        model.handleEscape()
+        #expect(model.panelSelection == .allTenants)
+        cleanup(model)
+    }
+
+    @Test func selectingAnythingInTheSidebarLeavesAccessPackages() async {
+        let model = await makeTwoTenantModel()
+        let profile = model.saveProfile(name: "Ops", keys: [Sample.entraKey])!
+        for target in [PanelSelection.allTenants, .tenant(Self.otherKey), .tenant(Sample.tenantKey), .profile(profile.id)] {
+            model.select(.tenant(Sample.tenantKey))
+            model.openAccessPackages(Sample.tenantKey)
+            model.beginPackageRequest(Self.package)
+            model.select(target)
+            #expect(model.accessPackagesTenant == nil && model.requestingPackage == nil)
+        }
+        cleanup(model)
+    }
+
+    @Test func openingAccessPackagesFromTheAllTenantsListSelectsThatTenant() async {
+        let model = await makeTwoTenantModel()
+        model.openAccessPackages(Self.otherKey)
+        #expect(model.panelSelection == .tenant(Self.otherKey))
+        #expect(model.panelContent == .accessPackages(Self.otherKey))
+        model.handleEscape()
+        #expect(model.panelContent == .tenant(Self.otherKey))
+        cleanup(model)
+    }
+
     @Test func aMissingProfileIsNotASelection() async {
         let model = await makeTwoTenantModel()
         model.selectedProfile = UUID()

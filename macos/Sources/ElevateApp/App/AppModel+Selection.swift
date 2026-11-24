@@ -22,6 +22,7 @@ extension AppModel {
     /// Switching tenant or going back to all tenants leaves the query and bulk selection alone;
     /// only the highlighted row goes, since it may no longer be listed.
     func select(_ selection: PanelSelection) {
+        closeAccessPackages()
         switch selection {
         case .allTenants:
             scopeTenant = nil
@@ -39,11 +40,30 @@ extension AppModel {
         highlightedRole = nil
     }
 
+    /// Shows the tenant's access packages in the main view; from the all-tenants list this selects the tenant too.
+    func openAccessPackages(_ key: TenantKey) {
+        select(.tenant(key))
+        accessPackagesTenant = key
+        accessPackagesTab = .available
+    }
+
+    func beginPackageRequest(_ package: AccessPackage) { requestingPackage = package }
+    func endPackageRequest() { requestingPackage = nil }
+
+    func closeAccessPackages() {
+        accessPackagesTenant = nil
+        requestingPackage = nil
+    }
+
     var panelContent: PanelContent {
+        if let key = accessPackagesTenant, panelSelection == .tenant(key) {
+            if let package = requestingPackage { return .requestPackage(key, package) }
+            return .accessPackages(key)
+        }
         switch panelSelection {
-        case .profile(let id): .profile(id)
-        case .tenant(let key): .tenant(key)
-        case .allTenants: browsing || isFiltering || selectMode || homeIsEmpty ? .roleList : .home
+        case .profile(let id): return .profile(id)
+        case .tenant(let key): return .tenant(key)
+        case .allTenants: return browsing || isFiltering || selectMode || homeIsEmpty ? .roleList : .home
         }
     }
 
@@ -56,7 +76,11 @@ extension AppModel {
     func searchAllTenants() { scopeTenant = nil }
 
     func handleEscape() {
-        if !searchQuery.isEmpty {
+        if requestingPackage != nil {
+            endPackageRequest()
+        } else if accessPackagesTenant != nil {
+            closeAccessPackages()
+        } else if !searchQuery.isEmpty {
             searchQuery = ""
         } else if case .profile = panelSelection {
             selectedProfile = nil

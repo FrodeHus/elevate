@@ -40,7 +40,7 @@ struct PanelView: View {
                     .rowLevelProfileDeleteConfirmation(pinned: model.pinnedProfiles + shownUnpinnedProfile, suppressedByPopover: model.allProfilesOpen)
                     .signOutConfirmation()
                 // Always there while there is a list to filter, and focused when the panel opens.
-                if !model.identities.isEmpty && !showsProfile {
+                if !model.identities.isEmpty && model.panelContent.isRoleView {
                     HStack(spacing: 6) {
                         // The field is always shown, so no search button (as on Windows); ⌘F still jumps back to it.
                         Button("") { searchFocused = true }
@@ -158,12 +158,15 @@ struct PanelView: View {
                 case .tenant(let key): RoleListView(tenant: key, availableHeight: listHeight)
                 case .home: HomeView(availableHeight: listHeight)
                 case .profile(let id): ProfilePanelView(profileId: id).frame(maxHeight: listHeight)
+                case .accessPackages(let key): AccessPackagesView(tenantKey: key, availableHeight: listHeight)
+                case .requestPackage(let key, let package):
+                    RequestPackageView(tenantKey: key, package: package, availableHeight: listHeight)
                 case .roleList: RoleListView(tenant: nil, availableHeight: listHeight)
                 }
             }
             Spacer(minLength: 0)
             VStack(spacing: 0) {
-                if model.selectMode {
+                if model.selectMode && model.panelContent.isRoleView {
                     Divider()
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
@@ -206,8 +209,6 @@ struct PanelView: View {
         openWindow(value: route)
         NSApp.activate(ignoringOtherApps: true)
     }
-
-    private var showsProfile: Bool { if case .profile = model.panelContent { true } else { false } }
 
     /// The shown profile when it is not pinned: its header menu's Delete… has no sidebar button to host the card.
     private var shownUnpinnedProfile: [ActivationProfile] {

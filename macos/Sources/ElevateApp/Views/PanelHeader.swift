@@ -5,13 +5,12 @@ import ElevateCore
 /// view, then the select-roles toggle and refresh.
 struct PanelHeader: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
     @State private var confirmRemove = false
 
     var body: some View {
         @Bindable var model = model
         HStack {
-            if case .tenant(let key) = model.panelContent, let tenant = model.tenant(key) {
+            if let key = tenantKey, let tenant = model.tenant(key) {
                 tenantTitle(tenant)
             } else if case .profile(let id) = model.panelContent, let profile = model.profile(id: id) {
                 profileTitle(profile)
@@ -38,7 +37,7 @@ struct PanelHeader: View {
                 }
             }
             Spacer()
-            if !showsProfile {
+            if model.panelContent.isRoleView {
                 Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
                     .toggleStyle(.button)
                     .help("Select several roles to activate together")
@@ -55,7 +54,15 @@ struct PanelHeader: View {
         .padding(.vertical, 8)
     }
 
-    private var showsProfile: Bool { if case .profile = model.panelContent { true } else { false } }
+    /// The tenant a tenant view or its access packages belong to.
+    private var tenantKey: TenantKey? {
+        switch model.panelContent {
+        case .tenant(let key), .accessPackages(let key), .requestPackage(let key, _): key
+        default: nil
+        }
+    }
+
+    private var showsAccessPackages: Bool { model.accessPackagesTenant != nil && tenantKey != nil }
 
     private func profileTitle(_ profile: ActivationProfile) -> some View {
         let tenants = Set(profile.entries.map(\.roleKey.tenantKey)).count
@@ -87,6 +94,11 @@ struct PanelHeader: View {
 
     private func tenantTitle(_ tenant: TenantContext) -> some View {
         HStack(spacing: 8) {
+            if showsAccessPackages {
+                // One step back, as Escape: request form to package list, package list to the role list.
+                Button { model.handleEscape() } label: { Image(systemName: "chevron.left") }
+                    .help("Back").accessibilityLabel("Back")
+            }
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Text(tenant.displayName).font(.headline).lineLimit(1)
@@ -95,11 +107,8 @@ struct PanelHeader: View {
                 Text(model.identity(tenant.identityId)?.upn ?? tenant.identityId)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
-            if tenant.accessPackagesAvailable == true {
-                Button("Access packages…") {
-                    openWindow(value: PanelRoute.accessPackages(tenant.id))
-                    NSApp.activate(ignoringOtherApps: true)
-                }
+            if tenant.accessPackagesAvailable == true && !showsAccessPackages {
+                Button("Access packages…") { model.openAccessPackages(tenant.id) }
                 .buttonStyle(.bordered).controlSize(.small)
             }
             HeaderMenu(label: "Tenant actions") {

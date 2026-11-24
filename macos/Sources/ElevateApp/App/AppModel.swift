@@ -75,10 +75,16 @@ final class AppModel {
     /// and scopes start open, so nothing is hidden on first sight.
     var collapsedScopes: Set<String> = []
     var selection: Set<RoleKey> = []
+    /// The tenant whose access packages replace its role list in the main view, and the package whose
+    /// request form replaces that list. Never persisted; `select` clears both.
+    var accessPackagesTenant: TenantKey?
+    var requestingPackage: AccessPackage?
+    var accessPackagesTab = AccessPackageTab.available
     /// The profile open in the main view. Never persisted.
     var selectedProfile: UUID? {
         // Leaving a profile drops its session, unless it is mid-run.
         didSet {
+            if selectedProfile != nil { closeAccessPackages() }
             if let old = oldValue, old != selectedProfile, runSessions[old]?.running != true { runSessions[old] = nil }
         }
     }
