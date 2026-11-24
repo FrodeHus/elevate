@@ -41,11 +41,9 @@ struct TenantHeader: View {
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary) }
                 if tenant.accessPackagesAvailable == true {
                     Button { open(.accessPackages(tenant.id)) } label: {
-                        Image(systemName: "shippingbox").font(.caption).foregroundStyle(.secondary)
-                            .padding(4)
-                            .contentShape(Rectangle())
+                        Image(systemName: "shippingbox")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered).controlSize(.small)
                     .help("Access packages")
                     .accessibilityLabel("Access packages")
                 }

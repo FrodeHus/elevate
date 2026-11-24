@@ -116,11 +116,21 @@ struct ProfileRunContent: View {
                 Toggle("", isOn: .constant(false)).toggleStyle(.checkbox).labelsHidden().hidden()
             }
             if compact {
-                VStack(alignment: .leading, spacing: 4) {
-                    nameBlock(it, dimmed: dimmed)
-                    HStack(spacing: 8) { trailing(item, session: session, included: included) }
+                // The duration sits at the end of the name's line; the detail and any status share the line below.
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(it.role?.displayName ?? model.summaryName(for: it.roleKey)).opacity(dimmed ? 0.6 : 1)
+                        Spacer(minLength: 0)
+                        if it.disposition == .activate && included { durationControl(item, session: session) }
+                    }
+                    HStack(spacing: 8) {
+                        if let detail = it.role?.detail {
+                            Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(it.roleKey) ?? detail)
+                                .opacity(dimmed ? 0.6 : 1)
+                        }
+                        trailing(item, session: session, included: included)
+                    }
                 }
-                Spacer(minLength: 0)
             } else {
                 nameBlock(it, dimmed: dimmed)
                 Spacer()
@@ -146,13 +156,7 @@ struct ProfileRunContent: View {
             Text(session.finished ? "unchecked · skipped" : "unchecked").font(.caption).foregroundStyle(.secondary)
         case .activate:
             // Window: fixed columns, so rows line up even when a column is empty. Panel: natural widths under the name.
-            if !session.finished {
-                DurationPicker(duration: item.duration, maximum: it.role?.policy.maximumDuration ?? RolePolicy.manualDefault.maximumDuration)
-                    .labelsHidden().frame(width: 110)
-            } else {
-                Text(Countdown.label(it.duration)).font(.caption).foregroundStyle(.secondary)
-                    .frame(width: compact ? nil : 110, alignment: compact ? .leading : .trailing)
-            }
+            if !compact { durationControl(item, session: session) }
             if compact {
                 statusLabel(for: it, running: session.running, rowResult: session.rowResults[it.roleKey])
             } else {
@@ -167,6 +171,18 @@ struct ProfileRunContent: View {
                 ProgressView().controlSize(.small)
                 Text("loading…").font(.caption).foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// The editable duration, or the chosen one once the run is over. The panel's row puts it on the name's line.
+    @ViewBuilder private func durationControl(_ item: Binding<ProfilePlanItem>, session: ProfileRunSession) -> some View {
+        let it = item.wrappedValue
+        if !session.finished {
+            DurationPicker(duration: item.duration, maximum: it.role?.policy.maximumDuration ?? RolePolicy.manualDefault.maximumDuration, compact: compact)
+                .labelsHidden().frame(width: compact ? nil : 110)
+        } else {
+            Text(Countdown.label(it.duration)).font(.caption).foregroundStyle(.secondary)
+                .frame(width: compact ? nil : 110, alignment: .trailing)
         }
     }
 

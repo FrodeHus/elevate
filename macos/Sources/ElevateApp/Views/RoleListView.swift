@@ -16,10 +16,10 @@ struct RoleListView: View {
     var body: some View {
         VStack(spacing: 0) {
             if tenant == nil {
-                // The card and the tabs together are what the list gives up its height for.
+                // The card and the Eligible bar together are what the list gives up its height for.
                 VStack(spacing: 0) {
                     if model.homeIsEmpty && !model.isFiltering { nothingActiveCard }
-                    tabs
+                    eligibleBar(count: allTenantsRowCount)
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabsHeight = $0 }
             }
@@ -63,20 +63,26 @@ struct RoleListView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
-    private var tabs: some View {
-        VStack(spacing: 0) {
+    /// "Eligible · N" with the kind control at its right edge; the control narrows the eligible rows only.
+    private func eligibleBar(count: Int) -> some View {
+        HStack(spacing: 8) {
+            Text("Eligible · \(count)").font(.subheadline.weight(.semibold)).lineLimit(1)
+            Spacer(minLength: 8)
             Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
-                // No counts in the segments: the Active now header and the tenant rows already
-                // count, and a number here made the segments change width with every activation.
-                ForEach(PanelTab.allCases, id: \.self) { tab in
-                    Text(tab.title).tag(tab)
-                }
+                // No counts in the segments: a number made them change width with every activation.
+                ForEach(PanelTab.allCases, id: \.self) { tab in Text(tab.title).tag(tab) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            Divider()
+            .controlSize(.small)
+            .frame(width: 220)
+        }
+        .pinnedHeaderChrome()
+    }
+
+    private var allTenantsRowCount: Int {
+        model.visibleIdentities.reduce(0) { total, identity in
+            total + model.visibleTenants(for: identity.id).reduce(0) { $0 + model.listRows(for: $1.id).count }
         }
     }
 
@@ -109,7 +115,6 @@ struct RoleListView: View {
     @ViewBuilder private func tenantContent(_ key: TenantKey) -> some View {
         ApprovalsSection(tenant: key)
         ActiveSection(tenant: key)
-        tabs
         if let context = model.tenant(key) {
             let rows = model.listRows(for: key)
             let others = model.otherTenantMatchCount
@@ -130,8 +135,7 @@ struct RoleListView: View {
                     .buttonStyle(.plain).foregroundStyle(.tint)
                 }
             } header: {
-                Text("Eligible · \(rows.count)").font(.subheadline.weight(.semibold))
-                    .pinnedHeaderChrome()
+                eligibleBar(count: rows.count)
             }
         }
     }

@@ -100,7 +100,7 @@ struct PanelHeader: View {
                     openWindow(value: PanelRoute.accessPackages(tenant.id))
                     NSApp.activate(ignoringOtherApps: true)
                 }
-                .controlSize(.small)
+                .buttonStyle(.bordered).controlSize(.small)
             }
             HeaderMenu(label: "Tenant actions") {
                 TenantMenuItems(tenant: tenant, confirmRemove: $confirmRemove)
