@@ -75,6 +75,10 @@ final class AppModel {
     /// and scopes start open, so nothing is hidden on first sight.
     var collapsedScopes: Set<String> = []
     var selection: Set<RoleKey> = []
+    /// The profile open in the main view. Never persisted.
+    var selectedProfile: UUID?
+    /// True while the user is browsing the full role list rather than the home view. Never persisted.
+    var browsing = false
     var startupError: String?
     /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.
     var notice: String?

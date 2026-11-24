@@ -22,6 +22,7 @@ final class AppSettings {
     static let customClientIdKey = "customLoopbackClientId"
     static let pinnedClientIdKey = "pinnedClientId"
     static let panelTabKey = "panelTab"
+    static let panelTenantKey = "panelTenant"
     static let collapsedActiveKey = "collapsedActive"
     static let collapsedApprovalsKey = "collapsedApprovals"
     static let lastApprovalJustificationKey = "lastApprovalJustification"
@@ -74,6 +75,17 @@ final class AppSettings {
     /// The panel's last-used tab, so it reopens where the user left it.
     var panelTab: PanelTab {
         didSet { defaults.set(panelTab.rawValue, forKey: Self.panelTabKey) }
+    }
+
+    /// The tenant the panel is scoped to, as JSON. Nil means all tenants.
+    var panelTenant: TenantKey? {
+        didSet {
+            if let panelTenant, let data = try? JSONEncoder().encode(panelTenant) {
+                defaults.set(data, forKey: Self.panelTenantKey)
+            } else {
+                defaults.removeObject(forKey: Self.panelTenantKey)
+            }
+        }
     }
 
     /// Whether the panel's "Active now" summary is collapsed; remembered between launches.
@@ -189,6 +201,7 @@ final class AppSettings {
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         pinnedClientId = defaults.string(forKey: Self.pinnedClientIdKey) ?? ""
         panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .all
+        panelTenant = (defaults.data(forKey: Self.panelTenantKey)).flatMap { try? JSONDecoder().decode(TenantKey.self, from: $0) }
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
         collapsedApprovals = defaults.bool(forKey: Self.collapsedApprovalsKey)
         lastApprovalJustification = defaults.string(forKey: Self.lastApprovalJustificationKey) ?? ""

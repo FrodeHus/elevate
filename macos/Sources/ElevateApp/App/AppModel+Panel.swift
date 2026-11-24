@@ -74,13 +74,13 @@ extension AppModel {
 
     /// While filtering, only tenants with a matching row in the current tab; otherwise all of them.
     func visibleTenants(for identityId: String) -> [TenantContext] {
-        let all = tenants(for: identityId)
+        let all = tenants(for: identityId).filter { scopeTenant == nil || $0.id == scopeTenant }
         guard isFiltering else { return all }
         return all.filter { !roles(for: $0.id, tab: panelTab).isEmpty }
     }
 
     var visibleIdentities: [Identity] {
-        guard isFiltering else { return identities }
+        guard isFiltering || scopeTenant != nil else { return identities }
         return identities.filter { !visibleTenants(for: $0.id).isEmpty }
     }
 

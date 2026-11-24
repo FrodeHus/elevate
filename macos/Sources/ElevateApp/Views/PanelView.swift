@@ -43,7 +43,7 @@ struct PanelView: View {
                     TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
                         .textFieldStyle(.plain)
                         .focused($searchFocused)
-                        .onExitCommand { model.searchQuery = "" }
+                        .onExitCommand { model.handleEscape() }
                         // The keyboard stays in the field; the arrows move a highlight through the rows.
                         .onKeyPress(.downArrow) { model.moveHighlight(1); return .handled }
                         .onKeyPress(.upArrow) { model.moveHighlight(-1); return .handled }
