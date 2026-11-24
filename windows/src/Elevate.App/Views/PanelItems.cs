@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Elevate.App.Services;
 using Elevate.App.ViewModels;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
@@ -115,6 +116,7 @@ public sealed class RoleRow : PanelItem
     private string? _policyTooltip;
     private bool _requiresApproval;
     private bool _isNew;
+    private bool _isPrivileged;
 
     public string Name { get => _name; set => SetProperty(ref _name, value); }
 
@@ -178,6 +180,10 @@ public sealed class RoleRow : PanelItem
 
     /// <summary>Added since the last discovery: a "new" badge and a faint accent tint until the second panel open.</summary>
     public bool IsNew { get => _isNew; set => SetProperty(ref _isNew, value); }
+
+    public bool IsPrivileged { get => _isPrivileged; set => SetProperty(ref _isPrivileged, value); }
+
+    public Visibility CrownVisibility => IsPrivileged ? Visibility.Visible : Visibility.Collapsed;
 
     private int _depth;
 
@@ -296,6 +302,7 @@ public sealed class RoleRow : PanelItem
         PolicyTooltip = other.PolicyTooltip;
         RequiresApproval = other.RequiresApproval;
         IsNew = other.IsNew;
+        IsPrivileged = other.IsPrivileged;
         Depth = other.Depth;
         OnPropertyChanged(string.Empty);
     }
@@ -1175,6 +1182,7 @@ public static class PanelListBuilder
             Via = role.ViaGroup is { } via ? (via == "group" ? "via group" : $"via {via}") : null,
             IsManual = role.Source == RoleSource.Manual,
             IsNew = model.IsRoleNew(role.Key),
+            IsPrivileged = PrivilegedRoles.IsPrivileged(role),
         };
         // The All tab mixes kinds, so a group row names its access in its detail line.
         var caption = model.PanelTab == PanelTab.All ? model.GroupCaption(role.Key) : null;
@@ -1247,6 +1255,7 @@ public static class PanelListBuilder
         var row = new RoleRow(key, isSummary: true)
         {
             Name = model.SummaryName(key),
+            IsPrivileged = model.IsPrivileged(key),
             Detail = $"{model.Tenant(key.TenantKey)?.DisplayName ?? key.TenantId} · {model.Identity(key.IdentityId)?.Upn ?? key.IdentityId}",
         };
         Fill(model, row, assignment, null, now, allowActivate: false);

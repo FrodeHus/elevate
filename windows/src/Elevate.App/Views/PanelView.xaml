@@ -32,10 +32,12 @@
                 </Grid>
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
                     <!-- One line with trimming, in select mode too; the tenant · account caption below keeps the 12 px caption size. -->
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                    <!-- NameLine: the name trims first; the crown and the "new" pill keep their size. -->
+                    <views:NameLine>
                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontSize="14" VerticalAlignment="Center" />
+                        <views:PrivilegedCrown RoleName="{x:Bind Name, Mode=OneWay}" Visibility="{x:Bind CrownVisibility, Mode=OneWay}" />
                         <views:Pill Text="new" Tint="Accent" Visibility="{x:Bind NewVisibility, Mode=OneWay}" Tooltip="Added since the last discovery" />
-                    </StackPanel>
+                    </views:NameLine>
                     <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}"
                                FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                                ToolTipService.ToolTip="{x:Bind DetailTooltip, Mode=OneWay}" />
@@ -177,7 +179,10 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind Role.Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <views:NameLine>
+                        <TextBlock Text="{x:Bind Role.Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
+                        <views:PrivilegedCrown RoleName="{x:Bind Role.Name, Mode=OneWay}" Visibility="{x:Bind Role.CrownVisibility, Mode=OneWay}" />
+                    </views:NameLine>
                     <TextBlock Text="{x:Bind Role.Detail, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Role.DetailTooltip, Mode=OneWay}" />
                     <TextBlock Text="{x:Bind Role.Countdown, Mode=OneWay}" FontSize="22" FontWeight="SemiBold" Margin="0,4,0,0"

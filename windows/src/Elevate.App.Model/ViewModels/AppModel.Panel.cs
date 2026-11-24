@@ -1,4 +1,5 @@
 using Elevate.App.Services;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 
@@ -184,6 +185,12 @@ public sealed partial class AppModel
     }
 
     // MARK: Summary
+
+    /// <summary>
+    /// Whether to mark a role as privileged: the loaded role's flag, or the ids when the role is not loaded
+    /// (an Active now row after a restart) or the service did not yield the flag. The one place views ask.
+    /// </summary>
+    public bool IsPrivileged(RoleKey key) => Role(key) is { } r ? PrivilegedRoles.IsPrivileged(r) : PrivilegedRoles.IsKnown(key.Scope);
 
     /// <summary>Name for the summary row; before the eligible list has loaded only the key is known.</summary>
     public string SummaryName(RoleKey key)

@@ -297,7 +297,7 @@ public sealed partial class ManageProfilesWindow : Window
                 }
 
                 first = false;
-                grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key));
+                grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key, _model.IsPrivileged(key)));
 
                 var picker = new DurationPicker { Maximum = policy.MaximumDuration, Duration = Proposed(entry, policy), IsEnabled = !managed };
                 picker.VerticalAlignment = VerticalAlignment.Center;

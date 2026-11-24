@@ -223,7 +223,7 @@ public sealed partial class RunProfileContent : UserControl
                     };
                 }
 
-                row.Name = TenantGroupBox.NameCell(name, item.Role?.Detail, key);
+                row.Name = TenantGroupBox.NameCell(name, item.Role?.Detail, key, model.IsPrivileged(key));
                 var line = _compact ? CompactRow(row) : FullRow(row);
                 if (!first)
                 {
