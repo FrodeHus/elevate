@@ -70,6 +70,34 @@ public class ViewsTests
     }
 
     [Fact]
+    public async Task ActiveRowsAndRolesNotYetLoadedAreMarkedPrivilegedToo()
+    {
+        using var t = new TestSession();
+        await t.Session.RefreshAllAsync();
+        var now = DateTimeOffset.UtcNow;
+        // Nothing eligible is loaded, so the marker can only come from the role's id (the status command's unloaded-role JSON path asks the same).
+        var admin = TestSession.EntraKey(GlobalAdministrator);
+        var other = TestSession.EntraKey(GroupsAdministrator);
+        t.Session.IsPrivileged(admin).Should().BeTrue();
+        t.Session.IsPrivileged(other).Should().BeFalse();
+
+        var writer = new StringWriter();
+        var console = Spectre.Console.AnsiConsole.Create(new Spectre.Console.AnsiConsoleSettings
+        {
+            Ansi = Spectre.Console.AnsiSupport.No,
+            ColorSystem = Spectre.Console.ColorSystemSupport.NoColors,
+            Out = new Spectre.Console.AnsiConsoleOutput(writer),
+        });
+        console.Profile.Width = 200;
+        console.Write(Views.ActiveTable(t.Session, [
+            new ActiveAssignment(admin, "a1", now, now.AddMinutes(30), AssignmentStatus.Active),
+            new ActiveAssignment(other, "a2", now, now.AddMinutes(60), AssignmentStatus.Active)], now));
+        var lines = writer.ToString().Split('\n');
+        lines.Count(l => l.Contains("privileged")).Should().Be(1);
+        lines.Single(l => l.Contains("privileged")).Should().Contain("Global Administrator");
+    }
+
+    [Fact]
     public async Task FirstPartyAccountIsViewOnlyForEntra()
     {
         using var t = new TestSession();
