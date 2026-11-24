@@ -13,7 +13,7 @@ that cost time, and what is left.
 |---|---|
 | Core port, including the phase-3 planner, quick activate, summary and approval providers | `src/Elevate.Core`, `tests/Elevate.Core.Tests` (313 tests) |
 | Access packages: scope, models, provider, diff, new-role tracker, per-tenant state records (shared by the CLI and the app) | `src/Elevate.Core/Providers/AccessPackageProvider.cs`, `Coordination/AccessPackageDiff.cs`, `Coordination/NewRoleTracker.cs`, `Storage/AppState.cs` |
-| Access packages in the app: polling (panel open, 15-minute throttle, 8-hour tick), event toasts, timed package-expiry toasts, the new-role marker, the window with four tabs, the request dialog, the tenant glyph and menu item | `src/Elevate.App.Model/ViewModels/AppModel.AccessPackages.cs`, `src/Elevate.App/Views/AccessPackagesWindow.xaml`, `RequestPackageWindow.xaml`, `Notifications/ExpiryNotifier.cs` |
+| Access packages in the app: polling (panel open, 15-minute throttle, 8-hour tick), event toasts, timed package-expiry toasts, the new-role marker, the in-flyout view with four tabs, the in-flyout request form, the tenant glyph and menu item | `src/Elevate.App.Model/ViewModels/AppModel.AccessPackages.cs`, `src/Elevate.App/Views/AccessPackagesContent.xaml`, `RequestPackageContent.xaml`, `Notifications/ExpiryNotifier.cs` |
 | App model: accounts, refresh, activation, panel, profiles, approvals, operations, access packages | `src/Elevate.App.Model/ViewModels/AppModel.*.cs`, `tests/Elevate.App.Tests` (63 tests) |
 | Settings, network monitor, notifier seam, hot-key seam, update checker, build info | `src/Elevate.App.Model/Services` |
 | Tray icon, hot key, flyout, window chrome | `src/Elevate.App/Tray`, `Shell` |

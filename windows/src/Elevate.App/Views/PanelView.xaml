@@ -352,6 +352,11 @@
                  after it rather than sitting under the title in an Auto column, which would grow to the
                  caption's full width and push the tools off the right edge for a long name. -->
             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                <!-- Access packages and the request form: one step back, as Escape does. -->
+                <Button x:Name="BackButton" Visibility="Collapsed" Style="{StaticResource SubtleButtonStyle}" Width="24" Height="24" Padding="0"
+                        Margin="-6,0,0,0" VerticalAlignment="Center" Click="OnBack" ToolTipService.ToolTip="Back" AutomationProperties.Name="Back">
+                    <FontIcon Glyph="&#xE76B;" FontSize="12" />
+                </Button>
                 <FontIcon x:Name="ProfileIcon" Glyph="&#xE945;" FontSize="14" Visibility="Collapsed" VerticalAlignment="Center"
                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                 <TextBlock x:Name="HeaderTitle" Text="Elevate" FontSize="16" FontWeight="SemiBold" MaxWidth="170"
@@ -368,7 +373,7 @@
                     ToolTipService.ToolTip="No network connection; refreshes and requests are paused">
                 <TextBlock Text="offline" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Border>
-            <!-- A real button (bordered, small), not text beside the name; still opens the access packages window for now. -->
+            <!-- A real button (bordered, small), not text beside the name; opens the tenant's access packages in the main view. -->
             <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" x:Name="AccessPackagesButton" Content="Access packages…" Visibility="Collapsed"
                     Style="{StaticResource SmallButtonStyle}" VerticalAlignment="Center" Click="OnHeaderAccessPackages"
                     ToolTipService.ToolTip="Request access packages in this tenant" />
@@ -464,6 +469,12 @@
             <!-- A profile in the main view: the run form, compact, scrolling inside the 720 cap. -->
             <ScrollViewer x:Name="ProfileView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                 <views:RunProfileContent x:Name="ProfileRun" Margin="12" />
+            </ScrollViewer>
+
+            <!-- A tenant's access packages in the main view; the request form takes the same place and keeps this one bound underneath. -->
+            <views:AccessPackagesContent x:Name="PackagesView" Visibility="Collapsed" />
+            <ScrollViewer x:Name="RequestView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <views:RequestPackageContent x:Name="RequestForm" />
             </ScrollViewer>
 
             <ListView x:Name="List" Visibility="Collapsed" SelectionMode="None" IsItemClickEnabled="False"

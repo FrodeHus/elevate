@@ -65,8 +65,8 @@ internal static class PanelMenus
     {
         if (tenant.AccessPackagesAvailable == true)
         {
-            // First, as on macOS: the one item that opens a window of its own.
-            menu.Items.Add(Item("Access packages…", () => App.Current.OpenAccessPackages(tenant.Key)));
+            // First, as on macOS; it shows the packages in the flyout's main view.
+            menu.Items.Add(Item("Access packages…", () => model.OpenAccessPackages(tenant.Key)));
             menu.Items.Add(new MenuFlyoutSeparator());
         }
 

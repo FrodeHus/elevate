@@ -27,6 +27,9 @@ public sealed partial class PanelView : UserControl
     private FlyoutWindow? _window;
     // The profile the run control is bound to; null while no profile is in the main view.
     private Guid? _boundProfile;
+    // The tenant whose access packages are bound, and the package whose form is; null while neither is in the main view.
+    private TenantKey? _boundPackages;
+    private AccessPackage? _boundRequest;
 
     public PanelView()
     {
@@ -155,7 +158,8 @@ public sealed partial class PanelView : UserControl
     public event EventHandler? ContentChanged;
 
     /// <summary>Whether the grouped list is showing; the flyout keeps a fixed height while it is.</summary>
-    public bool ListVisible => List.Visibility == Visibility.Visible || ProfileView.Visibility == Visibility.Visible;
+    public bool ListVisible => List.Visibility == Visibility.Visible || ProfileView.Visibility == Visibility.Visible
+        || PackagesView.Visibility == Visibility.Visible || RequestView.Visibility == Visibility.Visible;
 
     private void Draw(AppModel model)
     {
@@ -222,18 +226,21 @@ public sealed partial class PanelView : UserControl
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
-        var profileId = !bodyHidden && model.PanelContent is PanelContent.Profile p ? p.Id : (Guid?)null;
-        List.Visibility = bodyHidden || profileId is not null ? Visibility.Collapsed : Visibility.Visible;
-        if (!bodyHidden && profileId is null)
+        var content = model.PanelContent;
+        var profileId = !bodyHidden && content is PanelContent.Profile p ? p.Id : (Guid?)null;
+        var inPackages = !bodyHidden && content is PanelContent.AccessPackages or PanelContent.RequestPackage;
+        List.Visibility = bodyHidden || profileId is not null || inPackages ? Visibility.Collapsed : Visibility.Visible;
+        if (!bodyHidden && profileId is null && !inPackages)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
         DrawProfile(model, profileId);
+        DrawPackages(model, inPackages ? content : null);
 
         Sidebar.Draw(model);
 
-        BulkBar.Visibility = model.SelectMode && profileId is null ? Visibility.Visible : Visibility.Collapsed;
+        BulkBar.Visibility = model.SelectMode && profileId is null && !inPackages ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
         {
             var count = model.SelectionCount;
@@ -291,17 +298,70 @@ public sealed partial class PanelView : UserControl
     }
 
     /// <summary>
+    /// Binds the access packages list to the tenant in the main view, and the request form to the
+    /// package being requested; each lets go when its view is left. The list stays bound under the
+    /// form, so its search, tab and loaded packages are still there when the form closes.
+    /// </summary>
+    private void DrawPackages(AppModel model, PanelContent? content)
+    {
+        var key = content switch
+        {
+            PanelContent.AccessPackages a => a.Key,
+            PanelContent.RequestPackage r => r.Key,
+            _ => (TenantKey?)null,
+        };
+        var request = (content as PanelContent.RequestPackage)?.Package;
+        PackagesView.Visibility = content is PanelContent.AccessPackages ? Visibility.Visible : Visibility.Collapsed;
+        RequestView.Visibility = request is null ? Visibility.Collapsed : Visibility.Visible;
+        if (key != _boundPackages)
+        {
+            _boundPackages = key;
+            if (key is { } tenant)
+            {
+                PackagesView.Bind(model, tenant);
+            }
+            else
+            {
+                PackagesView.Unbind();
+            }
+        }
+
+        if (request != _boundRequest)
+        {
+            _boundRequest = request;
+            if (request is not null && key is { } owner)
+            {
+                RequestForm.Bind(model, owner, request);
+                RequestView.ChangeView(0, 0, null, disableAnimation: true);
+            }
+            else
+            {
+                RequestForm.Unbind();
+            }
+        }
+    }
+
+    /// <summary>
     /// Home and the role list carry the Elevate mark with the organization's caption and the offline
     /// pill; a tenant view carries the tenant, its home tag, its account and the tenant's own actions.
     /// </summary>
     private void DrawHeader(AppModel model)
     {
         var profile = model.PanelContent is PanelContent.Profile pc ? model.Profile(pc.Id) : null;
-        var tenant = model.PanelContent is PanelContent.Tenant t ? model.Tenant(t.Key) : null;
+        var key = model.PanelContent switch
+        {
+            PanelContent.Tenant t => t.Key,
+            PanelContent.AccessPackages a => a.Key,
+            PanelContent.RequestPackage r => r.Key,
+            _ => (TenantKey?)null,
+        };
+        var inPackages = model.PanelContent is PanelContent.AccessPackages or PanelContent.RequestPackage;
+        var tenant = key is { } shown ? model.Tenant(shown) : null;
         var identity = tenant is null ? null : model.Identity(tenant.IdentityId);
         HeaderTitle.Text = profile?.Name ?? tenant?.DisplayName ?? "Elevate";
         ProfileIcon.Visibility = profile is null ? Visibility.Collapsed : Visibility.Visible;
-        SelectToggle.Visibility = profile is null ? Visibility.Visible : Visibility.Collapsed;
+        SelectToggle.Visibility = profile is null && !inPackages ? Visibility.Visible : Visibility.Collapsed;
+        BackButton.Visibility = inPackages ? Visibility.Visible : Visibility.Collapsed;
         PinButton.Visibility = Visibility.Collapsed;
         if (profile is not null)
         {
@@ -316,7 +376,7 @@ public sealed partial class PanelView : UserControl
         OrganizationCaption.Visibility = tenant is null ? (model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed)
             : string.IsNullOrEmpty(caption) ? Visibility.Collapsed : Visibility.Visible;
         OfflinePill.Visibility = tenant is null && !model.IsOnline ? Visibility.Visible : Visibility.Collapsed;
-        AccessPackagesButton.Visibility = tenant?.AccessPackagesAvailable == true ? Visibility.Visible : Visibility.Collapsed;
+        AccessPackagesButton.Visibility = tenant?.AccessPackagesAvailable == true && !inPackages ? Visibility.Visible : Visibility.Collapsed;
         TenantMenuButton.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
         SearchBox.PlaceholderText = tenant is null ? "Filter roles" : $"Filter roles in {tenant.DisplayName}";
     }
@@ -360,9 +420,11 @@ public sealed partial class PanelView : UserControl
     {
         if (_model?.ScopeTenant is { } key)
         {
-            App.Current.OpenAccessPackages(key);
+            _model.OpenAccessPackages(key);
         }
     }
+
+    private void OnBack(object sender, RoutedEventArgs e) => _model?.HandleEscape();
 
     private void OnHeaderTenantMenu(object sender, RoutedEventArgs e)
     {
@@ -772,15 +834,15 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
     private void OnAccessPackagesClick(object sender, RoutedEventArgs e)
     {
-        if (Group(sender) is { TenantKey: { } key })
+        if (_model is not null && Group(sender) is { TenantKey: { } key })
         {
-            App.Current.OpenAccessPackages(key);
+            _model.OpenAccessPackages(key);
         }
     }
 
+    /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
     private void OnIssuesClick(object sender, RoutedEventArgs e)
     {
         if (Group(sender) is not { } group || group.Issues.Count == 0 || sender is not FrameworkElement anchor)

@@ -97,7 +97,7 @@ public sealed partial class AppModel
     /// <summary>
     /// Reads requests and assignments for one tenant, notifies about what changed, persists.
     /// <paramref name="interactive"/> allows a sign-in prompt when silent acquisition fails; the
-    /// default suits the access packages window, which the user opened. Background polls pass false.
+    /// default suits the access packages view, which the user opened. Background polls pass false.
     /// </summary>
     public async Task PollAccessPackagesAsync(TenantKey key, bool interactive = true)
     {

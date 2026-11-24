@@ -125,7 +125,8 @@ public partial class App : Application
                 _notifier?.HandleLaunch(toast);
             }
             // Developer switches, for screenshots and smoke tests: `--flyout` opens the flyout at once,
-            // `--show <settings|add-account|registration|configure|access-packages|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window,
+            // `--show <settings|add-account|registration|configure|activation|bulk|add-tenant|discover|save-profile|manage-profiles|run-profile|decision>` opens one window
+            // (`access-packages` opens the flyout on the first tenant's packages),
             // `--test-toast <seconds>` schedules one Extend toast that far out (quit the app to prove the OS delivers it).
             var args = Environment.GetCommandLineArgs();
             var testToast = Array.IndexOf(args, "--test-toast");
@@ -235,7 +236,8 @@ public partial class App : Application
                 OpenConfigureRoles(tenant.Key);
                 break;
             case "access-packages" when tenant is not null:
-                OpenAccessPackages(tenant.Key);
+                model.OpenAccessPackages(tenant.Key);
+                _flyout?.Show(_tray?.IconRect);
                 break;
             case "activation" when tenant is not null:
                 OpenActivation((RoleKey[])[.. model.RolesFor(tenant.Key).Take(1).Select(r => r.Key)]);
@@ -352,12 +354,6 @@ public partial class App : Application
     }
 
     public void OpenConfigureRoles(TenantKey tenantKey) => Open("configure:" + tenantKey, () => new ConfigureRolesWindow(Model!, tenantKey));
-
-    public void OpenAccessPackages(TenantKey tenantKey) => Open("access-packages:" + tenantKey, () => new AccessPackagesWindow(Model!, tenantKey));
-
-    /// <summary>The request dialog for one package; <paramref name="onSubmitted"/> runs after a successful submit, before it closes.</summary>
-    public void OpenRequestPackage(TenantKey tenantKey, Elevate.Core.Models.AccessPackage package, Action onSubmitted) =>
-        Open("request-package:" + tenantKey + ":" + package.Id, () => new RequestPackageWindow(Model!, tenantKey, package, onSubmitted));
 
     /// <summary>Moves one account between the Settings registration and one of its own.</summary>
     public void OpenChangeRegistration(string identityId) =>
