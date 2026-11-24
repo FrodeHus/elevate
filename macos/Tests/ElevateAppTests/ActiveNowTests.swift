@@ -59,10 +59,7 @@ struct ActiveNowTests {
         model.retainDeactivatedRow(assignment)
         #expect(model.activeAssignmentsOrdered.isEmpty)
         #expect(model.activeRowsOrdered.map(\.roleKey) == [Sample.entraKey])
-        // Other tabs and the search filter apply to lingering rows too.
-        model.panelTab = .azure
-        #expect(model.activeRowsOrdered.isEmpty)
-        model.panelTab = .roles
+        // The search filter applies to lingering rows too.
         model.searchQuery = "billing"
         #expect(model.activeRowsOrdered.isEmpty)
         model.searchQuery = ""

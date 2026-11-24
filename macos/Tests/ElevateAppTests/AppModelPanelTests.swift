@@ -69,17 +69,17 @@ struct AppModelPanelTests {
         cleanup(model)
     }
 
-    @Test func activeAssignmentsOrderedShowsOnlyTheCurrentTabsKinds() async {
+    @Test func activeAssignmentsOrderedShowsEveryKind() async {
         let model = await modelWithOneOfEachKind()
         model.active = [
             Sample.entraKey: Sample.assignment(Sample.entraKey),
             Sample.azureKey: Sample.assignment(Sample.azureKey),
             Sample.groupKey: Sample.assignment(Sample.groupKey),
         ]
-        model.panelTab = .roles
-        #expect(model.activeAssignmentsOrdered.map(\.roleKey) == [Sample.entraKey])
-        model.panelTab = .azure
-        #expect(model.activeAssignmentsOrdered.map(\.roleKey) == [Sample.azureKey])
+        for tab in [PanelTab.roles, .azure, .groups, .all] {
+            model.panelTab = tab
+            #expect(Set(model.activeAssignmentsOrdered.map(\.roleKey)) == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        }
         #expect(model.activeCount(for: .groups) == 1)
         cleanup(model)
     }

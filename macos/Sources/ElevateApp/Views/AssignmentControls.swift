@@ -54,7 +54,7 @@ struct AssignmentControls: View {
                         Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             .help(model.propagationTooltip(for: key) ?? "")
                     }
-                    if let a = assignment, lockedFor <= 0, ExtendWindow.canExtend(a, policy: policy, now: ctx.date) {
+                    if model.canExtendNow(key, now: ctx.date) {
                         Button("Extend") {
                             if NSEvent.modifierFlags.contains(.option) {
                                 Task { if await !model.quickActivate(key) { open(.activate([key])) } }

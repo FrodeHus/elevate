@@ -21,6 +21,10 @@ extension AppModel {
         }
     }
 
+    func approvals(in tenant: TenantKey?) -> [ApprovalRequest] {
+        tenant == nil ? approvalsOrdered : approvalsOrdered.filter { $0.tenantKey == tenant }
+    }
+
     /// The menu bar glyph's condition: everything pending, never narrowed by the panel search.
     var pendingApprovalCount: Int { allApprovals.count }
 

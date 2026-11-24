@@ -39,9 +39,6 @@ extension AppModel {
         highlightedRole = nil
     }
 
-    /// Nothing in this task defines an empty home; Task 3 replaces this.
-    var homeIsEmpty: Bool { false }
-
     var panelContent: PanelContent {
         switch panelSelection {
         case .profile(let id): .profile(id)

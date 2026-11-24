@@ -153,17 +153,22 @@ extension AppModel {
         return active.values.count { $0.status == .active && kinds.contains($0.roleKey.scope.kind) }
     }
 
-    /// The "Active now" summary shows only the current tab's kinds; the tab labels carry the other counts.
-    var activeAssignmentsOrdered: [ActiveAssignment] {
-        summaryOrdered(active.values)
+    /// "Active now" lists every kind; the tab labels carry the per-kind counts.
+    var activeAssignmentsOrdered: [ActiveAssignment] { activeAssignments(in: nil) }
+
+    var activeRowsOrdered: [ActiveAssignment] { activeRows(in: nil) }
+
+    /// Every kind in summary order; nil means all tenants.
+    func activeAssignments(in tenant: TenantKey?) -> [ActiveAssignment] {
+        summaryOrdered(active.values, in: tenant)
     }
 
-    /// Rows for the "Active now" section: the ordered active list, then assignments deactivated
-    /// moments ago so their row can show the confirmation before it leaves.
-    var activeRowsOrdered: [ActiveAssignment] {
-        let items = activeAssignmentsOrdered
+    /// The ordered active list, then assignments deactivated moments ago so their row can show
+    /// the confirmation before it leaves.
+    func activeRows(in tenant: TenantKey?) -> [ActiveAssignment] {
+        let items = activeAssignments(in: tenant)
         let lingering = recentlyDeactivated.values.filter { a in !items.contains { $0.roleKey == a.roleKey } }
-        return items + summaryOrdered(lingering)
+        return items + summaryOrdered(lingering, in: tenant)
     }
 
     /// Keeps `assignment`'s row in "Active now" for a moment after its deactivation succeeded.
@@ -179,9 +184,8 @@ extension AppModel {
         }
     }
 
-    private func summaryOrdered(_ assignments: some Sequence<ActiveAssignment>) -> [ActiveAssignment] {
-        let kinds = Self.kinds(for: panelTab)
-        let ordered = ActiveSummary.order(assignments.filter { kinds.contains($0.roleKey.scope.kind) })
+    private func summaryOrdered(_ assignments: some Sequence<ActiveAssignment>, in tenant: TenantKey?) -> [ActiveAssignment] {
+        let ordered = ActiveSummary.order(assignments.filter { tenant == nil || $0.roleKey.tenantKey == tenant })
         guard isFiltering else { return ordered }
         return ordered.filter { a in
             if let r = role(for: a.roleKey) { return matchesFilter(r) }

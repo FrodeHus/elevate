@@ -21,6 +21,7 @@ struct AppModelSelectionStateTests {
 
     @Test func defaultsToAllTenantsAndHome() async {
         let model = await makeTwoTenantModel()
+        model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)  // an empty home falls back to the list
         #expect(model.panelSelection == .allTenants)
         #expect(model.panelContent == .home)
         cleanup(model)
@@ -104,6 +105,7 @@ struct AppModelSelectionStateTests {
 
     @Test func escapeClearsTheFilterThenReturnsHome() async {
         let model = await makeTwoTenantModel()
+        model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)
         model.scopeTenant = Sample.tenantKey
         model.searchQuery = "glob"
         model.handleEscape()
