@@ -21,8 +21,12 @@ public sealed partial class RunProfileWindow : Window
         _profileId = profileId;
         DialogWindows.Configure(this, "Run profile", 600, 560, Root, autoHeight: true);
         _seenRunRequest = model.RunRequests.GetValueOrDefault(profileId);
-        // The session exists before the control binds; one that already ran starts over.
-        model.ShowProfile(profileId);
+        // The session exists before the control binds; one that already ran starts over. The flyout's selection is not touched.
+        if (model.RunSession(profileId).Finished)
+        {
+            model.ResetRunSession(profileId);
+        }
+
         model.RunWindowsOpen.Add(profileId);
         RunContent.Bind(model, profileId, compact: false);
         RunContent.Done += (_, _) => Close();
@@ -32,7 +36,7 @@ public sealed partial class RunProfileWindow : Window
         {
             _model.Changed -= OnModelChanged;
             RunContent.Unbind();
-            _model.RunWindowsOpen.Remove(profileId);
+            _model.RunWindowClosed(profileId);
         };
     }
 

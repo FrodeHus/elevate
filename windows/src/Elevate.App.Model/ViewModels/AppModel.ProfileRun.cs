@@ -123,6 +123,21 @@ public sealed partial class AppModel
         Select(new PanelSelection.Profile(id));
     }
 
+    /// <summary>
+    /// The run window went away. Its session goes with it unless the flyout is showing that profile, a run
+    /// is still going, or finished results nobody has read are waiting to reopen the flyout.
+    /// </summary>
+    public void RunWindowClosed(Guid id)
+    {
+        RunWindowsOpen.Remove(id);
+        if (SelectedProfile != id && _runSessions.TryGetValue(id, out var session) && !session.Running && (!session.Finished || session.ResultsSeen))
+        {
+            _runSessions.Remove(id);
+        }
+
+        Touch();
+    }
+
     /// <summary>Only counts when the results can be on screen: the open flyout on this profile, or its run window.</summary>
     public void MarkRunSeen(Guid id)
     {

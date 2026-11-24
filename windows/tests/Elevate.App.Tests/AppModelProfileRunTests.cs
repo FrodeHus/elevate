@@ -352,4 +352,79 @@ public class AppModelProfileRunTests
         test.Model.RunSession(id).Failure.Should().NotBeNullOrEmpty();
         test.Notifier.Posted.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task ReopeningAfterBrowsingKeepsAnUnseenFinishedRun()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        var model = test.Model;
+        // What the bound control does on every redraw.
+        model.Changed += (_, _) =>
+        {
+            if (model.RunSessions.TryGetValue(id, out var s) && s.Finished && !s.ResultsSeen)
+            {
+                model.MarkRunSeen(id);
+            }
+        };
+        model.PanelOpened();
+        model.ShowProfile(id);
+        model.Browsing = true;
+        model.PanelClosed();
+        model.RunSession(id).Finished = true;
+
+        model.PanelOpened();
+
+        model.SelectedProfile.Should().Be(id);
+        model.RunSessions.Should().ContainKey(id);
+    }
+
+    [Fact]
+    public async Task AnUnstartedRunWindowLeavesNoSelectionOrSessionBehind()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        var model = test.Model;
+        model.RunSession(id);
+        model.RunWindowsOpen.Add(id);
+
+        model.RunWindowClosed(id);
+
+        model.SelectedProfile.Should().BeNull();
+        model.RunSessions.Should().BeEmpty();
+        model.RunWindowsOpen.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUnseenRunFromARunWindowSurvivesItsClosingAndReopensTheFlyout()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        var model = test.Model;
+        model.RunSession(id);
+        model.RunWindowsOpen.Add(id);
+        await model.SubmitRunAsync(id);
+
+        model.RunWindowClosed(id);
+
+        model.SelectedProfile.Should().BeNull();
+        model.RunSessions.Should().ContainKey(id);
+        model.PanelOpened();
+        model.SelectedProfile.Should().Be(id);
+    }
+
+    [Fact]
+    public async Task ARunWindowClosingKeepsTheFlyoutsOwnDraft()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        var model = test.Model;
+        model.ShowProfile(id);
+        model.RunWindowsOpen.Add(id);
+
+        model.RunWindowClosed(id);
+
+        model.SelectedProfile.Should().Be(id);
+        model.RunSessions.Should().ContainKey(id);
+    }
 }
