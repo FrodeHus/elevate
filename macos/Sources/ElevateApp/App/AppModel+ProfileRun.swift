@@ -55,7 +55,7 @@ extension AppModel {
         }
         session.running = false
         session.finished = true
-        if !panelIsOpen {
+        if !runIsOnScreen(id) {
             await notifyOutcome(title: profile(id: id)?.name ?? "Profile", outcomes: outcomes, attempted: attempted)
         }
     }
@@ -73,7 +73,14 @@ extension AppModel {
         }
     }
 
-    func markRunSeen(_ id: UUID) { runSessions[id]?.resultsSeen = true }
+    /// The run's form is visible: in the open panel, or in its own window.
+    func runIsOnScreen(_ id: UUID) -> Bool { (panelIsOpen && selectedProfile == id) || runWindowsOpen.contains(id) }
+
+    /// Results count as read only while they can be seen; a view kept alive in the closed panel must
+    /// not make `reopenProfileSelection` drop results nobody looked at.
+    func markRunSeen(_ id: UUID) {
+        if runIsOnScreen(id) { runSessions[id]?.resultsSeen = true }
+    }
 
     func panelClosed() { panelIsOpen = false }
 

@@ -48,6 +48,7 @@ struct ProfileRunContent: View {
             if session.finished { model.markRunSeen(profileId) }
         }
         .onChange(of: session.finished) { _, finished in if finished { model.markRunSeen(profileId) } }
+        .onChange(of: model.panelIsOpen) { _, open in if open && session.finished { model.markRunSeen(profileId) } }
     }
 
     private func groupedTenantKeys(_ session: ProfileRunSession) -> [TenantKey] {

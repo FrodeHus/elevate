@@ -88,6 +88,7 @@ struct AppModelProfileRunTests {
 
     @Test func seenResultsDoNotReopen() async {
         let (model, id) = await loadedModel()
+        model.panelOpened()
         model.showProfile(id)
         model.runSession(for: id).finished = true
         model.markRunSeen(id)
@@ -121,6 +122,38 @@ struct AppModelProfileRunTests {
         await model.submitRun(id)
         #expect(model.runSessions[id]?.finished == true)
         #expect(await notifier.notifications.isEmpty)
+        cleanup(model)
+    }
+
+    @Test func resultsFinishedWithThePanelClosedAreNotSeenUntilThePanelReopensOnThem() async {
+        let (model, id) = await loadedModel()
+        model.panelOpened()
+        model.showProfile(id)
+        model.panelClosed()
+        model.runSession(for: id).finished = true
+        model.markRunSeen(id)   // a view that stayed alive in the closed panel
+        #expect(model.runSession(for: id).resultsSeen == false)
+        model.panelOpened()
+        #expect(model.panelSelection == .profile(id))
+        model.markRunSeen(id)
+        #expect(model.runSession(for: id).resultsSeen)
+        model.panelClosed()
+        model.panelOpened()
+        #expect(model.panelSelection == .allTenants)
+        cleanup(model)
+    }
+
+    @Test func aRunWindowRunMarksResultsSeenAndDoesNotNotifyWithThePanelClosed() async {
+        let notifier = RecordingNotifier()
+        let (model, id) = await loadedModel(notifier: notifier)
+        model.runWindowsOpen.insert(id)
+        model.runSession(for: id).justification = "because"
+        model.panelClosed()
+        await model.submitRun(id)
+        #expect(model.runSessions[id]?.finished == true)
+        #expect(await notifier.notifications.isEmpty)
+        model.markRunSeen(id)
+        #expect(model.runSession(for: id).resultsSeen)
         cleanup(model)
     }
 

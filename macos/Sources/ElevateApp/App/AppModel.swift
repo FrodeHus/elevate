@@ -92,6 +92,8 @@ final class AppModel {
     /// Profile runs in progress or just finished. Never persisted; lives here so a run survives the panel closing.
     var runSessions: [UUID: ProfileRunSession] = [:]
     var panelIsOpen = false
+    /// Profiles whose run window is open: their results are on screen with the panel closed too.
+    var runWindowsOpen: Set<UUID> = []
     /// True while the user is browsing the full role list rather than the home view. Never persisted.
     var browsing = false
     var startupError: String?
