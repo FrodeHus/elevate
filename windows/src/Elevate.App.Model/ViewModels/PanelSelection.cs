@@ -22,4 +22,17 @@ public abstract record PanelContent
     public sealed record Tenant(TenantKey Key) : PanelContent;
 
     public sealed record Profile(Guid Id) : PanelContent;
+
+    public sealed record AccessPackages(TenantKey Key) : PanelContent;
+
+    public sealed record RequestPackage(TenantKey Key, AccessPackage Package) : PanelContent;
+}
+
+/// <summary>The tabs of the access packages view.</summary>
+public enum AccessPackageTab
+{
+    Available,
+    Requested,
+    Assigned,
+    Declined,
 }

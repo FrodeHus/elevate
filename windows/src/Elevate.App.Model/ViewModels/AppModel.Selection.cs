@@ -33,6 +33,8 @@ public sealed partial class AppModel
         set
         {
             Settings.PanelTenant = value;
+            // Any change of tenant, however it comes about, leaves that tenant's access packages.
+            CloseAccessPackages();
             Touch();
         }
     }
@@ -59,6 +61,7 @@ public sealed partial class AppModel
     public void Select(PanelSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
+        CloseAccessPackages();
         switch (selection)
         {
             case PanelSelection.AllTenants:
@@ -75,7 +78,70 @@ public sealed partial class AppModel
         }
     }
 
-    public PanelContent PanelContent => PanelSelection switch
+    /// <summary>The tenant whose access packages the main view shows; null when it shows something else. Never persisted.</summary>
+    public TenantKey? AccessPackagesTenant { get; private set; }
+
+    /// <summary>The package whose request form replaces the list; null when the list shows.</summary>
+    public AccessPackage? RequestingPackage { get; private set; }
+
+    private AccessPackageTab _accessPackagesTab;
+
+    /// <summary>Lives here, not in the view, so it survives the trip through the request form.</summary>
+    public AccessPackageTab AccessPackagesTab
+    {
+        get => _accessPackagesTab;
+        set
+        {
+            if (SetProperty(ref _accessPackagesTab, value))
+            {
+                Touch();
+            }
+        }
+    }
+
+    /// <summary>Shows the tenant's access packages in the main view; from the all-tenants list this selects the tenant too.</summary>
+    public void OpenAccessPackages(TenantKey key)
+    {
+        Select(new PanelSelection.Tenant(key));
+        AccessPackagesTenant = key;
+        _accessPackagesTab = AccessPackageTab.Available;
+        Touch();
+    }
+
+    public void BeginPackageRequest(AccessPackage package)
+    {
+        RequestingPackage = package;
+        Touch();
+    }
+
+    public void EndPackageRequest()
+    {
+        RequestingPackage = null;
+        Touch();
+    }
+
+    /// <summary>A submitted request: back to the list, on the Requested tab where it now shows.</summary>
+    public void FinishPackageRequest()
+    {
+        _accessPackagesTab = AccessPackageTab.Requested;
+        EndPackageRequest();
+    }
+
+    public void CloseAccessPackages()
+    {
+        if (AccessPackagesTenant is null && RequestingPackage is null)
+        {
+            return;
+        }
+
+        AccessPackagesTenant = null;
+        RequestingPackage = null;
+        Touch();
+    }
+
+    public PanelContent PanelContent => AccessPackagesTenant is { } packages && PanelSelection is PanelSelection.Tenant tenant && tenant.Key == packages
+        ? RequestingPackage is { } package ? new PanelContent.RequestPackage(packages, package) : new PanelContent.AccessPackages(packages)
+        : PanelSelection switch
     {
         PanelSelection.Profile p => new PanelContent.Profile(p.Id),
         PanelSelection.Tenant t => new PanelContent.Tenant(t.Key),
@@ -95,8 +161,17 @@ public sealed partial class AppModel
     /// </summary>
     public bool HandleEscape()
     {
-        // The access-package request and list steps go here, ahead of the filter, once those views exist.
-        if (SearchQuery.Length > 0)
+        // Judged by what is on screen, so packages left behind by a vanished tenant cannot swallow a press.
+        var content = PanelContent;
+        if (content is PanelContent.RequestPackage)
+        {
+            EndPackageRequest();
+        }
+        else if (content is PanelContent.AccessPackages)
+        {
+            CloseAccessPackages();
+        }
+        else if (SearchQuery.Length > 0)
         {
             SearchQuery = string.Empty;
         }

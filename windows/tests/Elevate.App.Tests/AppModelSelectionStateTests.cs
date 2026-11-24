@@ -219,6 +219,113 @@ public class AppModelSelectionStateTests
         test.Model.ScopeTenant.Should().Be(One);
     }
 
+    private static readonly AccessPackage Package = new("pkg-1", "Finance Reporting Tools");
+
+    [Fact]
+    public async Task AccessPackagesAndTheRequestFormReplaceTheTenantView()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.OpenAccessPackages(One);
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+        model.BeginPackageRequest(Package);
+        model.PanelContent.Should().Be(new PanelContent.RequestPackage(One, Package));
+        model.EndPackageRequest();
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+    }
+
+    [Fact]
+    public async Task EscapeStepsBackFormThenPackagesThenTheRoleListThenReturnsFalse()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.OpenAccessPackages(One);
+        model.BeginPackageRequest(Package);
+
+        model.HandleEscape().Should().BeTrue();
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+        model.HandleEscape().Should().BeTrue();
+        model.PanelContent.Should().Be(new PanelContent.Tenant(One));
+        model.HandleEscape().Should().BeFalse();
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+    }
+
+    [Fact]
+    public async Task SelectingAnythingInTheSidebarLeavesAccessPackages()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
+        foreach (PanelSelection target in new PanelSelection[]
+            { new PanelSelection.AllTenants(), new PanelSelection.Tenant(Two), new PanelSelection.Tenant(One), new PanelSelection.Profile(profile.Id) })
+        {
+            model.Select(new PanelSelection.Tenant(One));
+            model.OpenAccessPackages(One);
+            model.BeginPackageRequest(Package);
+            model.Select(target);
+            model.AccessPackagesTenant.Should().BeNull();
+            model.RequestingPackage.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task ChangingTheTenantWithoutSelectDropsStaleAccessPackages()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(One);
+        model.BeginPackageRequest(Package);
+        model.SearchAllTenants();
+        model.AccessPackagesTenant.Should().BeNull();
+        model.RequestingPackage.Should().BeNull();
+
+        model.OpenAccessPackages(One);
+        model.ScopeTenant = null;
+        model.AccessPackagesTenant.Should().BeNull();
+
+        // The next Escape is not swallowed by packages that are no longer shown.
+        model.OpenAccessPackages(One);
+        model.SearchAllTenants();
+        model.Browsing = true;
+        model.HandleEscape();
+        model.Browsing.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OpeningAccessPackagesFromTheAllTenantsListSelectsThatTenant()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(Two);
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(Two));
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(Two));
+        model.HandleEscape();
+        model.PanelContent.Should().Be(new PanelContent.Tenant(Two));
+    }
+
+    [Fact]
+    public async Task ThePackageTabSurvivesTheFormAndSubmittingShowsRequested()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(One);
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Available);
+        model.AccessPackagesTab = AccessPackageTab.Assigned;
+        model.BeginPackageRequest(Package);
+        model.EndPackageRequest();
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Assigned);
+
+        model.BeginPackageRequest(Package);
+        model.FinishPackageRequest();
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Requested);
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+
+        model.OpenAccessPackages(One);
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Available);
+    }
+
     [Fact]
     public async Task AMissingProfileIsNotASelection()
     {
