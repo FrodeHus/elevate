@@ -120,13 +120,50 @@ public class AppModelPanelTests
     }
 
     [Fact]
-    public void AStoredTabIsKept()
+    public void ATabChosenWithTheCurrentBuildIsKept()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"panelTab\":\"roles\",\"collapsedProfiles\":false}");
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.Roles);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void ARolesTabFromTheOldReleaseCountsAsNotChosen()
     {
         var dir = Directory.CreateTempSubdirectory().FullName;
         try
         {
             File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"panelTab\":\"roles\"}");
+            var settings = new AppSettings(dir);
+            settings.PanelTab.Should().Be(PanelTab.All);
+
+            // Saving marks the file as written by this build, so a later Entra choice sticks.
+            settings.PanelTab = PanelTab.Roles;
             new AppSettings(dir).PanelTab.Should().Be(PanelTab.Roles);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void TheAllTabIsNotWrittenSoAnOlderReleaseCanStillReadTheFile()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var settings = new AppSettings(dir);
+            settings.CollapsedActive = true;
+            File.ReadAllText(Path.Combine(dir, "settings.json")).Should().NotContain("panelTab");
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.All);
         }
         finally
         {

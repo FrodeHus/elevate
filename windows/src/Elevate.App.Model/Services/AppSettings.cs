@@ -398,7 +398,8 @@ public sealed class AppSettings : ObservableObject
             _clientId = model.ClientId ?? string.Empty;
             _customClientId = model.CustomClientId ?? string.Empty;
             _pinnedClientId = model.PinnedClientId ?? string.Empty;
-            _panelTab = model.PanelTab ?? PanelTab.All;
+            // The previous release wrote "roles" on every save and had no collapsedProfiles, so that pair is "never chose".
+            _panelTab = model.PanelTab is null || (model.PanelTab == PanelTab.Roles && model.CollapsedProfiles is null) ? PanelTab.All : model.PanelTab.Value;
             _collapsedActive = model.CollapsedActive ?? false;
             _collapsedApprovals = model.CollapsedApprovals ?? false;
             _lastApprovalJustification = model.LastApprovalJustification ?? string.Empty;
@@ -423,7 +424,7 @@ public sealed class AppSettings : ObservableObject
     private void Save()
     {
         var model = new FileModel(
-            _clientId, _customClientId, _pinnedClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
+            _clientId, _customClientId, _pinnedClientId, _panelTab == PanelTab.All ? null : _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],
