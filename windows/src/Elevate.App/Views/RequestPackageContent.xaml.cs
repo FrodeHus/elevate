@@ -150,6 +150,15 @@ public sealed partial class RequestPackageContent : UserControl
 
     private void OnPolicyChanged(object sender, SelectionChangedEventArgs e) => Update();
 
+    /// <summary>For the flyout reopening on the form; the form's own focus waits for the requirements to load.</summary>
+    public void FocusJustification()
+    {
+        if (FormPane.Visibility == Visibility.Visible)
+        {
+            Justification.Focus(FocusState.Programmatic);
+        }
+    }
+
     private void OnJustificationChanged(object sender, TextChangedEventArgs e) => Update();
 
     private void OnCancel(object sender, RoutedEventArgs e) => _model.EndPackageRequest();

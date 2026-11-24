@@ -177,8 +177,9 @@ public sealed partial class PanelView : UserControl
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
-        // Escape or a model reset can change the query while the box has focus elsewhere.
-        if (SearchBox.Text != model.SearchQuery)
+        // Escape can change the query while focus is elsewhere. Never while typing: TextChanged arrives after the
+        // text changed, so a redraw in between would write the old query back and lose the keystroke.
+        if (SearchBox.FocusState == FocusState.Unfocused && SearchBox.Text != model.SearchQuery)
         {
             SearchBox.Text = model.SearchQuery;
         }
@@ -516,6 +517,9 @@ public sealed partial class PanelView : UserControl
         }
     }
 
+    /// <summary>The flyout opens showing everything: the filter box is cleared (the model's query is cleared by PanelOpened).</summary>
+    public void ResetSearch() => SearchBox.Text = string.Empty;
+
     /// <summary>The flyout opens ready to type in: called once the window is active, or the focus does not take.</summary>
     public void FocusSearch() => SearchBox.Focus(FocusState.Programmatic);
 
@@ -529,6 +533,10 @@ public sealed partial class PanelView : UserControl
         else if (PackagesView.Visibility == Visibility.Visible)
         {
             PackagesView.FocusSearch();
+        }
+        else if (RequestView.Visibility == Visibility.Visible)
+        {
+            RequestForm.FocusJustification();
         }
         else
         {

@@ -213,6 +213,17 @@ public class AppModelProfileRunTests
     }
 
     [Fact]
+    public async Task ARunThatEndsWithThePanelOpenOnAnotherViewNotifies()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        test.Model.RunSession(id);
+        test.Model.PanelOpened();
+        await test.Model.SubmitRunAsync(id);
+        test.Notifier.Posted.Should().ContainSingle().Which.Title.Should().Be("Ops");
+    }
+
+    [Fact]
     public async Task ARunThatEndsWithItsRunWindowOpenDoesNotNotify()
     {
         var (test, id) = await ModelAsync();

@@ -106,7 +106,7 @@ public sealed partial class AppModel
 
         // A failed run posts no toast: empty outcomes would read as a success. The failure stays on
         // the session, and the unseen result reopens the panel on it.
-        if (session.Failure is null && !PanelIsOpen && !RunWindowsOpen.Contains(id))
+        if (session.Failure is null && !((PanelIsOpen && SelectedProfile == id) || RunWindowsOpen.Contains(id)))
         {
             await NotifyOutcomeAsync(Profile(id)?.Name ?? "Profile", outcomes, attempted);
         }
