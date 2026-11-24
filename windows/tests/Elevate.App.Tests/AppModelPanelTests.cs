@@ -57,7 +57,7 @@ public class AppModelPanelTests
     }
 
     [Fact]
-    public async Task ActiveAssignmentsOrderedShowsOnlyTheCurrentTabsKinds()
+    public async Task ActiveAssignmentsIgnoreTheTabWhileTheTabCountsStayPerKind()
     {
         using var test = await ModelWithOneOfEachKindAsync();
         var model = test.Model;
@@ -65,9 +65,9 @@ public class AppModelPanelTests
         model.Active[Sample.AzureKey] = Sample.Assignment(Sample.AzureKey);
         model.Active[Sample.GroupKey] = Sample.Assignment(Sample.GroupKey);
         model.PanelTab = PanelTab.Roles;
-        model.ActiveAssignmentsOrdered.Select(a => a.RoleKey).Should().Equal(Sample.EntraKey);
+        model.ActiveAssignments(null).Should().HaveCount(3);
         model.PanelTab = PanelTab.Azure;
-        model.ActiveAssignmentsOrdered.Select(a => a.RoleKey).Should().Equal(Sample.AzureKey);
+        model.ActiveAssignments(null).Should().HaveCount(3);
         model.ActiveCount(PanelTab.Groups).Should().Be(1);
     }
 

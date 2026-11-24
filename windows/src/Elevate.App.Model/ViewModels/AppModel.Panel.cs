@@ -213,27 +213,6 @@ public sealed partial class AppModel
     public int ActiveCount(TenantKey key) =>
         RolesFor(key, PanelTab).Count(r => Assignment(r.Key)?.Status.Kind == AssignmentStatusKind.Active);
 
-    /// <summary>The "Active now" summary shows only the current pivot's kinds; the pivot labels carry the other counts.</summary>
-    public IReadOnlyList<ActiveAssignment> ActiveAssignmentsOrdered
-    {
-        get
-        {
-            var kinds = Kinds(PanelTab);
-            var ordered = ActiveSummary.Order(Active.Values.Where(a => kinds.Contains(a.RoleKey.Scope.Kind)));
-            if (!IsFiltering)
-            {
-                return ordered;
-            }
-
-            return
-            [
-                .. ordered.Where(a => Role(a.RoleKey) is { } r
-                    ? MatchesFilter(r)
-                    : PanelFilter.Matches(SearchQuery, SummaryName(a.RoleKey))),
-            ];
-        }
-    }
-
     // MARK: Selection
 
     public int SelectionCount => Selection.Count;

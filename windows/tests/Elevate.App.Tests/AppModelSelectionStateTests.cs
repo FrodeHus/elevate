@@ -24,6 +24,10 @@ public class AppModelSelectionStateTests
         var test = await TestModel.BootstrappedAsync(state);
         test.Model.Roles[One] = [Sample.Role(Sample.Key(new EntraDirectoryScope("a", "/"), "id-1", "tenant-1"), "Global Reader")];
         test.Model.Roles[Two] = [Sample.Role(Sample.Key(new EntraDirectoryScope("b", "/"), "id-2", "tenant-2"), "Billing Admin")];
+
+        // Home shows only while something is active or awaiting approval.
+        var active = test.Model.Roles[One].Single().Key;
+        test.Model.Active[active] = Sample.Assignment(active);
         return test;
     }
 

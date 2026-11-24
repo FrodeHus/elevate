@@ -697,7 +697,7 @@ public sealed partial class PanelItemTemplateSelector : DataTemplateSelector
 public static class PanelListBuilder
 {
     /// <summary>The five-minute lock PIM enforces after an activation before it can be deactivated.</summary>
-    public static readonly TimeSpan DeactivationLock = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan DeactivationLock = AppModel.DeactivationLock;
 
     public static IReadOnlyList<PanelGroup> Build(AppModel model, DateTimeOffset now)
     {
@@ -724,7 +724,7 @@ public static class PanelListBuilder
             groups.Add(group);
         }
 
-        var active = model.ActiveAssignmentsOrdered;
+        var active = model.ActiveAssignments(null);
         if (active.Count > 0)
         {
             var group = new PanelGroup("active-now", GroupKind.ActiveNow)
@@ -1047,7 +1047,7 @@ public static class PanelListBuilder
         row.PolicyTooltip = assignment is null ? PolicyNotes.Explanation(role.Policy) : null;
         row.RequiresApproval = role.Policy.RequiresApproval;
         var viewOnly = role.Key.Scope.Kind == RoleScopeKind.EntraDirectory ? model.EntraViewOnlyReason(role.Key.TenantKey) : null;
-        Fill(model, row, assignment, role.Policy, viewOnly, now, allowActivate: true);
+        Fill(model, row, assignment, viewOnly, now, allowActivate: true);
         return row;
     }
 
@@ -1110,12 +1110,12 @@ public static class PanelListBuilder
             Name = model.SummaryName(key),
             Detail = $"{model.Tenant(key.TenantKey)?.DisplayName ?? key.TenantId} · {model.Identity(key.IdentityId)?.Upn ?? key.IdentityId}",
         };
-        Fill(model, row, assignment, model.Role(key)?.Policy ?? RolePolicy.ManualDefault, null, now, allowActivate: false);
+        Fill(model, row, assignment, null, now, allowActivate: false);
         return row;
     }
 
     /// <summary>The time- and status-dependent part of a row; also what the countdown timer recomputes.</summary>
-    public static void Fill(AppModel model, RoleRow row, ActiveAssignment? assignment, RolePolicy policy, string? viewOnlyReason, DateTimeOffset now, bool allowActivate)
+    public static void Fill(AppModel model, RoleRow row, ActiveAssignment? assignment, string? viewOnlyReason, DateTimeOffset now, bool allowActivate)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(row);
@@ -1152,7 +1152,7 @@ public static class PanelListBuilder
                 row.DeactivateTooltip = lockedFor > TimeSpan.Zero
                     ? $"Can be deactivated in {Math.Ceiling(lockedFor.TotalSeconds).ToString(CultureInfo.InvariantCulture)} s (Entra enforces 5 minutes)"
                     : "Deactivate this role now";
-                row.ShowExtend = lockedFor <= TimeSpan.Zero && ExtendWindow.CanExtend(assignment, policy, now);
+                row.ShowExtend = model.CanExtendNow(key, now);
                 row.SelectEnabled = false;
 
                 // PIM calls it active; only a probe can call it usable. Until one does, the row says

@@ -75,9 +75,6 @@ public sealed partial class AppModel
         _ => Browsing || IsFiltering || SelectMode || HomeIsEmpty ? new PanelContent.RoleList() : new PanelContent.Home(),
     };
 
-    /// <summary>Whether Home has nothing to show; replaced by the real rule with the Home view.</summary>
-    private bool HomeIsEmpty => false;
-
     /// <summary>Roles matching the filter in every tracked tenant but the scoped one, so the list can offer to widen the search.</summary>
     public int OtherTenantMatchCount => ScopeTenant is { } scope && IsFiltering
         ? State.Tenants.Where(t => t.Key != scope).Sum(t => RolesFor(t.Key, PanelTab).Count)

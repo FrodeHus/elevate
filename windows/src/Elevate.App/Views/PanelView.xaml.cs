@@ -382,8 +382,7 @@ public sealed partial class PanelView : UserControl
                 }
 
                 var assignment = _model.Assignment(row.RoleKey);
-                var policy = _model.Role(row.RoleKey)?.Policy ?? RolePolicy.ManualDefault;
-                PanelListBuilder.Fill(_model, row, assignment, policy, row.ViewOnlyReason, now, allowActivate: !row.IsSummary);
+                PanelListBuilder.Fill(_model, row, assignment, row.ViewOnlyReason, now, allowActivate: !row.IsSummary);
             }
         }
     }
