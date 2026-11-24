@@ -66,6 +66,13 @@ extension AppModel {
         select(.profile(id))
     }
 
+    /// Per-row progress of a run in flight, kept on the session so it shows with the panel closed too.
+    func mirrorProgressIntoRunSessions() {
+        for session in runSessions.values where session.running {
+            for item in session.items { if let result = progress[item.roleKey] { session.rowResults[item.roleKey] = result } }
+        }
+    }
+
     func markRunSeen(_ id: UUID) { runSessions[id]?.resultsSeen = true }
 
     func panelClosed() { panelIsOpen = false }

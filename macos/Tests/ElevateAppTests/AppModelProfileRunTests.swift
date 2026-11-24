@@ -42,6 +42,17 @@ struct AppModelProfileRunTests {
         cleanup(model)
     }
 
+    @Test func progressReachesTheRowsOfARunningSessionOnly() async {
+        let (model, id) = await loadedModel()
+        let session = model.runSession(for: id)
+        model.progress[Sample.entraKey] = .failed(.unexpected(status: 0, body: "x"))
+        #expect(session.rowResults.isEmpty)
+        session.running = true
+        model.progress[Sample.entraKey] = .failed(.unexpected(status: 0, body: "x"))
+        #expect(session.rowResults[Sample.entraKey] != nil)
+        cleanup(model)
+    }
+
     @Test func aDraftSurvivesThePanelClosing() async {
         let (model, id) = await loadedModel()
         model.showProfile(id)

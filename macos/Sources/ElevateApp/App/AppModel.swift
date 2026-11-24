@@ -19,7 +19,7 @@ final class AppModel {
     var active: [RoleKey: ActiveAssignment] = [:]
     var busy: Set<TenantKey> = []
     var tenantErrors: [TenantKey: String] = [:]
-    var progress: [RoleKey: ActivationOutcome.Result] = [:]
+    var progress: [RoleKey: ActivationOutcome.Result] = [:] { didSet { mirrorProgressIntoRunSessions() } }
     var deactivationProgress: [RoleKey: DeactivationPhase] = [:]
     /// Assignments deactivated moments ago, kept so their "Active now" row can confirm in place.
     var recentlyDeactivated: [RoleKey: ActiveAssignment] = [:]
