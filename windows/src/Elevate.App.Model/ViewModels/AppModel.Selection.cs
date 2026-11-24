@@ -89,9 +89,13 @@ public sealed partial class AppModel
 
     public void SearchAllTenants() => ScopeTenant = null;
 
-    /// <summary>Steps back one level; false when there was nothing to step back from, so the flyout can close.</summary>
+    /// <summary>
+    /// Steps back one level per press; false when there was nothing to step back from, so the flyout can
+    /// close. Never changes the selected tenant. Port of <c>handleEscape</c>.
+    /// </summary>
     public bool HandleEscape()
     {
+        // The access-package request and list steps go here, ahead of the filter, once those views exist.
         if (SearchQuery.Length > 0)
         {
             SearchQuery = string.Empty;
@@ -100,11 +104,13 @@ public sealed partial class AppModel
         {
             SetSelectedProfile(null);
         }
-        else if (Browsing || SelectMode || ScopeTenant is not null)
+        else if (SelectMode)
+        {
+            SelectMode = false;
+        }
+        else if (Browsing && PanelSelection is PanelSelection.AllTenants)
         {
             Browsing = false;
-            SelectMode = false;
-            ScopeTenant = null;
         }
         else
         {

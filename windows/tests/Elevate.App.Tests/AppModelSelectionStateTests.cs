@@ -141,20 +141,53 @@ public class AppModelSelectionStateTests
     }
 
     [Fact]
-    public async Task EscapeClearsTheFilterThenReturnsHomeThenReportsNothingLeft()
+    public async Task EscapeStepsBackOnePressAtATimeAndNeverClearsTheTenant()
     {
         using var test = await TwoTenantsAsync();
         var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
         model.Select(new PanelSelection.Tenant(One));
-        model.Browsing = true;
+        model.Select(new PanelSelection.Profile(profile.Id));
         model.SearchQuery = "read";
 
         model.HandleEscape().Should().BeTrue();
         model.SearchQuery.Should().BeEmpty();
-        model.ScopeTenant.Should().Be(One);
+        model.SelectedProfile.Should().Be(profile.Id);
 
         model.HandleEscape().Should().BeTrue();
-        model.ScopeTenant.Should().BeNull();
+        model.SelectedProfile.Should().BeNull();
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+
+        model.HandleEscape().Should().BeFalse();
+        model.ScopeTenant.Should().Be(One);
+    }
+
+    [Fact]
+    public async Task LeavingAProfileReturnsToAllTenantsWhenThatIsWhereItWasOpened()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
+        model.Select(new PanelSelection.Profile(profile.Id));
+
+        model.HandleEscape().Should().BeTrue();
+
+        model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+    }
+
+    [Fact]
+    public async Task SelectModeAndBrowsingEachTakeOnePress()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Browsing = true;
+        model.SelectMode = true;
+
+        model.HandleEscape().Should().BeTrue();
+        model.SelectMode.Should().BeFalse();
+        model.Browsing.Should().BeTrue();
+
+        model.HandleEscape().Should().BeTrue();
         model.Browsing.Should().BeFalse();
         model.PanelContent.Should().Be(new PanelContent.Home());
 
@@ -162,20 +195,28 @@ public class AppModelSelectionStateTests
     }
 
     [Fact]
-    public async Task EscapeOnAProfileReturnsToTheTenantUnderneath()
+    public async Task BrowsingIsNotDismissedFromATenantView()
     {
         using var test = await TwoTenantsAsync();
         var model = test.Model;
-        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
         model.Select(new PanelSelection.Tenant(One));
-        model.Select(new PanelSelection.Profile(profile.Id));
-        model.PanelContent.Should().Be(new PanelContent.Profile(profile.Id));
+        model.Browsing = true;
+
+        model.HandleEscape().Should().BeFalse();
+
         model.ScopeTenant.Should().Be(One);
+        model.Browsing.Should().BeTrue();
+    }
 
-        model.HandleEscape().Should().BeTrue();
+    [Fact]
+    public async Task ATenantViewWithNothingToDismissReturnsFalseAndKeepsTheTenant()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Tenant(One));
 
-        model.SelectedProfile.Should().BeNull();
-        model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+        test.Model.HandleEscape().Should().BeFalse();
+
+        test.Model.ScopeTenant.Should().Be(One);
     }
 
     [Fact]
