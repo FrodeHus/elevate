@@ -13,6 +13,8 @@ struct PanelHeader: View {
         HStack {
             if case .tenant(let key) = model.panelContent, let tenant = model.tenant(key) {
                 tenantTitle(tenant)
+            } else if case .profile(let id) = model.panelContent, let profile = model.profile(id: id) {
+                profileTitle(profile)
             } else {
                 // "Elevate" stays the primary mark at full weight; an organization's name is added
                 // beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
@@ -36,10 +38,12 @@ struct PanelHeader: View {
                 }
             }
             Spacer()
-            Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
-                .toggleStyle(.button)
-                .help("Select several roles to activate together")
-                .accessibilityLabel("Select roles")
+            if !showsProfile {
+                Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
+                    .toggleStyle(.button)
+                    .help("Select several roles to activate together")
+                    .accessibilityLabel("Select roles")
+            }
             Button { Task { await model.refreshAll(userInitiated: true) } } label: { Image(systemName: "arrow.clockwise") }
                 .keyboardShortcut("r")
                 .help("Refresh (⌘R)")
@@ -49,6 +53,36 @@ struct PanelHeader: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private var showsProfile: Bool { if case .profile = model.panelContent { true } else { false } }
+
+    private func profileTitle(_ profile: ActivationProfile) -> some View {
+        let tenants = Set(profile.entries.map(\.roleKey.tenantKey)).count
+        let caption = "\(ProfileSummary.caption(entries: profile.entries)) · \(tenants) tenant\(tenants == 1 ? "" : "s")"
+        return HStack(spacing: 8) {
+            Image(systemName: "bolt.fill").foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(profile.name).font(.headline).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if model.settings.hotKeyProfileId == profile.id, let hotKey = model.settings.hotKey {
+                        Text(hotKey.display).font(.caption2).padding(.horizontal, 5)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                    }
+                }
+            }
+            // A published profile is the organization's: no pin of its own, no delete.
+            if profile.source != .managed {
+                Button { model.setPinned(id: profile.id, !profile.pinned) } label: {
+                    Image(systemName: profile.pinned ? "star.fill" : "star").foregroundStyle(profile.pinned ? Color.accentColor : .secondary)
+                }
+                .disabled(!profile.pinned && !model.canPinAnotherProfile)
+                .help(profile.pinned ? "Unpin from panel" : "Pin to panel")
+                .accessibilityLabel(profile.pinned ? "Unpin from panel" : "Pin to panel")
+            }
+            HeaderMenu(label: "Profile actions") { ProfileMenuItems(profile: profile) }
+        }
     }
 
     private func tenantTitle(_ tenant: TenantContext) -> some View {

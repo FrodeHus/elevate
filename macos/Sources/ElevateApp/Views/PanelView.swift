@@ -37,10 +37,10 @@ struct PanelView: View {
                 Divider()
                 // The confirmation cards for the sidebar's menus render here: the sidebar is too narrow for them.
                 Color.clear.frame(height: 0)
-                    .rowLevelProfileDeleteConfirmation(pinned: model.pinnedProfiles, suppressedByPopover: model.allProfilesOpen)
+                    .rowLevelProfileDeleteConfirmation(pinned: model.pinnedProfiles + shownUnpinnedProfile, suppressedByPopover: model.allProfilesOpen)
                     .signOutConfirmation()
                 // Always there while there is a list to filter, and focused when the panel opens.
-                if !model.identities.isEmpty {
+                if !model.identities.isEmpty && !showsProfile {
                     HStack(spacing: 6) {
                         // The field is always shown, so no search button (as on Windows); ⌘F still jumps back to it.
                         Button("") { searchFocused = true }
@@ -157,8 +157,8 @@ struct PanelView: View {
                 switch model.panelContent {
                 case .tenant(let key): RoleListView(tenant: key, availableHeight: listHeight)
                 case .home: HomeView(availableHeight: listHeight)
-                // The profile view arrives with its own task; until then it shows the list.
-                case .roleList, .profile: RoleListView(tenant: nil, availableHeight: listHeight)
+                case .profile(let id): ProfilePanelView(profileId: id).frame(maxHeight: listHeight)
+                case .roleList: RoleListView(tenant: nil, availableHeight: listHeight)
                 }
             }
             Spacer(minLength: 0)
@@ -205,6 +205,14 @@ struct PanelView: View {
     private func open(_ route: PanelRoute) {
         openWindow(value: route)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private var showsProfile: Bool { if case .profile = model.panelContent { true } else { false } }
+
+    /// The shown profile when it is not pinned: its header menu's Delete… has no sidebar button to host the card.
+    private var shownUnpinnedProfile: [ActivationProfile] {
+        guard case .profile(let id) = model.panelContent, let p = model.profile(id: id), !p.pinned else { return [] }
+        return [p]
     }
 
     private var listHeight: CGFloat { max(PanelMetrics.maxHeight - topHeight - bottomHeight, 44) }
