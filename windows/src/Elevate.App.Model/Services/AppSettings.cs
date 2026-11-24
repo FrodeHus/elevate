@@ -58,6 +58,8 @@ public sealed class AppSettings : ObservableObject
     private HashSet<string> _dismissedTokenHintAccounts = new(StringComparer.Ordinal);
     private DateTimeOffset? _managedProfilesFetchedAt;
     private TenantKey? _panelTenant;
+    private bool _collapsedProfiles;
+    private bool _collapsedTenants;
 
     /// <param name="managed">
     /// The organization's managed configuration; the platform default source (Windows policy) when
@@ -97,7 +99,9 @@ public sealed class AppSettings : ObservableObject
         string? DismissedUpdateVersion = null,
         List<string>? DismissedTokenHintAccounts = null,
         DateTimeOffset? ManagedProfilesFetchedAt = null,
-        TenantKey? PanelTenant = null);
+        TenantKey? PanelTenant = null,
+        bool? CollapsedProfiles = null,
+        bool? CollapsedTenants = null);
 
     public string Directory { get; }
 
@@ -181,6 +185,32 @@ public sealed class AppSettings : ObservableObject
         set
         {
             if (SetProperty(ref _panelTenant, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>Whether the sidebar's Profiles section is collapsed; remembered between launches.</summary>
+    public bool CollapsedProfiles
+    {
+        get => _collapsedProfiles;
+        set
+        {
+            if (SetProperty(ref _collapsedProfiles, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>Whether the sidebar's Tenants section is collapsed; remembered between launches.</summary>
+    public bool CollapsedTenants
+    {
+        get => _collapsedTenants;
+        set
+        {
+            if (SetProperty(ref _collapsedTenants, value))
             {
                 Save();
             }
@@ -380,6 +410,8 @@ public sealed class AppSettings : ObservableObject
             _dismissedTokenHintAccounts = new HashSet<string>(model.DismissedTokenHintAccounts ?? [], StringComparer.Ordinal);
             _managedProfilesFetchedAt = model.ManagedProfilesFetchedAt;
             _panelTenant = model.PanelTenant;
+            _collapsedProfiles = model.CollapsedProfiles ?? false;
+            _collapsedTenants = model.CollapsedTenants ?? false;
         }
         catch (JsonException)
         {
@@ -395,7 +427,7 @@ public sealed class AppSettings : ObservableObject
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],
-            _managedProfilesFetchedAt, _panelTenant);
+            _managedProfilesFetchedAt, _panelTenant, _collapsedProfiles, _collapsedTenants);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);

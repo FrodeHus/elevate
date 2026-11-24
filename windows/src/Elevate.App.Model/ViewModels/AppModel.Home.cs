@@ -49,6 +49,26 @@ public sealed partial class AppModel
 
     public int TotalActiveCount => ActiveAssignments(null).Count;
 
+    public bool ProfilesCollapsed => Settings.CollapsedProfiles;
+
+    public bool TenantsCollapsed => Settings.CollapsedTenants;
+
+    public void ToggleProfilesSection()
+    {
+        Settings.CollapsedProfiles = !Settings.CollapsedProfiles;
+        Touch();
+    }
+
+    public void ToggleTenantsSection()
+    {
+        Settings.CollapsedTenants = !Settings.CollapsedTenants;
+        Touch();
+    }
+
+    /// <summary>The warning glyph on a collapsed Tenants header: an account must sign in again or a tenant failed.</summary>
+    public bool TenantsNeedAttention =>
+        Identities.Any(i => NeedsSignIn(i.Id)) || TenantErrors.Count > 0 || Identities.SelectMany(i => TenantsFor(i.Id)).Any(t => t.LastDiscoveryError is not null);
+
     public TenantMark SidebarMark(TenantKey key)
     {
         var n = Active.Values.Count(a => a.RoleKey.TenantKey == key);

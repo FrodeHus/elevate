@@ -197,4 +197,37 @@ public class AppModelSelectionStateTests
         File.ReadAllText(test.Settings.FilePath).Should().Contain("\"panelTenant\"");
         new AppSettings(test.Directory, ManagedConfiguration.None).PanelTenant.Should().Be(Two);
     }
+
+    [Fact]
+    public async Task SidebarSectionsAreExpandedByDefaultAndRemembered()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.ProfilesCollapsed.Should().BeFalse();
+        model.TenantsCollapsed.Should().BeFalse();
+
+        model.ToggleProfilesSection();
+        model.ToggleTenantsSection();
+
+        var reloaded = new AppSettings(test.Directory, ManagedConfiguration.None);
+        reloaded.CollapsedProfiles.Should().BeTrue();
+        reloaded.CollapsedTenants.Should().BeTrue();
+        model.ToggleTenantsSection();
+        new AppSettings(test.Directory, ManagedConfiguration.None).CollapsedTenants.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TenantsNeedAttentionWhenAnAccountNeedsSignInOrATenantFailed()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.TenantsNeedAttention.Should().BeFalse();
+
+        model.TenantErrors[One] = "boom";
+        model.TenantsNeedAttention.Should().BeTrue();
+
+        model.TenantErrors.Clear();
+        model.SignInNeeded.Add("id-2");
+        model.TenantsNeedAttention.Should().BeTrue();
+    }
 }

@@ -43,7 +43,7 @@ public sealed partial class PanelSidebar : UserControl
 
         FooterPanel.Children.Clear();
         FooterPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(2, 0, 2, 0), Background = Res("DividerStrokeColorDefaultBrush") });
-        var add = Row(selected: false, prominent: false, height: 28, "Add account", () => App.Current.OpenAddAccount());
+        var add = Row(selected: false, height: 28, "Add account", () => App.Current.OpenAddAccount());
         add.Margin = new Thickness(0, 6, 0, 6);
         add.Content = Line(Icon("", 11, "TextFillColorSecondaryBrush"), Label("Add account…", "TextFillColorSecondaryBrush", semibold: false), null);
         FooterPanel.Children.Add(add);
@@ -58,7 +58,8 @@ public sealed partial class PanelSidebar : UserControl
     private static string Signature(AppModel model)
     {
         var sb = new StringBuilder();
-        sb.Append(model.IsConfigured).Append('#').Append(model.PanelSelection).Append('#').Append(model.TotalActiveCount);
+        sb.Append(model.IsConfigured).Append('#').Append(model.PanelSelection).Append('#').Append(model.TotalActiveCount)
+            .Append('#').Append(model.ProfilesCollapsed).Append(model.TenantsCollapsed).Append(model.TenantsNeedAttention);
         var hotKey = model.Settings.HotKeyProfileId is { } hk && model.Settings.HotKey is { } binding ? $"{hk}:{binding.Display}" : string.Empty;
         sb.Append("#hk:").Append(hotKey).Append("#profiles:").Append(model.Profiles.Count);
         foreach (var p in model.PinnedProfiles)
@@ -102,49 +103,60 @@ public sealed partial class PanelSidebar : UserControl
         var pinnedSelected = pinned.Any(p => selection is PanelSelection.Profile s && s.Id == p.Id);
         var allSelected = !pinnedSelected && selection is PanelSelection.Profile;
 
-        var heading = new Grid { Margin = new Thickness(8, 0, 0, 0) };
+        var heading = new Grid();
         heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        heading.Children.Add(Heading("Profiles"));
-        var all = new Button
+        var collapsed = model.ProfilesCollapsed;
+        heading.Children.Add(SectionHeader("Profiles", collapsed, collapsed ? Secondary(profiles.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)) : null,
+            collapsed ? $"{profiles.Count} profiles" : null, model.ToggleProfilesSection));
+        if (!collapsed)
         {
-            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
-            Height = 24,
-            MinHeight = 24,
-            Padding = new Thickness(7, 0, 7, 0),
-            CornerRadius = new CornerRadius(12),
-            Content = new TextBlock { Text = $"All {profiles.Count}", FontSize = 12, VerticalAlignment = VerticalAlignment.Center },
-        };
-        if (allSelected)
-        {
-            Fill(all, "AccentFillColorDefaultBrush", "TextOnAccentFillColorPrimaryBrush");
-        }
-        else
-        {
-            all.Foreground = Res("TextFillColorSecondaryBrush");
+            var all = new Button
+            {
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Height = 24,
+                MinHeight = 24,
+                Padding = new Thickness(7, 0, 7, 0),
+                CornerRadius = new CornerRadius(12),
+                Content = new TextBlock { Text = $"All {profiles.Count}", FontSize = 12, VerticalAlignment = VerticalAlignment.Center },
+            };
+            if (allSelected)
+            {
+                Fill(all, "AccentFillColorDefaultBrush", OnAccent);
+            }
+            else
+            {
+                all.Foreground = Res("TextFillColorSecondaryBrush");
+            }
+
+            ToolTipService.SetToolTip(all, "All profiles: search, run, pin and manage");
+            AutomationProperties.SetName(all, $"All profiles, {profiles.Count}");
+            all.Click += (_, _) => AllProfilesFlyout.Show(model, all);
+            Grid.SetColumn(all, 1);
+            heading.Children.Add(all);
         }
 
-        ToolTipService.SetToolTip(all, "All profiles: search, run, pin and manage");
-        AutomationProperties.SetName(all, $"All profiles, {profiles.Count}");
-        all.Click += (_, _) => AllProfilesFlyout.Show(model, all);
-        Grid.SetColumn(all, 1);
-        heading.Children.Add(all);
         ProfilesPanel.Children.Add(heading);
 
-        foreach (var profile in pinned)
+        if (!collapsed)
         {
-            ProfilesPanel.Children.Add(ProfileRow(model, profile, selection is PanelSelection.Profile s && s.Id == profile.Id));
+            foreach (var profile in pinned)
+            {
+                ProfilesPanel.Children.Add(ProfileRow(model, profile, selection is PanelSelection.Profile s && s.Id == profile.Id));
+            }
         }
+
+        ProfilesPanel.Children.Add(new Border { Height = 1, Margin = new Thickness(2, 6, 2, 0), Background = Res("DividerStrokeColorDefaultBrush") });
     }
 
     private Button ProfileRow(AppModel model, ActivationProfile profile, bool selected)
     {
         var id = profile.Id;
         var caption = ProfileSummary.Caption(profile.Entries);
-        var button = Row(selected, prominent: true, height: 30, $"{profile.Name}, {caption}", () => _ = ProfileActions.RunAsync(model, id, PanelView.IsControlDown(), inPanel: true));
+        var button = Row(selected, height: 30, $"{profile.Name}, {caption}", () => _ = ProfileActions.RunAsync(model, id, PanelView.IsControlDown(), inPanel: true));
         var fg = selected ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush";
         // A one-entry profile is a favorite: the star; otherwise the bolt.
-        var icon = Icon(profile.Entries.Count == 1 ? "" : "", 11, selected ? fg : "AccentFillColorDefaultBrush");
+        var icon = Icon(profile.Entries.Count == 1 ? "" : "", 11, selected ? fg : "TextFillColorSecondaryBrush");
         button.Content = Line(icon, Label(profile.Name, fg, semibold: true), null);
         var tip = $"{profile.Name} ({caption})";
         if (model.Settings.HotKeyProfileId == id && model.Settings.HotKey is { } hotKey)
@@ -167,10 +179,35 @@ public sealed partial class PanelSidebar : UserControl
     {
         var selection = model.PanelSelection;
         var total = model.TotalActiveCount;
-        TenantsPanel.Children.Add(Heading("Tenants", new Thickness(8, 0, 0, 2)));
-        var allTenants = Row(selection is PanelSelection.AllTenants, prominent: false, height: 28,
+        var collapsed = model.TenantsCollapsed;
+        FrameworkElement? summary = null;
+        if (collapsed)
+        {
+            var marks = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            if (total > 0)
+            {
+                marks.Children.Add(Count(total, onAccent: false));
+            }
+
+            if (model.TenantsNeedAttention)
+            {
+                marks.Children.Add(Icon("\uE7BA", 12, "SystemFillColorCriticalBrush"));
+            }
+
+            summary = marks;
+        }
+
+        TenantsPanel.Children.Add(SectionHeader("Tenants", collapsed, summary,
+            collapsed ? $"{total} active{(model.TenantsNeedAttention ? ", needs attention" : string.Empty)}" : null, model.ToggleTenantsSection));
+        if (collapsed)
+        {
+            return;
+        }
+
+        var allSelected = selection is PanelSelection.AllTenants;
+        var allTenants = Row(allSelected, height: 28,
             total > 0 ? $"All tenants, {total} active" : "All tenants", () => model.Select(new PanelSelection.AllTenants()));
-        allTenants.Content = Line(null, Label("All tenants", "TextFillColorPrimaryBrush", semibold: true), total > 0 ? Count(total) : null);
+        allTenants.Content = Line(null, Label("All tenants", allSelected ? OnAccent : "TextFillColorPrimaryBrush", semibold: true), total > 0 ? Count(total, allSelected) : null);
         TenantsPanel.Children.Add(allTenants);
 
         foreach (var identity in model.Identities)
@@ -264,7 +301,7 @@ public sealed partial class PanelSidebar : UserControl
     {
         var allowed = model.IsMethodAllowed(identity.SignInMethod);
         var signingIn = model.SignInInFlight.Contains(identity.Id);
-        var button = Row(false, prominent: false, height: 28, $"Sign in, {identity.Upn}", () => PanelMenus.RetrySignIn(model, identity.Id));
+        var button = Row(false, height: 28, $"Sign in, {identity.Upn}", () => PanelMenus.RetrySignIn(model, identity.Id));
         Fill(button, "SystemFillColorCautionBackgroundBrush", "TextFillColorPrimaryBrush");
         FrameworkElement icon = signingIn
             ? new ProgressRing { Width = 12, Height = 12, IsActive = true }
@@ -316,29 +353,66 @@ public sealed partial class PanelSidebar : UserControl
             TenantMarkKind.Error => ", needs attention",
             _ => string.Empty,
         };
-        var button = Row(selected, prominent: false, height: 28, tenant.DisplayName + state, () => model.Select(new PanelSelection.Tenant(key)));
+        var button = Row(selected, height: 28, tenant.DisplayName + state, () => model.Select(new PanelSelection.Tenant(key)));
         FrameworkElement? trailing = mark.Kind switch
         {
-            TenantMarkKind.Active => Count(mark.Count),
-            TenantMarkKind.Error => Icon("", 12, "SystemFillColorCriticalBrush"),
+            TenantMarkKind.Active => Count(mark.Count, selected),
+            TenantMarkKind.Error => Icon("\uE7BA", 12, selected ? OnAccent : "SystemFillColorCriticalBrush"),
             _ => null,
         };
-        button.Content = Line(null, Label(tenant.DisplayName, "TextFillColorPrimaryBrush", semibold: false), trailing);
+        button.Content = Line(null, Label(tenant.DisplayName, selected ? OnAccent : "TextFillColorPrimaryBrush", semibold: false), trailing);
         ToolTipService.SetToolTip(button, TenantTip(model, tenant));
         return button;
     }
 
     // MARK: Pieces
 
-    private static TextBlock Heading(string text, Thickness? margin = null) => new()
+    private static TextBlock Secondary(string text) => new()
     {
-        Text = text.ToUpperInvariant(),
-        FontSize = 11,
-        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        Text = text,
+        FontSize = 12,
         Foreground = Res("TextFillColorSecondaryBrush"),
         VerticalAlignment = VerticalAlignment.Center,
-        Margin = margin ?? default,
     };
+
+    /// <summary>A section header that collapses its section: chevron, caption, and a summary while collapsed.</summary>
+    private static Button SectionHeader(string title, bool collapsed, FrameworkElement? summary, string? summaryName, Action toggle)
+    {
+        var button = new Button
+        {
+            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+            Height = 24,
+            MinHeight = 24,
+            Padding = new Thickness(6, 0, 6, 0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        var grid = new Grid { ColumnSpacing = 4 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(Icon(collapsed ? "\uE76C" : "\uE70D", 8, "TextFillColorSecondaryBrush"));
+        var caption = new TextBlock
+        {
+            Text = title.ToUpperInvariant(),
+            FontSize = 11,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = Res("TextFillColorSecondaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(caption, 1);
+        grid.Children.Add(caption);
+        if (summary is not null)
+        {
+            Grid.SetColumn(summary, 2);
+            grid.Children.Add(summary);
+        }
+
+        button.Content = grid;
+        AutomationProperties.SetName(button, $"{title}, {(collapsed ? "collapsed" : "expanded")}" + (summaryName is null ? string.Empty : ", " + summaryName));
+        button.Click += (_, _) => toggle();
+        return button;
+    }
 
     private static FontIcon Icon(string glyph, double size, string brush) => new()
     {
@@ -359,11 +433,13 @@ public sealed partial class PanelSidebar : UserControl
         VerticalAlignment = VerticalAlignment.Center,
     };
 
-    private static TextBlock Count(int n) => new()
+    private const string OnAccent = "TextOnAccentFillColorPrimaryBrush";
+
+    private static TextBlock Count(int n, bool onAccent) => new()
     {
         Text = n.ToString(System.Globalization.CultureInfo.InvariantCulture),
         FontSize = 12,
-        Foreground = Res("SystemFillColorSuccessBrush"),
+        Foreground = Res(onAccent ? OnAccent : "SystemFillColorSuccessBrush"),
         VerticalAlignment = VerticalAlignment.Center,
     };
 
@@ -392,7 +468,7 @@ public sealed partial class PanelSidebar : UserControl
     }
 
     /// <summary>A full-width sidebar row: a flat button of fixed height, its state in the automation name.</summary>
-    private static Button Row(bool selected, bool prominent, double height, string automationName, Action click)
+    private static Button Row(bool selected, double height, string automationName, Action click)
     {
         var button = new Button
         {
@@ -406,14 +482,7 @@ public sealed partial class PanelSidebar : UserControl
         };
         if (selected)
         {
-            if (prominent)
-            {
-                Fill(button, "AccentFillColorDefaultBrush", "TextOnAccentFillColorPrimaryBrush");
-            }
-            else
-            {
-                Fill(button, "SubtleFillColorSecondaryBrush", "TextFillColorPrimaryBrush");
-            }
+            Fill(button, "AccentFillColorDefaultBrush", OnAccent);
         }
 
         AutomationProperties.SetName(button, automationName);
