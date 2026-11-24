@@ -22,7 +22,7 @@ struct RoleRow: View {
             statusDot
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    RoleNameLabel(role.displayName, isPrivileged: role.isPrivileged).font(.body)
+                    RoleNameLabel(role.displayName, isPrivileged: model.isPrivileged(role.key)).font(.body)
                     if model.isNewRole(role.key) {
                         Text("new").font(.caption2.weight(.medium))
                             .padding(.horizontal, 5).padding(.vertical, 1)
