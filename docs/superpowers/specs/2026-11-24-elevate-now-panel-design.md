@@ -213,6 +213,18 @@ These override 3.4 and 3.5 where they differ. Both platforms.
   full-width picker under the name. `MFA` and status move to the left of it or to the detail line.
   The run window (non-compact) may keep its wider layout.
 
+- **Sidebar sections collapse, and rows share one look.** (Chosen over a Profiles/Tenants toggle,
+  which would hide tenant status or put profiles a click away.) `PROFILES` and `TENANTS` are
+  clickable headers with a disclosure chevron; each collapses its section, and the two states are
+  remembered in settings (both expanded by default). A 1-px divider separates the sections.
+  Collapsed, `PROFILES` shows the profile count and `TENANTS` shows the total active count plus
+  the warning glyph when any account needs sign-in or any tenant has an error. Profile rows lose
+  their filled pill: they are flat rows (glyph + name) like tenant rows. Exactly one row is
+  filled, in the accent colour with the text in the on-accent colour: the selected profile, tenant
+  or `All tenants`. Hover uses the subtle row hover on both kinds. The `Sign in` row keeps its
+  warning tint. `All N` stays in the Profiles header when expanded. The headers are buttons with
+  an accessible name and expanded/collapsed state.
+
 ## 4. What changes outside the panel
 
 - `RunProfileView` (macOS) and `RunProfileWindow` (Windows) are split into a content view used by
