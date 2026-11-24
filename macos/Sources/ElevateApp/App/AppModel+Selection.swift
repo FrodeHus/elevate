@@ -79,7 +79,11 @@ extension AppModel {
 
     func searchAllTenants() { scopeTenant = nil }
 
-    func handleEscape() {
+    /// Dismisses one transient thing per press and never touches the sidebar selection: the request
+    /// form, access packages, a filter, a profile view (back to the tenant or All tenants it was
+    /// opened from), select mode, browsing (All tenants only). False when none was left; the caller closes the panel.
+    @discardableResult
+    func handleEscape() -> Bool {
         if requestingPackage != nil {
             endPackageRequest()
         } else if accessPackagesTenant != nil {
@@ -88,10 +92,13 @@ extension AppModel {
             searchQuery = ""
         } else if case .profile = panelSelection {
             selectedProfile = nil
-        } else {
-            browsing = false
+        } else if selectMode {
             selectMode = false
-            scopeTenant = nil
+        } else if browsing && panelSelection == .allTenants {
+            browsing = false
+        } else {
+            return false
         }
+        return true
     }
 }

@@ -108,22 +108,57 @@ struct AppModelSelectionStateTests {
         model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)
         model.scopeTenant = Sample.tenantKey
         model.searchQuery = "glob"
-        model.handleEscape()
+        #expect(model.handleEscape())
         #expect(model.searchQuery.isEmpty)
         #expect(model.panelSelection == .tenant(Sample.tenantKey))
-        model.handleEscape()
-        #expect(model.panelSelection == .allTenants)
-        #expect(model.panelContent == .home)
+        // Nothing left to dismiss: false (the panel closes) and the tenant stays selected.
+        #expect(!model.handleEscape())
+        #expect(model.panelSelection == .tenant(Sample.tenantKey))
         cleanup(model)
     }
 
-    @Test func escapeOnAProfileReturnsToTheTenantUnderneath() async {
+    @Test func escapeOnATenantViewWithNothingToDismissReturnsFalseAndKeepsTheTenant() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        #expect(!model.handleEscape())
+        #expect(model.scopeTenant == Sample.tenantKey)
+        #expect(model.panelContent == .tenant(Sample.tenantKey))
+        cleanup(model)
+    }
+
+    @Test func leavingAProfileReturnsToTheSelectionItWasOpenedFrom() async {
         let model = await makeTwoTenantModel()
         let profile = model.saveProfile(name: "Ops", keys: [Sample.entraKey])!
         model.scopeTenant = Sample.tenantKey
         model.select(.profile(profile.id))
         #expect(model.panelSelection == .profile(profile.id))
-        model.handleEscape()
+        #expect(model.handleEscape())
+        #expect(model.panelSelection == .tenant(Sample.tenantKey))
+        model.select(.allTenants)
+        model.select(.profile(profile.id))
+        #expect(model.handleEscape())
+        #expect(model.panelSelection == .allTenants)
+        cleanup(model)
+    }
+
+    @Test func selectModeAndBrowsingEachTakeOnePress() async {
+        let model = await makeTwoTenantModel()
+        model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)
+        model.browsing = true
+        model.selectMode = true
+        #expect(model.handleEscape())
+        #expect(!model.selectMode && model.browsing)
+        #expect(model.handleEscape())
+        #expect(!model.browsing && model.panelContent == .home)
+        #expect(!model.handleEscape())
+        cleanup(model)
+    }
+
+    @Test func browsingIsNotDismissedFromATenantView() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        model.browsing = true
+        #expect(!model.handleEscape())
         #expect(model.panelSelection == .tenant(Sample.tenantKey))
         cleanup(model)
     }
@@ -142,17 +177,17 @@ struct AppModelSelectionStateTests {
         cleanup(model)
     }
 
-    @Test func escapeStepsBackFormThenPackagesThenTheRoleListThenWhatItDidBefore() async {
+    @Test func escapeStepsBackFormThenPackagesThenTheRoleListThenReturnsFalse() async {
         let model = await makeTwoTenantModel()
         model.select(.tenant(Sample.tenantKey))
         model.openAccessPackages(Sample.tenantKey)
         model.beginPackageRequest(Self.package)
-        model.handleEscape()
+        #expect(model.handleEscape())
         #expect(model.panelContent == .accessPackages(Sample.tenantKey))
-        model.handleEscape()
+        #expect(model.handleEscape())
         #expect(model.panelContent == .tenant(Sample.tenantKey))
-        model.handleEscape()
-        #expect(model.panelSelection == .allTenants)
+        #expect(!model.handleEscape())
+        #expect(model.panelSelection == .tenant(Sample.tenantKey))
         cleanup(model)
     }
 

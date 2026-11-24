@@ -29,7 +29,8 @@ struct PanelView: View {
         // A key equivalent, not `.onExitCommand`: that one only fires while a view inside has keyboard focus,
         // so Escape did nothing after a click on a tab or a button.
         .background {
-            Button("") { model.handleEscape() }
+            // Nothing left to dismiss: close the panel (a MenuBarExtra window is an ordinary key window).
+            Button("") { if !model.handleEscape() { NSApp.keyWindow?.close() } }
                 .keyboardShortcut(.cancelAction)
                 .opacity(0)
                 .accessibilityHidden(true)
