@@ -20,6 +20,7 @@ import Foundation
         await http.on("GET", "skiptoken=page2", body: Fixtures.data("arm-eligible-page2"))
         let roles = try await p.eligibleRoles(identity: identity, tenant: tenant)
         #expect(roles.map(\.displayName) == ["Contributor", "Reader"])
+        #expect(roles.map(\.isPrivileged) == [true, false])   // Contributor, Reader
         #expect(roles[0].detail == "Pay-As-You-Go · subscription")
         #expect(roles[1].detail == "rg-ops · resource group")
         #expect(roles[0].key.scope == .azureResource(scope: "/subscriptions/sub-1", roleDefinitionId: contributorId))

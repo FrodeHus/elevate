@@ -21,7 +21,8 @@ public enum ManualRoleSource {
             default: nil
             }
             return EligibleRole(key: RoleKey(identityId: tenantKey.identityId, tenantId: tenantKey.tenantId, scope: $0.scope),
-                                displayName: $0.displayName, detail: detail, source: .manual, policy: .manualDefault)
+                                displayName: $0.displayName, detail: detail, source: .manual, policy: .manualDefault,
+                                isPrivileged: PrivilegedRoles.isKnownPrivileged($0.scope))
         }
     }
 

@@ -94,7 +94,8 @@ public struct AzureResourceProvider: PIMProvider {
             roles.append(EligibleRole(key: RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: scope),
                                       displayName: i.properties.expandedProperties?.roleDefinition?.displayName ?? i.properties.roleDefinitionId,
                                       detail: Self.caption(i.properties.expandedProperties),
-                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup))
+                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup,
+                                      isPrivileged: PrivilegedRoles.isAzure(roleDefinitionId: i.properties.roleDefinitionId)))
         }
         return roles.sorted { ($0.displayName, $0.detail ?? "") < ($1.displayName, $1.detail ?? "") }
     }
