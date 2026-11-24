@@ -78,6 +78,7 @@ extension AppModel {
         guard !isManagedProfile(id) else { return }
         state.removeProfile(id: id)
         persist()
+        forgetProfile(id)
         // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
         if settings.hotKeyProfileId == id {
             settings.hotKeyProfileId = nil

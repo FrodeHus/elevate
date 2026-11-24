@@ -18,6 +18,7 @@ struct ElevateApp: App {
             PanelView()
                 .environment(model)
                 .onAppear { model.panelOpened() }
+                .onDisappear { model.panelClosed() }
         } label: {
             MenuBarLabel()
                 .environment(model)

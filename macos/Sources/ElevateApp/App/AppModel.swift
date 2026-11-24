@@ -76,7 +76,15 @@ final class AppModel {
     var collapsedScopes: Set<String> = []
     var selection: Set<RoleKey> = []
     /// The profile open in the main view. Never persisted.
-    var selectedProfile: UUID?
+    var selectedProfile: UUID? {
+        // Leaving a profile drops its session, unless it is mid-run.
+        didSet {
+            if let old = oldValue, old != selectedProfile, runSessions[old]?.running != true { runSessions[old] = nil }
+        }
+    }
+    /// Profile runs in progress or just finished. Never persisted; lives here so a run survives the panel closing.
+    var runSessions: [UUID: ProfileRunSession] = [:]
+    var panelIsOpen = false
     /// True while the user is browsing the full role list rather than the home view. Never persisted.
     var browsing = false
     var startupError: String?
@@ -180,7 +188,7 @@ final class AppModel {
     /// The last document fetched from `ManagedProfilesUrl`, or the cached copy of it. Nil until
     /// a fetch or a cache read has produced one.
     /// Setter internal: filled by `refreshManagedProfiles` in AppModel+ManagedProfiles.
-    var fetchedProfileSet: ManagedProfileSet?
+    var fetchedProfileSet: ManagedProfileSet? { didSet { forgetVanishedProfiles() } }
     /// Why the last fetch failed, as a Settings warning; cleared by the next success.
     /// Setter internal: set by `refreshManagedProfiles` in AppModel+ManagedProfiles.
     var managedProfileFetchWarning: String?

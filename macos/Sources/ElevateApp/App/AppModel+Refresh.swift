@@ -10,6 +10,10 @@ extension AppModel {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         searchQuery = ""
         highlightedRole = nil
+        panelIsOpen = true
+        browsing = false
+        forgetVanishedProfiles()
+        reopenProfileSelection()
         var trackersChanged = false
         for tenant in state.tenants {
             var tracker = state.roleTracker(tenant.id)

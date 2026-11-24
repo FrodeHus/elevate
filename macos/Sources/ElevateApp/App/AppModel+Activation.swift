@@ -212,7 +212,7 @@ extension AppModel {
     /// refresh may already have cleared or moved onto a rekeyed role. `attempted` is the number of
     /// requests the run set out to make, so an empty outcome list can be told apart from having had
     /// nothing to do at all.
-    private func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
+    func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
         await notifier.notify(title: title,
                               body: ActivationSummary.body(outcomes: outcomes, attempted: attempted,
                                                            names: summaryName(for:)))
