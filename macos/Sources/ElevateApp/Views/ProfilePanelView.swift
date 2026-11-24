@@ -14,6 +14,5 @@ struct ProfilePanelView: View {
                 // A new identity per profile, so selecting another one re-runs onAppear and refocuses Reason.
                 .id(profileId)
         }
-        .onExitCommand { model.handleEscape() }
     }
 }

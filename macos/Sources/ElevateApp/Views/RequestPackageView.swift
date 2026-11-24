@@ -27,7 +27,6 @@ struct RequestPackageView: View {
     var body: some View {
         // Sized from the measured content, as in the role list: a ScrollView reports no ideal height here.
         ScrollView { content }
-            .onExitCommand { model.handleEscape() }
             .frame(height: min(max(contentHeight, 44), max(availableHeight, 44)))
             .task { await load() }
     }

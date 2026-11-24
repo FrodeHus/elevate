@@ -26,6 +26,14 @@ struct PanelView: View {
             mainColumn.frame(width: PanelMetrics.mainWidth)
         }
         .frame(width: PanelMetrics.width)
+        // A key equivalent, not `.onExitCommand`: that one only fires while a view inside has keyboard focus,
+        // so Escape did nothing after a click on a tab or a button.
+        .background {
+            Button("") { model.handleEscape() }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .accessibilityHidden(true)
+        }
         .onAppear { searchFocused = true }
     }
 
@@ -52,7 +60,6 @@ struct PanelView: View {
                         TextField(filterPlaceholder, text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
                             .textFieldStyle(.plain)
                             .focused($searchFocused)
-                            .onExitCommand { model.handleEscape() }
                             // The keyboard stays in the field; the arrows move a highlight through the rows.
                             .onKeyPress(.downArrow) { model.moveHighlight(1); return .handled }
                             .onKeyPress(.upArrow) { model.moveHighlight(-1); return .handled }
