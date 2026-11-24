@@ -10,6 +10,7 @@ namespace Elevate.App.Services;
 /// <summary>Which list the panel shows. Persisted so the flyout reopens where it was left.</summary>
 public enum PanelTab
 {
+    All,
     Roles,
     Azure,
     Groups,
@@ -44,7 +45,7 @@ public sealed class AppSettings : ObservableObject
     private string _clientId = string.Empty;
     private string _customClientId = string.Empty;
     private string _pinnedClientId = string.Empty;
-    private PanelTab _panelTab = PanelTab.Roles;
+    private PanelTab _panelTab = PanelTab.All;
     private bool _collapsedActive;
     private bool _collapsedApprovals;
     private string _lastApprovalJustification = string.Empty;
@@ -351,7 +352,7 @@ public sealed class AppSettings : ObservableObject
             _clientId = model.ClientId ?? string.Empty;
             _customClientId = model.CustomClientId ?? string.Empty;
             _pinnedClientId = model.PinnedClientId ?? string.Empty;
-            _panelTab = model.PanelTab ?? PanelTab.Roles;
+            _panelTab = model.PanelTab ?? PanelTab.All;
             _collapsedActive = model.CollapsedActive ?? false;
             _collapsedApprovals = model.CollapsedApprovals ?? false;
             _lastApprovalJustification = model.LastApprovalJustification ?? string.Empty;

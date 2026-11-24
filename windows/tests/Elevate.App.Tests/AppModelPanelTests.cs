@@ -1,5 +1,6 @@
 using Elevate.App.Services;
 using Elevate.App.Tests.Support;
+using Elevate.App.ViewModels;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
 using FluentAssertions;
@@ -91,6 +92,56 @@ public class AppModelPanelTests
         using var test = await TestModel.BootstrappedAsync();
         test.Model.PanelTab = PanelTab.Groups;
         new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.Groups);
+    }
+
+    [Fact]
+    public async Task AllTabShowsEveryKindInOrder()
+    {
+        using var test = await ModelWithOneOfEachKindAsync();
+        var model = test.Model;
+        model.PanelTab = PanelTab.All;
+        model.RolesFor(Sample.TenantKey, PanelTab.All).Should().HaveCount(3);
+        model.ListRows(Sample.TenantKey).Should().Equal(Sample.EntraKey, Sample.AzureKey, Sample.GroupKey);
+        AppModel.Title(PanelTab.All).Should().Be("All");
+    }
+
+    [Fact]
+    public void TabDefaultsToAllWhenNothingIsStored()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.All);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void AStoredTabIsKept()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"panelTab\":\"roles\"}");
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.Roles);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public async Task GroupCaptionNamesMembershipAndOwnership()
+    {
+        using var test = await ModelWithOneOfEachKindAsync();
+        var model = test.Model;
+        model.GroupCaption(Sample.GroupKey).Should().Be("Group membership");
+        model.GroupCaption(Sample.Key(new GroupScope("group-1", GroupAccess.Owner))).Should().Be("Group ownership");
+        model.GroupCaption(Sample.EntraKey).Should().BeNull();
     }
 }
 

@@ -952,6 +952,23 @@ public static class PanelListBuilder
             return;
         }
 
+        if (model.PanelTab == PanelTab.All)
+        {
+            // The three kinds stacked, Azure as its tree in the middle, as ListRows orders them.
+            foreach (var role in model.RolesFor(tenant.Key, PanelTab.Roles))
+            {
+                group.Add(RoleRowFor(model, role, now));
+            }
+
+            AddScopeTreeRows(model, group, tenant, now);
+            foreach (var role in model.RolesFor(tenant.Key, PanelTab.Groups))
+            {
+                group.Add(RoleRowFor(model, role, now));
+            }
+
+            return;
+        }
+
         foreach (var role in roles)
         {
             group.Add(RoleRowFor(model, role, now));
@@ -1000,6 +1017,8 @@ public static class PanelListBuilder
 
     private static string EmptyText(AppModel model, TenantContext tenant) => (model.PanelTab, tenant.DiscoveryMode) switch
     {
+        (PanelTab.All, DiscoveryMode.ManualRoles) => "No roles configured.",
+        (PanelTab.All, _) => "No eligible roles.",
         (PanelTab.Groups, _) => "No eligible groups.",
         (PanelTab.Azure, DiscoveryMode.ManualRoles) => "No roles configured.",
         (PanelTab.Azure, _) => tenant.AzureUnavailableReason ?? "No eligible Azure resource roles.",
@@ -1018,7 +1037,9 @@ public static class PanelListBuilder
             IsManual = role.Source == RoleSource.Manual,
             IsNew = model.IsRoleNew(role.Key),
         };
-        row.Detail = role.Detail;
+        // The All tab mixes kinds, so a group row names its access in its detail line.
+        var caption = model.PanelTab == PanelTab.All ? model.GroupCaption(role.Key) : null;
+        row.Detail = caption is null ? role.Detail : string.IsNullOrEmpty(role.Detail) ? caption : $"{caption} · {role.Detail}";
         row.DetailTooltip = role.Key.Scope is AzureResourceScope azure ? azure.Scope : role.Detail;
         var assignment = model.Assignment(role.Key);
         // The policy notes matter before pressing anything; once something is active or pending the row's status says it.

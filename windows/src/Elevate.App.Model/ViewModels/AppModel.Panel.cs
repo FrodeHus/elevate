@@ -34,6 +34,7 @@ public sealed partial class AppModel
 
     public static string Title(PanelTab tab) => tab switch
     {
+        PanelTab.All => "All",
         PanelTab.Roles => "Entra",
         PanelTab.Azure => "Azure",
         _ => "Groups",
@@ -41,11 +42,13 @@ public sealed partial class AppModel
 
     public static IReadOnlySet<RoleScopeKind> Kinds(PanelTab tab) => tab switch
     {
+        PanelTab.All => AllKinds,
         PanelTab.Roles => EntraKinds,
         PanelTab.Azure => AzureKinds,
         _ => GroupKinds,
     };
 
+    private static readonly HashSet<RoleScopeKind> AllKinds = [RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group];
     private static readonly HashSet<RoleScopeKind> EntraKinds = [RoleScopeKind.EntraDirectory];
     private static readonly HashSet<RoleScopeKind> AzureKinds = [RoleScopeKind.AzureResource];
     private static readonly HashSet<RoleScopeKind> GroupKinds = [RoleScopeKind.Group];
@@ -79,6 +82,27 @@ public sealed partial class AppModel
     /// </summary>
     public IReadOnlyList<ScopeNode> AzureTree(TenantKey tenantKey) =>
         ScopeTree.Build(RolesFor(tenantKey, PanelTab.Azure));
+
+    /// <summary>One tenant's role rows in display order for the current tab; the All tab stacks the three kinds.</summary>
+    public IReadOnlyList<RoleKey> ListRows(TenantKey tenantKey)
+    {
+        IEnumerable<RoleKey> Azure() =>
+            ScopeTree.Flatten(AzureTree(tenantKey), n => IsScopeCollapsed(tenantKey, n)).Where(e => e.Role is not null).Select(e => e.Role!.Key);
+
+        IEnumerable<RoleKey> Keys(PanelTab tab) => RolesFor(tenantKey, tab).Select(r => r.Key);
+
+        return PanelTab switch
+        {
+            PanelTab.All => [.. Keys(PanelTab.Roles), .. Azure(), .. Keys(PanelTab.Groups)],
+            PanelTab.Azure => [.. Azure()],
+            var tab => [.. Keys(tab)],
+        };
+    }
+
+    /// <summary>The All tab mixes kinds, so a group row says which of its two accesses it is.</summary>
+    public string? GroupCaption(RoleKey key) => key.Scope is GroupScope g
+        ? g.AccessId == GroupAccess.Owner ? "Group ownership" : "Group membership"
+        : null;
 
     /// <summary>A scope node's collapsed state is per tenant: the same scope can be reached by two accounts.</summary>
     public static string ScopeNodeKey(TenantKey tenantKey, ScopeNode node)
