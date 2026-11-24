@@ -232,6 +232,21 @@ These override 3.4 and 3.5 where they differ. Both platforms.
   to Home). With none of those left it closes the panel. A selected tenant stays selected. Escape
   works wherever keyboard focus is; an open inline confirmation card takes Escape first.
 
+### 3.8 Privileged roles are marked (2026-11-24)
+
+- A role is **privileged** when it is an Entra role whose definition has Microsoft's `isPrivileged`
+  flag set, or one of the four Azure built-in roles the Azure portal lists as privileged
+  administrator roles, matched by role definition id: Owner, Contributor, User Access
+  Administrator, Role Based Access Control Administrator. Groups and access packages are never
+  privileged. The flag is part of the role model, cached with it, and defaults to false when the
+  service does not say.
+- **Panel (macOS and Windows):** a small crown glyph in the warning colour directly after the role
+  name, with the tooltip and accessible text `Privileged role`. It shows wherever a role's name
+  is drawn as a row: eligible rows, Active now, the hero card, profile view rows, the run window
+  and the select-roles mode. It never pushes the action button; the name truncates first.
+- **CLI:** role listings mark privileged roles (a `privileged` column or marker in table output,
+  an `isPrivileged` boolean in JSON output).
+
 ## 4. What changes outside the panel
 
 - `RunProfileView` (macOS) and `RunProfileWindow` (Windows) are split into a content view used by
