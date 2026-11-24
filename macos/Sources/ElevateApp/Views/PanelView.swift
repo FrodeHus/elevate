@@ -16,10 +16,8 @@ enum PanelMetrics {
 struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
-    @State private var contentHeight: CGFloat = 0
     @State private var topHeight: CGFloat = 0
     @State private var bottomHeight: CGFloat = 0
-    @State private var listGeneration = 0
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -35,29 +33,23 @@ struct PanelView: View {
         @Bindable var model = model
         return VStack(spacing: 0) {
             VStack(spacing: 0) {
-                header
+                PanelHeader()
                 Divider()
                 // The confirmation cards for the sidebar's menus render here: the sidebar is too narrow for them.
                 Color.clear.frame(height: 0)
                     .rowLevelProfileDeleteConfirmation(pinned: model.pinnedProfiles, suppressedByPopover: model.allProfilesOpen)
                     .signOutConfirmation()
-                Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
-                    // No counts in the segments: the Active now header and the tenant rows already
-                    // count, and a number here made the segments change width with every activation.
-                    ForEach(PanelTab.allCases, id: \.self) { tab in
-                        Text(tab.title).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                Divider()
                 // Always there while there is a list to filter, and focused when the panel opens.
                 if !model.identities.isEmpty {
                     HStack(spacing: 6) {
+                        // The field is always shown, so no search button (as on Windows); ⌘F still jumps back to it.
+                        Button("") { searchFocused = true }
+                            .keyboardShortcut("f")
+                            .frame(width: 0, height: 0)
+                            .opacity(0)
+                            .accessibilityHidden(true)
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
+                        TextField(filterPlaceholder, text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
                             .textFieldStyle(.plain)
                             .focused($searchFocused)
                             .onExitCommand { model.handleEscape() }
@@ -162,43 +154,10 @@ struct PanelView: View {
                 }
                 .frame(height: model.usesSharedApp ? 220 : 160)
             } else {
-                // A ScrollView in a MenuBarExtra window reports no ideal height, so the panel would collapse
-                // to zero; size it from the measured content instead, capped so long lists scroll.
-                ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        ApprovalsSection()
-                        ActiveSection()
-                        let visible = model.visibleIdentities
-                        if visible.isEmpty {
-                            Text("No matches").font(.caption).foregroundStyle(.secondary).padding(12)
-                        }
-                        ForEach(visible) { identity in
-                            let tenants = model.visibleTenants(for: identity.id)
-                            if tenants.count == 1, let only = tenants.first {
-                                // One tenant: fold it into the account row (pinned) and skip the tenant header.
-                                Section {
-                                    if !model.collapsedIdentities.contains(identity.id) { TenantRoles(tenant: only) }
-                                } header: {
-                                    IdentityHeader(identity: identity, soleTenant: only)
-                                }
-                            } else {
-                                IdentityHeader(identity: identity)
-                                if !model.collapsedIdentities.contains(identity.id) {
-                                    ForEach(tenants) { tenant in
-                                        TenantBlock(identity: identity, tenant: tenant)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-                }
-                .frame(height: min(max(contentHeight, 44), max(PanelMetrics.maxHeight - topHeight - bottomHeight, 44)))
-                // The lazy stack can come back from display sleep with no rows realised, and its height depends on them.
-                .id(listGeneration)
-                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification)) { _ in listGeneration += 1 }
-                .onChange(of: model.highlightedRole) { _, key in if let key { proxy.scrollTo(key) } }
+                switch model.panelContent {
+                case .tenant(let key): RoleListView(tenant: key, availableHeight: listHeight)
+                // Home and the profile view arrive with their own tasks; until then they show the list.
+                case .roleList, .home, .profile: RoleListView(tenant: nil, availableHeight: listHeight)
                 }
             }
             Spacer(minLength: 0)
@@ -247,51 +206,11 @@ struct PanelView: View {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private var header: some View {
-        @Bindable var model = model
-        return HStack {
-            // "Elevate" stays the primary mark at full weight; an organization's name is added
-            // beneath it, never substituted for it (co-branding design 2026-09-18 §3.1). A second
-            // line rather than an inline suffix: this row leaves the title about 26 characters,
-            // which "Elevate - Managed by <name>" overruns for almost any real name.
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Elevate").font(.headline)
-                if let caption = model.branding?.headerCaption {
-                    Text(caption)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
-            if !model.isOnline {
-                Text("offline").font(.caption2).foregroundStyle(.secondary)
-                    .padding(.horizontal, 6).padding(.vertical, 1)
-                    .background(.gray.opacity(0.25), in: Capsule())
-                    .help("No network connection; refreshes and requests are paused")
-            }
-            Spacer()
-            // Shortcuts fire while the panel is key; the app has no visible menu bar to list them,
-            // so the tooltips carry them.
-            // The filter field is always shown, so no search button (as on Windows); ⌘F still jumps back to it.
-            Button("") { searchFocused = true }
-                .keyboardShortcut("f")
-                .frame(width: 0, height: 0)
-                .opacity(0)
-                .accessibilityHidden(true)
-            Toggle(isOn: $model.selectMode) { Image(systemName: "checklist") }
-                .toggleStyle(.button)
-                .help("Select several roles to activate together")
-                .accessibilityLabel("Select roles")
-            Button { Task { await model.refreshAll(userInitiated: true) } } label: { Image(systemName: "arrow.clockwise") }
-                .keyboardShortcut("r")
-                .help("Refresh (⌘R)")
-                .accessibilityLabel("Refresh")
-                .disabled(!model.isOnline)
-        }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+    private var listHeight: CGFloat { max(PanelMetrics.maxHeight - topHeight - bottomHeight, 44) }
+
+    private var filterPlaceholder: LocalizedStringKey {
+        if case .tenant(let key) = model.panelContent, let name = model.tenant(key)?.displayName { return "Filter roles in \(name)" }
+        return "Filter roles"
     }
 
     private var footer: some View {

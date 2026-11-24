@@ -1,22 +1,25 @@
 import SwiftUI
 import ElevateCore
 
-/// Pinned "Active now" summary across all accounts and tenants, above the account list.
+/// Pinned "Active now" summary across all accounts and tenants, or one tenant's.
 struct ActiveSection: View {
     @Environment(AppModel.self) private var model
+    var tenant: TenantKey?
+    /// Home draws its first row as the extend card.
+    var showsHero = false
 
     var body: some View {
         // Rows come straight from the model, including ones just deactivated: a view-held copy
         // synced by a task never populated inside the panel's LazyVStack, which does not realise
         // an empty conditional (or a zero-height sibling), so the section stayed hidden.
-        let rows = model.activeRowsOrdered
+        let rows = model.activeRows(in: tenant)
         if !rows.isEmpty {
             Section {
                 if !model.collapsedActive {
                     ForEach(rows) { a in ActiveRow(assignment: a) }
                 }
             } header: {
-                ActiveHeader(count: model.activeAssignmentsOrdered.count)
+                ActiveHeader(count: model.activeAssignments(in: tenant).count)
             }
         }
     }

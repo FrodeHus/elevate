@@ -4,9 +4,10 @@ import ElevateCore
 /// Pinned "Approvals" list of requests awaiting this user's decision, above "Active now".
 struct ApprovalsSection: View {
     @Environment(AppModel.self) private var model
+    var tenant: TenantKey?
 
     var body: some View {
-        let items = model.approvalsOrdered
+        let items = model.approvals(in: tenant)
         if !items.isEmpty {
             Section {
                 if !model.collapsedApprovals {
