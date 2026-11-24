@@ -256,4 +256,55 @@ struct AppModelSelectionStateTests {
         #expect(model.panelSelection == .allTenants)
         cleanup(model)
     }
+
+    @Test func arrowKeysAndReturnDoNothingOnHomeWhereNoRoleRowsAreDrawn() async {
+        let model = await makeTwoTenantModel()
+        model.active[Sample.azureKey] = Sample.assignment(Sample.azureKey)
+        #expect(model.panelContent == .home)
+        model.moveHighlight(1)
+        #expect(model.highlightedRole == nil)
+        #expect(model.returnTarget == nil)
+        cleanup(model)
+    }
+
+    @Test func arrowKeysWalkATenantViewEvenWhenItsAccountIsCollapsedInTheSidebar() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        model.collapsedIdentities.insert(Sample.identity("id-1").id)
+        model.moveHighlight(1)
+        #expect(model.highlightedRole == Sample.entraKey)
+        cleanup(model)
+    }
+
+    @Test func selectingAllTenantsWhileBrowsingGoesBackHome() async {
+        let model = await makeTwoTenantModel()
+        model.active[Sample.entraKey] = Sample.assignment(Sample.entraKey)
+        model.browsing = true
+        model.select(.allTenants)
+        #expect(!model.browsing && model.panelContent == .home)
+        cleanup(model)
+    }
+
+    @Test func escapeOnAProfileViewLeavesTheProfileEvenWithAFilterLeftBehind() async {
+        let model = await makeTwoTenantModel()
+        let profile = model.saveProfile(name: "Ops", keys: [Sample.entraKey])!
+        model.searchQuery = "glob"
+        model.select(.profile(profile.id))
+        #expect(model.handleEscape())
+        #expect(model.panelSelection == .allTenants)
+        #expect(model.searchQuery == "glob")
+        cleanup(model)
+    }
+
+    @Test func staleAccessPackagesOfATenantThatNeedsSignInDoNotSwallowEscape() async {
+        let model = await makeTwoTenantModel()
+        model.select(.tenant(Sample.tenantKey))
+        model.openAccessPackages(Sample.tenantKey)
+        model.signInNeeded.insert(Sample.tenantKey.identityId)
+        model.browsing = true
+        #expect(model.panelContent != .accessPackages(Sample.tenantKey))
+        #expect(model.handleEscape())
+        #expect(!model.browsing)
+        cleanup(model)
+    }
 }

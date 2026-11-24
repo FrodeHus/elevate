@@ -88,7 +88,13 @@ extension AppModel {
 
     /// The role rows as the list draws them, top to bottom: what the arrow keys walk.
     var navigableRoles: [RoleKey] {
-        visibleIdentities.filter { !collapsedIdentities.contains($0.id) }.flatMap { identity -> [RoleKey] in
+        // Home, a profile and the access packages draw no role rows; a tenant view draws its rows
+        // whatever the sidebar says about the account being collapsed.
+        switch panelContent {
+        case .roleList, .tenant: break
+        default: return []
+        }
+        return visibleIdentities.filter { scopeTenant != nil || !collapsedIdentities.contains($0.id) }.flatMap { identity -> [RoleKey] in
             let tenants = visibleTenants(for: identity.id)
             // A sole tenant is folded into the account row and has no collapse state of its own.
             return tenants.filter { tenants.count == 1 || !collapsedTenants.contains($0.id) }.flatMap { tenant -> [RoleKey] in

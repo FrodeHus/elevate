@@ -30,6 +30,7 @@ extension AppModel {
         switch selection {
         case .allTenants:
             scopeTenant = nil
+            browsing = false
             clearOpenItems()
         case .tenant(let key):
             scopeTenant = key
@@ -89,14 +90,16 @@ extension AppModel {
     /// opened from), select mode, browsing (All tenants only). False when none was left; the caller closes the panel.
     @discardableResult
     func handleEscape() -> Bool {
-        if requestingPackage != nil {
+        // Branch on what is on screen: leftover fields of a view that is not shown must not swallow a press.
+        let content = panelContent
+        if case .requestPackage = content {
             endPackageRequest()
-        } else if accessPackagesTenant != nil {
+        } else if case .accessPackages = content {
             closeAccessPackages()
+        } else if case .profile = content {
+            selectedProfile = nil   // the filter field is hidden on a profile view
         } else if !searchQuery.isEmpty {
             searchQuery = ""
-        } else if case .profile = panelSelection {
-            selectedProfile = nil
         } else if selectMode {
             selectMode = false
         } else if browsing && panelSelection == .allTenants {
