@@ -34,7 +34,7 @@ internal static class ProfileActions
         App.Current.OpenRunProfile(id);
     }
 
-    /// <summary>The menu behind a chip, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
+    /// <summary>The menu behind a sidebar profile row, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
     public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root, bool inPanel)
     {
         ArgumentNullException.ThrowIfNull(model);

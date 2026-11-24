@@ -281,10 +281,6 @@ public sealed partial class PrivilegedCrown : ContentControl
 {
     public const string Label = "Privileged role";
 
-    public static readonly DependencyProperty RoleNameProperty = DependencyProperty.Register(
-        nameof(RoleName), typeof(string), typeof(PrivilegedCrown),
-        new PropertyMetadata(string.Empty, (d, _) => ((PrivilegedCrown)d).Apply()));
-
     public PrivilegedCrown()
     {
         Content = new Microsoft.UI.Xaml.Shapes.Polygon
@@ -299,17 +295,9 @@ public sealed partial class PrivilegedCrown : ContentControl
         IsTabStop = false;
         VerticalAlignment = VerticalAlignment.Center;
         ToolTipService.SetToolTip(this, Label);
-        Apply();
+        // Just the label: the role's name is read from the text beside it.
+        AutomationProperties.SetName(this, Label);
     }
-
-    /// <summary>The role this crown follows, so Narrator reads "Global Administrator, privileged role".</summary>
-    public string RoleName
-    {
-        get => (string)GetValue(RoleNameProperty);
-        set => SetValue(RoleNameProperty, value);
-    }
-
-    private void Apply() => AutomationProperties.SetName(this, string.IsNullOrEmpty(RoleName) ? Label : $"{RoleName}, privileged role");
 }
 
 /// <summary>
@@ -422,7 +410,7 @@ public static class TenantGroupBox
         line.Children.Add(new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
         if (isPrivileged)
         {
-            line.Children.Add(new PrivilegedCrown { RoleName = name });
+            line.Children.Add(new PrivilegedCrown());
         }
 
         return line;

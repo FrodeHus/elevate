@@ -25,7 +25,8 @@ public sealed partial class PanelSidebar : UserControl
     /// <summary>Redraws from the model when anything the sidebar shows has changed.</summary>
     public void Draw(AppModel model)
     {
-        var signature = Signature(model);
+        // The theme too: the rows read theme brushes when they are built.
+        var signature = Signature(model) + ActualTheme;
         if (signature == _signature)
         {
             return;
@@ -64,7 +65,7 @@ public sealed partial class PanelSidebar : UserControl
         sb.Append("#hk:").Append(hotKey).Append("#profiles:").Append(model.Profiles.Count);
         foreach (var p in model.PinnedProfiles)
         {
-            sb.Append('|').Append(p.Id).Append(':').Append(p.Name).Append(':').Append(p.Entries.Count);
+            sb.Append('|').Append(p.Id).Append(':').Append(p.Name).Append(':').Append(p.Entries.Count).Append(':').Append(ProfileSummary.Caption(p.Entries));
         }
 
         foreach (var identity in model.Identities)
@@ -72,6 +73,7 @@ public sealed partial class PanelSidebar : UserControl
             sb.Append("#i:").Append(identity.Id).Append(':').Append(identity.Upn)
                 .Append(':').Append(model.CollapsedIdentities.Contains(identity.Id))
                 .Append(':').Append(model.NeedsSignIn(identity.Id))
+                .Append(':').Append(identity.SignInMethod)
                 .Append(':').Append(model.IsMethodAllowed(identity.SignInMethod))
                 .Append(':').Append(model.SignInInFlight.Contains(identity.Id));
             foreach (var tenant in model.TenantsFor(identity.Id))
@@ -130,7 +132,7 @@ public sealed partial class PanelSidebar : UserControl
             }
 
             ToolTipService.SetToolTip(all, "All profiles: search, run, pin and manage");
-            AutomationProperties.SetName(all, $"All profiles, {profiles.Count}");
+            AutomationProperties.SetName(all, $"All profiles, {profiles.Count}{(allSelected ? ", selected" : string.Empty)}");
             all.Click += (_, _) => AllProfilesFlyout.Show(model, all);
             Grid.SetColumn(all, 1);
             heading.Children.Add(all);
@@ -485,7 +487,7 @@ public sealed partial class PanelSidebar : UserControl
             Fill(button, "AccentFillColorDefaultBrush", OnAccent);
         }
 
-        AutomationProperties.SetName(button, automationName);
+        AutomationProperties.SetName(button, selected ? automationName + ", selected" : automationName);
         button.Click += (_, _) => click();
         return button;
     }

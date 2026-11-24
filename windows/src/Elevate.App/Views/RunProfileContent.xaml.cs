@@ -217,6 +217,7 @@ public sealed partial class RunProfileContent : UserControl
 
                 if (row.Duration is { } picker)
                 {
+                    AutomationProperties.SetName(picker, $"Duration for {name}");
                     picker.SelectionChanged += (_, _) =>
                     {
                         if (!_syncing) session.SetDuration(key, picker.Duration);

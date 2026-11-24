@@ -35,7 +35,7 @@
                     <!-- NameLine: the name trims first; the crown and the "new" pill keep their size. -->
                     <views:NameLine>
                         <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" FontSize="14" VerticalAlignment="Center" />
-                        <views:PrivilegedCrown RoleName="{x:Bind Name, Mode=OneWay}" Visibility="{x:Bind CrownVisibility, Mode=OneWay}" />
+                        <views:PrivilegedCrown Visibility="{x:Bind CrownVisibility, Mode=OneWay}" />
                         <views:Pill Text="new" Tint="Accent" Visibility="{x:Bind NewVisibility, Mode=OneWay}" Tooltip="Added since the last discovery" />
                     </views:NameLine>
                     <TextBlock Text="{x:Bind Detail, Mode=OneWay}" Visibility="{x:Bind DetailVisibility, Mode=OneWay}"
@@ -181,7 +181,7 @@
                 <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
                     <views:NameLine>
                         <TextBlock Text="{x:Bind Role.Name, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
-                        <views:PrivilegedCrown RoleName="{x:Bind Role.Name, Mode=OneWay}" Visibility="{x:Bind Role.CrownVisibility, Mode=OneWay}" />
+                        <views:PrivilegedCrown Visibility="{x:Bind Role.CrownVisibility, Mode=OneWay}" />
                     </views:NameLine>
                     <TextBlock Text="{x:Bind Role.Detail, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Role.DetailTooltip, Mode=OneWay}" />
@@ -204,7 +204,7 @@
         <DataTemplate x:Key="ActionRowTemplate" x:DataType="views:ActionRow">
             <Grid>
                 <Button Style="{StaticResource SubtleButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="14,8,14,8" CornerRadius="0"
-                        Visibility="{x:Bind BrowseVisibility, Mode=OneWay}" Click="OnActionClick" AutomationProperties.Name="{x:Bind Text, Mode=OneWay}">
+                        Visibility="{x:Bind BrowseVisibility, Mode=OneWay}" Click="OnActionClick" AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

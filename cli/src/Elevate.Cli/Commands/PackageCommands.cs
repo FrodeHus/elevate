@@ -9,7 +9,7 @@ using Spectre.Console;
 
 namespace Elevate.Cli.Commands;
 
-/// <summary><c>packages</c>: entitlement management access packages, the terminal counterpart of the apps' access packages window.</summary>
+/// <summary><c>packages</c>: entitlement management access packages, the terminal counterpart of the apps' access packages view.</summary>
 public static class PackageCommands
 {
     public static Command Packages()

@@ -23,7 +23,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Every profile, pinned ones starred; drag to reorder the chips. -->
+        <!-- Every profile, pinned ones starred; drag to reorder the sidebar's profiles. -->
         <Grid Grid.Column="0" Padding="8" RowSpacing="6" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />

@@ -500,6 +500,9 @@ public sealed class ActionRow(PanelAction action, string text, string? caption) 
 
     public Visibility CaptionVisibility => string.IsNullOrEmpty(Caption) ? Visibility.Collapsed : Visibility.Visible;
 
+    /// <summary>What a screen reader says for the button: the text and its caption.</summary>
+    public string AutomationName => string.IsNullOrEmpty(Caption) ? Text : $"{Text}, {Caption}";
+
     public Visibility BrowseVisibility => Action == PanelAction.BrowseAll ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility LinkVisibility => Action == PanelAction.SearchAllTenants ? Visibility.Visible : Visibility.Collapsed;
@@ -1170,7 +1173,7 @@ public static class PanelListBuilder
         (PanelTab.Azure, _) => tenant.AzureUnavailableReason ?? "No eligible Azure resource roles.",
         (PanelTab.Roles, DiscoveryMode.ManualRoles) => "No roles configured.",
         _ => model.EntraViewOnlyReason(tenant.Key) is not null
-            ? "This account supports Azure resource roles only; see the Azure pivot."
+            ? "This account supports Azure resource roles only; see the Azure tab."
             : "No eligible Entra roles.",
     };
 
