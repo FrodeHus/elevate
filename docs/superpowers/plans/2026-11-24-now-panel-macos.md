@@ -403,7 +403,9 @@ Layout, top to bottom (spec 3.2):
 - Replace: the panel screenshots those guides reference under `docs/images/`
 
 - [ ] **Step 1: Rewrite the panel descriptions** to the new layout: the sidebar, All tenants and tenant views, the All tab, where profiles are and that a click shows the profile in the panel, Escape, `N more in other tenants`. Keep every statement about sheets, notifications and the menu bar icon.
-- [ ] **Step 2: Retake each referenced panel screenshot** from the running app with the same fictional sample data the current pictures use, at the same scale; keep file names so links hold.
+This task runs last, after the Windows plan's Task 8, so the guides, screenshots and site describe the finished UI on both platforms (product owner's instruction, 2026-11-24).
+
+- [ ] **Step 2: Retake every screenshot that shows the panel,** under `docs/images/` and `site/assets/`, with fictional data only (alex.rivera@contoso.com, Contoso, Fabrikam, Northwind Traders; never a real tenant, account or client id). Keep file names and pixel scale so links and the site layout hold. macOS: render the views offscreen from a temporary Swift Testing test in `macos/Tests/ElevateAppTests/` that builds an `AppModel` with `makeModel(state:)`, hosts the view in an `NSHostingView` over `Color(nsColor: .windowBackgroundColor)`, and writes PNGs with `cacheDisplay`; delete the test afterwards. Windows: on the VM, seed `%LOCALAPPDATA%\Elevate\state.json` as `windows/CONTINUING.md` describes and launch with `--flyout`. Composite site images (`lift-*.png`, `social-preview.png`) that embed the old panel are regenerated with the new one, or listed in the report if their source cannot be found.
 - [ ] **Step 3: Index the canvas.** Its artboard sources and `canvas.json` are already in `docs/design/now-panel/`. Add a row to `docs/design/README.md` naming that folder and the live link https://claude.ai/artifact/QLsnkjNRKK6j4bQSXukrbQ.
 - [ ] **Step 4: Run** `python3 scripts/check-site.py` if any changed file is referenced by `site/`; expected: no broken references.
 - [ ] **Step 5: Commit** `Docs: describe the Now panel`.
