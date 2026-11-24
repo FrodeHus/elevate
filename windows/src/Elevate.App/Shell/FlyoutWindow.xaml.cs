@@ -14,14 +14,14 @@ namespace Elevate.App.Shell;
 
 /// <summary>
 /// The tray flyout: a borderless, non-resizable, always-on-top window with a Mica Alt backdrop,
-/// 380 px wide and 640 px tall while the list is showing (the list scrolls), sized to its content
+/// 516 px wide (a 136 px sidebar and the 380 px main column) and 720 px tall while the list is showing (the list scrolls), sized to its content
 /// in the setup and no-accounts states, placed above the taskbar near the icon.
 /// Hides when it loses activation, like the Wi-Fi and Quick Settings flyouts.
 /// </summary>
 public sealed partial class FlyoutWindow : Window
 {
-    private const int Width = 380;
-    private const int MaxHeight = 640;
+    private const int Width = 516;
+    private const int MaxHeight = 720;
 
     private readonly OverlappedPresenter _presenter;
     private DateTimeOffset _hiddenAt = DateTimeOffset.MinValue;
@@ -125,7 +125,7 @@ public sealed partial class FlyoutWindow : Window
     /// <summary>
     /// The outer window size that gives the content its full width. The presenter keeps a border,
     /// and <see cref="Microsoft.UI.Windowing.AppWindow.Size"/> counts that invisible frame, so
-    /// sizing the outer rectangle to 380 logical pixels left the client area a frame narrower and
+    /// sizing the outer rectangle to the logical width left the client area a frame narrower and
     /// pushed the row buttons off the right edge. The frame is measured, not assumed: it differs
     /// per DPI and per Windows build.
     /// </summary>

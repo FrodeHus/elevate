@@ -439,7 +439,7 @@ public sealed partial class ManageProfilesWindow : Window
         }
 
         CommitName();
-        _ = ProfileActions.RunAsync(_model, profile.Id, silentlyIfPossible: false);
+        _ = ProfileActions.RunAsync(_model, profile.Id, silentlyIfPossible: false, inPanel: false);
     }
 
     private async void OnAddRoles(object sender, RoutedEventArgs e)

@@ -14,13 +14,19 @@ internal static class ProfileActions
 {
     /// <summary>
     /// Runs a profile: silently with the remembered reason and durations when asked and possible,
-    /// otherwise through the run window.
+    /// otherwise in the flyout's main view (<paramref name="inPanel"/>) or the run window.
     /// </summary>
-    public static async Task RunAsync(AppModel model, Guid id, bool silentlyIfPossible)
+    public static async Task RunAsync(AppModel model, Guid id, bool silentlyIfPossible, bool inPanel)
     {
         ArgumentNullException.ThrowIfNull(model);
         if (silentlyIfPossible && await model.QuickRunAsync(id))
         {
+            return;
+        }
+
+        if (inPanel)
+        {
+            model.ShowProfile(id);
             return;
         }
 
@@ -29,7 +35,7 @@ internal static class ProfileActions
     }
 
     /// <summary>The menu behind a chip, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
-    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root)
+    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root, bool inPanel)
     {
         ArgumentNullException.ThrowIfNull(model);
         var menu = new MenuFlyout();
@@ -39,8 +45,8 @@ internal static class ProfileActions
             return menu;
         }
 
-        menu.Items.Add(Item("Run…", () => _ = RunAsync(model, id, silentlyIfPossible: false)));
-        var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true));
+        menu.Items.Add(Item("Run…", () => _ = RunAsync(model, id, silentlyIfPossible: false, inPanel)));
+        var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true, inPanel));
         last.IsEnabled = profile.LastJustification is not null;
         menu.Items.Add(last);
         foreach (var run in model.ProfileRuns(id))

@@ -196,7 +196,7 @@ internal sealed class AllProfilesFlyout
             Content = new FontIcon { Glyph = "", FontSize = 12 },
         };
         AutomationProperties.SetName(more, $"More actions for {profile.Name}");
-        more.Click += (_, _) => ProfileActions.Menu(_model, id, more.XamlRoot).ShowAt(more);
+        more.Click += (_, _) => ProfileActions.Menu(_model, id, more.XamlRoot, inPanel: true).ShowAt(more);
         Grid.SetColumn(more, 4);
         row.Children.Add(more);
 
@@ -204,7 +204,7 @@ internal sealed class AllProfilesFlyout
         row.ContextRequested += (s, e) =>
         {
             e.Handled = true;
-            ProfileActions.Menu(_model, id, ((Grid)s).XamlRoot).ShowAt((Grid)s);
+            ProfileActions.Menu(_model, id, ((Grid)s).XamlRoot, inPanel: true).ShowAt((Grid)s);
         };
         row.PointerEntered += (s, _) => ((Grid)s).Background = (Brush)resources["SubtleFillColorSecondaryBrush"];
         row.PointerExited += (s, _) => ((Grid)s).Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
@@ -214,7 +214,7 @@ internal sealed class AllProfilesFlyout
     private void Run(Guid id)
     {
         _flyout.Hide();
-        _ = ProfileActions.RunAsync(_model, id, silentlyIfPossible: PanelView.IsControlDown());
+        _ = ProfileActions.RunAsync(_model, id, silentlyIfPossible: PanelView.IsControlDown(), inPanel: true);
     }
 
     private void OnSearchKey(object sender, KeyRoutedEventArgs e)

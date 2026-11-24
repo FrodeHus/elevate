@@ -230,7 +230,7 @@ public sealed partial class PanelView : UserControl
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
-        DrawProfiles(model, hidden: bodyHidden);
+        Sidebar.Draw(model);
 
         BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
@@ -266,103 +266,6 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>What the row last drew, so the chips are rebuilt only when a pin, a name or the count changed.</summary>
-    private string _profilesSignature = string.Empty;
-
-    private void DrawProfiles(AppModel model, bool hidden)
-    {
-        var profiles = model.Profiles;
-        var visible = !hidden && profiles.Count > 0;
-        ProfilesRow.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        if (!visible)
-        {
-            _profilesSignature = string.Empty;
-            return;
-        }
-
-        var pinned = model.PinnedProfiles;
-        var signature = string.Join("|", pinned.Select(p => $"{p.Id}:{p.Name}:{p.Entries.Count}:{p.LastJustification is null}")) + "#" + profiles.Count;
-        if (signature == _profilesSignature)
-        {
-            return;
-        }
-
-        _profilesSignature = signature;
-        AllProfilesLabel.Text = $"All {profiles.Count}";
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(AllProfiles, $"All profiles, {profiles.Count}");
-        ProfileChips.Children.Clear();
-        ProfileChips.ColumnDefinitions.Clear();
-        if (pinned.Count == 0)
-        {
-            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            ProfileChips.Children.Add(new TextBlock
-            {
-                Text = "Pin profiles to show them here",
-                FontSize = 12,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            return;
-        }
-
-        // Star-sized, capped columns: four chips shrink together and trim their names instead of wrapping.
-        for (var i = 0; i < pinned.Count; i++)
-        {
-            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 150 });
-            var chip = Chip(pinned[i]);
-            Grid.SetColumn(chip, i);
-            ProfileChips.Children.Add(chip);
-        }
-    }
-
-    /// <summary>A pinned profile: click runs it, Ctrl-click runs it silently, right-click for the rest.</summary>
-    private Button Chip(ActivationProfile profile)
-    {
-        var resources = Application.Current.Resources;
-        var id = profile.Id;
-        // No count on the chip: four names already compete for 356 px, and the tooltip and the All list carry it.
-        var content = new Grid { ColumnSpacing = 5 };
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var bolt = new FontIcon { Glyph = "", FontSize = 10, Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["AccentFillColorDefaultBrush"], VerticalAlignment = VerticalAlignment.Center };
-        content.Children.Add(bolt);
-        var name = new TextBlock { Text = profile.Name, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(name, 1);
-        content.Children.Add(name);
-
-        var chip = new Button
-        {
-            Style = (Style)resources["SmallButtonStyle"],
-            Height = 28,
-            MinHeight = 28,
-            Padding = new Thickness(9, 0, 9, 0),
-            CornerRadius = new CornerRadius(14),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = content,
-        };
-        ToolTipService.SetToolTip(chip, $"Run {profile.Name} ({ProfileSummary.Caption(profile.Entries)}). Ctrl-click to run with the last reason and durations");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, $"Run {profile.Name}");
-        chip.Click += (_, _) =>
-        {
-            if (_model is not null)
-            {
-                _ = ProfileActions.RunAsync(_model, id, silentlyIfPossible: IsControlDown());
-            }
-        };
-        chip.ContextRequested += (s, e) =>
-        {
-            if (_model is null)
-            {
-                return;
-            }
-
-            e.Handled = true;
-            ProfileActions.Menu(_model, id, XamlRoot).ShowAt((FrameworkElement)s);
-        };
-        return chip;
-    }
     /// <summary>Once a second while the flyout is open: countdowns, the deactivation lock, Extend.</summary>
     private void Tick()
     {
@@ -487,7 +390,7 @@ public sealed partial class PanelView : UserControl
         var name = string.IsNullOrEmpty(row.Detail) ? row.Name : $"{row.Name} · {row.Detail}";
         var favorite = model.IsFavorite(key);
         var menu = new MenuFlyout();
-        menu.Items.Add(Item(favorite ? "Remove from favorites" : "Add to favorites", () => model.SetFavorite(key, name, !favorite)));
+        menu.Items.Add(PanelMenus.Item(favorite ? "Remove from favorites" : "Add to favorites", () => model.SetFavorite(key, name, !favorite)));
         e.Handled = true;
         if (e.TryGetPosition(source, out var point))
         {
@@ -557,14 +460,6 @@ public sealed partial class PanelView : UserControl
         InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
     // MARK: Profiles
-
-    private void OnAllProfiles(object sender, RoutedEventArgs e)
-    {
-        if (_model is not null && sender is FrameworkElement anchor)
-        {
-            AllProfilesFlyout.Show(_model, anchor);
-        }
-    }
 
     private void OnBulkProfile(object sender, RoutedEventArgs e)
     {
@@ -799,164 +694,24 @@ public sealed partial class PanelView : UserControl
             return;
         }
 
-        var menu = new MenuFlyout();
-        if (group.Kind == GroupKind.Identity && group.IdentityId is { } identityId)
+        if (group.Kind == GroupKind.Identity && group.IdentityId is { } identityId && _model.Identity(identityId) is { } identity)
         {
-            if (group.SignInHelp is { } help)
-            {
-                // The sign-in method heads the menu instead of crowding the row.
-                menu.Items.Add(new MenuFlyoutItem { Text = help, IsEnabled = false });
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-
-            if (group.NeedsSignIn)
-            {
-                var again = Item("Sign in again", () => RetrySignIn(identityId));
-                again.IsEnabled = group.SignInEnabled;
-                menu.Items.Add(again);
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-
-            menu.Items.Add(Item("Discover tenants…", () => App.Current.OpenDiscoverTenants(identityId)));
-            menu.Items.Add(Item("Add tenant…", () => App.Current.OpenAddTenant(identityId)));
-            if (group.TenantKey is { } soleKey && _model.Tenant(soleKey) is { } sole)
-            {
-                menu.Items.Add(new MenuFlyoutSeparator());
-                AddTenantItems(menu, sole);
-            }
-
-            menu.Items.Add(new MenuFlyoutSeparator());
-            if (_model.Identity(identityId) is { } identity && _model.CanChangeRegistration(identity))
-            {
-                // An account not on an Entra app registration yet gains Entra roles and PIM for
-                // Groups by moving to one, so the item says so instead of "change".
-                menu.Items.Add(Item(
-                    identity.SignInMethod.IsOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…",
-                    () => App.Current.OpenChangeRegistration(identityId)));
-            }
-
-            menu.Items.Add(Item("Sign out…", () => _ = ConfirmSignOutAsync(identityId)));
+            var sole = group.TenantKey is { } soleKey ? _model.Tenant(soleKey) : null;
+            PanelMenus.IdentityMenu(_model, identity, sole, XamlRoot).ShowAt(anchor);
         }
         else if (group.Kind == GroupKind.Tenant && group.TenantKey is { } key && _model.Tenant(key) is { } tenant)
         {
-            AddTenantItems(menu, tenant);
+            PanelMenus.TenantMenu(_model, tenant, XamlRoot).ShowAt(anchor);
         }
-
-        menu.ShowAt(anchor);
-    }
-
-    private void AddTenantItems(MenuFlyout menu, TenantContext tenant)
-    {
-        if (_model is null)
-        {
-            return;
-        }
-
-        var model = _model;
-        if (tenant.AccessPackagesAvailable == true)
-        {
-            // First, as on macOS: the one item that opens a window of its own.
-            menu.Items.Add(Item("Access packages…", () => App.Current.OpenAccessPackages(tenant.Key)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-        }
-
-        menu.Items.Add(Item("Configure known PIM roles…", () => App.Current.OpenConfigureRoles(tenant.Key)));
-        menu.Items.Add(Item("Retry discovery", () => _ = model.RetryDiscoveryAsync(tenant.Key)));
-        // Each portal opens in this tenant; the browser session picks the account.
-        var open = new MenuFlyoutSubItem { Text = "Open…" };
-        foreach (var portal in AdminPortal.All)
-        {
-            var portalUri = portal.Uri(tenant.TenantId);
-            open.Items.Add(Item(portal.Title, () => _ = Windows.System.Launcher.LaunchUriAsync(portalUri)));
-        }
-
-        menu.Items.Add(open);
-        // Offered for every Entra-app-registration account, not only after discovery fell back:
-        // an administrator may need to re-consent after a scope is added, before anything fails.
-        // AdminConsentUrl is null for the first-party (Azure CLI / PowerShell) and custom methods.
-        if (model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
-        {
-            menu.Items.Add(Item("Open admin consent link…", () => _ = Windows.System.Launcher.LaunchUriAsync(url)));
-        }
-
-        menu.Items.Add(new MenuFlyoutSeparator());
-        if (model.IsPinnedTenant(tenant.Key))
-        {
-            // A pinned tenant would only come back on the next launch; the menu says so rather
-            // than offering a removal that does nothing.
-            menu.Items.Add(new MenuFlyoutItem { Text = "Pinned by your organization", IsEnabled = false });
-            return;
-        }
-
-        var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
-        remove.IsEnabled = tenant.Source != TenantSource.Home;
-        menu.Items.Add(remove);
     }
 
     /// <summary>The account row's Sign in button: re-runs the account's own sign-in method and clears the flag.</summary>
     private void OnSignInAgainClick(object sender, RoutedEventArgs e)
     {
-        if (Group(sender) is { IdentityId: { } identityId })
+        if (_model is not null && Group(sender) is { IdentityId: { } identityId })
         {
-            RetrySignIn(identityId);
+            PanelMenus.RetrySignIn(_model, identityId);
         }
-    }
-
-    private void RetrySignIn(string identityId)
-    {
-        if (_model is { } model && model.Identity(identityId) is { } identity)
-        {
-            // The model reports the outcome through Notice; nothing to await here.
-            _ = model.RetrySignInAsync(identity);
-        }
-    }
-
-    // Signing out and removing a tenant run at once and have no undo: each says what is forgotten
-    // and that the assignments themselves are untouched before it goes ahead.
-
-    private async Task ConfirmSignOutAsync(string identityId)
-    {
-        if (_model is null || _model.Identity(identityId) is not { } identity)
-        {
-            return;
-        }
-
-        var n = _model.TenantsFor(identityId).Count;
-        var tenants = n == 1 ? "its tenant" : $"its {n} tenants";
-        var ok = await DialogWindows.ConfirmAsync(
-            XamlRoot,
-            $"Sign out {identity.Upn}?",
-            $"Elevate forgets {tenants}, configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later.",
-            "Sign out");
-        if (ok && _model.Identity(identityId) is { } still)
-        {
-            _model.SignOut(still);
-        }
-    }
-
-    private async Task ConfirmRemoveTenantAsync(TenantContext tenant)
-    {
-        if (_model is null)
-        {
-            return;
-        }
-
-        var ok = await DialogWindows.ConfirmAsync(
-            XamlRoot,
-            $"Remove {tenant.DisplayName}?",
-            "Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.",
-            "Remove tenant");
-        if (ok && _model.Tenant(tenant.Key) is not null)
-        {
-            _model.RemoveTenant(tenant.Key);
-        }
-    }
-
-    private static MenuFlyoutItem Item(string text, Action action)
-    {
-        var item = new MenuFlyoutItem { Text = text };
-        item.Click += (_, _) => action();
-        return item;
     }
 
     // MARK: Footer
