@@ -92,8 +92,9 @@ Scrolling section: **Tenants**.
   active or pending assignments, else the red warning glyph when discovery failed. Its tooltip
   carries what the tenant header pills say today ("home", "manual roles", "Azure roles only",
   the error text).
-- An account that needs sign-in shows a "Sign in" button in place of its menu and its tenants are
-  dimmed and not selectable.
+- An account that needs sign-in shows a "Sign in" button under its address and its tenants are
+  dimmed and not selectable. Its menu stays, so the account can still be signed out or removed
+  **(call, changed during implementation: the first draft replaced the menu with the button)**.
 - Clicking an account label collapses or expands its tenants (`collapsedIdentities`, as today).
 - "Add account…" sits at the bottom, outside the scrolling area.
 
