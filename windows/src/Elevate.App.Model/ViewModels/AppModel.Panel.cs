@@ -157,6 +157,11 @@ public sealed partial class AppModel
     public IReadOnlyList<TenantContext> VisibleTenants(string identityId)
     {
         var all = TenantsFor(identityId);
+        if (ScopeTenant is { } scope)
+        {
+            all = [.. all.Where(t => t.Key == scope)];
+        }
+
         if (!IsFiltering)
         {
             return all;
@@ -171,7 +176,7 @@ public sealed partial class AppModel
         {
             if (!IsFiltering)
             {
-                return Identities;
+                return ScopeTenant is { } scope ? [.. Identities.Where(i => i.Id == scope.IdentityId)] : Identities;
             }
 
             return [.. Identities.Where(i => VisibleTenants(i.Id).Count > 0)];

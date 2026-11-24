@@ -177,7 +177,11 @@ public sealed partial class FlyoutWindow : Window
     {
         if (e.Key == Windows.System.VirtualKey.Escape)
         {
-            Hide();
+            if (!Model.HandleEscape())
+            {
+                Hide();
+            }
+
             e.Handled = true;
         }
     }

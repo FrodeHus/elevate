@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Elevate.Core.Auth;
 using Elevate.Core.Managed;
+using Elevate.Core.Models;
 using Elevate.Core.Storage;
 
 namespace Elevate.App.Services;
@@ -56,6 +57,7 @@ public sealed class AppSettings : ObservableObject
     private string? _dismissedUpdateVersion;
     private HashSet<string> _dismissedTokenHintAccounts = new(StringComparer.Ordinal);
     private DateTimeOffset? _managedProfilesFetchedAt;
+    private TenantKey? _panelTenant;
 
     /// <param name="managed">
     /// The organization's managed configuration; the platform default source (Windows policy) when
@@ -94,7 +96,8 @@ public sealed class AppSettings : ObservableObject
         DateTimeOffset? LastUpdateCheck = null,
         string? DismissedUpdateVersion = null,
         List<string>? DismissedTokenHintAccounts = null,
-        DateTimeOffset? ManagedProfilesFetchedAt = null);
+        DateTimeOffset? ManagedProfilesFetchedAt = null,
+        TenantKey? PanelTenant = null);
 
     public string Directory { get; }
 
@@ -165,6 +168,19 @@ public sealed class AppSettings : ObservableObject
         set
         {
             if (SetProperty(ref _panelTab, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The tenant the panel is scoped to; null means all tenants.</summary>
+    public TenantKey? PanelTenant
+    {
+        get => _panelTenant;
+        set
+        {
+            if (SetProperty(ref _panelTenant, value))
             {
                 Save();
             }
@@ -363,6 +379,7 @@ public sealed class AppSettings : ObservableObject
             _dismissedUpdateVersion = model.DismissedUpdateVersion;
             _dismissedTokenHintAccounts = new HashSet<string>(model.DismissedTokenHintAccounts ?? [], StringComparer.Ordinal);
             _managedProfilesFetchedAt = model.ManagedProfilesFetchedAt;
+            _panelTenant = model.PanelTenant;
         }
         catch (JsonException)
         {
@@ -378,7 +395,7 @@ public sealed class AppSettings : ObservableObject
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],
-            _managedProfilesFetchedAt);
+            _managedProfilesFetchedAt, _panelTenant);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);
