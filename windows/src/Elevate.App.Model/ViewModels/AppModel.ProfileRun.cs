@@ -161,7 +161,8 @@ public sealed partial class AppModel
     {
         if (SelectedProfile is { } id && _runSessions.TryGetValue(id, out var session))
         {
-            if (session.Finished && session.ResultsSeen)
+            // A run window still showing the results keeps them until it closes.
+            if (session.Finished && session.ResultsSeen && !RunWindowsOpen.Contains(id))
             {
                 _runSessions.Remove(id);
                 SetSelectedProfile(null);

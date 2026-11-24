@@ -31,6 +31,7 @@ public sealed partial class RunProfileWindow : Window
         Closed += (_, _) =>
         {
             _model.Changed -= OnModelChanged;
+            RunContent.Unbind();
             _model.RunWindowsOpen.Remove(profileId);
         };
     }

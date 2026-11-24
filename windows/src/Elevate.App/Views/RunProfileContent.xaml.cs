@@ -95,6 +95,14 @@ public sealed partial class RunProfileContent : UserControl
         }
     }
 
+    /// <summary>For good: a closing window calls it because Unloaded is not reliably raised for one, and a dead control must not redraw or touch the model.</summary>
+    internal void Unbind()
+    {
+        Detach();
+        _model = null;
+        _session = null;
+    }
+
     private void OnModelChanged(object? sender, EventArgs e) => Refresh();
 
     // Fixed columns: the picker and the status keep their width even when a row has nothing to

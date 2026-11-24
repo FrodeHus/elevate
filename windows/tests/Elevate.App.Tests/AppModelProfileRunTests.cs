@@ -122,6 +122,33 @@ public class AppModelProfileRunTests
     }
 
     [Fact]
+    public async Task SeenResultsInAnOpenRunWindowSurviveThePanelOpeningAndLeaving()
+    {
+        var (test, id) = await ModelAsync();
+        using var _ = test;
+        test.Model.ShowProfile(id);
+        test.Model.RunWindowsOpen.Add(id);
+        await test.Model.SubmitRunAsync(id);
+        test.Model.MarkRunSeen(id);
+        var results = test.Model.RunSession(id).RowResults.Count;
+        results.Should().BeGreaterThan(0);
+
+        test.Model.PanelOpened();
+        test.Model.RunSessions.Should().ContainKey(id);
+        test.Model.RunSession(id).RowResults.Should().HaveCount(results);
+
+        // The leave hook must not drop it either.
+        test.Model.Select(new PanelSelection.AllTenants());
+        test.Model.RunSessions.Should().ContainKey(id);
+
+        // With the window gone the normal rule applies again.
+        test.Model.Select(new PanelSelection.Profile(id));
+        test.Model.RunWindowsOpen.Remove(id);
+        test.Model.PanelOpened();
+        test.Model.RunSessions.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ARunThatEndsWithThePanelClosedNotifies()
     {
         var (test, id) = await ModelAsync();
