@@ -141,6 +141,7 @@ public sealed partial class AppModel
 
         State.RemoveProfile(id);
         Persist();
+        ForgetProfile(id);
         // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
         if (Settings.HotKeyProfileId == id)
         {

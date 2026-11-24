@@ -44,7 +44,14 @@ public sealed partial class AppModel
 
     private void SetSelectedProfile(Guid? id)
     {
+        var previous = SelectedProfile;
         SelectedProfile = id;
+        // Leaving a profile drops its draft or results; a run still going is kept.
+        if (previous is { } left && left != id && _runSessions.TryGetValue(left, out var session) && !session.Running)
+        {
+            _runSessions.Remove(left);
+        }
+
         Touch();
     }
 

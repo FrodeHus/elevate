@@ -110,6 +110,7 @@ public sealed partial class FlyoutWindow : Window
         _shown = false;
         _hiddenAt = DateTimeOffset.UtcNow;
         AppWindow.Hide();
+        Model.PanelClosed();
     }
 
     private double Scale => PInvoke.GetDpiForWindow(Handle) / 96.0;

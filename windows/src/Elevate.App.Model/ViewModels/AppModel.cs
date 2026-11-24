@@ -814,7 +814,11 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     }
 
     /// <summary>Tells the views something changed. Always raised on the model's thread.</summary>
-    internal void Touch() => Changed?.Invoke(this, EventArgs.Empty);
+    internal void Touch()
+    {
+        MirrorProgressIntoRunSessions();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Runs <paramref name="action"/> on the model's thread.</summary>
     internal void Post(Action action)
