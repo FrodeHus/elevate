@@ -234,8 +234,8 @@ The document is JSON:
 - `id` is a stable slug matching `[a-z0-9-]{1,64}`, unique in the set. The
   profile's internal id is derived from it, so a hot-key binding survives a
   reinstall.
-- `name` is required. `reason` prefills the run sheet's justification;
-  `pinned` (default `false`) shows the profile as a chip in the panel.
+- `name` is required. `reason` prefills the justification in the profile view and the run window;
+  `pinned` (default `false`) shows the profile as a button in the panel's sidebar.
 - `roles[]`: `kind` is `entraDirectory`, `azureResource` or `group`; `tenant`
   is a tenant id or verified domain; `duration` (optional) is an ISO 8601
   duration such as `PT2H`. `entraDirectory` requires `role`; `azureResource`

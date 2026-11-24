@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS and Windows: **a new panel, built around what is active.** A sidebar that is always
+  visible lists your pinned profiles, then **All tenants** and every account with its tenants; a
+  tenant row shows how many roles are active in it, or a warning when its roles could not be
+  read, and an account that needs to sign in shows **Sign in** with its tenants dimmed. The main
+  view opens on **Home**: **Approvals**, **Active now** across every account, and **Browse all
+  roles**. The first active role in its last fifteen minutes is drawn as a card with **Extend** as
+  its main button, and with nothing active a **Nothing active** card sits above the role list.
+  Select a tenant to see only that tenant's approvals, active roles and eligible roles, with its
+  **Access packages…** button in the header.
+  The panel is wider than before, on both platforms, to make room for the sidebar.
+
+- macOS and Windows: **an All view, and the Entra, Azure and Groups control moved.** **All · Entra
+  · Azure · Groups** now sits in the **Eligible · N** bar, and **All**, which shows the three kinds
+  together, is new and the default until you pick another. The control narrows the eligible roles
+  only: Approvals and Active now always show every kind. With a tenant selected, a filter reads
+  "Filter roles in <tenant>" and ends with **N more in other tenants** when the query matches
+  elsewhere.
+
+- macOS and Windows: **profiles live in the sidebar and open in the panel.** The chip row under the
+  tabs is gone. Click a profile to see it in the main view with each role's own duration as a small
+  menu, the remembered reason, **Start at** and **Activate N**; Option-click (Ctrl-click on
+  Windows) still runs it silently. A draft, a run in progress and results you have not seen
+  survive closing the panel. The run window remains for the global shortcut, a notification action
+  and **Run…** in the Profiles window. **All N** stays a searchable list, opened from the Profiles
+  header.
+
+- macOS and Windows: **access packages open in the panel, not a window.** The tenant's **Access
+  packages…** button shows the four tabs in the main view, with a back arrow, and requesting a
+  package shows the form there too; submitting or cancelling returns to the package list. The
+  separate window and request sheet are gone.
+
+- macOS and Windows: **the sidebar's sections collapse, and Escape steps back.** **PROFILES** and
+  **TENANTS** fold away (a collapsed header still shows the profile count, or the active count and
+  a warning), and Elevate remembers it. Exactly one sidebar row is filled in the accent colour:
+  the selected profile, tenant or **All tenants**. Escape dismisses one thing per press: the
+  access package form, the access packages, the filter, a profile, select mode, then browsing back
+  to Home. It never changes the selected tenant, and with nothing left it closes the panel. On
+  Windows, confirmations (sign out, remove a tenant, delete a profile) are dialogs; on macOS they
+  are cards inside the panel.
+
+### Added
+
+- macOS, Windows and CLI: **a crown marks privileged roles.** A role is privileged when Microsoft
+  flags its Entra definition as privileged, or when it is Azure Owner, Contributor, User Access
+  Administrator or Role Based Access Control Administrator. The apps show a small crown after the
+  role's name wherever it is drawn as a row (the role list, Active now, the Extend card, profiles,
+  the run window and select mode), with the tooltip "Privileged role". The CLI writes `privileged`
+  after the name in `elevate roles` and `elevate status`, and `isPrivileged` in `--json`. Groups
+  and access packages are never marked, and nothing about activating a privileged role changes.
+
 ## [1.10.2] - 2026-11-23
 
 ### Fixed

@@ -7,7 +7,8 @@ and Windows. This guide takes you from a fresh install to a panel full of roles.
 
 > The pictures in this guide are real renders of the macOS app with sample data from a fictional
 > organization. Elevate for Windows has the same controls in the same places, drawn in the
-> Windows style; where it differs, the guide says so.
+> Windows style; where it differs, the guide says so. On Windows, Ctrl takes the place of Option
+> and confirmations open as dialogs instead of cards inside the panel.
 
 Other guides: [Activating roles](activating-roles.md), [Profiles and shortcuts](profiles-and-shortcuts.md),
 [Approving requests](approvals.md), [Requesting access packages](access-packages.md),
@@ -76,7 +77,7 @@ are in [entra-app-registration.md](entra-app-registration.md).
 
 ## 3. Add an account
 
-Click **Add account…** at the bottom of the panel. Pick the sign-in method for this account:
+Click **Add account…** at the bottom of the sidebar. Pick the sign-in method for this account:
 
 ![The Add account dialog with the four sign-in methods and a note about what each supports](images/tutorials/add-account.png)
 
@@ -103,13 +104,13 @@ Click **Add account…** at the bottom of the panel. Pick the sign-in method for
   app registration…**), without losing its tenants or roles.
 
 Click **Continue**. Microsoft sign-in opens and returns you to Elevate. The account appears in
-the panel with its home tenant and, after a moment, the roles you are eligible for. The same
+the sidebar with its home tenant and, after a moment, the roles you are eligible for. The same
 account cannot be added twice with different methods; sign it out first.
 
 ## 4. Reach other tenants
 
 An account often has access to more than its home tenant, as a guest or through a
-partner setup. Open the account menu (the circled dots on the account row) and choose:
+partner setup. Open the account menu (the **⋯** beside the account's address in the sidebar) and choose:
 
 - **Discover tenants…** lists every tenant Microsoft says the account can reach; tick the ones
   you want and click **Track selected**.
@@ -117,36 +118,83 @@ partner setup. Open the account menu (the circled dots on the account row) and c
 
 ![The Add tenant dialog asking for a tenant ID or domain](images/tutorials/add-tenant.png)
 
-Each tracked tenant gets its own header under the account, with a **home** tag on the account's
-own tenant.
+Each tracked tenant gets its own row in the sidebar under the account, and its own header in
+the role list, with a **home** tag on the account's own tenant.
 
 ## 5. Find your way around the panel
 
-![The panel with profiles, an approval, active roles, and the Contoso tenant's roles](images/tutorials/panel-entra.png)
+The panel has two parts: a **sidebar** that is always there, and a **main view** that shows one
+thing at a time.
 
-From the top:
+![The panel on Home: the sidebar with profiles and tenants, an approval, an expiring role as a card, other active roles, and Browse all roles](images/tutorials/panel-home.png)
 
-- **Header buttons**: search (filters roles, tenants and accounts as you type), select roles
-  (for activating several at once), and refresh.
-- **Entra, Azure, Groups** tabs switch between directory roles, Azure resource roles and PIM for
-  Groups. Elevate remembers the tab you left it on.
-- **Profiles** are saved selections you run with one click. See
+**The sidebar** (left) holds what you move between:
+
+- **Profiles** are your pinned profiles, saved selections you run with one click, and **All N**
+  for the rest. Click one to open it in the main view. See
   [Profiles and shortcuts](profiles-and-shortcuts.md).
+- **Tenants** starts with **All tenants** and the number of roles active across everything. Under
+  it come your accounts, each with its tenants. A tenant row shows how many roles are active in
+  it in green, or a red warning triangle when its roles could not be read; hover for the reason
+  and for pills such as **manual roles** or **Azure roles only**. An account that needs to sign
+  in again shows a **Sign in** button and its tenants are dimmed until it has.
+- Click an account's address to collapse or expand its tenants, and use the **⋯** beside it for
+  the account menu: sign in again, discover tenants, add a tenant, sign out and more.
+- Click **PROFILES** or **TENANTS** to collapse the whole section. Elevate remembers which you
+  left collapsed, and a collapsed header still shows the profile count, or the active count and
+  a warning when something needs you.
+- **Add account…** is at the bottom of the sidebar.
+
+Exactly one row in the sidebar is filled with the accent colour: the profile, tenant or **All
+tenants** the main view is showing.
+
+**The main view** (right) opens on **Home** when **All tenants** is selected, and on a tenant when
+that was the last thing you looked at:
+
 - **Approvals** appears only when someone is waiting for your decision. See
   [Approving requests](approvals.md).
-- **Active now** lists everything currently active or pending across all accounts, with a
-  countdown.
-- **Accounts and tenants** follow, each with its eligible roles. Every account and tenant row has
-  a menu with actions such as sign in again, discover tenants, configure known roles, request
-  access packages, and remove. The tenant menu's **Open…** submenu opens the Azure Portal, the
-  Entra and Intune admin centers, and the Defender and Purview portals in that tenant; the
-  browser decides which account, so a sign-in prompt may appear with the tenant already chosen.
-- **Add account…**, **Settings…** and **Quit** are at the bottom.
+- **Active now** lists everything currently active, pending or scheduled across all accounts,
+  with a countdown. When a role is in its last fifteen minutes, the first row becomes a card with
+  **Extend** as its main button.
+- **Browse all roles** opens the list of eligible roles. When nothing is active, Home shows a
+  **Nothing active** card with that list directly under it.
+- A crown after a role's name marks a **privileged role**: a built-in Entra role that Microsoft
+  classes as privileged, or the Azure Owner, Contributor, User Access Administrator and Role
+  Based Access Control Administrator roles. Hover it for the label. Elevate marks them so you
+  can ask for them on purpose; they activate like any other role.
 
-Click a tenant name to collapse or expand it. The pills next to a tenant name tell you about
-limits, for example **manual roles** or **Azure roles only**; hover for the reason. A small box
-icon next to a tenant means it offers access packages; see
-[Requesting access packages](access-packages.md).
+Select **All tenants** and **Browse all roles** (or just start typing in the filter field) for the
+role list, or select one tenant in the sidebar to see only that tenant:
+
+![The role list: the filter field, the Eligible bar with All, Entra, Azure and Groups, and roles grouped by account and tenant](images/tutorials/panel-entra.png)
+
+- The header has two buttons: **select roles** (for activating several at once) and **refresh**.
+  The filter field below it already has the keyboard focus when the panel opens (⌘F, or Ctrl+F on
+  Windows, jumps back to it).
+- **All, Entra, Azure, Groups** sit in the **Eligible · N** bar. They narrow the eligible roles
+  to directory roles, Azure resource roles or PIM for Groups memberships; **All** shows the three
+  together. Approvals and Active now always show every kind. Elevate remembers the choice.
+- In the list for all tenants, every account and tenant has its own header with a menu for
+  actions such as sign in again, discover tenants, configure known roles, request access
+  packages, and remove. The tenant menu's **Open…** submenu opens the Azure Portal, the Entra and
+  Intune admin centers, and the Defender and Purview portals in that tenant; the browser decides
+  which account, so a sign-in prompt may appear with the tenant already chosen.
+- On a tenant's own view the header shows its name, its account and an **Access packages…**
+  button when the tenant offers them, and the tenant menu is the **⋯** beside it; see
+  [Requesting access packages](access-packages.md).
+
+![One tenant selected: its header with the Access packages button, then its approvals, active roles and eligible roles](images/tutorials/panel-tenant.png)
+
+Click a tenant header in the list to collapse or expand it. The pills next to a tenant name tell
+you about limits, for example **manual roles** or **Azure roles only**; hover for the reason. A
+small box icon next to a tenant means it offers access packages.
+
+**Settings…** and **Quit** are at the bottom of the main view.
+
+Press **Escape** to step back one thing at a time: it closes the access package form, then the
+access packages, clears the filter, leaves a profile, leaves select mode and, with **All tenants** selected, leaves the
+role list for Home. It never changes the tenant you selected. With nothing left to close, Escape
+closes the panel.
 
 ## 6. Settings worth knowing
 

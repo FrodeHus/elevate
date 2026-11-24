@@ -54,8 +54,8 @@ whichever accounts are signed in on the machine.
 | `version` | `1`. A higher number is rejected with a warning, so an older Elevate ignores a document it does not understand rather than guessing. |
 | `id` | A stable slug, `[a-z0-9-]`, up to 64 characters, unique in the set. The profile's internal identifier is derived from it, so a user's shortcut binding survives a reinstall. Do not recycle a slug for a different profile. |
 | `name` | Required. What the user sees. |
-| `reason` | Optional. Prefills the justification on the run sheet. |
-| `pinned` | Optional, default `false`. Shows the profile as a chip in the panel. Published chips come first and do **not** count against the four pins a user gets for their own profiles. |
+| `reason` | Optional. Prefills the justification in the profile view and the run window. |
+| `pinned` | Optional, default `false`. Shows the profile as a button in the sidebar's Profiles section. Published profiles come first and do **not** count against the four pins a user gets for their own profiles. |
 | `roles[]` | One entry per role, see below. |
 
 Every role has a `kind` and a `tenant` (a tenant id or a verified domain), and may have a
@@ -158,7 +158,7 @@ common pattern is to ship a minimal safety net inline and keep the day-to-day se
   `profiles rename`, `profiles delete` and saving over the name are refused with
   `'<name>' is published by your organization and cannot be changed.`, and `elevate profiles` shows
   `managed` in the `Source` column.
-- On the run sheet, a role the signed-in account is not eligible for renders **not eligible ·
+- In the profile view and the run window, a role the signed-in account is not eligible for renders **not eligible ·
   skipped**: the rest of the profile still runs. Nothing fails because one person lacks one role.
 - Durations you set are proposed, and the user can still shorten them on the run.
 - Running a published profile does not change it: per-role reasons and durations are remembered as
