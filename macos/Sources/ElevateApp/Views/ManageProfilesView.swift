@@ -134,7 +134,7 @@ private struct ProfileEditor: View {
                         .onSubmit(commitName)
                         .onChange(of: nameFocused) { _, focused in if !focused { commitName() } }
                 }
-                Button("Run…") { commitName(); ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false) }
+                Button("Run…") { commitName(); ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false, inPanel: false) }
                     .disabled(profile.entries.isEmpty)
             }
             HStack(alignment: .firstTextBaseline, spacing: 18) {

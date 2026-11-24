@@ -16,7 +16,6 @@ struct IdentityHeader: View {
     }
 
     @State private var signingIn = false
-    @State private var confirmSignOut = false
     @State private var confirmRemoveTenant = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -35,9 +34,7 @@ struct IdentityHeader: View {
         return t.source == .home ? "\(identity.upn) · \(t.displayName) · home" : "\(identity.upn) · \(t.displayName)"
     }
 
-    private var signInHelp: String {
-        "\(identity.upn), signed in with \(identity.signInMethod.detailedName)"
-    }
+    private var signInHelp: String { identity.signInSummary }
 
     private static let signInNeededHelp =
         "The saved sign-in for this account is gone. Sign in again to keep its tenants and roles, or sign out to remove it."
@@ -96,25 +93,12 @@ struct IdentityHeader: View {
                 Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary)
             }
             HeaderMenu(label: "Account actions") {
-                Text(signInHelp)
-                Divider()
-                if needsSignIn {
-                    Button("Sign in again") { retry() }
-                        .disabled(signingIn || !model.isMethodAllowed(identity.signInMethod))
-                    Divider()
+                IdentityMenuItems(identity: identity) {
+                    if let t = soleTenant {
+                        Divider()
+                        TenantMenuItems(tenant: t, confirmRemove: $confirmRemoveTenant)
+                    }
                 }
-                Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
-                Button("Add tenant…") { open(.addTenant(identity.id)) }
-                Button(identity.signInMethod.isOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…") {
-                    open(.changeRegistration(identity.id))
-                }
-                .disabled(!model.canChangeRegistration(for: identity) || model.isAccountBusy(identity.id))
-                if let t = soleTenant {
-                    Divider()
-                    TenantMenuItems(tenant: t, confirmRemove: $confirmRemoveTenant)
-                }
-                Divider()
-                Button("Sign out…", role: .destructive) { confirmSignOut = true }
             }
         }
         .padding(.horizontal, PanelMetrics.headerInset)
@@ -133,19 +117,10 @@ struct IdentityHeader: View {
         .overlay(alignment: .leading) { Rectangle().fill(Color.accentColor).frame(width: 3) }
         .overlay(alignment: .bottom) { Divider() }
         // Row chrome (padding, background, accent bar) applies above so it stays confined to the
-        // row itself; the confirmation cards below sit outside it, inset to match by their own
+        // row itself; the confirmation card below sits outside it, inset to match by its own
         // `PanelMetrics.headerInset` padding. See InlineConfirm.swift for why these are inline
         // rather than `confirmationDialog`.
-        .inlineConfirmation("Sign out \(identity.upn)?", message: signOutMessage, confirmTitle: "Sign out", isPresented: $confirmSignOut) {
-            model.signOut(identity)
-        }
         .modifier(SoleTenantRemoval(tenant: soleTenant, isPresented: $confirmRemoveTenant))
-    }
-
-    private var signOutMessage: String {
-        let n = model.tenants(for: identity.id).count
-        let tenants = n == 1 ? "its tenant" : "its \(n) tenants"
-        return "Elevate forgets \(tenants), configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later."
     }
 
     private func open(_ route: PanelRoute) {
@@ -159,6 +134,73 @@ struct IdentityHeader: View {
         Task {
             await model.retrySignIn(identity)
             signingIn = false
+        }
+    }
+}
+
+extension Identity {
+    var signInSummary: String { "\(upn), signed in with \(signInMethod.detailedName)" }
+}
+
+/// The account menu, shared by the list's account row and the sidebar. `beforeSignOut` lets a row
+/// add its own items above Sign out. Sign out only raises `model.signOutRequest`; the main column
+/// renders the card (`signOutConfirmation()`), since the sidebar is too narrow for it.
+struct IdentityMenuItems<Extra: View>: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
+    let identity: Identity
+    @ViewBuilder var beforeSignOut: () -> Extra
+
+    var body: some View {
+        let needsSignIn = model.needsSignIn(identity.id)
+        Text(identity.signInSummary)
+        Divider()
+        if needsSignIn {
+            Button("Sign in again") { Task { await model.retrySignIn(identity) } }
+                .disabled(model.isAccountBusy(identity.id) || !model.isMethodAllowed(identity.signInMethod))
+            Divider()
+        }
+        Button("Discover tenants…") { open(.discoverTenants(identity.id)) }
+        Button("Add tenant…") { open(.addTenant(identity.id)) }
+        Button(identity.signInMethod.isOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…") {
+            open(.changeRegistration(identity.id))
+        }
+        .disabled(!model.canChangeRegistration(for: identity) || model.isAccountBusy(identity.id))
+        beforeSignOut()
+        Divider()
+        Button("Sign out…", role: .destructive) { model.signOutRequest = identity.id }
+    }
+
+    private func open(_ route: PanelRoute) {
+        openWindow(value: route)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+extension IdentityMenuItems where Extra == EmptyView {
+    init(identity: Identity) { self.init(identity: identity) { EmptyView() } }
+}
+
+extension View {
+    /// The "Sign out?" card for `model.signOutRequest`, rendered below this view.
+    func signOutConfirmation() -> some View { modifier(SignOutConfirmation()) }
+}
+
+private struct SignOutConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        if let identity = model.signOutRequest.flatMap({ model.identity($0) }) {
+            let n = model.tenants(for: identity.id).count
+            let tenants = n == 1 ? "its tenant" : "its \(n) tenants"
+            content.inlineConfirmation(
+                "Sign out \(identity.upn)?",
+                message: "Elevate forgets \(tenants), configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later.",
+                confirmTitle: "Sign out",
+                isPresented: Binding(get: { true }, set: { if !$0 { model.signOutRequest = nil } })
+            ) { model.signOut(identity) }
+        } else {
+            content
         }
     }
 }

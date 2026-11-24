@@ -3,8 +3,10 @@ import AppKit
 import ElevateCore
 
 enum PanelMetrics {
-    static let width: CGFloat = 380
-    static let maxListHeight: CGFloat = 460
+    static let sidebarWidth: CGFloat = 136
+    static let mainWidth: CGFloat = 380
+    static let width: CGFloat = sidebarWidth + mainWidth
+    static let maxHeight: CGFloat = 720
     static let headerInset: CGFloat = 12      // account row, tenant header
     static let roleInset: CGFloat = 28        // role rows: status-dot column
     static let trailingInset: CGFloat = 12
@@ -15,108 +17,125 @@ struct PanelView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
+    @State private var topHeight: CGFloat = 0
+    @State private var bottomHeight: CGFloat = 0
     @State private var listGeneration = 0
     @FocusState private var searchFocused: Bool
 
     var body: some View {
+        HStack(spacing: 0) {
+            PanelSidebar().frame(width: PanelMetrics.sidebarWidth)
+            mainColumn.frame(width: PanelMetrics.mainWidth)
+        }
+        .frame(width: PanelMetrics.width)
+        .onAppear { searchFocused = true }
+    }
+
+    private var mainColumn: some View {
         @Bindable var model = model
-        VStack(spacing: 0) {
-            header
-            Divider()
-            Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
-                // No counts in the segments: the Active now header and the tenant rows already
-                // count, and a number here made the segments change width with every activation.
-                ForEach(PanelTab.allCases, id: \.self) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            Divider()
-            ProfilesRow()
-            // Always there while there is a list to filter, and focused when the panel opens.
-            if !model.identities.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
-                        .textFieldStyle(.plain)
-                        .focused($searchFocused)
-                        .onExitCommand { model.handleEscape() }
-                        // The keyboard stays in the field; the arrows move a highlight through the rows.
-                        .onKeyPress(.downArrow) { model.moveHighlight(1); return .handled }
-                        .onKeyPress(.upArrow) { model.moveHighlight(-1); return .handled }
-                        .onSubmit {
-                            guard let key = model.returnTarget else { return }
-                            if NSEvent.modifierFlags.contains(.option) {
-                                Task { if await !model.quickActivate(key) { open(.activate([key])) } }
-                            } else { open(.activate([key])) }
-                        }
-                    if !model.searchQuery.isEmpty {
-                        Button { model.searchQuery = "" } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear filter")
+        return VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                header
+                Divider()
+                // The confirmation cards for the sidebar's menus render here: the sidebar is too narrow for them.
+                Color.clear.frame(height: 0)
+                    .rowLevelProfileDeleteConfirmation(pinned: model.pinnedProfiles, suppressedByPopover: model.allProfilesOpen)
+                    .signOutConfirmation()
+                Picker("", selection: Binding(get: { model.panelTab }, set: { model.panelTab = $0 })) {
+                    // No counts in the segments: the Active now header and the tenant rows already
+                    // count, and a number here made the segments change width with every activation.
+                    ForEach(PanelTab.allCases, id: \.self) { tab in
+                        Text(tab.title).tag(tab)
                     }
                 }
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 Divider()
-            }
-            if let notice = model.notice {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
-                    Text(notice).font(.caption).textSelection(.enabled)
-                    Spacer()
-                    Button { model.notice = nil } label: { Image(systemName: "xmark") }
-                        .buttonStyle(.borderless).help("Dismiss").accessibilityLabel("Dismiss")
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(.orange.opacity(0.12))
-                Divider()
-            }
-            if let update = model.updateAvailable {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "arrow.down.circle").foregroundStyle(.blue)
-                    Text("Elevate \(update.version) is available").font(.caption)
-                    Spacer()
-                    Button("Open") { NSWorkspace.shared.open(update.url) }
-                        .buttonStyle(.borderless)
-                    Button("Dismiss") { model.dismissUpdate() }
-                        .buttonStyle(.borderless)
-                }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(.blue.opacity(0.12))
-                Divider()
-            }
-            // After an Azure or group activation: cached az / kubelogin tokens predate it. Dismiss hides it for that account.
-            if let hint = model.tokenHint {
-                // The text wraps to as many lines as it needs: without fixedSize the HStack sizes the
-                // row for one line and the rest of the caption spills over the list below it.
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "key.horizontal").foregroundStyle(.blue)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(TokenCacheHint.message(account: hint.account))
-                            .font(.caption).textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text(TokenCacheHint.advice)
-                            .font(.caption2).foregroundStyle(.secondary).textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 8) {
-                            Button("Copy command") {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(TokenCacheHint.azureCliCommand, forType: .string)
+                // Always there while there is a list to filter, and focused when the panel opens.
+                if !model.identities.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Filter roles", text: Binding(get: { model.searchQuery }, set: { model.searchQuery = $0 }))
+                            .textFieldStyle(.plain)
+                            .focused($searchFocused)
+                            .onExitCommand { model.handleEscape() }
+                            // The keyboard stays in the field; the arrows move a highlight through the rows.
+                            .onKeyPress(.downArrow) { model.moveHighlight(1); return .handled }
+                            .onKeyPress(.upArrow) { model.moveHighlight(-1); return .handled }
+                            .onSubmit {
+                                guard let key = model.returnTarget else { return }
+                                if NSEvent.modifierFlags.contains(.option) {
+                                    Task { if await !model.quickActivate(key) { open(.activate([key])) } }
+                                } else { open(.activate([key])) }
                             }
-                            .buttonStyle(.borderless).help("Copies '\(TokenCacheHint.azureCliCommand)'")
-                            Button("Dismiss") { model.dismissTokenHint() }
-                                .buttonStyle(.borderless).help("Hide this for \(hint.account)")
+                        if !model.searchQuery.isEmpty {
+                            Button { model.searchQuery = "" } label: { Image(systemName: "xmark.circle.fill") }
+                                .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear filter")
                         }
-                        .font(.caption)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    Divider()
                 }
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(.blue.opacity(0.12))
-                Divider()
+                if let notice = model.notice {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+                        Text(notice).font(.caption).textSelection(.enabled)
+                        Spacer()
+                        Button { model.notice = nil } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.borderless).help("Dismiss").accessibilityLabel("Dismiss")
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.orange.opacity(0.12))
+                    Divider()
+                }
+                if let update = model.updateAvailable {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "arrow.down.circle").foregroundStyle(.blue)
+                        Text("Elevate \(update.version) is available").font(.caption)
+                        Spacer()
+                        Button("Open") { NSWorkspace.shared.open(update.url) }
+                            .buttonStyle(.borderless)
+                        Button("Dismiss") { model.dismissUpdate() }
+                            .buttonStyle(.borderless)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.blue.opacity(0.12))
+                    Divider()
+                }
+                // After an Azure or group activation: cached az / kubelogin tokens predate it. Dismiss hides it for that account.
+                if let hint = model.tokenHint {
+                    // The text wraps to as many lines as it needs: without fixedSize the HStack sizes the
+                    // row for one line and the rest of the caption spills over the list below it.
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "key.horizontal").foregroundStyle(.blue)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(TokenCacheHint.message(account: hint.account))
+                                .font(.caption).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(TokenCacheHint.advice)
+                                .font(.caption2).foregroundStyle(.secondary).textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 8) {
+                                Button("Copy command") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(TokenCacheHint.azureCliCommand, forType: .string)
+                                }
+                                .buttonStyle(.borderless).help("Copies '\(TokenCacheHint.azureCliCommand)'")
+                                Button("Dismiss") { model.dismissTokenHint() }
+                                    .buttonStyle(.borderless).help("Hide this for \(hint.account)")
+                            }
+                            .font(.caption)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.blue.opacity(0.12))
+                    Divider()
+                }
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
             if !model.isConfigured && model.identities.isEmpty {
                 SetupView()
             } else if let fatal = model.startupError {
@@ -175,38 +194,40 @@ struct PanelView: View {
                     }
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }
-                .frame(height: min(max(contentHeight, 44), PanelMetrics.maxListHeight))
+                .frame(height: min(max(contentHeight, 44), max(PanelMetrics.maxHeight - topHeight - bottomHeight, 44)))
                 // The lazy stack can come back from display sleep with no rows realised, and its height depends on them.
                 .id(listGeneration)
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification)) { _ in listGeneration += 1 }
                 .onChange(of: model.highlightedRole) { _, key in if let key { proxy.scrollTo(key) } }
                 }
             }
-            if model.selectMode {
-                Divider()
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
+            Spacer(minLength: 0)
+            VStack(spacing: 0) {
+                if model.selectMode {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
+                                .disabled(model.selection.isEmpty)
+                            Button {
+                                open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
+                            } label: {
+                                Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
                             .disabled(model.selection.isEmpty)
-                        Button {
-                            open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
-                        } label: {
-                            Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.selection.isEmpty)
+                        if let hint = selectionHint {
+                            Text(hint).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        }
                     }
-                    if let hint = selectionHint {
-                        Text(hint).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                    }
+                    .padding(10)
                 }
-                .padding(10)
+                Divider()
+                footer
             }
-            Divider()
-            footer
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bottomHeight = $0 }
         }
-        .frame(width: PanelMetrics.width)
-        .onAppear { searchFocused = true }
     }
 
     /// One line under the bulk bar naming what is picked per tab, so a selection spanning tabs is
@@ -275,11 +296,6 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack {
-            Button("Add account…") {
-                openWindow(value: PanelRoute.addAccount)
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            Spacer()
             SettingsLink { Text("Settings…") }.buttonStyle(.borderless).keyboardShortcut(",")
             Spacer()
             Button("Quit") { NSApp.terminate(nil) }.keyboardShortcut("q")

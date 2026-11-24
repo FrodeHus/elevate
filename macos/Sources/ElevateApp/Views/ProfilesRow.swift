@@ -2,80 +2,6 @@ import SwiftUI
 import AppKit
 import ElevateCore
 
-/// One row under the tab picker: a chip per pinned profile, never wrapping, and an "All N" button
-/// that opens the full list. Hidden when there are no profiles at all.
-struct ProfilesRow: View {
-    @Environment(AppModel.self) private var model
-    @State private var showAll = false
-
-    var body: some View {
-        if !model.profiles.isEmpty {
-            let pinned = model.pinnedProfiles
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 6) {
-                    if pinned.isEmpty {
-                        Text("Pin profiles to show them here").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    ForEach(pinned) { p in
-                        ProfileChip(profile: p)
-                    }
-                    Spacer(minLength: 0)
-                    Button { showAll.toggle() } label: {
-                        HStack(spacing: 4) {
-                            Text("All \(model.profiles.count)").font(.caption.weight(.medium))
-                            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
-                        }
-                        .padding(.horizontal, 9).padding(.vertical, 4)
-                        .background(.quaternary.opacity(0.6), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help("All profiles: search, run, pin and manage")
-                    .accessibilityLabel("All profiles, \(model.profiles.count)")
-                    .popover(isPresented: $showAll, arrowEdge: .bottom) {
-                        AllProfilesPopover(dismiss: { showAll = false })
-                    }
-                }
-                .padding(.horizontal, 12).padding(.vertical, 7)
-                // Deleting a pinned chip confirms here, spanning the row's full width, not the
-                // chip's own ~150 pt column: a card that narrow wrapped the message onto four lines
-                // and truncated both button titles to "Ca…"/"Del…" (found in the visual check).
-                // Suppressed while the "All profiles" popover is open: a pinned profile also shows
-                // there, and `ProfilePopoverRow` presents its own card for it — the row the user
-                // actually clicked. Without this, deleting a pinned profile from inside the popover
-                // opened both cards at once, driven by the same `model.profileToDelete`.
-                .rowLevelProfileDeleteConfirmation(pinned: pinned, suppressedByPopover: showAll)
-            }
-            Divider()
-        }
-    }
-}
-
-/// A pinned profile: click runs it, Option-click runs it silently, right-click for the rest.
-struct ProfileChip: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
-    let profile: ActivationProfile
-
-    var body: some View {
-        Button { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: NSEvent.modifierFlags.contains(.option)) } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.accentColor)
-                // No count on the chip: four names already compete for the row; the tooltip and the All list carry it.
-                Text(profile.name).font(.caption.weight(.medium)).lineLimit(1).truncationMode(.tail)
-            }
-            .padding(.horizontal, 9).padding(.vertical, 4)
-            .background(.background, in: Capsule())
-            .overlay(Capsule().strokeBorder(.quaternary))
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: 150)
-        .help("Run \(profile.name) (\(ProfileSummary.caption(entries: profile.entries))). Option-click to run with the last reason and durations")
-        .contextMenu { ProfileMenuItems(profile: profile) }
-        // No inline confirmation on the chip itself: see `rowLevelProfileDeleteConfirmation`, which
-        // renders it at the row's full width instead of this chip's ~150 pt column.
-    }
-}
-
 /// The searchable list behind "All N": pinned profiles first, then the rest. Return runs the
 /// first match; the star pins or unpins in place.
 struct AllProfilesPopover: View {
@@ -150,7 +76,7 @@ struct AllProfilesPopover: View {
 
     private func run(_ p: ActivationProfile, silently: Bool) {
         dismiss()
-        ProfileActions.run(p.id, model: model, openWindow: openWindow, silentlyIfPossible: silently)
+        ProfileActions.run(p.id, model: model, openWindow: openWindow, silentlyIfPossible: silently, inPanel: true)
     }
 
     private func togglePin(_ p: ActivationProfile) {
@@ -216,7 +142,7 @@ private struct ProfilePopoverRow: View {
     }
 }
 
-/// The menu behind a chip, a popover row and its ⋯ button: run, pin, manage, delete.
+/// The menu behind a sidebar button, a popover row and its ⋯ button: run, pin, manage, delete.
 struct ProfileMenuItems: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
@@ -226,8 +152,8 @@ struct ProfileMenuItems: View {
         if !model.profileRuns(for: profile.id).isEmpty {
             Button("Deactivate roles…") { ProfileActions.open(.deactivateProfile(profile.id), openWindow: openWindow) }
         }
-        Button("Run…") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false) }
-        Button("Run with last reason") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: true) }
+        Button("Run…") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false, inPanel: true) }
+        Button("Run with last reason") { ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: true, inPanel: true) }
             .disabled(profile.lastJustification == nil)
         Divider()
         Button(profile.source == .managed ? "Show…" : "Edit…") { model.profileToEdit = profile.id; ProfileActions.open(.manageProfiles, openWindow: openWindow) }
@@ -248,16 +174,23 @@ struct ProfileMenuItems: View {
     }
 }
 
-/// Shared entry points for running and opening, so chips, rows and menus behave identically.
+/// Shared entry points for running and opening, so sidebar buttons, rows and menus behave identically.
 enum ProfileActions {
     /// Runs a profile: silently with the remembered reason and durations when asked and possible,
-    /// otherwise through the run sheet.
+    /// otherwise through the run sheet, or, with `inPanel`, the profile view in the panel's main column.
     @MainActor
-    static func run(_ id: UUID, model: AppModel, openWindow: OpenWindowAction, silentlyIfPossible: Bool) {
+    static func run(_ id: UUID, model: AppModel, openWindow: OpenWindowAction, silentlyIfPossible: Bool, inPanel: Bool) {
+        func askFirst() {
+            if inPanel {
+                model.showProfile(id)
+            } else {
+                model.requestRun(id); open(.runProfile(id), openWindow: openWindow)
+            }
+        }
         if silentlyIfPossible {
-            Task { if await !model.quickRun(profileId: id) { model.requestRun(id); open(.runProfile(id), openWindow: openWindow) } }
+            Task { if await !model.quickRun(profileId: id) { askFirst() } }
         } else {
-            model.requestRun(id); open(.runProfile(id), openWindow: openWindow)
+            askFirst()
         }
     }
 
@@ -277,14 +210,14 @@ extension View {
 
     /// Same confirmation, inline: for the "All profiles" popover row, where a `confirmationDialog`
     /// steals key focus from the MenuBarExtra window and dismisses the panel before its buttons can
-    /// be clicked. See InlineConfirm.swift. The pinned chip uses `rowLevelProfileDeleteConfirmation`
-    /// instead, since a chip's own column is too narrow for the card.
+    /// be clicked. See InlineConfirm.swift. A pinned sidebar button uses `rowLevelProfileDeleteConfirmation`
+    /// instead, hosted on the main column, since the sidebar is too narrow for the card.
     func inlineProfileDeleteConfirmation(_ profile: ActivationProfile) -> some View {
         modifier(InlineProfileDeleteConfirmation(profile: profile))
     }
 
-    /// Attached to the whole pinned-chips row instead of one chip: shows the delete confirmation
-    /// for whichever pinned profile `model.profileToDelete` names, at the row's full width.
+    /// Attached to the main column instead of the sidebar button: shows the delete confirmation
+    /// for whichever pinned profile `model.profileToDelete` names, at the column's full width.
     /// `suppressedByPopover` skips it while the "All profiles" popover is open, since that popover
     /// shows the same pinned profile and presents its own card for it instead.
     func rowLevelProfileDeleteConfirmation(pinned: [ActivationProfile], suppressedByPopover: Bool) -> some View {

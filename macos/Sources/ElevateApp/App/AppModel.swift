@@ -123,6 +123,10 @@ final class AppModel {
     /// The profile a chip or list menu asked to delete; the confirmation dialog reads it. Lives
     /// here because the menu and the dialog are on different views.
     var profileToDelete: UUID?
+    /// The account whose sign-out the main column is asking to confirm; set from the account menu in the sidebar or the list.
+    var signOutRequest: String?
+    /// True while the sidebar's All profiles popover is open, so the main column does not also show a pinned profile's delete card.
+    var allProfilesOpen = false
     /// Bumped each time the user asks to run a profile. `WindowGroup(for:)` refocuses an existing
     /// window instead of re-running `.onAppear`, so the Run sheet re-plans on a change here —
     /// and only then, never merely because the window regained focus.
