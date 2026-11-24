@@ -42,6 +42,14 @@ public sealed partial class PanelView : UserControl
         // 1.2.8 startup crash), so Ctrl+, is read off the key event instead.
         ToolTipService.SetToolTip(SettingsButton, "Settings (Ctrl+,)");
         PreviewKeyDown += OnPreviewKeyDown;
+        // A closed InfoBar still lays out its Margin (8 px each, five of them: the empty band under the
+        // filter), so a closed bar is collapsed outright.
+        foreach (var bar in new[] { StartupErrorBar, OfflineBar, NoticeBar, UpdateBar, TokenHintBar })
+        {
+            bar.Visibility = bar.IsOpen ? Visibility.Visible : Visibility.Collapsed;
+            bar.RegisterPropertyChangedCallback(InfoBar.IsOpenProperty, (s, _) =>
+                ((InfoBar)s).Visibility = ((InfoBar)s).IsOpen ? Visibility.Visible : Visibility.Collapsed);
+        }
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
@@ -163,7 +171,6 @@ public sealed partial class PanelView : UserControl
 
     private void Draw(AppModel model)
     {
-        OfflinePill.Visibility = model.IsOnline ? Visibility.Collapsed : Visibility.Visible;
         // Absent unless the organization pushed OrganizationName with a style other than "none",
         // so an unbranded install draws the header exactly as it did before.
         DrawHeader(model);
@@ -172,7 +179,8 @@ public sealed partial class PanelView : UserControl
         SelectToggle.IsChecked = model.SelectMode;
         if (model.Notice is { } notice)
         {
-            NoticeBar.Message = notice;
+            // As content, so an unbroken address wraps by character inside the column instead of clipping.
+            NoticeBar.Content = new TextBlock { Text = notice, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 6, 0, 8) };
             NoticeBar.IsOpen = true;
         }
         else

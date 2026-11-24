@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 namespace Elevate.App.Views;
 
 /// <summary>
-/// Shared entry points for running, pinning and deleting a profile, so the chips in the flyout,
+/// Shared entry points for running, pinning and deleting a profile, so the profile rows in the flyout,
 /// the rows of the All list and their menus behave identically. Port of the macOS <c>ProfileActions</c>.
 /// </summary>
 internal static class ProfileActions

@@ -273,12 +273,6 @@ public sealed partial class SegmentedPivots : ContentControl
 }
 
 /// <summary>
-/// A boxed group of sheet rows that belong to one tenant: the tenant name leads in bold, the
-/// account address is the caption, and a soft rounded fill ties the rows to their header so a
-/// mixed-tenant window reads at a glance instead of by parsing "user · tenant" lines. Port of the
-/// macOS <c>TenantGroup</c>; the activation and profile run windows both build their tables from it.
-/// </summary>
-/// <summary>
 /// The crown after a privileged role's name, in the warning orange (the caution yellow is close to invisible on
 /// the light theme). A drawn shape rather than a glyph: neither Segoe Fluent Icons nor the emoji font has a
 /// monochrome crown that takes a theme colour.
@@ -359,6 +353,12 @@ public sealed partial class NameLine : Panel
     }
 }
 
+/// <summary>
+/// A boxed group of sheet rows that belong to one tenant: the tenant name leads in bold, the
+/// account address is the caption, and a soft rounded fill ties the rows to their header so a
+/// mixed-tenant window reads at a glance instead of by parsing "user · tenant" lines. Port of the
+/// macOS <c>TenantGroup</c>; the activation and profile run windows both build their tables from it.
+/// </summary>
 public static class TenantGroupBox
 {
     /// <summary>The box for one tenant; add the rows to <paramref name="rows"/>.</summary>
