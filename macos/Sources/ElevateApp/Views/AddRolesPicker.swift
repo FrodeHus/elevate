@@ -94,7 +94,7 @@ struct AddRolesPicker: View {
             Toggle(isOn: Binding(get: { already || picked.contains(key) },
                                  set: { on in if on { picked.insert(key) } else { picked.remove(key) } })) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(role.displayName).lineLimit(1)
+                    RoleNameLabel(role.displayName, isPrivileged: role.isPrivileged)
                     if let detail = role.detail { Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
                 }
             }

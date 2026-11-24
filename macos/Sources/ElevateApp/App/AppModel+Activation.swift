@@ -235,7 +235,7 @@ extension AppModel {
         }
         if let i = roles[tenantKey]?.firstIndex(where: { $0.key == old }), let row = roles[tenantKey]?[i] {
             roles[tenantKey]?[i] = EligibleRole(key: new, displayName: row.displayName, detail: row.detail,
-                                                source: row.source, policy: row.policy)
+                                                source: row.source, policy: row.policy, isPrivileged: row.isPrivileged)
         }
         if let policy = policyCache[old] { policyCache[old] = nil; policyCache[new] = policy }
         if let p = progress[old] { progress[old] = nil; progress[new] = p }

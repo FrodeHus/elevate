@@ -47,7 +47,7 @@ struct ActiveRow: View {
         HStack(spacing: 8) {
             statusDot
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.summaryName(for: key)).font(.body).lineLimit(1)
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key)).font(.body)
                 Text("\(model.tenant(key.tenantKey)?.displayName ?? key.tenantId) · \(model.identity(key.identityId)?.upn ?? key.identityId)")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
@@ -75,7 +75,7 @@ struct ActiveHeroCard: View {
         let key = assignment.roleKey
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.summaryName(for: key)).font(.body.weight(.semibold)).lineLimit(1)
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key)).font(.body.weight(.semibold))
                 Text("\(model.tenant(key.tenantKey)?.displayName ?? key.tenantId) · \(model.identity(key.identityId)?.upn ?? key.identityId)")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in

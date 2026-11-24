@@ -488,6 +488,8 @@ final class AppModel {
     }
     func role(for key: RoleKey) -> EligibleRole? { roles[key.tenantKey]?.first { $0.key == key } }
     func assignment(for key: RoleKey) -> ActiveAssignment? { active[key] }
+    /// Whether to mark `key`'s role as privileged; a role not loaded (an active row after a restart) falls back to what the ids and the catalogue know.
+    func isPrivileged(_ key: RoleKey) -> Bool { role(for: key)?.isPrivileged ?? PrivilegedRoles.isKnownPrivileged(key.scope) }
     func isNewRole(_ key: RoleKey) -> Bool { state.roleTracker(key.tenantKey).isNew(key) }
     func remembered(for key: RoleKey) -> RoleMemory? { state.memory(for: key) }
     func identity(_ id: String) -> Identity? { state.identities.first { $0.id == id } }

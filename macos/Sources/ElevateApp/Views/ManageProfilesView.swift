@@ -220,7 +220,7 @@ private struct ProfileEditor: View {
         let policy = role?.policy ?? .manualDefault
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.summaryName(for: key)).lineLimit(1)
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key))
                 HStack(spacing: 4) {
                     Text(kindLabel(key.scope.kind))
                     if let detail = role?.detail { Text("·"); Text(detail).lineLimit(1) }

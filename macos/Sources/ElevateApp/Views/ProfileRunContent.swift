@@ -119,7 +119,7 @@ struct ProfileRunContent: View {
                 // The duration sits at the end of the name's line; the detail and any status share the line below.
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(it.role?.displayName ?? model.summaryName(for: it.roleKey)).opacity(dimmed ? 0.6 : 1)
+                        RoleNameLabel(it.role?.displayName ?? model.summaryName(for: it.roleKey), isPrivileged: model.isPrivileged(it.roleKey)).opacity(dimmed ? 0.6 : 1)
                         Spacer(minLength: 0)
                         if it.disposition == .activate && included { durationControl(item, session: session) }
                     }
@@ -141,7 +141,7 @@ struct ProfileRunContent: View {
 
     private func nameBlock(_ it: ProfilePlanItem, dimmed: Bool) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(it.role?.displayName ?? model.summaryName(for: it.roleKey))
+            RoleNameLabel(it.role?.displayName ?? model.summaryName(for: it.roleKey), isPrivileged: model.isPrivileged(it.roleKey))
             if let detail = it.role?.detail {
                 Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(it.roleKey) ?? detail)
             }
