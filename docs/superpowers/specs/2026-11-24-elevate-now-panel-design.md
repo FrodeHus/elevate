@@ -225,6 +225,13 @@ These override 3.4 and 3.5 where they differ. Both platforms.
   warning tint. `All N` stays in the Profiles header when expanded. The headers are buttons with
   an accessible name and expanded/collapsed state.
 
+- **Escape never changes the sidebar selection.** (Overrides the Escape order given elsewhere in
+  this spec.) Escape dismisses one transient thing per press, in this order: the access package
+  request form, the access packages view, a non-empty filter, a profile view (back to the tenant
+  or All tenants selection it was opened from), select mode, and browsing (All tenants only: back
+  to Home). With none of those left it closes the panel. A selected tenant stays selected. Escape
+  works wherever keyboard focus is; an open inline confirmation card takes Escape first.
+
 ## 4. What changes outside the panel
 
 - `RunProfileView` (macOS) and `RunProfileWindow` (Windows) are split into a content view used by
