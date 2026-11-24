@@ -18,8 +18,11 @@ struct PanelSidebar: View {
         VStack(spacing: 0) {
             if showAccounts {
                 if !model.profiles.isEmpty {
-                    ProfilesSection()
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { profilesHeight = $0 }
+                    VStack(spacing: 0) {
+                        ProfilesSection()
+                        Divider().padding(.horizontal, 2).padding(.bottom, 4)
+                    }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { profilesHeight = $0 }
                 } else {
                     Color.clear.frame(height: 0).onAppear { profilesHeight = 0 }
                 }
@@ -65,12 +68,12 @@ struct PanelSidebar: View {
 /// state in its accessibility label.
 private struct SidebarRowButton<Label: View>: View {
     var selected = false
-    var prominent = false
     var height: CGFloat = 28
     var tint: Color? = nil
     let accessibilityLabel: String
     let action: () -> Void
     @ViewBuilder let label: () -> Label
+    @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
@@ -78,8 +81,10 @@ private struct SidebarRowButton<Label: View>: View {
                 .font(.callout)
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .leading)
-                .foregroundStyle(selected && prominent ? Color.white : (tint ?? Color.primary))
-                .background(fill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .foregroundStyle(selected ? Color.white : (tint ?? Color.primary))
+                .background(selected ? Color.accentColor : (hovering ? Color.primary.opacity(0.07) : .clear),
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .onHover { hovering = $0 }
                 .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -87,14 +92,32 @@ private struct SidebarRowButton<Label: View>: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private var fill: Color {
-        if selected { return prominent ? Color.accentColor : Color.primary.opacity(0.12) }
-        return prominent ? Color.primary.opacity(0.07) : Color.clear
-    }
 }
 
-private func sectionHeading(_ text: String) -> some View {
-    Text(text.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+/// A clickable section title with a disclosure chevron; `badge` is shown while the section is collapsed.
+private struct SectionHeader<Badge: View>: View {
+    let title: LocalizedStringKey
+    let accessibilityName: String
+    @Binding var collapsed: Bool
+    @ViewBuilder let badge: () -> Badge
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button { withAnimation(reduceMotion ? nil : .snappy) { collapsed.toggle() } } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.right").rotationEffect(.degrees(collapsed ? 0 : 90))
+                    .font(.system(size: 8, weight: .semibold)).frame(width: 8)
+                Text(title).textCase(.uppercase).font(.caption2.weight(.semibold))
+                Spacer(minLength: 4)
+                if collapsed { badge() }
+            }
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(collapsed ? "Expand \(accessibilityName)" : "Collapse \(accessibilityName)")
+        .accessibilityValue(collapsed ? "collapsed" : "expanded")
+    }
 }
 
 // MARK: Profiles
@@ -109,24 +132,30 @@ private struct ProfilesSection: View {
         let pinnedSelected = pinned.contains { selection == .profile($0.id) }
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                sectionHeading("Profiles")
-                Spacer(minLength: 4)
-                Button { model.allProfilesOpen.toggle() } label: {
-                    Text("All \(model.profiles.count)").font(.caption)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .foregroundStyle(!pinnedSelected && selection.isProfile ? Color.white : Color.secondary)
-                        .background(!pinnedSelected && selection.isProfile ? Color.accentColor : .clear, in: Capsule())
-                        .contentShape(Capsule())
+                SectionHeader(title: "Profiles", accessibilityName: "profiles",
+                              collapsed: Binding(get: { model.settings.sidebarProfilesCollapsed }, set: { model.settings.sidebarProfilesCollapsed = $0 })) {
+                    Text("\(model.profiles.count)").font(.caption).monospacedDigit()
                 }
-                .buttonStyle(.plain)
-                .help("All profiles: search, run, pin and manage")
-                .accessibilityLabel("All profiles, \(model.profiles.count)")
-                .popover(isPresented: $model.allProfilesOpen, arrowEdge: .trailing) {
-                    AllProfilesPopover(dismiss: { model.allProfilesOpen = false })
+                if !model.settings.sidebarProfilesCollapsed {
+                    Button { model.allProfilesOpen.toggle() } label: {
+                        Text("All \(model.profiles.count)").font(.caption)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .foregroundStyle(!pinnedSelected && selection.isProfile ? Color.white : Color.secondary)
+                            .background(!pinnedSelected && selection.isProfile ? Color.accentColor : .clear, in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("All profiles: search, run, pin and manage")
+                    .accessibilityLabel("All profiles, \(model.profiles.count)")
+                    .popover(isPresented: $model.allProfilesOpen, arrowEdge: .trailing) {
+                        AllProfilesPopover(dismiss: { model.allProfilesOpen = false })
+                    }
                 }
             }
             .padding(.horizontal, 8)
-            ForEach(pinned) { ProfileButton(profile: $0) }
+            if !model.settings.sidebarProfilesCollapsed {
+                ForEach(pinned) { ProfileButton(profile: $0) }
+            }
         }
         .padding(.bottom, 8)
     }
@@ -148,15 +177,15 @@ private struct ProfileButton: View {
     }
 
     var body: some View {
-        SidebarRowButton(selected: model.panelSelection == .profile(profile.id), prominent: true, height: 30,
+        SidebarRowButton(selected: model.panelSelection == .profile(profile.id), height: 28,
                          accessibilityLabel: "\(profile.name), \(ProfileSummary.caption(entries: profile.entries))",
                          action: {
             ProfileActions.run(profile.id, model: model, openWindow: openWindow,
                                silentlyIfPossible: NSEvent.modifierFlags.contains(.option), inPanel: true)
         }) {
             Image(systemName: profile.entries.count == 1 ? "star.fill" : "bolt.fill").font(.caption2)
-                .foregroundStyle(model.panelSelection == .profile(profile.id) ? Color.white : Color.accentColor).frame(width: 12)
-            Text(profile.name).fontWeight(.medium).lineLimit(1).truncationMode(.tail)
+                .foregroundStyle(model.panelSelection == .profile(profile.id) ? Color.white : Color.secondary).frame(width: 12)
+            Text(profile.name).lineLimit(1).truncationMode(.tail)
         }
         .help(help)
         .contextMenu { ProfileMenuItems(profile: profile) }
@@ -169,19 +198,35 @@ private struct TenantsSection: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        @Bindable var model = model
         let total = model.totalActiveCount
         VStack(alignment: .leading, spacing: 2) {
-            sectionHeading("Tenants").padding(.horizontal, 8).padding(.bottom, 2)
+            SectionHeader(title: "Tenants", accessibilityName: "tenants", collapsed: Binding(get: { model.settings.sidebarTenantsCollapsed }, set: { model.settings.sidebarTenantsCollapsed = $0 })) {
+                HStack(spacing: 4) {
+                    if model.sidebarNeedsAttention {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange)
+                            .accessibilityLabel("needs attention")
+                    }
+                    if total > 0 { Text("\(total)").font(.caption).foregroundStyle(.green).monospacedDigit() }
+                }
+            }
+            .padding(.horizontal, 8).padding(.bottom, 2)
+            if !model.settings.sidebarTenantsCollapsed { tenantRows(total: total) }
+        }
+        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder private func tenantRows(total: Int) -> some View {
+        Group {
             SidebarRowButton(selected: model.panelSelection == .allTenants, height: 28,
                              accessibilityLabel: total > 0 ? "All tenants, \(total) active" : "All tenants",
                              action: { model.select(.allTenants) }) {
                 Text("All tenants").fontWeight(.semibold).lineLimit(1)
                 Spacer(minLength: 0)
-                if total > 0 { Text("\(total)").foregroundStyle(.green).monospacedDigit() }
+                if total > 0 { Text("\(total)").foregroundStyle(model.panelSelection == .allTenants ? Color.white : Color.green).monospacedDigit() }
             }
             ForEach(model.identities) { IdentityBlock(identity: $0) }
         }
-        .padding(.bottom, 8)
     }
 }
 
@@ -216,7 +261,7 @@ private struct IdentityBlock: View {
             .padding(.leading, 8).padding(.trailing, 4).padding(.top, 10)
             if needsSignIn {
                 let allowed = model.isMethodAllowed(identity.signInMethod)
-                SidebarRowButton(prominent: false, tint: .orange, accessibilityLabel: "Sign in, \(identity.upn)", action: retry) {
+                SidebarRowButton(tint: .orange, accessibilityLabel: "Sign in, \(identity.upn)", action: retry) {
                     if signingIn {
                         ProgressView().controlSize(.mini)
                     } else {
@@ -264,14 +309,15 @@ private struct TenantButton: View {
 
     var body: some View {
         let mark = model.sidebarMark(for: tenant.id)
-        SidebarRowButton(selected: model.panelSelection == .tenant(tenant.id), height: 28,
+        let selected = model.panelSelection == .tenant(tenant.id)
+        SidebarRowButton(selected: selected, height: 28,
                          accessibilityLabel: "\(tenant.displayName)\(markDescription(mark))",
                          action: { model.select(.tenant(tenant.id)) }) {
             Text(tenant.displayName).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 0)
             switch mark {
-            case .active(let n): Text("\(n)").foregroundStyle(.green).monospacedDigit()
-            case .error: Image(systemName: "exclamationmark.triangle").font(.caption).foregroundStyle(.red)
+            case .active(let n): Text("\(n)").foregroundStyle(selected ? Color.white : Color.green).monospacedDigit()
+            case .error: Image(systemName: "exclamationmark.triangle").font(.caption).foregroundStyle(selected ? Color.white : Color.red)
             case .none: EmptyView()
             }
         }

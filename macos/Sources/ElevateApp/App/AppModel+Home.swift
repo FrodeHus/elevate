@@ -21,6 +21,11 @@ extension AppModel {
 
     var totalActiveCount: Int { activeAssignments(in: nil).count }
 
+    /// What a collapsed TENANTS header warns about: an account that must sign in again, or any tenant with an error.
+    var sidebarNeedsAttention: Bool {
+        !signInNeeded.isEmpty || state.tenants.contains { tenantErrors[$0.id] != nil }
+    }
+
     func sidebarMark(for key: TenantKey) -> TenantMark {
         let n = active.values.count { $0.roleKey.tenantKey == key }
         return n > 0 ? .active(n) : tenantErrors[key] != nil ? .error : .none

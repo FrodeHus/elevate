@@ -87,6 +87,17 @@ struct AppModelHomeTests {
         cleanup(model)
     }
 
+    @Test func collapsedTenantsWarnWhenAnAccountNeedsSignInOrATenantHasAnError() async {
+        let model = await makeHomeModel()
+        #expect(!model.sidebarNeedsAttention)
+        model.tenantErrors[Sample.tenantKey] = "boom"
+        #expect(model.sidebarNeedsAttention)
+        model.tenantErrors[Sample.tenantKey] = nil
+        model.signInNeeded.insert(Sample.identity().id)
+        #expect(model.sidebarNeedsAttention)
+        cleanup(model)
+    }
+
     @Test func sidebarMarkPrefersActiveCountOverError() async {
         let model = await makeHomeModel()
         #expect(model.sidebarMark(for: Sample.tenantKey) == .none)

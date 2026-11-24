@@ -23,6 +23,20 @@ struct AppModelPanelTests {
         #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .roles)
     }
 
+    @Test func sidebarSectionsStartExpandedAndRememberBeingCollapsed() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        let fresh = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(!fresh.sidebarProfilesCollapsed && !fresh.sidebarTenantsCollapsed)
+        fresh.sidebarProfilesCollapsed = true
+        let again = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(again.sidebarProfilesCollapsed && !again.sidebarTenantsCollapsed)
+        again.sidebarProfilesCollapsed = false
+        again.sidebarTenantsCollapsed = true
+        let last = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(!last.sidebarProfilesCollapsed && last.sidebarTenantsCollapsed)
+    }
+
     @Test func groupCaptionNamesMembershipAndOwnership() async {
         let model = await modelWithOneOfEachKind()
         #expect(model.groupCaption(Sample.groupKey) == "Group membership")
