@@ -214,6 +214,7 @@ public static class Views
                 null, null, null, duration),
             GroupScope group => new("group", key.TenantId, null, null, null, name ?? group.GroupId,
                 group.AccessId == GroupAccess.Owner ? "owner" : "member", duration),
+            AppRoleScope => throw new Infrastructure.CliException("App roles cannot be exported: managed profiles do not support them yet.", Infrastructure.ExitCodes.Usage),
             _ => throw new ArgumentOutOfRangeException(nameof(entry), key.Scope, "unknown role scope kind"),
         };
     }

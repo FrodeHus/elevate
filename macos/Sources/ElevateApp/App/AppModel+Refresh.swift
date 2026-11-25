@@ -97,8 +97,8 @@ extension AppModel {
         // A first-party sign-in (Azure CLI / PowerShell) has no Graph PIM scopes at all, so its
         // Entra reads fail every time: skip that provider outright and keep the account Azure-only.
         // Every kind this identity can read at all, before any per-refresh restriction.
-        var eligibleKinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group] : [.entraDirectory, .group]
-        if !identity.signInMethod.isPreauthorisedForEntraActivation { eligibleKinds.removeAll { $0 == .entraDirectory || $0 == .group } }
+        var eligibleKinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group, .appRole] : [.entraDirectory, .group, .appRole]
+        if !identity.signInMethod.isPreauthorisedForEntraActivation { eligibleKinds.removeAll { $0 == .entraDirectory || $0 == .group || $0 == .appRole } }
         if tenant.groupsUnavailableReason != nil { eligibleKinds.removeAll { $0 == .group } }
         // A kinds-restricted refresh reads only these providers.
         var kinds = eligibleKinds
@@ -299,6 +299,7 @@ extension AppModel {
         case .entraDirectory: "Entra"
         case .azureResource: "Azure"
         case .group: "Groups"
+        case .appRole: "App roles"
         }
     }
 

@@ -167,7 +167,8 @@ public static class ManagedProfileResolver
     {
         RoleScopeKind.EntraDirectory => "entraDirectory",
         RoleScopeKind.AzureResource => "azureResource",
-        _ => "group",
+        RoleScopeKind.Group => "group",
+        _ => "appRole",
     };
 
     private static string Identifier(RoleScope scope) => scope switch
@@ -175,6 +176,7 @@ public static class ManagedProfileResolver
         EntraDirectoryScope entra => $"{entra.DirectoryScopeId}|{entra.RoleDefinitionId}",
         AzureResourceScope azure => $"{azure.Scope}|{azure.RoleDefinitionId}",
         GroupScope group => $"{group.GroupId}|{(group.AccessId == GroupAccess.Owner ? "owner" : "member")}",
+        AppRoleScope app => $"{app.ServicePrincipalId}|{app.AppRoleId}",
         _ => "",
     };
 

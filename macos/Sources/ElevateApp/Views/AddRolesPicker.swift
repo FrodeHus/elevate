@@ -47,6 +47,7 @@ struct AddRolesPicker: View {
                     Text("Entra").tag(RoleScopeKind?.some(.entraDirectory))
                     Text("Azure").tag(RoleScopeKind?.some(.azureResource))
                     Text("Groups").tag(RoleScopeKind?.some(.group))
+                    Text("Apps").tag(RoleScopeKind?.some(.appRole))
                 }
                 .pickerStyle(.segmented).labelsHidden().controlSize(.small)
             }
@@ -107,7 +108,7 @@ struct AddRolesPicker: View {
     }
 
     private func trailing(_ role: EligibleRole) -> String {
-        let kindName: String = switch role.key.scope.kind { case .entraDirectory: "Entra"; case .azureResource: "Azure"; case .group: "Group" }
+        let kindName: String = switch role.key.scope.kind { case .entraDirectory: "Entra"; case .azureResource: "Azure"; case .group: "Group"; case .appRole: "App" }
         if let notes = PolicyNotes.caption(for: role.policy) { return "\(kindName) · \(notes)" }
         return kindName
     }

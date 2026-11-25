@@ -331,7 +331,7 @@ final class AppModel {
         self.network = network
         self.settings = settings
         self.anchor = anchor
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens)], tokens: tokens)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: tokens), AzureResourceProvider(http: http, tokens: tokens), GroupProvider(http: http, tokens: tokens), AppRoleProvider(http: http, tokens: tokens)], tokens: tokens)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: tokens)
         discovery = TenantDiscovery(http: http, tokens: tokens)
         accessPackageProvider = AccessPackageProvider(http: http, tokens: tokens)
@@ -431,7 +431,7 @@ final class AppModel {
         let composite = CompositeTokenProvider(msal: replacement, loopback: loopback, ownAppLoopback: ownAppLoopbackProvider,
                                                pinned: Self.pinnedRoute(registry: pinnedMSAL, loopback: loopback, viaLoopback: ownAppViaLoopback))
         tokens = composite
-        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite)], tokens: composite)
+        coordinator = ActivationCoordinator(providers: [EntraDirectoryProvider(http: http, tokens: composite), AzureResourceProvider(http: http, tokens: composite), GroupProvider(http: http, tokens: composite), AppRoleProvider(http: http, tokens: composite)], tokens: composite)
         approvalProviders = Self.makeApprovalProviders(http: http, tokens: composite)
         discovery = TenantDiscovery(http: http, tokens: composite)
         accessPackageProvider = AccessPackageProvider(http: http, tokens: composite)

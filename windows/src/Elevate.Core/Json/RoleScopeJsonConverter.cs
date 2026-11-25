@@ -9,7 +9,8 @@ namespace Elevate.Core;
 /// case name, whose value is an object of the associated values.
 /// <c>{"entraDirectory":{"roleDefinitionId":"r","directoryScopeId":"/"}}</c>,
 /// <c>{"azureResource":{"scope":"s","roleDefinitionId":"d"}}</c>,
-/// <c>{"group":{"groupId":"g","accessId":"member"}}</c>.
+/// <c>{"group":{"groupId":"g","accessId":"member"}}</c>,
+/// <c>{"appRole":{"servicePrincipalId":"s","appRoleId":"r"}}</c>.
 /// </summary>
 public sealed class RoleScopeJsonConverter : JsonConverter<RoleScope>
 {
@@ -48,6 +49,8 @@ public sealed class RoleScopeJsonConverter : JsonConverter<RoleScope>
                 Require(payload, "scope", caseName), Require(payload, "roleDefinitionId", caseName)),
             "group" => new GroupScope(
                 Require(payload, "groupId", caseName), ParseAccess(Require(payload, "accessId", caseName))),
+            "appRole" => new AppRoleScope(
+                Require(payload, "servicePrincipalId", caseName), Require(payload, "appRoleId", caseName)),
             _ => throw new JsonException($"Unknown role-scope case {caseName}"),
         };
 
@@ -77,6 +80,12 @@ public sealed class RoleScopeJsonConverter : JsonConverter<RoleScope>
                 writer.WriteStartObject("group");
                 writer.WriteString("groupId", s.GroupId);
                 writer.WriteString("accessId", s.AccessId == GroupAccess.Owner ? "owner" : "member");
+                writer.WriteEndObject();
+                break;
+            case AppRoleScope s:
+                writer.WriteStartObject("appRole");
+                writer.WriteString("servicePrincipalId", s.ServicePrincipalId);
+                writer.WriteString("appRoleId", s.AppRoleId);
                 writer.WriteEndObject();
                 break;
             default:

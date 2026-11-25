@@ -180,6 +180,8 @@ public struct ManagedProfileSet: Hashable, Sendable {
             guard scope?.isEmpty == false else { throw fail("scope is required for azureResource") }
         case .group:
             guard group?.isEmpty == false else { throw fail("group is required") }
+        case .appRole:
+            throw fail("appRole is not supported in managed profiles")
         }
 
         return Role(kind: kind, tenant: tenant, role: role, scope: scope,

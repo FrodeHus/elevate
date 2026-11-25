@@ -10,7 +10,7 @@ public static class CommonOptions
 
     public static Option<string?> Tenant() => new("--tenant", "-t") { Description = "Only this tenant (part of the name, or the id)." };
 
-    public static Option<string?> Kind() => new("--kind", "-k") { Description = "Only this kind: entra, azure or groups." };
+    public static Option<string?> Kind() => new("--kind", "-k") { Description = "Only this kind: entra, azure, groups or apps." };
 
     public static Option<string?> Scope() => new("--scope", "-s")
     {

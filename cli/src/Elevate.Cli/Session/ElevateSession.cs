@@ -42,7 +42,7 @@ public sealed partial class ElevateSession
         Settings = settings;
         Tokens = tokens;
         Coordinator = new ActivationCoordinator(
-            providers ?? [new EntraDirectoryProvider(http, tokens), new AzureResourceProvider(http, tokens), new GroupProvider(http, tokens)],
+            providers ?? [new EntraDirectoryProvider(http, tokens), new AzureResourceProvider(http, tokens), new GroupProvider(http, tokens), new AppRoleProvider(http, tokens)],
             tokens);
         ApprovalProviders = (approvalProviders
             ?? [new EntraApprovalProvider(http, tokens), new GroupApprovalProvider(http, tokens), new AzureApprovalProvider(http, tokens)])
@@ -173,6 +173,7 @@ public sealed partial class ElevateSession
             AzureResourceScope azure => azure.RoleDefinitionId + " @ " + azure.Scope,
             GroupScope group => group.GroupId + " (" + (group.AccessId == GroupAccess.Owner ? "owner" : "member") + ")",
             EntraDirectoryScope e => e.RoleDefinitionId,
+            AppRoleScope app => app.AppRoleId + " @ " + app.ServicePrincipalId,
             _ => key.Scope.ToString() ?? "role",
         };
     }

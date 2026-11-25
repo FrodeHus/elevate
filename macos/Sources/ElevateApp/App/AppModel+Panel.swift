@@ -19,10 +19,11 @@ extension AppModel {
 
     static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
         switch tab {
-        case .all: [.entraDirectory, .azureResource, .group]
+        case .all: [.entraDirectory, .azureResource, .group, .appRole]
         case .roles: [.entraDirectory]
         case .azure: [.azureResource]
         case .groups: [.group]
+        case .apps: [.appRole]
         }
     }
 
@@ -107,9 +108,9 @@ extension AppModel {
     func listRows(for tenantKey: TenantKey) -> [RoleKey] {
         let azure = { ScopeTree.flatten(self.azureTree(for: tenantKey), isCollapsed: { self.isScopeCollapsed(tenantKey, $0) }).compactMap { $0.role?.key } }
         switch panelTab {
-        case .all: return roles(for: tenantKey, tab: .roles).map(\.key) + azure() + roles(for: tenantKey, tab: .groups).map(\.key)
+        case .all: return roles(for: tenantKey, tab: .roles).map(\.key) + azure() + roles(for: tenantKey, tab: .groups).map(\.key) + roles(for: tenantKey, tab: .apps).map(\.key)
         case .azure: return azure()
-        case .roles, .groups: return roles(for: tenantKey, tab: panelTab).map(\.key)
+        case .roles, .groups, .apps: return roles(for: tenantKey, tab: panelTab).map(\.key)
         }
     }
 
@@ -150,6 +151,7 @@ extension AppModel {
         case .entraDirectory(let id, _): return id
         case .azureResource(let scope, let id): return "\(id.components(separatedBy: "/").last ?? id) @ \(scope)"
         case .group(let gid, let access): return "\(gid) (\(access == .owner ? "owner" : "member"))"
+        case .appRole(let sp, let id): return "\(id) @ \(sp)"
         }
     }
 
@@ -204,16 +206,17 @@ extension AppModel {
     var selectionCount: Int { selection.count }
 
     /// Per-kind counts of the bulk selection, for the cross-tab hint in the bulk bar.
-    var selectionBreakdown: (entra: Int, azure: Int, groups: Int) {
-        var entra = 0, azure = 0, groups = 0
+    var selectionBreakdown: (entra: Int, azure: Int, groups: Int, apps: Int) {
+        var entra = 0, azure = 0, groups = 0, apps = 0
         for key in selection {
             switch key.scope.kind {
             case .entraDirectory: entra += 1
+            case .appRole: apps += 1
             case .azureResource: azure += 1
             case .group: groups += 1
             }
         }
-        return (entra, azure, groups)
+        return (entra, azure, groups, apps)
     }
 
     /// Noun for the bulk bar: roles and groups can be selected together across tabs.

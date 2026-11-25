@@ -221,12 +221,12 @@ public class AppModelSelectionTests
     {
         using var test = await SelectedModelAsync();
         var model = test.Model;
-        model.SelectionBreakdown.Should().Be((1, 1, 1));
+        model.SelectionBreakdown.Should().Be((1, 1, 1, 0));
         model.SelectionNoun.Should().Be("item");
 
         model.ToggleSelection(Sample.EntraKey);
         model.ToggleSelection(Sample.AzureKey);
-        model.SelectionBreakdown.Should().Be((0, 0, 1));
+        model.SelectionBreakdown.Should().Be((0, 0, 1, 0));
         model.SelectionNoun.Should().Be("group");
     }
 

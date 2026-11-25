@@ -271,7 +271,7 @@ public sealed partial class PanelView : UserControl
             BulkActivate.Content = count == 0 ? "Activate" : $"Activate {count} {noun}{(count == 1 ? "" : "s")}";
             BulkActivate.IsEnabled = count > 0 && model.IsOnline;
             BulkProfile.IsEnabled = count > 0;
-            var (entra, azure, groups) = model.SelectionBreakdown;
+            var (entra, azure, groups, apps) = model.SelectionBreakdown;
             var parts = new List<string>();
             if (entra > 0)
             {
@@ -286,6 +286,11 @@ public sealed partial class PanelView : UserControl
             if (groups > 0)
             {
                 parts.Add($"{groups} group{(groups == 1 ? "" : "s")}");
+            }
+
+            if (apps > 0)
+            {
+                parts.Add($"{apps} app role{(apps == 1 ? "" : "s")}");
             }
 
             BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch tabs to add more" : string.Empty;

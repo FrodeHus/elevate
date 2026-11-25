@@ -38,6 +38,7 @@ public sealed partial class AppModel
         PanelTab.All => "All",
         PanelTab.Roles => "Entra",
         PanelTab.Azure => "Azure",
+        PanelTab.Apps => "Apps",
         _ => "Groups",
     };
 
@@ -46,11 +47,13 @@ public sealed partial class AppModel
         PanelTab.All => AllKinds,
         PanelTab.Roles => EntraKinds,
         PanelTab.Azure => AzureKinds,
+        PanelTab.Apps => AppKinds,
         _ => GroupKinds,
     };
 
-    private static readonly HashSet<RoleScopeKind> AllKinds = [RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group];
+    private static readonly HashSet<RoleScopeKind> AllKinds = [RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group, RoleScopeKind.AppRole];
     private static readonly HashSet<RoleScopeKind> EntraKinds = [RoleScopeKind.EntraDirectory];
+    private static readonly HashSet<RoleScopeKind> AppKinds = [RoleScopeKind.AppRole];
     private static readonly HashSet<RoleScopeKind> AzureKinds = [RoleScopeKind.AzureResource];
     private static readonly HashSet<RoleScopeKind> GroupKinds = [RoleScopeKind.Group];
 
@@ -94,7 +97,7 @@ public sealed partial class AppModel
 
         return PanelTab switch
         {
-            PanelTab.All => [.. Keys(PanelTab.Roles), .. Azure(), .. Keys(PanelTab.Groups)],
+            PanelTab.All => [.. Keys(PanelTab.Roles), .. Azure(), .. Keys(PanelTab.Groups), .. Keys(PanelTab.Apps)],
             PanelTab.Azure => [.. Azure()],
             var tab => [.. Keys(tab)],
         };
@@ -205,6 +208,7 @@ public sealed partial class AppModel
             EntraDirectoryScope e => e.RoleDefinitionId,
             AzureResourceScope a => $"{a.RoleDefinitionId.Split('/').LastOrDefault() ?? a.RoleDefinitionId} @ {a.Scope}",
             GroupScope g => $"{g.GroupId} ({(g.AccessId == GroupAccess.Owner ? "owner" : "member")})",
+            AppRoleScope a => $"{a.AppRoleId} @ {a.ServicePrincipalId}",
             _ => key.ToString(),
         };
     }
@@ -225,17 +229,20 @@ public sealed partial class AppModel
     public int SelectionCount => Selection.Count;
 
     /// <summary>Per-kind counts of the bulk selection, for the cross-pivot hint in the bulk bar.</summary>
-    public (int Entra, int Azure, int Groups) SelectionBreakdown
+    public (int Entra, int Azure, int Groups, int Apps) SelectionBreakdown
     {
         get
         {
-            int entra = 0, azure = 0, groups = 0;
+            int entra = 0, azure = 0, groups = 0, apps = 0;
             foreach (var key in Selection)
             {
                 switch (key.Scope.Kind)
                 {
                     case RoleScopeKind.EntraDirectory:
                         entra++;
+                        break;
+                    case RoleScopeKind.AppRole:
+                        apps++;
                         break;
                     case RoleScopeKind.AzureResource:
                         azure++;
@@ -246,7 +253,7 @@ public sealed partial class AppModel
                 }
             }
 
-            return (entra, azure, groups);
+            return (entra, azure, groups, apps);
         }
     }
 

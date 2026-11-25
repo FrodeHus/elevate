@@ -234,7 +234,8 @@ public sealed partial class ActivationWindow : Window
     {
         RoleScopeKind.EntraDirectory => "Entra directory role",
         RoleScopeKind.AzureResource => "Azure resource role",
-        _ => "Group",
+        RoleScopeKind.Group => "Group",
+        _ => "App role",
     };
 
     private void UpdateStatus(Item item)

@@ -15,6 +15,7 @@ public enum PanelTab
     Roles,
     Azure,
     Groups,
+    Apps,
 }
 
 /// <summary>

@@ -158,13 +158,13 @@ public sealed partial class Pill : ContentControl
 }
 
 /// <summary>
-/// The All / Entra / Azure / Groups picker, styled like the macOS segmented control: one capsule, the
+/// The All / Entra / Azure / Groups / Apps picker, styled like the macOS segmented control: one capsule, the
 /// selected segment filled with the accent. No counts in the labels: the Active now header and the
 /// tenant rows already carry them, and a segment that changes width with its count moves the others.
 /// </summary>
 public sealed partial class SegmentedPivots : ContentControl
 {
-    private static readonly PanelTab[] Tabs = [PanelTab.All, PanelTab.Roles, PanelTab.Azure, PanelTab.Groups];
+    private static readonly PanelTab[] Tabs = [PanelTab.All, PanelTab.Roles, PanelTab.Azure, PanelTab.Groups, PanelTab.Apps];
 
     private readonly ToggleButton[] _buttons = new ToggleButton[Tabs.Length];
     private PanelTab _selected = PanelTab.All;

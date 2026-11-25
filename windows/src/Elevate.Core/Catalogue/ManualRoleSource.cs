@@ -28,6 +28,7 @@ public static class ManualRoleSource
     {
         AzureResourceScope azure => azure.Scope,
         GroupScope group => group.AccessId == GroupAccess.Owner ? "owner" : "member",
+        AppRoleScope app => app.ServicePrincipalId,
         _ => null,
     };
 

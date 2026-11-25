@@ -18,6 +18,7 @@ public enum ManualRoleSource {
             let detail: String? = switch $0.scope {
             case .azureResource(let scope, _): scope
             case .group(_, let accessId): accessId == .owner ? "owner" : "member"
+            case .appRole(let servicePrincipalId, _): servicePrincipalId
             default: nil
             }
             return EligibleRole(key: RoleKey(identityId: tenantKey.identityId, tenantId: tenantKey.tenantId, scope: $0.scope),

@@ -23,6 +23,14 @@ public enum GroupScopes {
     ]
 }
 
+/// PIM for app roles (preview).
+public enum AppRoleScopes {
+    // shortcut: the preview accepts the PIM for Groups scopes, which every tenant has already consented
+    // to. Switch to the three *.EntraAppRole scopes (and add them to the registration and the consent
+    // URL) if Graph starts refusing these.
+    public static let all = GroupScopes.all
+}
+
 /// Delegated Graph permission for self-service entitlement management (access packages).
 /// User-consentable: no admin consent is needed, unlike the PIM scopes above.
 public enum EntitlementScopes {
