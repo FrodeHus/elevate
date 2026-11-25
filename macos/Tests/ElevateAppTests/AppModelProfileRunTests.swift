@@ -157,6 +157,37 @@ struct AppModelProfileRunTests {
         cleanup(model)
     }
 
+    @Test func anOpenRunWindowKeepsItsSessionWhenThePanelLeavesOrReopens() async {
+        let (model, id) = await loadedModel()
+        model.showProfile(id)
+        model.runWindowsOpen.insert(id)
+        let session = model.runSession(for: id)
+        model.select(.allTenants)
+        #expect(model.runSessions[id] === session)
+        model.showProfile(id)
+        session.finished = true
+        session.resultsSeen = true
+        model.panelClosed()
+        model.panelOpened()
+        #expect(model.runSessions[id] === session)
+        cleanup(model)
+    }
+
+    @Test func closingTheRunWindowDropsADraftButKeepsUnseenResults() async {
+        let (model, id) = await loadedModel()
+        model.runWindowsOpen.insert(id)
+        let session = model.runSession(for: id)
+        model.runWindowClosed(id)
+        #expect(model.runSessions[id] == nil)
+        #expect(!model.runWindowsOpen.contains(id))
+
+        model.runSessions[id] = session
+        session.finished = true
+        model.runWindowClosed(id)
+        #expect(model.runSessions[id] === session)
+        cleanup(model)
+    }
+
     @Test func deletingTheShownProfileClearsSelectionAndSession() async {
         let (model, id) = await loadedModel()
         model.showProfile(id)

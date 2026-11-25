@@ -35,7 +35,8 @@ internal static class ProfileActions
     }
 
     /// <summary>The menu behind a sidebar profile row, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
-    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root, bool inPanel)
+    /// <param name="beforeRun">Runs before either Run item acts; the All list closes itself with it.</param>
+    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root, bool inPanel, Action? beforeRun = null)
     {
         ArgumentNullException.ThrowIfNull(model);
         var menu = new MenuFlyout();
@@ -45,8 +46,8 @@ internal static class ProfileActions
             return menu;
         }
 
-        menu.Items.Add(Item("Run…", () => _ = RunAsync(model, id, silentlyIfPossible: false, inPanel)));
-        var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true, inPanel));
+        menu.Items.Add(Item("Run…", () => { beforeRun?.Invoke(); _ = RunAsync(model, id, silentlyIfPossible: false, inPanel); }));
+        var last = Item("Run with last reason", () => { beforeRun?.Invoke(); _ = RunAsync(model, id, silentlyIfPossible: true, inPanel); });
         last.IsEnabled = profile.LastJustification is not null;
         menu.Items.Add(last);
         foreach (var run in model.ProfileRuns(id))

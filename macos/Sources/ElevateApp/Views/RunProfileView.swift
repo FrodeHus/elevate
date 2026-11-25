@@ -15,7 +15,7 @@ struct RunProfileView: View {
             .padding(16).frame(width: 560)
             .navigationTitle(finished ? "Ran \"\(profile?.name ?? "profile")\"" : "Run \"\(profile?.name ?? "profile")\"")
             .onAppear { model.runWindowsOpen.insert(profileId); replan() }
-            .onDisappear { model.runWindowsOpen.remove(profileId) }
+            .onDisappear { model.runWindowClosed(profileId) }
             // WindowGroup(for:) refocuses an existing window for the same value, so .onAppear does not
             // re-fire; re-plan when the user asks to run this profile again — not on every refocus.
             .onChange(of: model.runRequests[profileId]) { _, _ in replan() }

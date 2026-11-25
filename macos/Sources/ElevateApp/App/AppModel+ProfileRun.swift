@@ -60,8 +60,19 @@ extension AppModel {
         }
     }
 
+    /// The run window went away. Its session goes with it unless the panel shows that profile, a run
+    /// is still going, or finished results nobody has read are waiting to reopen the panel.
+    func runWindowClosed(_ id: UUID) {
+        runWindowsOpen.remove(id)
+        if selectedProfile != id, let session = runSessions[id], !session.running, !session.finished || session.resultsSeen {
+            runSessions[id] = nil
+        }
+    }
+
     /// Opens the profile in the main view; one that already ran starts over with a fresh plan.
     func showProfile(_ id: UUID) {
+        // The All profiles popover's row menus land here too; the profile must not open behind it.
+        allProfilesOpen = false
         if runSession(for: id).finished { resetRunSession(id) }
         select(.profile(id))
     }
@@ -88,7 +99,8 @@ extension AppModel {
     /// comes back on a run that is still going or whose results nobody has read.
     func reopenProfileSelection() {
         if let id = selectedProfile, let session = runSessions[id] {
-            if session.finished && session.resultsSeen {
+            // A run window still showing the results keeps them until it closes.
+            if session.finished && session.resultsSeen && !runWindowsOpen.contains(id) {
                 runSessions[id] = nil
                 selectedProfile = nil
             }

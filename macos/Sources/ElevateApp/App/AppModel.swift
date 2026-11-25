@@ -83,10 +83,10 @@ final class AppModel {
     var accessPackagesTab = AccessPackageTab.available
     /// The profile open in the main view. Never persisted.
     var selectedProfile: UUID? {
-        // Leaving a profile drops its session, unless it is mid-run.
+        // Leaving a profile drops its session, unless it is mid-run or its run window still shows it.
         didSet {
             if selectedProfile != nil { closeAccessPackages() }
-            if let old = oldValue, old != selectedProfile, runSessions[old]?.running != true { runSessions[old] = nil }
+            if let old = oldValue, old != selectedProfile, runSessions[old]?.running != true, !runWindowsOpen.contains(old) { runSessions[old] = nil }
         }
     }
     /// Profile runs in progress or just finished. Never persisted; lives here so a run survives the panel closing.

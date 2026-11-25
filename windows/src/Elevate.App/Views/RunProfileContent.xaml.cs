@@ -455,7 +455,8 @@ public sealed partial class RunProfileContent : UserControl
         }
 
         session.ScheduleStart = ScheduleToggle.IsOn;
-        Refresh();
+        // The time picker shows the start rounded to five minutes: schedule what it shows.
+        WriteStart();
     }
 
     private void OnStartChanged(object? sender, DatePickerValueChangedEventArgs e) => WriteStart();
