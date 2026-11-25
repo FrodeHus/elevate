@@ -159,6 +159,38 @@ struct ActivationProgressLabel: View {
     }
 }
 
+/// One segment per requested role, beside the count: colour alone must not carry the result.
+struct ActivationProgressBar: View {
+    /// `nil` is a request with no result yet.
+    let results: [ActivationOutcome.Result?]
+    let running: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 2) {
+                ForEach(results.indices, id: \.self) { i in Capsule().fill(color(results[i])).frame(height: 4) }
+            }
+            // A long count truncates in the narrow panel rather than squeezing the segments out.
+            .frame(minWidth: 60)
+            Text(ActivationSummary.progress(results)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .help(ActivationSummary.progress(results))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ActivationSummary.progress(results))
+    }
+
+    // Orange already means "awaiting approval" on the rows, so a request in flight is the accent.
+    private func color(_ result: ActivationOutcome.Result?) -> Color {
+        switch result {
+        case .activated: .green
+        case .scheduled: .blue
+        case .pendingApproval: .orange
+        case .failed: .red
+        case nil: running ? Color.accentColor.opacity(0.4) : Color.secondary.opacity(0.25)
+        }
+    }
+}
+
 /// Deactivation shares the confirmed-result animation, with downward working chevrons.
 struct DeactivationProgressLabel: View {
     let phase: DeactivationPhase

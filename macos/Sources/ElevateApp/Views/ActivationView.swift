@@ -51,7 +51,12 @@ struct ActivationView: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     .help(scopeTooltip(items.first?.role.key) ?? detail)
             }
-            if isBulk { bulkTable } else {
+            if isBulk {
+                bulkTable
+                if (running || !rowResults.isEmpty) && items.count >= 3 {
+                    ActivationProgressBar(results: items.map { result(for: $0.role.key) }, running: running)
+                }
+            } else {
                 singleDuration
                 if let key = items.first?.role.key {
                     // singleDuration already presents the full, selectable failure message.

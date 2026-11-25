@@ -63,7 +63,11 @@ Click a profile in the sidebar. The main view shows it, ready to run, without op
 - **Start at** schedules the whole run for later.
 - The **Reason** field has the focus and is pre-filled with the reason you last gave. Enter a
   reason and click **Activate N**, or press Return. Nothing is requested until you do. Progress
-  shows per row, and the results stay in the view until you select something else.
+  shows per row, and the results stay in the view until you select something else. A run of three
+  or more roles also shows a bar with one segment per role and a count such as
+  **2 of 4 activated · 1 failed**: green is activated, blue is scheduled (the accent
+  colour on Windows), orange is awaiting approval, red is failed, and a faded segment is still in
+  flight.
 - Press Escape to go back to the tenant or **All tenants** you came from.
 
 Closing the panel does not cancel a run or lose what you typed. Elevate keeps the profile view

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS and Windows: **a progress bar for a profile run of three or more roles**, with one segment
+  per role and a count such as **2 of 4 activated · 1 failed**. The window for activating several
+  selected roles shows it too. In the CLI the results table carries the same count as its
+  caption.
+
+### Fixed
+
+- macOS: in the panel, a role's status during a profile run sits at the end of its row, so the
+  statuses line up whether or not a role has a scope caption.
+
 ## [1.11.0] - 2026-11-25
 
 ### Changed

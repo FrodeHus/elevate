@@ -314,6 +314,14 @@ public sealed partial class ActivationWindow : Window
             UpdateStatus(item);
         }
 
+        // With one or two roles the rows already are the progress.
+        var showProgress = IsBulk && _items.Count >= 3 && (_running || _items.Any(i => i.Result is not null));
+        ProgressRow.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
+        if (showProgress)
+        {
+            ActivationProgressBar.Update(Segments, ProgressText, [.. _items.Select(i => i.Result)], _running);
+        }
+
         if (!IsBulk && _items.Count > 0 && _model.Progress.GetValueOrDefault(_items[0].Role.Key) is ActivationResult.Failed failed)
         {
             SingleError.Message = failed.Error.UserMessage;

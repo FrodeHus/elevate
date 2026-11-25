@@ -17,6 +17,24 @@ public enum ActivationSummary {
         return several(outcomes, names: names)
     }
 
+    /// The count beside a run's progress bar: "1 of 3 activated · 1 failed". `nil` is a request still in flight.
+    public static func progress(_ results: [ActivationOutcome.Result?]) -> String {
+        var ok = 0, scheduled = 0, pending = 0, failed = 0
+        for case let result? in results {
+            switch result {
+            case .activated: ok += 1
+            case .scheduled: scheduled += 1
+            case .pendingApproval: pending += 1
+            case .failed: failed += 1
+            }
+        }
+        var parts = ["\(ok) of \(results.count) activated"]
+        if scheduled > 0 { parts.append("\(scheduled) scheduled") }
+        if pending > 0 { parts.append("\(pending) awaiting approval") }
+        if failed > 0 { parts.append("\(failed) failed") }
+        return parts.joined(separator: " · ")
+    }
+
     private static func single(_ outcome: ActivationOutcome, now: Date) -> String {
         switch outcome.result {
         case .activated(let a):

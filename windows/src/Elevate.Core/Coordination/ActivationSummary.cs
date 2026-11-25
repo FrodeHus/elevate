@@ -36,6 +36,28 @@ public static class ActivationSummary
         return outcomes.Count == 1 ? Single(outcomes[0], now ?? DateTimeOffset.UtcNow) : Several(outcomes, names);
     }
 
+    /// <summary>
+    /// The count beside a run's progress bar: "1 of 3 activated · 1 failed". A null entry is a
+    /// request still in flight.
+    /// </summary>
+    public static string Progress(IReadOnlyList<ActivationResult?> results)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        var parts = new List<string> { $"{results.Count(r => r is ActivationResult.Activated)} of {results.Count} activated" };
+        void Append(int count, string suffix)
+        {
+            if (count > 0)
+            {
+                parts.Add($"{count} {suffix}");
+            }
+        }
+
+        Append(results.Count(r => r is ActivationResult.Scheduled), "scheduled");
+        Append(results.Count(r => r is ActivationResult.PendingApproval), "awaiting approval");
+        Append(results.Count(r => r is ActivationResult.Failed), "failed");
+        return string.Join(" · ", parts);
+    }
+
     private static string Single(ActivationOutcome outcome, DateTimeOffset now)
     {
         switch (outcome.Result)

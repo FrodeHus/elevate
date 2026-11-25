@@ -166,6 +166,7 @@ public sealed partial class RunProfileContent : UserControl
                 }
             }
 
+            UpdateProgress(session);
             UpdateButtons(session);
         }
         finally
@@ -404,6 +405,24 @@ public sealed partial class RunProfileContent : UserControl
 
                 break;
         }
+    }
+
+    private void UpdateProgress(ProfileRunSession session)
+    {
+        // With one or two roles the rows already are the progress.
+        var show = (session.Running || session.Finished) && session.Attempted >= 3;
+        ProgressRow.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show)
+        {
+            return;
+        }
+
+        // The flyout is too narrow for the bar and a long count side by side: the count goes below.
+        Grid.SetRow(ProgressText, _compact ? 1 : 0);
+        Grid.SetColumn(ProgressText, _compact ? 0 : 1);
+        Grid.SetColumnSpan(Segments, _compact ? 2 : 1);
+        ActivationProgressBar.Update(Segments, ProgressText,
+            [.. session.ToActivate.Select(i => session.RowResults.GetValueOrDefault(i.RoleKey))], session.Running);
     }
 
     private void UpdateButtons(ProfileRunSession session)

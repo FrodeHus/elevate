@@ -404,7 +404,14 @@ public static class Views
         table.AddColumn("Role");
         table.AddColumn("Tenant");
         table.AddColumn("Result");
-        foreach (var o in outcomes)
+        var all = outcomes.ToList();
+        // With one or two roles the rows already are the summary.
+        if (all.Count >= 3)
+        {
+            table.Caption(ActivationSummary.Progress(all.Select(o => (ActivationResult?)o.Result).ToList()));
+        }
+
+        foreach (var o in all)
         {
             var result = o.Result switch
             {
