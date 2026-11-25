@@ -319,7 +319,7 @@ public sealed partial class ActivationWindow : Window
         ProgressRow.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
         if (showProgress)
         {
-            ActivationProgressBar.Update(Segments, ProgressText, [.. _items.Select(i => i.Result)], _running);
+            ActivationProgressBar.Update(Segments, ProgressText, _items.Select(i => i.Result).ToList(), _running);
         }
 
         if (!IsBulk && _items.Count > 0 && _model.Progress.GetValueOrDefault(_items[0].Role.Key) is ActivationResult.Failed failed)

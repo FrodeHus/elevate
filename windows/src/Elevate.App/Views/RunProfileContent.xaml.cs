@@ -422,7 +422,7 @@ public sealed partial class RunProfileContent : UserControl
         Grid.SetColumn(ProgressText, _compact ? 0 : 1);
         Grid.SetColumnSpan(Segments, _compact ? 2 : 1);
         ActivationProgressBar.Update(Segments, ProgressText,
-            [.. session.ToActivate.Select(i => session.RowResults.GetValueOrDefault(i.RoleKey))], session.Running);
+            session.ToActivate.Select(i => session.RowResults.GetValueOrDefault(i.RoleKey)).ToList(), session.Running);
     }
 
     private void UpdateButtons(ProfileRunSession session)
