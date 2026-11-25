@@ -78,6 +78,15 @@ import Foundation
         ]
         #expect(body(outcomes, attempted: 2) == "1 role activated, 1 scheduled")
     }
+
+    @Test func progressCountsEveryOutcomeAndLeavesInFlightRequestsOut() {
+        let results: [ActivationOutcome.Result?] = [
+            .activated(assignment("a", .active, end: 3600)), nil,
+            .scheduled(assignment("c", .scheduled, start: 600)), .pendingApproval(assignment("d", .pendingApproval)), .failed(.notEligible),
+        ]
+        #expect(ActivationSummary.progress(results) == "1 of 5 activated · 1 scheduled · 1 awaiting approval · 1 failed")
+        #expect(ActivationSummary.progress([nil, nil, nil]) == "0 of 3 activated")
+    }
 }
 
 private extension RoleKey {

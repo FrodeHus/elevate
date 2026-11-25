@@ -53,6 +53,16 @@
             <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="BulkRows" Spacing="8" />
             </ScrollViewer>
+            <!-- One segment per requested role, beside the count: colour alone must not carry the result. -->
+            <Grid x:Name="ProgressRow" Visibility="Collapsed" ColumnSpacing="8" Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="60" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid x:Name="Segments" ColumnSpacing="2" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" x:Name="ProgressText" FontSize="12" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.LiveSetting="Polite" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
         </StackPanel>
 
         <!-- Start at -->

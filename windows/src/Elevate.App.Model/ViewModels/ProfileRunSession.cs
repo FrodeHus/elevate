@@ -66,6 +66,12 @@ public sealed class ProfileRunSession : ObservableObject
     /// <summary>The message of an exception that stopped the run before it produced outcomes.</summary>
     public string? Failure { get => _failure; internal set => SetProperty(ref _failure, value); }
 
+    /// <summary>
+    /// How many roles the last submit requested. A role the run then finds already active leaves
+    /// <see cref="ToActivate"/>, and the progress bar must not come and go with that.
+    /// </summary>
+    public int Attempted { get; internal set; }
+
     public IReadOnlyDictionary<RoleKey, ActivationResult> RowResults => _rowResults;
 
     internal Dictionary<RoleKey, ActivationResult> MutableRowResults => _rowResults;

@@ -101,4 +101,18 @@ public class ActivationSummaryTests
 
         Body(outcomes, 2).Should().Be("1 role activated, 1 scheduled");
     }
+
+    [Fact]
+    public void ProgressCountsEveryOutcomeAndLeavesInFlightRequestsOut()
+    {
+        ActivationResult?[] results =
+        [
+            new ActivationResult.Activated(Assignment("a", AssignmentStatus.Active, end: 3600)), null,
+            new ActivationResult.Scheduled(Assignment("c", AssignmentStatus.Scheduled, start: 600)),
+            new ActivationResult.PendingApproval(Assignment("d", AssignmentStatus.PendingApproval)),
+            new ActivationResult.Failed(new PimException(PimErrorKind.NotEligible)),
+        ];
+        ActivationSummary.Progress(results).Should().Be("1 of 5 activated · 1 scheduled · 1 awaiting approval · 1 failed");
+        ActivationSummary.Progress([null, null, null]).Should().Be("0 of 3 activated");
+    }
 }

@@ -44,6 +44,7 @@ public sealed partial class AppModel
 
         session.Finished = false;
         session.ResultsSeen = false;
+        session.Attempted = 0;
         session.Failure = null;
         // A stale toggle, a start time or unchecked roles from the last run must not carry over.
         session.Excluded.Clear();
@@ -64,9 +65,10 @@ public sealed partial class AppModel
 
         session.MutableRowResults.Clear();
         session.Failure = null;
+        var attempted = session.ToActivate.Count;
+        session.Attempted = attempted;
         session.Running = true;
         Touch();
-        var attempted = session.ToActivate.Count;
         var ticket = session.NeedsTicket && !string.IsNullOrWhiteSpace(session.TicketNumber)
             ? new TicketInfo(session.TicketNumber.Trim(), session.TicketSystem.Trim())
             : null;

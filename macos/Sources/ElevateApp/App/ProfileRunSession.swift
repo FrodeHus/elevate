@@ -18,6 +18,9 @@ final class ProfileRunSession {
     var running = false
     var finished = false
     var resultsSeen = false
+    /// How many roles the last submit requested. A role the run then finds already active leaves
+    /// `toActivate`, and the progress bar must not come and go with that.
+    var attempted = 0
     var rowResults: [RoleKey: ActivationOutcome.Result] = [:]
 
     init(profileId: UUID, items: [ProfilePlanItem], justification: String) {

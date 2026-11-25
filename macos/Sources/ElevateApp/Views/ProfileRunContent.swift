@@ -41,6 +41,11 @@ struct ProfileRunContent: View {
                     HStack { TextField("Ticket number", text: $session.ticketNumber); TextField("Ticket system", text: $session.ticketSystem) }
                 }
             }
+            // With one or two roles the rows already are the progress.
+            if (session.running || session.finished) && session.attempted >= 3 {
+                ActivationProgressBar(results: session.toActivate.map { model.progress[$0.roleKey] ?? session.rowResults[$0.roleKey] },
+                                      running: session.running)
+            }
             buttons(session)
         }
         .onAppear {
@@ -117,7 +122,8 @@ struct ProfileRunContent: View {
                 Toggle("", isOn: .constant(false)).toggleStyle(.checkbox).labelsHidden().hidden()
             }
             if compact {
-                // The duration sits at the end of the name's line; the detail and any status share the line below.
+                // The duration sits at the end of the name's line; the detail and any status share the line
+                // below, the status at its trailing edge so it lines up whether or not a row has a detail.
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         RoleNameLabel(it.role?.displayName ?? model.summaryName(for: it.roleKey), isPrivileged: model.isPrivileged(it.roleKey)).opacity(dimmed ? 0.6 : 1)
@@ -129,6 +135,7 @@ struct ProfileRunContent: View {
                             Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(scopeTooltip(it.roleKey) ?? detail)
                                 .opacity(dimmed ? 0.6 : 1)
                         }
+                        Spacer(minLength: 0)
                         trailing(item, session: session, included: included)
                     }
                 }

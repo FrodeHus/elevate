@@ -21,6 +21,7 @@ extension AppModel {
         if session.finished || session.justification.isEmpty { session.justification = profile(id: id)?.lastJustification ?? "" }
         session.finished = false
         session.resultsSeen = false
+        session.attempted = 0
         // A stale toggle, a start time or unchecked roles from the last run must not carry over.
         session.excluded.removeAll()
         session.scheduleStart = false
@@ -35,6 +36,7 @@ extension AppModel {
         session.rowResults.removeAll()
         session.running = true
         let attempted = session.toActivate.count
+        session.attempted = attempted
         let ticket = session.needsTicket && !session.ticketNumber.isEmpty
             ? TicketInfo(number: session.ticketNumber, system: session.ticketSystem) : nil
         // Two minutes of headroom: a start the service sees as "now" would activate immediately.

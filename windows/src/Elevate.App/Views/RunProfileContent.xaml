@@ -10,6 +10,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- One boxed group per tenant, each headed by the tenant name with the account as caption. -->
@@ -44,12 +45,27 @@
             </Grid>
         </StackPanel>
 
-        <TextBlock Grid.Row="2" Text="Entries already active or unchecked are skipped. Approval-required entries are requested and shown as pending."
+        <!-- One segment per requested role, beside the count: colour alone must not carry the result. -->
+        <Grid Grid.Row="2" x:Name="ProgressRow" Visibility="Collapsed" ColumnSpacing="8" RowSpacing="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="60" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid x:Name="Segments" ColumnSpacing="2" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" x:Name="ProgressText" FontSize="12" TextTrimming="CharacterEllipsis"
+                       AutomationProperties.LiveSetting="Polite" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="Entries already active or unchecked are skipped. Approval-required entries are requested and shown as pending."
                    FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-        <InfoBar Grid.Row="3" x:Name="Failure" IsOpen="False" IsClosable="False" Severity="Error" />
+        <InfoBar Grid.Row="4" x:Name="Failure" IsOpen="False" IsClosable="False" Severity="Error" />
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" TabFocusNavigation="Local">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" TabFocusNavigation="Local">
             <!-- Tab reaches the default button first, although Cancel is drawn first. -->
             <ProgressRing x:Name="Running" Width="20" Height="20" IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
             <Button x:Name="CancelButton" TabIndex="1" Content="Cancel" Click="OnCancel" MinWidth="90" />
