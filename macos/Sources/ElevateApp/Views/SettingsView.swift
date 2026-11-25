@@ -128,7 +128,7 @@ struct SettingsView: View {
                         Text(profile.name).tag(UUID?.some(profile.id))
                     }
                 }
-                Text("Runs the profile like Option-clicking its chip; opens the run sheet if input is needed.")
+                Text("Runs the profile like Option-clicking its sidebar button; opens the run window if input is needed.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let hotKeyError = model.hotKeyError {
                     Text(hotKeyError).font(.caption).foregroundStyle(.red)

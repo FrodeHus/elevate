@@ -1,5 +1,6 @@
 using Elevate.App.Services;
 using Elevate.App.Tests.Support;
+using Elevate.App.ViewModels;
 using Elevate.Core.Models;
 using Elevate.Core.Storage;
 using FluentAssertions;
@@ -56,7 +57,7 @@ public class AppModelPanelTests
     }
 
     [Fact]
-    public async Task ActiveAssignmentsOrderedShowsOnlyTheCurrentTabsKinds()
+    public async Task ActiveAssignmentsIgnoreTheTabWhileTheTabCountsStayPerKind()
     {
         using var test = await ModelWithOneOfEachKindAsync();
         var model = test.Model;
@@ -64,9 +65,9 @@ public class AppModelPanelTests
         model.Active[Sample.AzureKey] = Sample.Assignment(Sample.AzureKey);
         model.Active[Sample.GroupKey] = Sample.Assignment(Sample.GroupKey);
         model.PanelTab = PanelTab.Roles;
-        model.ActiveAssignmentsOrdered.Select(a => a.RoleKey).Should().Equal(Sample.EntraKey);
+        model.ActiveAssignments(null).Should().HaveCount(3);
         model.PanelTab = PanelTab.Azure;
-        model.ActiveAssignmentsOrdered.Select(a => a.RoleKey).Should().Equal(Sample.AzureKey);
+        model.ActiveAssignments(null).Should().HaveCount(3);
         model.ActiveCount(PanelTab.Groups).Should().Be(1);
     }
 
@@ -91,6 +92,93 @@ public class AppModelPanelTests
         using var test = await TestModel.BootstrappedAsync();
         test.Model.PanelTab = PanelTab.Groups;
         new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.Groups);
+    }
+
+    [Fact]
+    public async Task AllTabShowsEveryKindInOrder()
+    {
+        using var test = await ModelWithOneOfEachKindAsync();
+        var model = test.Model;
+        model.PanelTab = PanelTab.All;
+        model.RolesFor(Sample.TenantKey, PanelTab.All).Should().HaveCount(3);
+        model.ListRows(Sample.TenantKey).Should().Equal(Sample.EntraKey, Sample.AzureKey, Sample.GroupKey);
+        AppModel.Title(PanelTab.All).Should().Be("All");
+    }
+
+    [Fact]
+    public void TabDefaultsToAllWhenNothingIsStored()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.All);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void ATabChosenWithTheCurrentBuildIsKept()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"panelTab\":\"roles\",\"collapsedProfiles\":false}");
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.Roles);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void ARolesTabFromTheOldReleaseCountsAsNotChosen()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"panelTab\":\"roles\"}");
+            var settings = new AppSettings(dir);
+            settings.PanelTab.Should().Be(PanelTab.All);
+
+            // Saving marks the file as written by this build, so a later Entra choice sticks.
+            settings.PanelTab = PanelTab.Roles;
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.Roles);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void TheAllTabIsNotWrittenSoAnOlderReleaseCanStillReadTheFile()
+    {
+        var dir = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var settings = new AppSettings(dir);
+            settings.CollapsedActive = true;
+            File.ReadAllText(Path.Combine(dir, "settings.json")).Should().NotContain("panelTab");
+            new AppSettings(dir).PanelTab.Should().Be(PanelTab.All);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public async Task GroupCaptionNamesMembershipAndOwnership()
+    {
+        using var test = await ModelWithOneOfEachKindAsync();
+        var model = test.Model;
+        model.GroupCaption(Sample.GroupKey).Should().Be("Group membership");
+        model.GroupCaption(Sample.Key(new GroupScope("group-1", GroupAccess.Owner))).Should().Be("Group ownership");
+        model.GroupCaption(Sample.EntraKey).Should().BeNull();
     }
 }
 

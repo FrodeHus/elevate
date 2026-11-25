@@ -7,6 +7,8 @@ MSI downloaded from the GitHub releases or installed with winget.
 UI design: [docs/design/elevate-windows.html](../docs/design/elevate-windows.html) (Fluent mockups of the
 flyout, windows, tray states and tokens; open the file in a browser, it follows the OS theme).
 
+![The Windows flyout on one tenant: pinned profiles and tenants in the sidebar, the Eligible bar with its All, Entra, Azure and Groups tabs, and privileged roles marked with a crown](../docs/images/panel-windows.png)
+
 ## Install
 
 ```powershell
@@ -84,17 +86,28 @@ Sign in from the flyout's **Add account…** with one of:
   activated, because Microsoft grants those apps no Graph PIM permissions. Use your own or
   another app registration for those.
 
-Everything the macOS app does is here: select several roles across pivots and activate them
-together, save a selection as a **profile** (pinned profiles are chips in one row under the pivots,
-*All N* lists the rest with search; the Profiles window renames, pins, reorders, edits the roles
-and their durations in place, and deletes; a chip opens the run window with per-entry durations,
-the remembered reason, ticket and start time), **Ctrl-click** Activate, Extend or a chip to go straight through with the
-last reason and duration when the policy allows it, and a **global shortcut** (Settings) that runs
-one profile the same way. Requests waiting for *your* approval appear in a pinned **Approvals**
-group above *Active now* with Approve and Deny; a toast announces each new request once, and the
-tray icon carries an orange dot while any are pending.
+The flyout has a sidebar that is always visible (pinned profiles, then *All tenants* and every
+account with its tenants and their active counts, and **Add account…** at the bottom) beside a main
+view that shows Home, the role list, one tenant, one profile or a tenant's access packages. Home
+lists Approvals and *Active now*, draws the first role inside its last 15 minutes as an Extend card,
+and has *Browse all roles*; the role list has an *Eligible · N* bar with *All*, *Entra*, *Azure* and
+*Groups*. A crown after a role's name marks a privileged role. **Escape** dismisses one thing at a
+time (request form, access packages, filter, profile, select mode, browsing), never changes the
+selected tenant, and closes the flyout when nothing is left.
 
-The **Azure** pivot groups its eligibilities by scope instead of listing them flat: management
+Everything the macOS app does is here: select several roles across views and activate them
+together, save a selection as a **profile** (pinned profiles are buttons in the sidebar,
+*All N* lists the rest with search; the Profiles window renames, pins, reorders, edits the roles
+and their durations in place, and deletes; clicking a profile shows it in the flyout with a
+duration for each entry, the remembered reason, ticket and start time, and the run window shows the
+same form for the global shortcut), **Ctrl-click** Activate, Extend or a profile to go straight
+through with the last reason and duration when the policy allows it, and a **global shortcut**
+(Settings) that runs one profile the same way. Requests waiting for *your* approval appear in an
+**Approvals** group above *Active now* on Home with Approve and Deny; a toast announces each new
+request once, and the tray icon carries an orange dot while any are pending. Confirmations (sign
+out, remove a tenant, delete a profile) are dialogs rather than cards inside the flyout.
+
+The **Azure** view groups its eligibilities by scope instead of listing them flat: management
 groups, subscriptions, resource groups and resources, each header opening and closing with its
 chevron and saying how many roles sit under it. A scope that only passes through — no eligibility
 of its own and one way down — is folded into the node below it and named there ("Alpha / prod"),

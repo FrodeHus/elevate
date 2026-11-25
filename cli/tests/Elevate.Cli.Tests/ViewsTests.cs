@@ -36,6 +36,67 @@ public class ViewsTests
         json.Should().Contain("\"kind\": \"entra\"").And.Contain("\"key\"").And.Contain("entraDirectory");
     }
 
+    private const string GlobalAdministrator = "62e90394-69f5-4237-9190-012177145e10";
+    private const string GroupsAdministrator = "fdd7a751-b60b-444a-984c-02652fe8fa1c";
+
+    [Fact]
+    public async Task PrivilegedRolesAreMarkedInJsonAndInTheTable()
+    {
+        using var t = new TestSession();
+        t.Entra.Eligible.Add(TestSession.Role(GlobalAdministrator, "Global Administrator"));
+        t.Entra.Eligible.Add(TestSession.Role(GroupsAdministrator, "Groups Administrator"));
+        t.Entra.Eligible.Add(TestSession.Role("custom", "Billing Operator") with { IsPrivileged = true });
+        await t.Session.RefreshAllAsync();
+        var roles = t.Session.Roles[TestSession.Tenant.Key];
+        var now = DateTimeOffset.UtcNow;
+
+        roles.ToDictionary(r => r.DisplayName, r => Views.Role(t.Session, r, now).IsPrivileged)
+            .Should().Equal(new Dictionary<string, bool> { ["Global Administrator"] = true, ["Groups Administrator"] = false, ["Billing Operator"] = true });
+        JsonSerializer.Serialize(Views.Role(t.Session, roles[0], now), Output.JsonOptions).Should().Contain("\"isPrivileged\": ");
+
+        var writer = new StringWriter();
+        var console = Spectre.Console.AnsiConsole.Create(new Spectre.Console.AnsiConsoleSettings
+        {
+            Ansi = Spectre.Console.AnsiSupport.No,
+            ColorSystem = Spectre.Console.ColorSystemSupport.NoColors,
+            Out = new Spectre.Console.AnsiConsoleOutput(writer),
+        });
+        console.Profile.Width = 200;
+        console.Write(Views.RolesTable(t.Session, roles, now, showAccount: false));
+        var lines = writer.ToString().Split('\n');
+        lines.Single(l => l.Contains("Global Administrator")).Should().Contain("privileged");
+        lines.Single(l => l.Contains("Billing Operator")).Should().Contain("privileged");
+        lines.Single(l => l.Contains("Groups Administrator")).Should().NotContain("privileged");
+    }
+
+    [Fact]
+    public async Task ActiveRowsAndRolesNotYetLoadedAreMarkedPrivilegedToo()
+    {
+        using var t = new TestSession();
+        await t.Session.RefreshAllAsync();
+        var now = DateTimeOffset.UtcNow;
+        // Nothing eligible is loaded, so the marker can only come from the role's id (the status command's unloaded-role JSON path asks the same).
+        var admin = TestSession.EntraKey(GlobalAdministrator);
+        var other = TestSession.EntraKey(GroupsAdministrator);
+        t.Session.IsPrivileged(admin).Should().BeTrue();
+        t.Session.IsPrivileged(other).Should().BeFalse();
+
+        var writer = new StringWriter();
+        var console = Spectre.Console.AnsiConsole.Create(new Spectre.Console.AnsiConsoleSettings
+        {
+            Ansi = Spectre.Console.AnsiSupport.No,
+            ColorSystem = Spectre.Console.ColorSystemSupport.NoColors,
+            Out = new Spectre.Console.AnsiConsoleOutput(writer),
+        });
+        console.Profile.Width = 200;
+        console.Write(Views.ActiveTable(t.Session, [
+            new ActiveAssignment(admin, "a1", now, now.AddMinutes(30), AssignmentStatus.Active),
+            new ActiveAssignment(other, "a2", now, now.AddMinutes(60), AssignmentStatus.Active)], now));
+        var lines = writer.ToString().Split('\n');
+        lines.Count(l => l.Contains("privileged")).Should().Be(1);
+        lines.Single(l => l.Contains("privileged")).Should().Contain("Global Administrator");
+    }
+
     [Fact]
     public async Task FirstPartyAccountIsViewOnlyForEntra()
     {

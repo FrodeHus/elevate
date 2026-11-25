@@ -15,6 +15,12 @@ public sealed partial class AppModel
     {
         // A stale filter must never survive a reopen: the panel always opens showing everything.
         SearchQuery = string.Empty;
+        Browsing = false;
+        ForgetVanishedProfiles();
+        ReopenProfileSelection();
+        // Last: a redraw before this must not count unseen results as read while the panel is still closed.
+        PanelIsOpen = true;
+        Touch();
         CountPanelOpenForTrackers();
         if (!Bootstrapped || !IsOnline || Identities.Count == 0)
         {

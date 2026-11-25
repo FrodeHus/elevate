@@ -6,12 +6,11 @@ SharePoint sites, Azure roles, or eligible PIM roles. Elevate lets you find the
 packages you are allowed to request, request them, and keep an eye on what
 happened, all from the menu bar on macOS or the tray flyout on Windows.
 
-> The pictures in this guide are design mockups with sample data from a
-> fictional organization; the real app looks the same in layout and wording.
-> They show the macOS app. Elevate for Windows has the same controls in the
-> same places, drawn in the Windows style: the request sheet is a small
-> window, state labels are pills, and notifications are Windows toasts. Where
-> the Windows app differs, the guide says so.
+> The pictures in this guide are real renders of the macOS app with sample
+> data from a fictional organization. Elevate for Windows has the same
+> controls in the same places, drawn in the Windows style: state labels are
+> pills and notifications are Windows toasts. Where the Windows app differs,
+> the guide says so.
 
 ## Before you start
 
@@ -26,22 +25,26 @@ so for such accounts the access package controls simply do not appear.
 ## Finding the access packages for a tenant
 
 Open the Elevate panel from the menu bar (on Windows, click the tray icon or
-press the global shortcut). Every tenant that supports access packages shows a
-small box icon next to its name, and an **Access packages…** item at the top
-of its tenant menu (the **⋯** button on the tenant row on Windows).
+press the global shortcut) and select the tenant in the sidebar. A tenant that
+supports access packages shows an **Access packages…** button in its header,
+beside the tenant menu (the **⋯** button). In the role list for all tenants,
+the same tenants show a small box icon next to their name, and **Access
+packages…** is also at the top of the tenant menu.
 
-![The Elevate panel with the box icon beside the Contoso tenant and the tenant menu open](images/access-packages/panel.png)
+![A tenant's view with the Access packages button in its header, beside the tenant menu](images/access-packages/panel.png)
 
-Click either one to open the access packages window for that tenant. Each
-tenant has its own window, so if you have several tenants you pick the one you
-want first.
+Click any of them to open that tenant's access packages in the panel's main
+view. There is no separate window: the tenant header stays, with a back arrow beside
+the tenant's name, and each tenant has its own packages, so if you have several
+tenants you pick the one you want first.
+Selecting anything in the sidebar leaves the packages.
 
-If a tenant shows neither the icon nor the menu item, see
+If a tenant shows none of these, see
 [When the controls do not appear](#when-the-controls-do-not-appear).
 
-## The access packages window
+## The access packages view
 
-The window has four tabs and a search field. Search filters the tab you are on
+The view has four tabs and a search field. Search filters the tab you are on
 by package name and description, so with hundreds of packages you can type a
 word or two instead of scrolling.
 
@@ -59,8 +62,8 @@ caption such as "No matches for “finance”." instead of the tab's usual
 empty message.
 
 At the bottom, the refresh button fetches the latest state from Entra, and the
-caption next to it tells you when the window was last updated. Press **Close**
-or Escape to dismiss the window.
+caption next to it tells you when the view was last updated. Press the back
+arrow or Escape to return to the tenant's role list.
 
 ## Requesting a package
 
@@ -70,11 +73,13 @@ or Escape to dismiss the window.
    to approve it. When only one policy applies, the menu is not shown.
 3. Type a **Justification**. This is required, and the people who approve
    your request will read it, so say what you need the access for.
-4. Click **Submit Request**.
+4. Click **Submit Request**, or **Cancel** to go back to the package list.
 
-![The request sheet with a policy menu, a justification field, and the Submit Request button](images/access-packages/request-sheet.png)
+![The request form in the panel with a policy menu, a justification field, and the Submit Request button](images/access-packages/request-sheet.png)
 
-Elevate switches to the **Requested** tab so you can see your new request. If
+The form takes over the main view, under the tenant header; Escape or the back
+arrow closes it without sending anything. After you submit, Elevate returns to
+the package list on the **Requested** tab so you can see your new request. If
 the policy does not need approval, the package is usually delivered within a
 minute or two.
 
@@ -82,12 +87,12 @@ minute or two.
 
 Some packages require you to answer questions before you can request them, for
 example a cost center or a manager's name. Elevate does not collect those
-answers. When you click Request on such a package, the sheet explains this and
+answers. When you click Request on such a package, the form explains this and
 offers **Open in My Access**, which takes you to Microsoft's My Access portal
 with the package already selected. Finish the request there, then come back to
 Elevate and check the **Requested** tab.
 
-![The request sheet explaining that the package asks questions, with an Open in My Access button](images/access-packages/request-sheet-questions.png)
+![The request form explaining that the package asks questions, with an Open in My Access button](images/access-packages/request-sheet-questions.png)
 
 ## Following your requests
 
@@ -134,7 +139,7 @@ the request in the My Access portal.
 
 ## Notifications
 
-You do not need to keep the window open. Elevate checks your requests and
+You do not need to keep the view open. Elevate checks your requests and
 assignments in the background a few times a day, and every time you open the
 panel, and sends a notification (a macOS notification or a Windows toast) when:
 
@@ -155,12 +160,11 @@ When new eligible roles appear, the panel marks them with a tinted row and a
 is meant to catch your eye once: it disappears the second time you open the
 panel after the roles were first shown.
 
-You can see this in the [first picture](#finding-the-access-packages-for-a-tenant)
-above, where Exchange Administrator and Teams Administrator are marked new.
+The marker is a tinted row and a **new** badge on the role in the role list.
 
 ## When the controls do not appear
 
-If a tenant shows no box icon and no **Access packages…** menu item:
+If a tenant shows no **Access packages…** button, no box icon and no **Access packages…** menu item:
 
 - **The account uses Azure CLI or Azure PowerShell sign-in.** Those methods
   never get the permission. Add the account again with the Elevate app
@@ -174,6 +178,6 @@ If a tenant shows no box icon and no **Access packages…** menu item:
 - **Elevate has not refreshed since you signed in.** Open the panel once more,
   or click the refresh button in the panel header.
 
-If the window opens but shows "Access packages are not permitted in this
+If the access packages view opens but shows "Access packages are not permitted in this
 tenant", the permission was refused or has been withdrawn. The same admin
 consent link fixes it.

@@ -1,4 +1,5 @@
 using Elevate.App.Services;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 
@@ -34,6 +35,7 @@ public sealed partial class AppModel
 
     public static string Title(PanelTab tab) => tab switch
     {
+        PanelTab.All => "All",
         PanelTab.Roles => "Entra",
         PanelTab.Azure => "Azure",
         _ => "Groups",
@@ -41,11 +43,13 @@ public sealed partial class AppModel
 
     public static IReadOnlySet<RoleScopeKind> Kinds(PanelTab tab) => tab switch
     {
+        PanelTab.All => AllKinds,
         PanelTab.Roles => EntraKinds,
         PanelTab.Azure => AzureKinds,
         _ => GroupKinds,
     };
 
+    private static readonly HashSet<RoleScopeKind> AllKinds = [RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group];
     private static readonly HashSet<RoleScopeKind> EntraKinds = [RoleScopeKind.EntraDirectory];
     private static readonly HashSet<RoleScopeKind> AzureKinds = [RoleScopeKind.AzureResource];
     private static readonly HashSet<RoleScopeKind> GroupKinds = [RoleScopeKind.Group];
@@ -79,6 +83,27 @@ public sealed partial class AppModel
     /// </summary>
     public IReadOnlyList<ScopeNode> AzureTree(TenantKey tenantKey) =>
         ScopeTree.Build(RolesFor(tenantKey, PanelTab.Azure));
+
+    /// <summary>One tenant's role rows in display order for the current tab; the All tab stacks the three kinds.</summary>
+    public IReadOnlyList<RoleKey> ListRows(TenantKey tenantKey)
+    {
+        IEnumerable<RoleKey> Azure() =>
+            ScopeTree.Flatten(AzureTree(tenantKey), n => IsScopeCollapsed(tenantKey, n)).Where(e => e.Role is not null).Select(e => e.Role!.Key);
+
+        IEnumerable<RoleKey> Keys(PanelTab tab) => RolesFor(tenantKey, tab).Select(r => r.Key);
+
+        return PanelTab switch
+        {
+            PanelTab.All => [.. Keys(PanelTab.Roles), .. Azure(), .. Keys(PanelTab.Groups)],
+            PanelTab.Azure => [.. Azure()],
+            var tab => [.. Keys(tab)],
+        };
+    }
+
+    /// <summary>The All tab mixes kinds, so a group row says which of its two accesses it is.</summary>
+    public string? GroupCaption(RoleKey key) => key.Scope is GroupScope g
+        ? g.AccessId == GroupAccess.Owner ? "Group ownership" : "Group membership"
+        : null;
 
     /// <summary>A scope node's collapsed state is per tenant: the same scope can be reached by two accounts.</summary>
     public static string ScopeNodeKey(TenantKey tenantKey, ScopeNode node)
@@ -133,6 +158,11 @@ public sealed partial class AppModel
     public IReadOnlyList<TenantContext> VisibleTenants(string identityId)
     {
         var all = TenantsFor(identityId);
+        if (ScopeTenant is { } scope)
+        {
+            all = [.. all.Where(t => t.Key == scope)];
+        }
+
         if (!IsFiltering)
         {
             return all;
@@ -147,7 +177,7 @@ public sealed partial class AppModel
         {
             if (!IsFiltering)
             {
-                return Identities;
+                return ScopeTenant is { } scope ? [.. Identities.Where(i => i.Id == scope.IdentityId)] : Identities;
             }
 
             return [.. Identities.Where(i => VisibleTenants(i.Id).Count > 0)];
@@ -155,6 +185,12 @@ public sealed partial class AppModel
     }
 
     // MARK: Summary
+
+    /// <summary>
+    /// Whether to mark a role as privileged: the loaded role's flag, or the ids when the role is not loaded
+    /// (an Active now row after a restart) or the service did not yield the flag. The one place views ask.
+    /// </summary>
+    public bool IsPrivileged(RoleKey key) => Role(key) is { } r ? PrivilegedRoles.IsPrivileged(r) : PrivilegedRoles.IsKnown(key.Scope);
 
     /// <summary>Name for the summary row; before the eligible list has loaded only the key is known.</summary>
     public string SummaryName(RoleKey key)
@@ -183,27 +219,6 @@ public sealed partial class AppModel
     /// <summary>Active roles of one tenant in the current pivot, for the header's "N active".</summary>
     public int ActiveCount(TenantKey key) =>
         RolesFor(key, PanelTab).Count(r => Assignment(r.Key)?.Status.Kind == AssignmentStatusKind.Active);
-
-    /// <summary>The "Active now" summary shows only the current pivot's kinds; the pivot labels carry the other counts.</summary>
-    public IReadOnlyList<ActiveAssignment> ActiveAssignmentsOrdered
-    {
-        get
-        {
-            var kinds = Kinds(PanelTab);
-            var ordered = ActiveSummary.Order(Active.Values.Where(a => kinds.Contains(a.RoleKey.Scope.Kind)));
-            if (!IsFiltering)
-            {
-                return ordered;
-            }
-
-            return
-            [
-                .. ordered.Where(a => Role(a.RoleKey) is { } r
-                    ? MatchesFilter(r)
-                    : PanelFilter.Matches(SearchQuery, SummaryName(a.RoleKey))),
-            ];
-        }
-    }
 
     // MARK: Selection
 

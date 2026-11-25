@@ -41,7 +41,7 @@ public sealed record ActivationProfile
     public string? LastJustification { get; set; }
 
     /// <summary>
-    /// Shown as a chip in the panel; at most <see cref="ProfilePins.Limit"/> profiles are pinned at a
+    /// Shown in the panel's sidebar; at most <see cref="ProfilePins.Limit"/> profiles are pinned at a
     /// time. Written only when true, so files from before pinning existed round-trip unchanged.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -75,13 +75,13 @@ public sealed record ActivationProfile
 
 public static class ProfilePins
 {
-    /// <summary>How many profiles may be pinned to the panel; one row of chips that never wraps.</summary>
+    /// <summary>How many profiles may be pinned to the panel's sidebar.</summary>
     public const int Limit = 4;
 }
 
 public static class ProfileSummary
 {
-    /// <summary>"3 roles · 1 group" style caption for a chip. Entra and Azure count as roles.</summary>
+    /// <summary>"3 roles · 1 group" style caption for a profile. Entra and Azure count as roles.</summary>
     public static string Caption(IEnumerable<ActivationProfile.Entry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);

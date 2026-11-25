@@ -22,7 +22,7 @@ public static class Dto
     public sealed record Assignment(string Status, DateTimeOffset Start, DateTimeOffset? End, string? TimeLeft, string? FailureReason);
 
     public sealed record Role(
-        string Id, string Name, string Kind, string? Detail, string? ViaGroup, string Source, string TenantId, string Tenant,
+        string Id, string Name, string Kind, string? Detail, string? ViaGroup, bool IsPrivileged, string Source, string TenantId, string Tenant,
         string AccountId, string Account, Policy Policy, bool CanActivate, string? ViewOnlyReason, Assignment? Assignment, RoleKey Key);
 
     public sealed record Outcome(string Id, string Name, string Tenant, string Account, string Result, string? Message, Assignment? Assignment);
@@ -103,7 +103,7 @@ public static class Views
         ArgumentNullException.ThrowIfNull(role);
         var key = role.Key;
         return new Dto.Role(
-            ShortId.For(key), role.DisplayName, KindName(key.Scope.Kind), role.Detail, role.ViaGroup,
+            ShortId.For(key), role.DisplayName, KindName(key.Scope.Kind), role.Detail, role.ViaGroup, session.IsPrivileged(key),
             role.Source == RoleSource.Manual ? "manual" : "discovered",
             key.TenantId, session.TenantName(key.TenantKey), key.IdentityId, session.AccountName(key.IdentityId),
             Policy(role.Policy), session.CanActivate(key),
@@ -332,6 +332,11 @@ public static class Views
                 name += $" [grey]via {Markup.Escape(via)}[/]";
             }
 
+            if (session.IsPrivileged(key))
+            {
+                name += " [yellow]privileged[/]";
+            }
+
             if (!session.CanActivate(key))
             {
                 name += " [grey](view only)[/]";
@@ -380,7 +385,7 @@ public static class Views
                     : "—";
             table.AddRow(
                 $"[grey]{ShortId.For(key)}[/]",
-                Markup.Escape(session.RoleName(key)),
+                Markup.Escape(session.RoleName(key)) + (session.IsPrivileged(key) ? " [yellow]privileged[/]" : ""),
                 RoleSelector.KindLabel(key.Scope.Kind),
                 Markup.Escape(session.TenantName(key.TenantKey)),
                 Markup.Escape(session.AccountName(key.IdentityId)),

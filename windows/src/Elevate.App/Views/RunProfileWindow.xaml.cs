@@ -1,47 +1,17 @@
 using Elevate.App.Shell;
 using Elevate.App.ViewModels;
-using Elevate.Core.Coordination;
-using Elevate.Core.Models;
-using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 
 namespace Elevate.App.Views;
 
 /// <summary>
-/// Plans and runs one profile: every entry grouped by account and tenant, a duration picker per
-/// activatable entry, the shared reason, ticket and start, and per-row outcomes. Port of the macOS
-/// <c>RunProfileView</c>.
+/// The run window: a heading around <see cref="RunProfileContent"/>, which plans and runs one
+/// profile from its session in the app model. Port of the macOS run window.
 /// </summary>
 public sealed partial class RunProfileWindow : Window
 {
-    private sealed class Row
-    {
-        public required ProfilePlanItem Item { get; set; }
-
-        public DurationPicker? Duration { get; init; }
-
-        /// <summary>Present on activatable rows only; unchecking omits the role from this run alone.</summary>
-        public CheckBox? Include { get; init; }
-
-        public StackPanel? Name { get; set; }
-
-        public bool Included => Include?.IsChecked != false;
-
-        public TextBlock? Status { get; init; }
-
-        public ActivationStatusIcon? Ring { get; init; }
-
-        public ActivationResult? Result { get; set; }
-    }
-
     private readonly AppModel _model;
     private readonly Guid _profileId;
-    private readonly List<Row> _rows = [];
-    private bool _running;
-    private bool _finished;
     private int _seenRunRequest;
 
     public RunProfileWindow(AppModel model, Guid profileId)
@@ -50,347 +20,52 @@ public sealed partial class RunProfileWindow : Window
         _model = model;
         _profileId = profileId;
         DialogWindows.Configure(this, "Run profile", 600, 560, Root, autoHeight: true);
-        DialogWindows.DefaultButton(Root, SubmitButton);
-        DialogWindows.ReasonFirst(Reason, SubmitButton);
         _seenRunRequest = model.RunRequests.GetValueOrDefault(profileId);
-        Load();
+        // The session exists before the control binds; one that already ran starts over. The flyout's selection is not touched.
+        if (model.RunSession(profileId).Finished)
+        {
+            model.ResetRunSession(profileId);
+        }
+
+        model.RunWindowsOpen.Add(profileId);
+        RunContent.Bind(model, profileId, compact: false);
+        RunContent.Done += (_, _) => Close();
+        UpdateHeading();
         _model.Changed += OnModelChanged;
-        Closed += (_, _) => _model.Changed -= OnModelChanged;
+        Closed += (_, _) =>
+        {
+            _model.Changed -= OnModelChanged;
+            RunContent.Unbind();
+            _model.RunWindowClosed(profileId);
+        };
     }
 
     public Guid ProfileId => _profileId;
 
-    private ActivationProfile? Profile => _model.Profile(_profileId);
-
-    private IEnumerable<Row> ToActivate => _rows.Where(r => r.Item.Disposition == ProfilePlanDisposition.Activate && r.Included);
-
-    private bool NeedsTicket => ToActivate.Any(r => r.Item.Role?.Policy.RequiresTicket == true);
-
-    private bool JustificationRequired => ToActivate.Any(r => r.Item.Role?.Policy.RequiresJustification == true);
-
-    private DateTimeOffset StartAt
+    private void UpdateHeading()
     {
-        get
-        {
-            var date = StartDate.Date;
-            return new DateTimeOffset(date.Year, date.Month, date.Day, StartTime.Time.Hours, StartTime.Time.Minutes, 0, DateTimeOffset.Now.Offset);
-        }
-    }
-
-    private bool CanSubmit =>
-        !_running && !_finished && ToActivate.Any()
-        && (!JustificationRequired || !string.IsNullOrWhiteSpace(Reason.Text))
-        && (!NeedsTicket || !string.IsNullOrWhiteSpace(TicketNumber.Text))
-        // A start that has slipped into the past while the window sat open is not submittable.
-        && !(ScheduleToggle.IsOn && StartAt <= DateTimeOffset.Now)
-        && _model.IsOnline;
-
-    private void Load()
-    {
-        var items = _model.Plan(_profileId);
-        if (_finished || string.IsNullOrEmpty(Reason.Text))
-        {
-            Reason.Text = Profile?.LastJustification ?? string.Empty;
-        }
-
-        _finished = false;
-        // The window is reused: a stale toggle or a start time from the last run must not carry over.
-        ScheduleToggle.IsOn = false;
-        var start = DateTimeOffset.Now.AddHours(1);
-        StartDate.Date = start;
-        StartTime.Time = new TimeSpan(start.Hour, start.Minute - start.Minute % 5, 0);
-        _model.ClearProgress(items.Select(i => i.RoleKey));
-
-        _rows.Clear();
-        foreach (var item in items)
-        {
-            var activate = item.Disposition == ProfilePlanDisposition.Activate;
-            var name = item.Role?.DisplayName ?? _model.SummaryName(item.RoleKey);
-            var row = new Row
-            {
-                Item = item,
-                Duration = activate ? new DurationPicker { Maximum = item.Role?.Policy.MaximumDuration ?? RolePolicy.ManualDefault.MaximumDuration, Duration = item.Duration } : null,
-                Include = activate ? new CheckBox { IsChecked = true, MinWidth = 0, Padding = new Thickness(0), Margin = new Thickness(0, 0, -4, 0), VerticalAlignment = VerticalAlignment.Center } : null,
-                Status = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
-                Ring = activate ? new ActivationStatusIcon() : null,
-            };
-            if (row.Include is { } include)
-            {
-                AutomationProperties.SetName(include, $"Include {name}");
-                include.Checked += (_, _) => OnIncludeChanged(row);
-                include.Unchecked += (_, _) => OnIncludeChanged(row);
-            }
-
-            _rows.Add(row);
-        }
-
-        Heading.Text = $"Run \"{Profile?.Name ?? "profile"}\"";
-        TicketRow.Visibility = NeedsTicket ? Visibility.Visible : Visibility.Collapsed;
-        Inputs.Visibility = Visibility.Visible;
-        SubmitButton.Content = $"Activate {ToActivate.Count()}";
-        Build();
-        UpdateSubmit();
-    }
-
-    // Fixed columns: the picker and the status keep their width even when a row has nothing to
-    // report, so the rows line up; "7 h 30 min" fits the picker without truncation.
-    private const double DurationColumn = 130;
-    private const double StatusColumn = 160;
-
-    // A WinUI CheckBox with no content and zero padding is its 20 px glyph box.
-    private const double CheckBoxGlyphWidth = 20;
-
-    private void Build()
-    {
-        Rows.Children.Clear();
-        var divider = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
-        foreach (var tenantKey in _rows.Select(r => r.Item.RoleKey.TenantKey).Distinct())
-        {
-            var box = TenantGroupBox.Create(_model, tenantKey, out var boxRows);
-            var first = true;
-            foreach (var row in _rows.Where(r => r.Item.RoleKey.TenantKey == tenantKey))
-            {
-                var grid = TenantGroupBox.RowGrid(DurationColumn, StatusColumn);
-                if (!first)
-                {
-                    grid.BorderBrush = divider;
-                    grid.BorderThickness = new Thickness(0, 1, 0, 0);
-                }
-
-                first = false;
-                row.Name = TenantGroupBox.NameCell(
-                    row.Item.Role?.DisplayName ?? _model.SummaryName(row.Item.RoleKey),
-                    row.Item.Role?.Detail,
-                    row.Item.RoleKey,
-                    opacity: row.Item.Disposition == ProfilePlanDisposition.Activate ? 1 : 0.6);
-                // Checkbox at the leading edge, the name trimming inside the remaining width. Skipped
-                // rows have nothing to choose; a placeholder the width of the checkbox glyph keeps the
-                // names lined up with the checked rows.
-                var lead = new Grid { ColumnSpacing = 8 };
-                lead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                lead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                lead.Children.Add(row.Include is { } include
-                    ? include
-                    : (UIElement)new Border { Width = CheckBoxGlyphWidth, Margin = new Thickness(0, 0, -4, 0) });
-                Grid.SetColumn(row.Name, 1);
-                lead.Children.Add(row.Name);
-                grid.Children.Add(lead);
-                if (row.Duration is { } picker)
-                {
-                    picker.VerticalAlignment = VerticalAlignment.Center;
-                    picker.HorizontalAlignment = HorizontalAlignment.Stretch;
-                    Grid.SetColumn(picker, 1);
-                    grid.Children.Add(picker);
-                }
-
-                var status = TenantGroupBox.StatusCell(row.Ring, row.Status!, HorizontalAlignment.Right);
-                Grid.SetColumn(status, 2);
-                grid.Children.Add(status);
-                boxRows.Children.Add(grid);
-                UpdateStatus(row);
-            }
-
-            Rows.Children.Add(box);
-        }
-    }
-
-    private void UpdateStatus(Row row)
-    {
-        var resources = Application.Current.Resources;
-        var status = row.Status!;
-        var secondary = (Brush)resources["TextFillColorSecondaryBrush"];
-        status.Foreground = secondary;
-        ToolTipService.SetToolTip(status, null);
-        var progress = _model.Progress.GetValueOrDefault(row.Item.RoleKey) ?? row.Result;
-        row.Result = progress;
-        if (row.Include is { } include)
-        {
-            include.IsEnabled = !_running && !_finished;
-            if (row.Name is { } name) name.Opacity = row.Included ? 1 : 0.6;
-            if (row.Duration is { } duration) duration.IsEnabled = row.Included && !_finished;
-            if (!row.Included)
-            {
-                row.Ring?.SetPhase(ActivationIconPhase.Hidden);
-                status.Text = _finished ? "unchecked · skipped" : "unchecked";
-                return;
-            }
-        }
-
-        row.Ring?.SetPhase(row.Item.Disposition != ProfilePlanDisposition.Activate ? ActivationIconPhase.Hidden : progress switch
-        {
-            ActivationResult.Activated => ActivationIconPhase.Success,
-            null when _running => ActivationIconPhase.Working,
-            _ => ActivationIconPhase.Hidden,
-        });
-
-        switch (row.Item.Disposition)
-        {
-            case ProfilePlanDisposition.AlreadyActive:
-                status.Text = "already active · skipped";
-                return;
-            case ProfilePlanDisposition.Pending:
-                status.Text = "pending · skipped";
-                return;
-            case ProfilePlanDisposition.NotEligible:
-                status.Text = "not eligible · skipped";
-                status.Foreground = (Brush)resources["SystemFillColorCautionBrush"];
-                return;
-            case ProfilePlanDisposition.NotLoaded:
-                status.Text = "loading…";
-                return;
-            default:
-                break;
-        }
-
-        if (_finished && row.Duration is { } picker)
-        {
-            picker.IsEnabled = false;
-        }
-
-        switch (progress)
-        {
-            case ActivationResult.Activated:
-                status.Text = "Active";
-                status.Foreground = (Brush)resources["SystemFillColorSuccessBrush"];
-                break;
-            case ActivationResult.Scheduled:
-                status.Text = "Scheduled";
-                status.Foreground = (Brush)resources["AccentFillColorDefaultBrush"];
-                break;
-            case ActivationResult.PendingApproval:
-                status.Text = "Pending approval";
-                status.Foreground = (Brush)resources["SystemFillColorCautionBrush"];
-                break;
-            case ActivationResult.Failed failed:
-                status.Text = failed.Error.UserMessage;
-                status.Foreground = (Brush)resources["SystemFillColorCriticalBrush"];
-                ToolTipService.SetToolTip(status, failed.Error.UserMessage);
-                break;
-            default:
-                if (_running)
-                {
-                    status.Text = "Activating…";
-                }
-                else if (row.Item.Role?.Policy is { } policy && PolicyNotes.Caption(policy) is { } notes)
-                {
-                    status.Text = notes;
-                    ToolTipService.SetToolTip(status, PolicyNotes.Explanation(policy));
-                }
-                else
-                {
-                    status.Text = string.Empty;
-                }
-
-                break;
-        }
+        var name = _model.Profile(_profileId)?.Name ?? "profile";
+        var finished = _model.RunSessions.TryGetValue(_profileId, out var session) && session.Finished;
+        Heading.Text = $"{(finished ? "Ran" : "Run")} \"{name}\"";
     }
 
     private void OnModelChanged(object? sender, EventArgs e)
     {
+        var running = _model.RunSessions.TryGetValue(_profileId, out var session) && session.Running;
         // Re-plan when the user asks to run this profile again, never merely because the model redrew.
         var request = _model.RunRequests.GetValueOrDefault(_profileId);
-        if (request != _seenRunRequest && !_running)
+        if (request != _seenRunRequest && !running)
         {
             _seenRunRequest = request;
-            Load();
-            return;
+            _model.ResetRunSession(_profileId);
         }
 
-        if (_model.Profile(_profileId) is null && !_running)
+        if (_model.Profile(_profileId) is null && !running)
         {
             Close();
             return;
         }
 
-        foreach (var row in _rows)
-        {
-            UpdateStatus(row);
-        }
-
-        UpdateSubmit();
-    }
-
-    private void UpdateSubmit()
-    {
-        SubmitButton.IsEnabled = CanSubmit;
-        SubmitButton.Visibility = _finished ? Visibility.Collapsed : Visibility.Visible;
-        CancelButton.Content = _finished ? "Done" : "Cancel";
-        CancelButton.IsEnabled = !_running;
-        Running.IsActive = _running;
-        Running.Visibility = _running ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void OnInputChanged(object sender, TextChangedEventArgs e) => UpdateSubmit();
-
-    private void OnIncludeChanged(Row row)
-    {
-        UpdateStatus(row);
-        TicketRow.Visibility = NeedsTicket ? Visibility.Visible : Visibility.Collapsed;
-        SubmitButton.Content = $"Activate {ToActivate.Count()}";
-        UpdateSubmit();
-    }
-
-    private void OnScheduleToggled(object sender, RoutedEventArgs e)
-    {
-        var on = ScheduleToggle.IsOn;
-        StartDate.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        StartTime.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        UpdateSubmit();
-    }
-
-    private void OnCancel(object sender, RoutedEventArgs e) => Close();
-
-    private async void OnSubmit(object sender, RoutedEventArgs e)
-    {
-        if (!CanSubmit)
-        {
-            return;
-        }
-
-        foreach (var row in _rows) row.Result = null;
-        _model.ClearProgress(_rows.Select(r => r.Item.RoleKey));
-        _running = true;
-        Failure.IsOpen = false;
-        UpdateSubmit();
-        foreach (var row in _rows)
-        {
-            if (row.Duration is { } picker)
-            {
-                row.Item = row.Item with { Duration = picker.Duration };
-            }
-
-            UpdateStatus(row);
-        }
-
-        var ticket = NeedsTicket && !string.IsNullOrWhiteSpace(TicketNumber.Text)
-            ? new TicketInfo(TicketNumber.Text.Trim(), TicketSystem.Text.Trim())
-            : null;
-        // Two minutes of headroom: a start the service sees as "now" would activate immediately.
-        DateTimeOffset? start = ScheduleToggle.IsOn ? (StartAt > DateTimeOffset.Now.AddMinutes(2) ? StartAt : DateTimeOffset.Now.AddMinutes(2)) : null;
-        try
-        {
-            // Unchecked roles never reach the model: no request, no run entry, no remembered duration.
-            var outcomes = await _model.RunProfileAsync(_profileId, (ProfilePlanItem[])[.. _rows.Where(r => r.Included).Select(r => r.Item)], Reason.Text.Trim(), ticket, start);
-            foreach (var outcome in outcomes)
-            {
-                if (_rows.FirstOrDefault(r => r.Item.RoleKey == outcome.RoleKey) is { } row) row.Result = outcome.Result;
-            }
-        }
-        catch (Exception ex)
-        {
-            Failure.Message = ex.Message;
-            Failure.IsOpen = true;
-        }
-
-        _running = false;
-        _finished = true;
-        Heading.Text = $"Ran \"{Profile?.Name ?? "profile"}\"";
-        Inputs.Visibility = Visibility.Collapsed;
-        foreach (var row in _rows)
-        {
-            UpdateStatus(row);
-        }
-
-        UpdateSubmit();
+        UpdateHeading();
     }
 }

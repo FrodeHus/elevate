@@ -33,7 +33,7 @@ struct AppModelProfileTests {
             #expect(model.setPinned(id: model.saveProfile(name: "P\(i)", keys: [Sample.entraKey, Sample.azureKey])!.id, true))
         }
         #expect(!model.setFavorite(Sample.groupKey, name: "Group", true))
-        #expect(model.notice?.contains("full") == true)
+        #expect(model.notice?.contains("sidebar holds") == true)
         #expect(model.profiles.count == ProfilePins.limit)
         cleanup(model)
     }

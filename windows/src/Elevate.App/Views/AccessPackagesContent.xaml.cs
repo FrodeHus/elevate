@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
@@ -17,7 +16,7 @@ public enum PackageRowAction
     Cancel,
 }
 
-/// <summary>One line in the access packages window: a package, a request or an assignment.</summary>
+/// <summary>One line in the access packages view: a package, a request or an assignment.</summary>
 public sealed class PackageRow
 {
     public required string Id { get; init; }
@@ -159,45 +158,74 @@ public sealed class PackageRow
 }
 
 /// <summary>
-/// Per-tenant access packages: what can be requested, what is pending, held or declined. Port of
-/// the macOS <c>AccessPackagesView</c>. The lists come from the model's stored snapshot; the
-/// requestable packages are fetched by the window and held only while it is open.
+/// Per-tenant access packages in the flyout's main column: what can be requested, what is pending,
+/// held or declined. Port of the macOS <c>AccessPackagesView</c>. The lists come from the model's
+/// stored snapshot; the requestable packages are fetched here and held only while the view is bound.
+/// The tab lives in the model, so it survives a trip through the request form.
 /// </summary>
-public sealed partial class AccessPackagesWindow : Window
+public sealed partial class AccessPackagesContent : UserControl
 {
-    private enum Tab
-    {
-        Available,
-        Requested,
-        Assigned,
-        Declined,
-    }
-
-    private readonly AppModel _model;
-    private readonly TenantKey _key;
+    private AppModel _model = null!;
+    private bool _bound;
+    private TenantKey _key = new(string.Empty, string.Empty);
     private readonly ObservableCollection<PackageRow> _rows = [];
     private readonly HashSet<string> _cancelling = [];
     private IReadOnlyList<AccessPackage> _packages = [];
     private string? _packagesError;
     private bool _loadingPackages;
     private string? _actionError;
-    private Tab _tab = Tab.Available;
+    private bool _syncingTab;
+    // Bumped by every Bind and Unbind, so a read that finishes after the view moved on is dropped.
+    private int _version;
 
-    public AccessPackagesWindow(AppModel model, TenantKey key)
+    public AccessPackagesContent()
     {
         InitializeComponent();
-        _model = model;
-        _key = key;
-        var tenant = model.Tenant(key)?.DisplayName ?? key.TenantId;
-        DialogWindows.Configure(this, $"Access packages in {tenant}", 560, 520, Root);
         List.ItemsSource = _rows;
+    }
+
+    /// <summary>Starts showing this tenant's packages and reads them afresh.</summary>
+    public void Bind(AppModel model, TenantKey key)
+    {
+        Unbind();
+        _model = model;
+        _bound = true;
+        _key = key;
+        Search.Text = string.Empty;
         model.Changed += OnModelChanged;
-        Closed += (_, _) => model.Changed -= OnModelChanged;
         Update();
         _ = ReloadAsync();
     }
 
-    public TenantKey TenantKey => _key;
+    /// <summary>Stops listening to the model and drops what was read.</summary>
+    public void Unbind()
+    {
+        _version++;
+        if (_bound)
+        {
+            _model.Changed -= OnModelChanged;
+        }
+
+        _bound = false;
+        _packages = [];
+        _packagesError = null;
+        _loadingPackages = false;
+        _actionError = null;
+        _cancelling.Clear();
+        _rows.Clear();
+    }
+
+    public void FocusSearch() => Search.Focus(FocusState.Programmatic);
+
+    /// <summary>Escape with text in the box clears it; only an empty box lets Escape close the view.</summary>
+    private void OnSearchKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Escape && Search.Text.Length > 0)
+        {
+            Search.Text = string.Empty;
+            e.Handled = true;
+        }
+    }
 
     private void OnModelChanged(object? sender, EventArgs e) => Update();
 
@@ -212,6 +240,12 @@ public sealed partial class AccessPackagesWindow : Window
 
     private void Update()
     {
+        if (!_bound)
+        {
+            return;
+        }
+
+        SyncTabs();
         var consentError = _model.AccessPackageConsentError(_key)
             ?? (_packagesError is not null && _packagesError == AppModel.ConsentMessage ? _packagesError : null);
         Consent.Visibility = consentError is null ? Visibility.Collapsed : Visibility.Visible;
@@ -224,11 +258,11 @@ public sealed partial class AccessPackagesWindow : Window
         }
         else
         {
-            var (rows, caption) = _tab switch
+            var (rows, caption) = _model.AccessPackagesTab switch
             {
-                Tab.Available => AvailableRows(),
-                Tab.Requested => RequestedRows(),
-                Tab.Assigned => AssignedRows(),
+                AccessPackageTab.Available => AvailableRows(),
+                AccessPackageTab.Requested => RequestedRows(),
+                AccessPackageTab.Assigned => AssignedRows(),
                 _ => DeclinedRows(),
             };
             Replace(rows);
@@ -369,30 +403,43 @@ public sealed partial class AccessPackagesWindow : Window
     /// <summary>A forced poll of the stored lists and a fresh read of the requestable packages, side by side.</summary>
     private async Task ReloadAsync()
     {
+        var version = _version;
         _actionError = null;
         _loadingPackages = true;
         Update();
         var poll = _model.PollAccessPackagesAsync(_key);
         try
         {
-            _packages = await _model.RequestablePackagesAsync(_key);
+            var packages = await _model.RequestablePackagesAsync(_key);
+            if (version != _version)
+            {
+                return;
+            }
+
+            _packages = packages;
             _packagesError = null;
         }
         catch (Exception e)
         {
+            if (version != _version)
+            {
+                return;
+            }
+
             _packagesError = AppModel.Describe(e);
         }
-        finally
-        {
-            _loadingPackages = false;
-        }
 
+        _loadingPackages = false;
         await poll;
-        Update();
+        if (version == _version)
+        {
+            Update();
+        }
     }
 
     private async Task CancelAsync(PackageRow row)
     {
+        var version = _version;
         _cancelling.Add(row.Id);
         Update();
         try
@@ -404,11 +451,13 @@ public sealed partial class AccessPackagesWindow : Window
         {
             _actionError = $"Could not cancel {row.Name}: {AppModel.Describe(e)}";
         }
-        finally
+
+        if (version != _version)
         {
-            _cancelling.Remove(row.Id);
+            return;
         }
 
+        _cancelling.Remove(row.Id);
         Update();
     }
 
@@ -416,19 +465,46 @@ public sealed partial class AccessPackagesWindow : Window
 
     private void OnTabChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        _tab = sender.SelectedItem == RequestedTab ? Tab.Requested
-            : sender.SelectedItem == AssignedTab ? Tab.Assigned
-            : sender.SelectedItem == DeclinedTab ? Tab.Declined
-            : Tab.Available;
-        Update();
+        if (_syncingTab || !_bound)
+        {
+            return;
+        }
+
+        // The model notifies, which redraws through Update.
+        _model.AccessPackagesTab = sender.SelectedItem == RequestedTab ? AccessPackageTab.Requested
+            : sender.SelectedItem == AssignedTab ? AccessPackageTab.Assigned
+            : sender.SelectedItem == DeclinedTab ? AccessPackageTab.Declined
+            : AccessPackageTab.Available;
         _ = _model.PollAccessPackagesAsync(_key);
     }
 
-    private void OnSearchChanged(object sender, TextChangedEventArgs e) => Update();
+    /// <summary>The model owns the tab; the bar follows it without raising a change of its own.</summary>
+    private void SyncTabs()
+    {
+        var wanted = _model.AccessPackagesTab switch
+        {
+            AccessPackageTab.Requested => RequestedTab,
+            AccessPackageTab.Assigned => AssignedTab,
+            AccessPackageTab.Declined => DeclinedTab,
+            _ => AvailableTab,
+        };
+        if (Tabs.SelectedItem != wanted)
+        {
+            _syncingTab = true;
+            Tabs.SelectedItem = wanted;
+            _syncingTab = false;
+        }
+    }
+
+    private void OnSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_bound)
+        {
+            Update();
+        }
+    }
 
     private void OnRefresh(object sender, RoutedEventArgs e) => _ = ReloadAsync();
-
-    private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     private void OnConsentLink(object sender, RoutedEventArgs e)
     {
@@ -448,11 +524,7 @@ public sealed partial class AccessPackagesWindow : Window
         switch (row.Action)
         {
             case PackageRowAction.Request or PackageRowAction.RequestAgain when row.Package is { } package:
-                App.Current.OpenRequestPackage(_key, package, () =>
-                {
-                    Tabs.SelectedItem = RequestedTab;
-                    DialogWindows.Front(this);
-                });
+                _model.BeginPackageRequest(package);
                 break;
             case PackageRowAction.Cancel:
                 _ = CancelAsync(row);

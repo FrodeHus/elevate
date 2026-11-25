@@ -5,6 +5,70 @@ import ElevateCore
 
 @MainActor
 struct AppModelPanelTests {
+    @Test func allTabShowsEveryKindInOrder() async {
+        let model = await modelWithOneOfEachKind()
+        model.panelTab = .all
+        #expect(model.roles(for: Sample.tenantKey, tab: .all).count == 3)
+        #expect(model.listRows(for: Sample.tenantKey) == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        #expect(model.navigableRoles == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        cleanup(model)
+    }
+
+    @Test func tabDefaultsToAllWhenNothingIsStoredAndKeepsAStoredTab() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .all)
+        UserDefaults(suiteName: suite)!.set("roles", forKey: AppSettings.panelTabKey)
+        #expect(AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none).panelTab == .roles)
+    }
+
+    @Test func theScopedTenantSurvivesARelaunchAndClearingItForgetsIt() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        func settings() -> AppSettings { AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none) }
+        #expect(settings().panelTenant == nil)
+        let fresh = settings()
+        fresh.panelTenant = Sample.tenantKey
+        #expect(settings().panelTenant == Sample.tenantKey)
+        fresh.panelTenant = nil
+        #expect(settings().panelTenant == nil)
+    }
+
+    @Test func privilegeComesFromTheFlagOrTheCatalogueButNeverForGroups() async {
+        let model = await modelWithOneOfEachKind()
+        let flagged = Sample.key(.entraDirectory(roleDefinitionId: "custom-role", directoryScopeId: "/"))
+        model.roles[Sample.tenantKey] = [EligibleRole(key: flagged, displayName: "Custom", source: .discovered, policy: .manualDefault, isPrivileged: true)]
+        #expect(model.isPrivileged(flagged))
+        // Not loaded, flag unknown: the catalogue (Global Administrator) and the Azure ids (Owner) still say so.
+        #expect(model.isPrivileged(Sample.key(.entraDirectory(roleDefinitionId: "62e90394-69f5-4237-9190-012177145e10", directoryScopeId: "/"))))
+        #expect(model.isPrivileged(Sample.key(.azureResource(scope: "/subscriptions/s1", roleDefinitionId: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"))))
+        #expect(!model.isPrivileged(Sample.entraKey))
+        #expect(!model.isPrivileged(Sample.groupKey))
+        cleanup(model)
+    }
+
+    @Test func sidebarSectionsStartExpandedAndRememberBeingCollapsed() {
+        let suite = "elevate-tests-\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        let fresh = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(!fresh.sidebarProfilesCollapsed && !fresh.sidebarTenantsCollapsed)
+        fresh.sidebarProfilesCollapsed = true
+        let again = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(again.sidebarProfilesCollapsed && !again.sidebarTenantsCollapsed)
+        again.sidebarProfilesCollapsed = false
+        again.sidebarTenantsCollapsed = true
+        let last = AppSettings(defaults: UserDefaults(suiteName: suite)!, managed: ManagedConfiguration.none)
+        #expect(!last.sidebarProfilesCollapsed && last.sidebarTenantsCollapsed)
+    }
+
+    @Test func groupCaptionNamesMembershipAndOwnership() async {
+        let model = await modelWithOneOfEachKind()
+        #expect(model.groupCaption(Sample.groupKey) == "Group membership")
+        #expect(model.groupCaption(Sample.key(.group(groupId: "g", accessId: .owner))) == "Group ownership")
+        #expect(model.groupCaption(Sample.entraKey) == nil)
+        cleanup(model)
+    }
+
     /// Builds a model holding one Entra, one Azure and one group role in the same tenant.
     private func modelWithOneOfEachKind() async -> AppModel {
         var state = AppState()
@@ -44,17 +108,17 @@ struct AppModelPanelTests {
         cleanup(model)
     }
 
-    @Test func activeAssignmentsOrderedShowsOnlyTheCurrentTabsKinds() async {
+    @Test func activeAssignmentsOrderedShowsEveryKind() async {
         let model = await modelWithOneOfEachKind()
         model.active = [
             Sample.entraKey: Sample.assignment(Sample.entraKey),
             Sample.azureKey: Sample.assignment(Sample.azureKey),
             Sample.groupKey: Sample.assignment(Sample.groupKey),
         ]
-        model.panelTab = .roles
-        #expect(model.activeAssignmentsOrdered.map(\.roleKey) == [Sample.entraKey])
-        model.panelTab = .azure
-        #expect(model.activeAssignmentsOrdered.map(\.roleKey) == [Sample.azureKey])
+        for tab in [PanelTab.roles, .azure, .groups, .all] {
+            model.panelTab = tab
+            #expect(Set(model.activeAssignmentsOrdered.map(\.roleKey)) == [Sample.entraKey, Sample.azureKey, Sample.groupKey])
+        }
         #expect(model.activeCount(for: .groups) == 1)
         cleanup(model)
     }

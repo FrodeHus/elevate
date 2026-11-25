@@ -7,6 +7,7 @@ using Elevate.Core.Support;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -14,7 +15,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 namespace Elevate.App.Views;
 
 /// <summary>
-/// The flyout's content: header, pivots, search, notices, the grouped list (pinned "Active now",
+/// The flyout's content: header, search, notices, the grouped list (pinned "Active now",
 /// account rows, tenant headers, role rows), the bulk bar and the footer. Redrawn from the model on
 /// every change by reconciling the row objects, so the list keeps its scroll position.
 /// </summary>
@@ -24,7 +25,11 @@ public sealed partial class PanelView : UserControl
     private readonly DispatcherQueueTimer _clock;
     private AppModel? _model;
     private FlyoutWindow? _window;
-    private bool _syncingPivot;
+    // The profile the run control is bound to; null while no profile is in the main view.
+    private Guid? _boundProfile;
+    // The tenant whose access packages are bound, and the package whose form is; null while neither is in the main view.
+    private TenantKey? _boundPackages;
+    private AccessPackage? _boundRequest;
 
     public PanelView()
     {
@@ -37,6 +42,14 @@ public sealed partial class PanelView : UserControl
         // 1.2.8 startup crash), so Ctrl+, is read off the key event instead.
         ToolTipService.SetToolTip(SettingsButton, "Settings (Ctrl+,)");
         PreviewKeyDown += OnPreviewKeyDown;
+        // A closed InfoBar still lays out its Margin (8 px each, five of them: the empty band under the
+        // filter), so a closed bar is collapsed outright.
+        foreach (var bar in new[] { StartupErrorBar, OfflineBar, NoticeBar, UpdateBar, TokenHintBar })
+        {
+            bar.Visibility = bar.IsOpen ? Visibility.Visible : Visibility.Collapsed;
+            bar.RegisterPropertyChangedCallback(InfoBar.IsOpenProperty, (s, _) =>
+                ((InfoBar)s).Visibility = ((InfoBar)s).IsOpen ? Visibility.Visible : Visibility.Collapsed);
+        }
         _clock = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(1);
         _clock.Tick += (_, _) => Tick();
@@ -153,21 +166,32 @@ public sealed partial class PanelView : UserControl
     public event EventHandler? ContentChanged;
 
     /// <summary>Whether the grouped list is showing; the flyout keeps a fixed height while it is.</summary>
-    public bool ListVisible => List.Visibility == Visibility.Visible;
+    public bool ListVisible => List.Visibility == Visibility.Visible || ProfileView.Visibility == Visibility.Visible
+        || PackagesView.Visibility == Visibility.Visible || RequestView.Visibility == Visibility.Visible;
 
     private void Draw(AppModel model)
     {
-        OfflinePill.Visibility = model.IsOnline ? Visibility.Collapsed : Visibility.Visible;
         // Absent unless the organization pushed OrganizationName with a style other than "none",
         // so an unbranded install draws the header exactly as it did before.
-        OrganizationCaption.Text = model.HeaderCaption ?? string.Empty;
-        OrganizationCaption.Visibility = model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed;
+        DrawHeader(model);
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
         SelectToggle.IsChecked = model.SelectMode;
+        // Escape can change the query while focus is elsewhere. Never while typing: TextChanged arrives after the
+        // text changed, so a redraw in between would write the old query back and lose the keystroke.
+        if (SearchBox.FocusState == FocusState.Unfocused && SearchBox.Text != model.SearchQuery)
+        {
+            SearchBox.Text = model.SearchQuery;
+        }
+
         if (model.Notice is { } notice)
         {
-            NoticeBar.Message = notice;
+            // As content, so an unbroken address wraps by character inside the column instead of clipping; kept when the text is unchanged.
+            if (NoticeBar.Content is not TextBlock { } shown || shown.Text != notice)
+            {
+                NoticeBar.Content = new TextBlock { Text = notice, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 6, 0, 8) };
+            }
+
             NoticeBar.IsOpen = true;
         }
         else
@@ -205,8 +229,6 @@ public sealed partial class PanelView : UserControl
             TokenHintBar.IsOpen = false;
         }
 
-        SyncPivot(model.PanelTab);
-
         // Same precedence as the macOS panel: first run wins, then a startup failure stands in for the
         // body (the error bar above is what the user sees), then the empty state, then the list.
         var setup = !model.IsConfigured && model.Identities.Count == 0;
@@ -223,16 +245,21 @@ public sealed partial class PanelView : UserControl
         // The quick-start route is offered only where the id can actually be changed.
         QuickStartShared.Visibility = model.Settings.IsClientIdManaged ? Visibility.Collapsed : Visibility.Visible;
         NoAccountsActions.Visibility = noAccounts && model.SharedAppAdminConsentUrl() is not null ? Visibility.Visible : Visibility.Collapsed;
-        List.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
-        Pivots.Visibility = bodyHidden ? Visibility.Collapsed : Visibility.Visible;
-        if (!bodyHidden)
+        var content = model.PanelContent;
+        var profileId = !bodyHidden && content is PanelContent.Profile p ? p.Id : (Guid?)null;
+        var inPackages = !bodyHidden && content is PanelContent.AccessPackages or PanelContent.RequestPackage;
+        List.Visibility = bodyHidden || profileId is not null || inPackages ? Visibility.Collapsed : Visibility.Visible;
+        if (!bodyHidden && profileId is null && !inPackages)
         {
             PanelListBuilder.Reconcile(_groups, PanelListBuilder.Build(model, DateTimeOffset.UtcNow));
         }
 
-        DrawProfiles(model, hidden: bodyHidden);
+        DrawProfile(model, profileId);
+        DrawPackages(model, inPackages ? content : null);
 
-        BulkBar.Visibility = model.SelectMode ? Visibility.Visible : Visibility.Collapsed;
+        Sidebar.Draw(model);
+
+        BulkBar.Visibility = model.SelectMode && profileId is null && !inPackages ? Visibility.Visible : Visibility.Collapsed;
         if (model.SelectMode)
         {
             var count = model.SelectionCount;
@@ -261,108 +288,200 @@ public sealed partial class PanelView : UserControl
                 parts.Add($"{groups} group{(groups == 1 ? "" : "s")}");
             }
 
-            BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch pivots to add more" : string.Empty;
+            BulkHint.Text = parts.Count > 1 ? string.Join(", ", parts) + " — switch tabs to add more" : string.Empty;
             BulkHint.Visibility = parts.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
-    /// <summary>What the row last drew, so the chips are rebuilt only when a pin, a name or the count changed.</summary>
-    private string _profilesSignature = string.Empty;
-
-    private void DrawProfiles(AppModel model, bool hidden)
+    /// <summary>Binds the run control to the profile in the main view, and lets it go when the view is left.</summary>
+    private void DrawProfile(AppModel model, Guid? profileId)
     {
-        var profiles = model.Profiles;
-        var visible = !hidden && profiles.Count > 0;
-        ProfilesRow.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        if (!visible)
-        {
-            _profilesSignature = string.Empty;
-            return;
-        }
-
-        var pinned = model.PinnedProfiles;
-        var signature = string.Join("|", pinned.Select(p => $"{p.Id}:{p.Name}:{p.Entries.Count}:{p.LastJustification is null}")) + "#" + profiles.Count;
-        if (signature == _profilesSignature)
+        ProfileView.Visibility = profileId is null ? Visibility.Collapsed : Visibility.Visible;
+        if (profileId == _boundProfile)
         {
             return;
         }
 
-        _profilesSignature = signature;
-        AllProfilesLabel.Text = $"All {profiles.Count}";
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(AllProfiles, $"All profiles, {profiles.Count}");
-        ProfileChips.Children.Clear();
-        ProfileChips.ColumnDefinitions.Clear();
-        if (pinned.Count == 0)
+        _boundProfile = profileId;
+        if (profileId is { } id)
         {
-            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            ProfileChips.Children.Add(new TextBlock
-            {
-                Text = "Pin profiles to show them here",
-                FontSize = 12,
-                Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-            return;
+            ProfileRun.Bind(model, id, compact: true);
+            ProfileView.ChangeView(0, 0, null, disableAnimation: true);
+            // Reason takes focus once the view is laid out, so a draft reopens ready to type into.
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ProfileRun.FocusReason);
         }
-
-        // Star-sized, capped columns: four chips shrink together and trim their names instead of wrapping.
-        for (var i = 0; i < pinned.Count; i++)
+        else
         {
-            ProfileChips.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 150 });
-            var chip = Chip(pinned[i]);
-            Grid.SetColumn(chip, i);
-            ProfileChips.Children.Add(chip);
+            ProfileRun.Unbind();
         }
     }
 
-    /// <summary>A pinned profile: click runs it, Ctrl-click runs it silently, right-click for the rest.</summary>
-    private Button Chip(ActivationProfile profile)
+    /// <summary>
+    /// Binds the access packages list to the tenant in the main view, and the request form to the
+    /// package being requested; each lets go when its view is left. The list stays bound under the
+    /// form, so its search, tab and loaded packages are still there when the form closes.
+    /// </summary>
+    private void DrawPackages(AppModel model, PanelContent? content)
     {
+        var key = content switch
+        {
+            PanelContent.AccessPackages a => a.Key,
+            PanelContent.RequestPackage r => r.Key,
+            _ => (TenantKey?)null,
+        };
+        var request = (content as PanelContent.RequestPackage)?.Package;
+        PackagesView.Visibility = content is PanelContent.AccessPackages ? Visibility.Visible : Visibility.Collapsed;
+        RequestView.Visibility = request is null ? Visibility.Collapsed : Visibility.Visible;
+        if (key != _boundPackages)
+        {
+            _boundPackages = key;
+            if (key is { } tenant)
+            {
+                PackagesView.Bind(model, tenant);
+            }
+            else
+            {
+                PackagesView.Unbind();
+            }
+        }
+
+        if (request != _boundRequest)
+        {
+            _boundRequest = request;
+            if (request is not null && key is { } owner)
+            {
+                RequestForm.Bind(model, owner, request);
+                RequestView.ChangeView(0, 0, null, disableAnimation: true);
+            }
+            else
+            {
+                RequestForm.Unbind();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Home and the role list carry the Elevate mark with the organization's caption and the offline
+    /// pill; a tenant view carries the tenant, its home tag, its account and the tenant's own actions.
+    /// </summary>
+    private void DrawHeader(AppModel model)
+    {
+        var profile = model.PanelContent is PanelContent.Profile pc ? model.Profile(pc.Id) : null;
+        var key = model.PanelContent switch
+        {
+            PanelContent.Tenant t => t.Key,
+            PanelContent.AccessPackages a => a.Key,
+            PanelContent.RequestPackage r => r.Key,
+            _ => (TenantKey?)null,
+        };
+        var inPackages = model.PanelContent is PanelContent.AccessPackages or PanelContent.RequestPackage;
+        var tenant = key is { } shown ? model.Tenant(shown) : null;
+        var identity = tenant is null ? null : model.Identity(tenant.IdentityId);
+        HeaderTitle.Text = profile?.Name ?? tenant?.DisplayName ?? "Elevate";
+        ProfileIcon.Visibility = profile is null ? Visibility.Collapsed : Visibility.Visible;
+        SelectToggle.Visibility = profile is null && !inPackages ? Visibility.Visible : Visibility.Collapsed;
+        BackButton.Visibility = inPackages ? Visibility.Visible : Visibility.Collapsed;
+        PinButton.Visibility = Visibility.Collapsed;
+        if (profile is not null)
+        {
+            DrawProfileHeader(model, profile);
+            return;
+        }
+
+        AutomationProperties.SetName(TenantMenuButton, "Tenant menu");
+        HomeTag.Visibility = tenant?.Source == TenantSource.Home ? Visibility.Visible : Visibility.Collapsed;
+        var caption = tenant is null ? model.HeaderCaption : identity?.Upn;
+        OrganizationCaption.Text = caption ?? string.Empty;
+        OrganizationCaption.Visibility = tenant is null ? (model.HasHeaderCaption ? Visibility.Visible : Visibility.Collapsed)
+            : string.IsNullOrEmpty(caption) ? Visibility.Collapsed : Visibility.Visible;
+        OfflinePill.Visibility = tenant is null && !model.IsOnline ? Visibility.Visible : Visibility.Collapsed;
+        AccessPackagesButton.Visibility = tenant?.AccessPackagesAvailable == true && !inPackages ? Visibility.Visible : Visibility.Collapsed;
+        TenantMenuButton.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
+        SearchBox.PlaceholderText = tenant is null ? "Filter roles" : $"Filter roles in {tenant.DisplayName}";
+    }
+
+    /// <summary>The profile's title block: name, "N roles · M tenants" with the shortcut when bound, pin and the profile menu.</summary>
+    private void DrawProfileHeader(AppModel model, ActivationProfile profile)
+    {
+        var tenants = profile.Entries.Select(e => e.RoleKey.TenantKey).Distinct().Count();
+        var caption = $"{ProfileSummary.Caption(profile.Entries)} · {tenants} tenant{(tenants == 1 ? "" : "s")}";
+        if (model.Settings.HotKeyProfileId == profile.Id && model.Settings.HotKey is { } hotKey)
+        {
+            caption += " · " + hotKey.Display;
+        }
+
+        HomeTag.Visibility = OfflinePill.Visibility = AccessPackagesButton.Visibility = Visibility.Collapsed;
+        OrganizationCaption.Text = caption;
+        OrganizationCaption.Visibility = Visibility.Visible;
+        TenantMenuButton.Visibility = Visibility.Visible;
+        AutomationProperties.SetName(TenantMenuButton, "Profile actions");
+        // A published profile is the organization's: no pin of its own.
+        PinButton.Visibility = profile.Source == ProfileSource.Managed ? Visibility.Collapsed : Visibility.Visible;
         var resources = Application.Current.Resources;
-        var id = profile.Id;
-        // No count on the chip: four names already compete for 356 px, and the tooltip and the All list carry it.
-        var content = new Grid { ColumnSpacing = 5 };
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var bolt = new FontIcon { Glyph = "", FontSize = 10, Foreground = (Microsoft.UI.Xaml.Media.Brush)resources["AccentFillColorDefaultBrush"], VerticalAlignment = VerticalAlignment.Center };
-        content.Children.Add(bolt);
-        var name = new TextBlock { Text = profile.Name, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(name, 1);
-        content.Children.Add(name);
-
-        var chip = new Button
-        {
-            Style = (Style)resources["SmallButtonStyle"],
-            Height = 28,
-            MinHeight = 28,
-            Padding = new Thickness(9, 0, 9, 0),
-            CornerRadius = new CornerRadius(14),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = content,
-        };
-        ToolTipService.SetToolTip(chip, $"Run {profile.Name} ({ProfileSummary.Caption(profile.Entries)}). Ctrl-click to run with the last reason and durations");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(chip, $"Run {profile.Name}");
-        chip.Click += (_, _) =>
-        {
-            if (_model is not null)
-            {
-                _ = ProfileActions.RunAsync(_model, id, silentlyIfPossible: IsControlDown());
-            }
-        };
-        chip.ContextRequested += (s, e) =>
-        {
-            if (_model is null)
-            {
-                return;
-            }
-
-            e.Handled = true;
-            ProfileActions.Menu(_model, id, XamlRoot).ShowAt((FrameworkElement)s);
-        };
-        return chip;
+        PinGlyph.Glyph = profile.Pinned ? "" : "";
+        PinGlyph.Foreground = (Microsoft.UI.Xaml.Media.Brush)resources[profile.Pinned ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush"];
+        var tip = profile.Pinned ? "Unpin from flyout" : "Pin to flyout";
+        PinButton.IsEnabled = profile.Pinned || model.CanPinAnotherProfile;
+        ToolTipService.SetToolTip(PinButton, PinButton.IsEnabled ? tip : ProfileActions.PinRefusedHint);
+        AutomationProperties.SetName(PinButton, tip);
     }
+
+    private void OnPinProfile(object sender, RoutedEventArgs e)
+    {
+        if (_model?.PanelContent is PanelContent.Profile p && _model.Profile(p.Id) is { } profile
+            && !_model.SetPinned(p.Id, !profile.Pinned))
+        {
+            ToolTipService.SetToolTip(PinButton, ProfileActions.PinRefusedHint);
+        }
+    }
+
+    private void OnHeaderAccessPackages(object sender, RoutedEventArgs e)
+    {
+        if (_model?.ScopeTenant is { } key)
+        {
+            _model.OpenAccessPackages(key);
+        }
+    }
+
+    private void OnBack(object sender, RoutedEventArgs e) => _model?.HandleEscape();
+
+    private void OnHeaderTenantMenu(object sender, RoutedEventArgs e)
+    {
+        if (_model?.PanelContent is PanelContent.Profile p)
+        {
+            ProfileActions.Menu(_model, p.Id, XamlRoot, inPanel: true).ShowAt((FrameworkElement)sender);
+            return;
+        }
+
+        if (_model?.ScopeTenant is { } key && _model.Tenant(key) is { } tenant)
+        {
+            PanelMenus.TenantMenu(_model, tenant, XamlRoot).ShowAt((FrameworkElement)sender);
+        }
+    }
+
+    private void OnActionClick(object sender, RoutedEventArgs e)
+    {
+        if (_model is null || (sender as FrameworkElement)?.DataContext is not ActionRow row)
+        {
+            return;
+        }
+
+        switch (row.Action)
+        {
+            case PanelAction.BrowseAll:
+                _model.Browsing = true;
+                break;
+            case PanelAction.SearchAllTenants:
+                _model.SearchAllTenants();
+                break;
+            case PanelAction.SelectRoles:
+                _model.SelectMode = true;
+                break;
+            default:
+                break;
+        }
+    }
+
     /// <summary>Once a second while the flyout is open: countdowns, the deactivation lock, Extend.</summary>
     private void Tick()
     {
@@ -372,32 +491,27 @@ public sealed partial class PanelView : UserControl
         }
 
         var now = DateTimeOffset.UtcNow;
+        // The extend card comes and goes with the clock, not only with the next model change.
+        if (_model.PanelContent is PanelContent.Home && !_model.CollapsedActive
+            && _model.HeroAssignment(now)?.RoleKey != _groups.SelectMany(g => g).OfType<HeroRow>().FirstOrDefault()?.Role.RoleKey)
+        {
+            Draw(_model);
+            return;
+        }
+
         foreach (var group in _groups)
         {
             foreach (var item in group)
             {
-                if (item is not RoleRow row || row.Status is RowStatus.None or RowStatus.Failed)
+                var row = item as RoleRow ?? (item as HeroRow)?.Role;
+                if (row is null || row.Status is RowStatus.None or RowStatus.Failed)
                 {
                     continue;
                 }
 
                 var assignment = _model.Assignment(row.RoleKey);
-                var policy = _model.Role(row.RoleKey)?.Policy ?? RolePolicy.ManualDefault;
-                PanelListBuilder.Fill(_model, row, assignment, policy, row.ViewOnlyReason, now, allowActivate: !row.IsSummary);
+                PanelListBuilder.Fill(_model, row, assignment, row.ViewOnlyReason, now, allowActivate: !row.IsSummary);
             }
-        }
-    }
-
-    private void SyncPivot(PanelTab tab)
-    {
-        _syncingPivot = true;
-        try
-        {
-            Pivots.Selected = tab;
-        }
-        finally
-        {
-            _syncingPivot = false;
         }
     }
 
@@ -411,11 +525,32 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>The flyout opens showing everything: the filter is cleared.</summary>
+    /// <summary>The flyout opens showing everything: the filter box is cleared (the model's query is cleared by PanelOpened).</summary>
     public void ResetSearch() => SearchBox.Text = string.Empty;
 
     /// <summary>The flyout opens ready to type in: called once the window is active, or the focus does not take.</summary>
     public void FocusSearch() => SearchBox.Focus(FocusState.Programmatic);
+
+    /// <summary>Focus for the flyout opening: the field of the view on screen, since the filter row is hidden on a profile or packages.</summary>
+    public void FocusDefault()
+    {
+        if (ProfileView.Visibility == Visibility.Visible)
+        {
+            ProfileRun.FocusReason();
+        }
+        else if (PackagesView.Visibility == Visibility.Visible)
+        {
+            PackagesView.FocusSearch();
+        }
+        else if (RequestView.Visibility == Visibility.Visible)
+        {
+            RequestForm.FocusJustification();
+        }
+        else
+        {
+            FocusSearch();
+        }
+    }
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e)
     {
@@ -488,7 +623,7 @@ public sealed partial class PanelView : UserControl
         var name = string.IsNullOrEmpty(row.Detail) ? row.Name : $"{row.Name} · {row.Detail}";
         var favorite = model.IsFavorite(key);
         var menu = new MenuFlyout();
-        menu.Items.Add(Item(favorite ? "Remove from favorites" : "Add to favorites", () => model.SetFavorite(key, name, !favorite)));
+        menu.Items.Add(PanelMenus.Item(favorite ? "Remove from favorites" : "Add to favorites", () => model.SetFavorite(key, name, !favorite)));
         e.Handled = true;
         if (e.TryGetPosition(source, out var point))
         {
@@ -510,12 +645,10 @@ public sealed partial class PanelView : UserControl
 
     private void OnPivotChanged(object? sender, PanelTab tab)
     {
-        if (_syncingPivot || _model is null)
+        if (_model is not null)
         {
-            return;
+            _model.PanelTab = tab;
         }
-
-        _model.PanelTab = tab;
     }
 
     private void OnNoticeClosed(InfoBar sender, InfoBarClosedEventArgs args)
@@ -558,14 +691,6 @@ public sealed partial class PanelView : UserControl
         InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
     // MARK: Profiles
-
-    private void OnAllProfiles(object sender, RoutedEventArgs e)
-    {
-        if (_model is not null && sender is FrameworkElement anchor)
-        {
-            AllProfilesFlyout.Show(_model, anchor);
-        }
-    }
 
     private void OnBulkProfile(object sender, RoutedEventArgs e)
     {
@@ -757,15 +882,15 @@ public sealed partial class PanelView : UserControl
         }
     }
 
-    /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
     private void OnAccessPackagesClick(object sender, RoutedEventArgs e)
     {
-        if (Group(sender) is { TenantKey: { } key })
+        if (_model is not null && Group(sender) is { TenantKey: { } key })
         {
-            App.Current.OpenAccessPackages(key);
+            _model.OpenAccessPackages(key);
         }
     }
 
+    /// <summary>The status glyph's flyout: every limitation with its full reason, selectable.</summary>
     private void OnIssuesClick(object sender, RoutedEventArgs e)
     {
         if (Group(sender) is not { } group || group.Issues.Count == 0 || sender is not FrameworkElement anchor)
@@ -800,164 +925,24 @@ public sealed partial class PanelView : UserControl
             return;
         }
 
-        var menu = new MenuFlyout();
-        if (group.Kind == GroupKind.Identity && group.IdentityId is { } identityId)
+        if (group.Kind == GroupKind.Identity && group.IdentityId is { } identityId && _model.Identity(identityId) is { } identity)
         {
-            if (group.SignInHelp is { } help)
-            {
-                // The sign-in method heads the menu instead of crowding the row.
-                menu.Items.Add(new MenuFlyoutItem { Text = help, IsEnabled = false });
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-
-            if (group.NeedsSignIn)
-            {
-                var again = Item("Sign in again", () => RetrySignIn(identityId));
-                again.IsEnabled = group.SignInEnabled;
-                menu.Items.Add(again);
-                menu.Items.Add(new MenuFlyoutSeparator());
-            }
-
-            menu.Items.Add(Item("Discover tenants…", () => App.Current.OpenDiscoverTenants(identityId)));
-            menu.Items.Add(Item("Add tenant…", () => App.Current.OpenAddTenant(identityId)));
-            if (group.TenantKey is { } soleKey && _model.Tenant(soleKey) is { } sole)
-            {
-                menu.Items.Add(new MenuFlyoutSeparator());
-                AddTenantItems(menu, sole);
-            }
-
-            menu.Items.Add(new MenuFlyoutSeparator());
-            if (_model.Identity(identityId) is { } identity && _model.CanChangeRegistration(identity))
-            {
-                // An account not on an Entra app registration yet gains Entra roles and PIM for
-                // Groups by moving to one, so the item says so instead of "change".
-                menu.Items.Add(Item(
-                    identity.SignInMethod.IsOwnApp ? "Change app registration…" : "Upgrade to Entra app registration…",
-                    () => App.Current.OpenChangeRegistration(identityId)));
-            }
-
-            menu.Items.Add(Item("Sign out…", () => _ = ConfirmSignOutAsync(identityId)));
+            var sole = group.TenantKey is { } soleKey ? _model.Tenant(soleKey) : null;
+            PanelMenus.IdentityMenu(_model, identity, sole, XamlRoot).ShowAt(anchor);
         }
         else if (group.Kind == GroupKind.Tenant && group.TenantKey is { } key && _model.Tenant(key) is { } tenant)
         {
-            AddTenantItems(menu, tenant);
+            PanelMenus.TenantMenu(_model, tenant, XamlRoot).ShowAt(anchor);
         }
-
-        menu.ShowAt(anchor);
-    }
-
-    private void AddTenantItems(MenuFlyout menu, TenantContext tenant)
-    {
-        if (_model is null)
-        {
-            return;
-        }
-
-        var model = _model;
-        if (tenant.AccessPackagesAvailable == true)
-        {
-            // First, as on macOS: the one item that opens a window of its own.
-            menu.Items.Add(Item("Access packages…", () => App.Current.OpenAccessPackages(tenant.Key)));
-            menu.Items.Add(new MenuFlyoutSeparator());
-        }
-
-        menu.Items.Add(Item("Configure known PIM roles…", () => App.Current.OpenConfigureRoles(tenant.Key)));
-        menu.Items.Add(Item("Retry discovery", () => _ = model.RetryDiscoveryAsync(tenant.Key)));
-        // Each portal opens in this tenant; the browser session picks the account.
-        var open = new MenuFlyoutSubItem { Text = "Open…" };
-        foreach (var portal in AdminPortal.All)
-        {
-            var portalUri = portal.Uri(tenant.TenantId);
-            open.Items.Add(Item(portal.Title, () => _ = Windows.System.Launcher.LaunchUriAsync(portalUri)));
-        }
-
-        menu.Items.Add(open);
-        // Offered for every Entra-app-registration account, not only after discovery fell back:
-        // an administrator may need to re-consent after a scope is added, before anything fails.
-        // AdminConsentUrl is null for the first-party (Azure CLI / PowerShell) and custom methods.
-        if (model.AdminConsentUrl(tenant.IdentityId, tenant.TenantId) is { } url)
-        {
-            menu.Items.Add(Item("Open admin consent link…", () => _ = Windows.System.Launcher.LaunchUriAsync(url)));
-        }
-
-        menu.Items.Add(new MenuFlyoutSeparator());
-        if (model.IsPinnedTenant(tenant.Key))
-        {
-            // A pinned tenant would only come back on the next launch; the menu says so rather
-            // than offering a removal that does nothing.
-            menu.Items.Add(new MenuFlyoutItem { Text = "Pinned by your organization", IsEnabled = false });
-            return;
-        }
-
-        var remove = Item("Remove tenant…", () => _ = ConfirmRemoveTenantAsync(tenant));
-        remove.IsEnabled = tenant.Source != TenantSource.Home;
-        menu.Items.Add(remove);
     }
 
     /// <summary>The account row's Sign in button: re-runs the account's own sign-in method and clears the flag.</summary>
     private void OnSignInAgainClick(object sender, RoutedEventArgs e)
     {
-        if (Group(sender) is { IdentityId: { } identityId })
+        if (_model is not null && Group(sender) is { IdentityId: { } identityId })
         {
-            RetrySignIn(identityId);
+            PanelMenus.RetrySignIn(_model, identityId);
         }
-    }
-
-    private void RetrySignIn(string identityId)
-    {
-        if (_model is { } model && model.Identity(identityId) is { } identity)
-        {
-            // The model reports the outcome through Notice; nothing to await here.
-            _ = model.RetrySignInAsync(identity);
-        }
-    }
-
-    // Signing out and removing a tenant run at once and have no undo: each says what is forgotten
-    // and that the assignments themselves are untouched before it goes ahead.
-
-    private async Task ConfirmSignOutAsync(string identityId)
-    {
-        if (_model is null || _model.Identity(identityId) is not { } identity)
-        {
-            return;
-        }
-
-        var n = _model.TenantsFor(identityId).Count;
-        var tenants = n == 1 ? "its tenant" : $"its {n} tenants";
-        var ok = await DialogWindows.ConfirmAsync(
-            XamlRoot,
-            $"Sign out {identity.Upn}?",
-            $"Elevate forgets {tenants}, configured roles and profile entries for this account. Active assignments in Entra are not changed. You can add the account again later.",
-            "Sign out");
-        if (ok && _model.Identity(identityId) is { } still)
-        {
-            _model.SignOut(still);
-        }
-    }
-
-    private async Task ConfirmRemoveTenantAsync(TenantContext tenant)
-    {
-        if (_model is null)
-        {
-            return;
-        }
-
-        var ok = await DialogWindows.ConfirmAsync(
-            XamlRoot,
-            $"Remove {tenant.DisplayName}?",
-            "Its roles, configured PIM roles and profile entries are removed from Elevate. Active assignments in Entra are not changed. You can add the tenant again later.",
-            "Remove tenant");
-        if (ok && _model.Tenant(tenant.Key) is not null)
-        {
-            _model.RemoveTenant(tenant.Key);
-        }
-    }
-
-    private static MenuFlyoutItem Item(string text, Action action)
-    {
-        var item = new MenuFlyoutItem { Text = text };
-        item.Click += (_, _) => action();
-        return item;
     }
 
     // MARK: Footer

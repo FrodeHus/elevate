@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Elevate.Core.Auth;
 using Elevate.Core.Managed;
+using Elevate.Core.Models;
 using Elevate.Core.Storage;
 
 namespace Elevate.App.Services;
@@ -10,6 +11,7 @@ namespace Elevate.App.Services;
 /// <summary>Which list the panel shows. Persisted so the flyout reopens where it was left.</summary>
 public enum PanelTab
 {
+    All,
     Roles,
     Azure,
     Groups,
@@ -44,7 +46,7 @@ public sealed class AppSettings : ObservableObject
     private string _clientId = string.Empty;
     private string _customClientId = string.Empty;
     private string _pinnedClientId = string.Empty;
-    private PanelTab _panelTab = PanelTab.Roles;
+    private PanelTab _panelTab = PanelTab.All;
     private bool _collapsedActive;
     private bool _collapsedApprovals;
     private string _lastApprovalJustification = string.Empty;
@@ -55,6 +57,9 @@ public sealed class AppSettings : ObservableObject
     private string? _dismissedUpdateVersion;
     private HashSet<string> _dismissedTokenHintAccounts = new(StringComparer.Ordinal);
     private DateTimeOffset? _managedProfilesFetchedAt;
+    private TenantKey? _panelTenant;
+    private bool _collapsedProfiles;
+    private bool _collapsedTenants;
 
     /// <param name="managed">
     /// The organization's managed configuration; the platform default source (Windows policy) when
@@ -93,7 +98,10 @@ public sealed class AppSettings : ObservableObject
         DateTimeOffset? LastUpdateCheck = null,
         string? DismissedUpdateVersion = null,
         List<string>? DismissedTokenHintAccounts = null,
-        DateTimeOffset? ManagedProfilesFetchedAt = null);
+        DateTimeOffset? ManagedProfilesFetchedAt = null,
+        TenantKey? PanelTenant = null,
+        bool? CollapsedProfiles = null,
+        bool? CollapsedTenants = null);
 
     public string Directory { get; }
 
@@ -164,6 +172,45 @@ public sealed class AppSettings : ObservableObject
         set
         {
             if (SetProperty(ref _panelTab, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>The tenant the panel is scoped to; null means all tenants.</summary>
+    public TenantKey? PanelTenant
+    {
+        get => _panelTenant;
+        set
+        {
+            if (SetProperty(ref _panelTenant, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>Whether the sidebar's Profiles section is collapsed; remembered between launches.</summary>
+    public bool CollapsedProfiles
+    {
+        get => _collapsedProfiles;
+        set
+        {
+            if (SetProperty(ref _collapsedProfiles, value))
+            {
+                Save();
+            }
+        }
+    }
+
+    /// <summary>Whether the sidebar's Tenants section is collapsed; remembered between launches.</summary>
+    public bool CollapsedTenants
+    {
+        get => _collapsedTenants;
+        set
+        {
+            if (SetProperty(ref _collapsedTenants, value))
             {
                 Save();
             }
@@ -351,7 +398,8 @@ public sealed class AppSettings : ObservableObject
             _clientId = model.ClientId ?? string.Empty;
             _customClientId = model.CustomClientId ?? string.Empty;
             _pinnedClientId = model.PinnedClientId ?? string.Empty;
-            _panelTab = model.PanelTab ?? PanelTab.Roles;
+            // The previous release wrote "roles" on every save and had no collapsedProfiles, so that pair is "never chose".
+            _panelTab = model.PanelTab is null || (model.PanelTab == PanelTab.Roles && model.CollapsedProfiles is null) ? PanelTab.All : model.PanelTab.Value;
             _collapsedActive = model.CollapsedActive ?? false;
             _collapsedApprovals = model.CollapsedApprovals ?? false;
             _lastApprovalJustification = model.LastApprovalJustification ?? string.Empty;
@@ -362,6 +410,9 @@ public sealed class AppSettings : ObservableObject
             _dismissedUpdateVersion = model.DismissedUpdateVersion;
             _dismissedTokenHintAccounts = new HashSet<string>(model.DismissedTokenHintAccounts ?? [], StringComparer.Ordinal);
             _managedProfilesFetchedAt = model.ManagedProfilesFetchedAt;
+            _panelTenant = model.PanelTenant;
+            _collapsedProfiles = model.CollapsedProfiles ?? false;
+            _collapsedTenants = model.CollapsedTenants ?? false;
         }
         catch (JsonException)
         {
@@ -373,11 +424,11 @@ public sealed class AppSettings : ObservableObject
     private void Save()
     {
         var model = new FileModel(
-            _clientId, _customClientId, _pinnedClientId, _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
+            _clientId, _customClientId, _pinnedClientId, _panelTab == PanelTab.All ? null : _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],
-            _managedProfilesFetchedAt);
+            _managedProfilesFetchedAt, _panelTenant, _collapsedProfiles, _collapsedTenants);
         var temp = _path + ".tmp";
         File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(model, FileOptions));
         File.Move(temp, _path, overwrite: true);

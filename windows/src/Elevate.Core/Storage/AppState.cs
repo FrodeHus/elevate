@@ -91,7 +91,7 @@ public sealed class AppState : IEquatable<AppState>
 
     public void RemoveProfile(Guid id) => Profiles.RemoveAll(p => p.Id == id);
 
-    /// <summary>Pinned profiles in list order; what the panel shows as chips.</summary>
+    /// <summary>Pinned profiles in list order; what the panel's sidebar shows.</summary>
     [JsonIgnore]
     public IReadOnlyList<ActivationProfile> PinnedProfiles => Profiles.Where(p => p.Pinned).ToList();
 

@@ -92,7 +92,7 @@ public static class RoleCommands
             var rows = session.Active.Values
                 .Select(a => session.Role(a.RoleKey) is { } role
                     ? Views.Role(session, role, now)
-                    : new Dto.Role(ShortId.For(a.RoleKey), session.RoleName(a.RoleKey), Views.KindName(a.RoleKey.Scope.Kind), null, null, "discovered",
+                    : new Dto.Role(ShortId.For(a.RoleKey), session.RoleName(a.RoleKey), Views.KindName(a.RoleKey.Scope.Kind), null, null, session.IsPrivileged(a.RoleKey), "discovered",
                         a.RoleKey.TenantId, session.TenantName(a.RoleKey.TenantKey), a.RoleKey.IdentityId, session.AccountName(a.RoleKey.IdentityId),
                         Views.Policy(RolePolicy.ManualDefault), false, null, Views.Assignment(a, now), a.RoleKey))
                 .ToList();

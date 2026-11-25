@@ -29,7 +29,7 @@ struct SaveProfileView: View {
                         .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 4)
                     ForEach(tkeys, id: \.self) { k in
                         HStack {
-                            Text(model.summaryName(for: k))
+                            RoleNameLabel(model.summaryName(for: k), isPrivileged: model.isPrivileged(k))
                             Spacer()
                             Text(Countdown.label(resolvedDuration(for: k))).font(.caption).foregroundStyle(.secondary)
                         }

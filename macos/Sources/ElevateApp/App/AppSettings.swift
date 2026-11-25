@@ -22,7 +22,10 @@ final class AppSettings {
     static let customClientIdKey = "customLoopbackClientId"
     static let pinnedClientIdKey = "pinnedClientId"
     static let panelTabKey = "panelTab"
+    static let panelTenantKey = "panelTenant"
     static let collapsedActiveKey = "collapsedActive"
+    static let sidebarProfilesCollapsedKey = "sidebarProfilesCollapsed"
+    static let sidebarTenantsCollapsedKey = "sidebarTenantsCollapsed"
     static let collapsedApprovalsKey = "collapsedApprovals"
     static let lastApprovalJustificationKey = "lastApprovalJustification"
     static let seenApprovalIdsKey = "seenApprovalIds"
@@ -76,9 +79,28 @@ final class AppSettings {
         didSet { defaults.set(panelTab.rawValue, forKey: Self.panelTabKey) }
     }
 
+    /// The tenant the panel is scoped to, as JSON. Nil means all tenants.
+    var panelTenant: TenantKey? {
+        didSet {
+            if let panelTenant, let data = try? JSONEncoder().encode(panelTenant) {
+                defaults.set(data, forKey: Self.panelTenantKey)
+            } else {
+                defaults.removeObject(forKey: Self.panelTenantKey)
+            }
+        }
+    }
+
     /// Whether the panel's "Active now" summary is collapsed; remembered between launches.
     var collapsedActive: Bool {
         didSet { defaults.set(collapsedActive, forKey: Self.collapsedActiveKey) }
+    }
+
+    /// Whether the sidebar's PROFILES and TENANTS sections are collapsed; both start expanded.
+    var sidebarProfilesCollapsed: Bool {
+        didSet { defaults.set(sidebarProfilesCollapsed, forKey: Self.sidebarProfilesCollapsedKey) }
+    }
+    var sidebarTenantsCollapsed: Bool {
+        didSet { defaults.set(sidebarTenantsCollapsed, forKey: Self.sidebarTenantsCollapsedKey) }
     }
 
     /// Whether the panel's pinned "Approvals" section is collapsed; remembered between launches.
@@ -188,8 +210,11 @@ final class AppSettings {
         storedClientId = stored
         customClientId = defaults.string(forKey: Self.customClientIdKey) ?? ""
         pinnedClientId = defaults.string(forKey: Self.pinnedClientIdKey) ?? ""
-        panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .roles
+        panelTab = PanelTab(rawValue: defaults.string(forKey: Self.panelTabKey) ?? "") ?? .all
+        panelTenant = (defaults.data(forKey: Self.panelTenantKey)).flatMap { try? JSONDecoder().decode(TenantKey.self, from: $0) }
         collapsedActive = defaults.bool(forKey: Self.collapsedActiveKey)
+        sidebarProfilesCollapsed = defaults.bool(forKey: Self.sidebarProfilesCollapsedKey)
+        sidebarTenantsCollapsed = defaults.bool(forKey: Self.sidebarTenantsCollapsedKey)
         collapsedApprovals = defaults.bool(forKey: Self.collapsedApprovalsKey)
         lastApprovalJustification = defaults.string(forKey: Self.lastApprovalJustificationKey) ?? ""
         seenApprovalIds = (defaults.data(forKey: Self.seenApprovalIdsKey)).flatMap { try? JSONDecoder().decode(Set<String>.self, from: $0) } ?? []

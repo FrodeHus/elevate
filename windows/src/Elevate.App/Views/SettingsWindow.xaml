@@ -139,7 +139,7 @@
                     <TextBlock Grid.Column="0" Text="Runs profile" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1" x:Name="HotKeyProfile" MinWidth="220" SelectionChanged="OnHotKeyProfileChanged" />
                 </Grid>
-                <TextBlock Text="Runs the profile like Ctrl-clicking its chip; opens the run window if input is needed."
+                <TextBlock Text="Runs the profile like Ctrl-clicking its sidebar button; opens the run window if input is needed."
                            FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                 <TextBlock x:Name="HotKeyError" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" TextWrapping="Wrap" />
             </StackPanel>

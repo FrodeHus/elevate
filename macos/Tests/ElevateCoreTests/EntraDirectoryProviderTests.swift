@@ -21,9 +21,16 @@ import Foundation
         #expect(roles[0].key.scope == .entraDirectory(roleDefinitionId: "f2ef992c-3afb-46b9-b7cf-a126ee74c451", directoryScopeId: "/"))
         #expect(roles[0].viaGroup == nil)                 // Global Reader: memberType Direct
         #expect(roles[1].viaGroup == "group")             // User Administrator: memberType Group
+        #expect(roles.map(\.isPrivileged) == [false, true])
         let req = await http.requests.first!
         #expect(req.headers["Authorization"] == "Bearer token-t1")
         #expect(req.url.absoluteString.contains("expand=roleDefinition"))
+    }
+
+    @Test func roleDefinitionWithoutIsPrivilegedDecodesAsNotPrivileged() throws {
+        let missing = try JSONDecoder().decode(EntraDirectoryProvider.RoleDefinitionRef.self, from: Data(#"{"id":"a","displayName":"A"}"#.utf8))
+        let unknown = try JSONDecoder().decode(EntraDirectoryProvider.RoleDefinitionRef.self, from: Data(#"{"id":"a","isPrivileged":null}"#.utf8))
+        #expect(missing.isPrivileged == nil && unknown.isPrivileged == nil)
     }
 
     @Test func listsOnlyActivatedAssignmentsAndMergesPending() async throws {

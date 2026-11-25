@@ -297,7 +297,7 @@ public sealed partial class ManageProfilesWindow : Window
                 }
 
                 first = false;
-                grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key));
+                grid.Children.Add(TenantGroupBox.NameCell(_model.SummaryName(key), Caption(key, role, policy), key, _model.IsPrivileged(key)));
 
                 var picker = new DurationPicker { Maximum = policy.MaximumDuration, Duration = Proposed(entry, policy), IsEnabled = !managed };
                 picker.VerticalAlignment = VerticalAlignment.Center;
@@ -439,7 +439,7 @@ public sealed partial class ManageProfilesWindow : Window
         }
 
         CommitName();
-        _ = ProfileActions.RunAsync(_model, profile.Id, silentlyIfPossible: false);
+        _ = ProfileActions.RunAsync(_model, profile.Id, silentlyIfPossible: false, inPanel: false);
     }
 
     private async void OnAddRoles(object sender, RoutedEventArgs e)

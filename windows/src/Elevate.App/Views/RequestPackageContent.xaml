@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window
-    x:Class="Elevate.App.Views.RequestPackageWindow"
+<UserControl
+    x:Class="Elevate.App.Views.RequestPackageContent"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid x:Name="Root" Padding="22,6,22,22" RowSpacing="12">
+    <Grid Padding="14,12,14,14" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -11,12 +11,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="3">
-            <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="Heading" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
             <TextBlock x:Name="Description" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Spacing="12">
-            <StackPanel x:Name="Loading" Orientation="Horizontal" Spacing="10">
+            <StackPanel x:Name="LoadingRow" Orientation="Horizontal" Spacing="10">
                 <ProgressRing Width="20" Height="20" IsActive="True" />
                 <TextBlock Text="Checking the request policy…" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
@@ -62,4 +62,4 @@
             <Button x:Name="PrimaryButton" Content="Submit Request" Style="{StaticResource AccentButtonStyle}" Click="OnPrimary" MinWidth="130" />
         </StackPanel>
     </Grid>
-</Window>
+</UserControl>

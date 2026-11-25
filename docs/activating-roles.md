@@ -9,9 +9,12 @@ turning it off. It assumes you have added an account; see
 
 ## Reading a role row
 
-![The Entra tab: an eligible role, one awaiting approval, and two active roles with countdowns](images/tutorials/panel-entra.png)
+![The Entra roles of the list for all tenants: an eligible role, one awaiting approval, and two active roles with countdowns](images/tutorials/panel-entra.png)
 
-Every eligible role is one row under its tenant. The dot at the left tells you its state:
+Every eligible role is one row under its tenant, in the role list: choose **Browse all roles** on
+Home, type in the filter field, or select a tenant in the sidebar. A crown after a role's name
+marks a **privileged role**; see [Privileged roles](#privileged-roles). The dot at the left tells
+you its state:
 
 | Dot | Meaning |
 |---|---|
@@ -25,7 +28,19 @@ Every eligible role is one row under its tenant. The dot at the left tells you i
 Small captions under a role name explain what activating it involves: **MFA** means Microsoft
 will ask you to verify again, **approval** means someone has to approve first, and **via
 <group>** means you hold the eligibility through a group. Azure roles show the scope under the
-name, such as a resource group or subscription; hover it for the full path.
+name, such as a resource group or subscription; hover it for the full path. On the **All** list,
+groups say **Group membership** or **Group ownership** so they can be told from roles.
+
+### Privileged roles
+
+A small crown in the warning colour after a role's name means the role is privileged. Elevate marks
+a built-in Entra role when Microsoft classes it as privileged, and the Azure **Owner**,
+**Contributor**, **User Access Administrator** and **Role Based Access Control Administrator**
+roles. Groups and access packages are never marked. The crown shows wherever a role's name is a
+row: the role list, Active now, a profile, the run window and select mode. Hover it to read
+"Privileged role". It changes nothing about activating: it is there so a broad role is a choice
+you notice. The classification comes from Microsoft, so a role it does not class as privileged
+shows no crown.
 
 ## Activate one role
 
@@ -70,14 +85,15 @@ Some roles cannot be checked from here — one scoped to an administrative unit,
 
 ### The quick way
 
-Hold **Option** and click **Activate** to skip the sheet. Elevate reuses the last reason and
+Hold **Option** (**Ctrl** on Windows) and click **Activate** to skip the sheet. Elevate reuses the last reason and
 duration for that role and posts a notification with the outcome. The sheet opens as usual when
 the role requires approval or a ticket number, or when there is no remembered reason yet.
 
 ## Activate several at once
 
 Click the **select roles** button in the header (the list-with-ticks icon), tick roles in any
-tenant, on any tab, then click **Activate N roles**:
+tenant, on any of the All, Entra, Azure and Groups views, then click **Activate N roles**. Switching
+tenant or view keeps what you ticked, and the line under the buttons says what is picked:
 
 ![Select mode with three roles ticked across Entra and Azure, and the Activate 3 roles button](images/tutorials/panel-select.png)
 
@@ -94,23 +110,33 @@ If you activate the same set regularly, save it as a profile instead. See
 - **Deactivate** ends an active role now. Entra enforces a five-minute minimum, so the button
   waits, with a tooltip counting down, when a role was activated less than five minutes ago.
 - **Extend** appears during the last fifteen minutes of an activation. It activates the role
-  again for a fresh duration; Option-click to reuse the last reason without the sheet. Roles
+  again for a fresh duration; Option-click (Ctrl-click on Windows) to reuse the last reason without the sheet. Roles
   that need approval do not offer it, since the re-activation would only be pending.
 - **Cancel** withdraws a request that is awaiting approval, or a scheduled activation that has not
   started.
 
-The **Active now** section at the top collects every active, pending and scheduled role across
-all accounts, with the same controls.
+The **Active now** section on Home collects every active, pending and scheduled role across
+all accounts, with the same controls. A tenant's own view shows that tenant's. When the first
+active role is inside its last fifteen minutes, Home draws it as a card with the time left in
+larger type and **Extend** as its main button.
 
-## Azure roles and groups
+## All, Entra, Azure and Groups
 
-![The Azure tab with resource roles and their scopes](images/tutorials/panel-azure.png)
+The control in the **Eligible · N** bar narrows the role list. **All**, the default, shows the three
+kinds together under each tenant: Entra roles first, then the Azure scope tree, then groups.
 
-The **Azure** tab lists eligibilities on management groups, subscriptions, resource groups and
+![The All view: Entra roles, an Azure subscription with its roles, and a group, per tenant](images/tutorials/panel-all.png)
+
+**Entra**, **Azure** and **Groups** show one kind each. The control narrows the eligible roles
+only; Approvals and Active now keep showing everything.
+
+![The Azure view with resource roles and their scopes](images/tutorials/panel-azure.png)
+
+The **Azure** control lists eligibilities on management groups, subscriptions, resource groups and
 individual resources. The first Azure activation in a tenant asks you to consent to Azure
 Service Management; no administrator is needed.
 
-Rather than listing them flat, the tab groups them by scope: each header opens and closes with its
+Rather than listing them flat, the list groups them by scope: each header opens and closes with its
 chevron and says how many roles sit under it. A scope that only passes through — no eligibility of
 its own and one way down — is folded into the node below it and named there ("Alpha / prod"), so
 the panel does not spend a row and a level of indent on nothing; a scope leading to a single role
@@ -123,25 +149,28 @@ Management groups sit beside the subscriptions rather than above them: ARM write
 group scope as its own flat path and never repeats it in a subscription's, so the eligibilities
 alone cannot say which subscriptions belong to which management group.
 
-![The Groups tab with PIM for Groups memberships](images/tutorials/panel-groups.png)
+![The Groups view with PIM for Groups memberships](images/tutorials/panel-groups.png)
 
-The **Groups** tab lists PIM for Groups memberships and ownerships. Activating one makes you a
+The **Groups** control lists PIM for Groups memberships and ownerships. Activating one makes you a
 member or owner of the group for the duration, which in turn may grant Entra or Azure roles.
 Elevate re-reads your roles shortly after a group activation so those show up too.
 
 ## Searching
 
-Open the panel and type: the filter field already has the focus. The panel keeps only the roles,
-tenants and accounts that match, across all tabs. Press Escape or clear the field to see
-everything again; the filter never survives closing the panel.
+Open the panel and type: the filter field already has the focus. The panel keeps only the roles
+that match, in every tenant, or in the selected one when you are on a tenant's view ("Filter roles
+in Contoso"), hiding any account or tenant with no match. When the query also matches roles in
+other tenants, the last row says **N more in other tenants**; click it to search all tenants with
+the same query. Press Escape or clear the field to see everything again; the filter never survives
+closing the panel.
 
 Down and Up move through the role rows, and Return (Enter) activates the one you are on. With
 nothing picked, Return activates the top match of what you typed.
 
 To keep a single role one click away, right-click it and choose **Add to favorites**. It joins the
-pinned profiles at the top of the panel as a one-role profile.
+pinned profiles in the sidebar as a one-role profile, shown with a star.
 
-On the Azure tab the search narrows the tree itself rather than sitting beside it, and it reaches
+On the Azure view the search narrows the tree itself rather than sitting beside it, and it reaches
 the whole ARM path — so a subscription id finds its roles even when no caption on the row shows it.
 Matches stay in place, including under a header you had closed.
 

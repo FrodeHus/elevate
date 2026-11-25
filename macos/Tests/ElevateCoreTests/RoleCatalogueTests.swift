@@ -60,4 +60,37 @@ import Foundation
         let data = try JSONEncoder().encode(EligibleRole(key: key, displayName: "X", detail: "d", source: .manual, policy: .manualDefault))
         #expect(try JSONDecoder().decode(EligibleRole.self, from: data).detail == "d")
     }
+
+    @Test func azurePrivilegedRolesMatchByTrailingIdCaseInsensitively() {
+        let ids = ["8e3af657-a8ff-443c-a75c-2fe8c4bcb635", "b24988ac-6180-42a0-ab88-20f7382dd24c",
+                   "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9", "f58310d9-a9f6-439a-9e8d-f62e7b41a168"]
+        for id in ids {
+            #expect(PrivilegedRoles.isAzure(roleDefinitionId: "/subscriptions/s/providers/Microsoft.Authorization/roleDefinitions/" + id))
+            #expect(PrivilegedRoles.isAzure(roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/" + id.uppercased()))
+            #expect(PrivilegedRoles.isAzure(roleDefinitionId: id))
+        }
+        #expect(!PrivilegedRoles.isAzure(roleDefinitionId: "/subscriptions/s/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"))
+        #expect(!PrivilegedRoles.isAzure(roleDefinitionId: "contributor"))
+    }
+
+    @Test func manualRolesCarryPrivilegeFromTheCatalogue() throws {
+        let tk = TenantKey(identityId: "i", tenantId: "t")
+        let ga = try #require(try RoleCatalogue.entraBuiltInRoles().first { $0.displayName == "Global Administrator" })
+        let reader = try #require(try RoleCatalogue.entraBuiltInRoles().first { !$0.isPrivileged })
+        let manual = [ManualRole(tenantKey: tk, scope: .entraDirectory(roleDefinitionId: ga.templateId, directoryScopeId: "/"), displayName: ga.displayName),
+                      ManualRole(tenantKey: tk, scope: .entraDirectory(roleDefinitionId: reader.templateId, directoryScopeId: "/"), displayName: reader.displayName),
+                      ManualRole(tenantKey: tk, scope: .group(groupId: "g", accessId: .member), displayName: "G")]
+        #expect(ManualRoleSource.eligibleRoles(from: manual, tenantKey: tk).map(\.isPrivileged) == [true, false, false])
+    }
+
+    @Test func isPrivilegedDefaultsToFalseInAnOldCache() throws {
+        let key = RoleKey(identityId: "i", tenantId: "t", scope: .entraDirectory(roleDefinitionId: "r", directoryScopeId: "/"))
+        var role = EligibleRole(key: key, displayName: "X", source: .discovered, policy: .manualDefault)
+        #expect(!role.isPrivileged)
+        role.isPrivileged = true
+        #expect(try JSONDecoder().decode(EligibleRole.self, from: JSONEncoder().encode(role)).isPrivileged)
+        var obj = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(role)) as? [String: Any])
+        obj.removeValue(forKey: "isPrivileged")
+        #expect(try !JSONDecoder().decode(EligibleRole.self, from: JSONSerialization.data(withJSONObject: obj)).isPrivileged)
+    }
 }

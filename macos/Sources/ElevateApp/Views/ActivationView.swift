@@ -257,6 +257,8 @@ struct ActivationView: View {
 struct DurationPicker: View {
     @Binding var duration: Duration
     let maximum: Duration
+    /// A small borderless menu showing just the value (`5 h ⌄`), for rows with little room.
+    var compact = false
 
     private var options: [Duration] {
         let maxMinutes = max(30, Int(maximum.components.seconds / 60))
@@ -264,8 +266,22 @@ struct DurationPicker: View {
     }
 
     var body: some View {
-        Picker("Duration", selection: $duration) {
-            ForEach(options, id: \.self) { d in Text(label(d)).tag(d) }
+        Group {
+            if compact {
+                Menu {
+                    Picker("Duration", selection: $duration) {
+                        ForEach(options, id: \.self) { d in Text(label(d)).tag(d) }
+                    }
+                    .pickerStyle(.inline)
+                } label: { Text(label(duration)).font(.caption) }
+                .menuStyle(.borderlessButton).fixedSize()
+                .accessibilityLabel("Duration")
+                .accessibilityValue(label(duration))
+            } else {
+                Picker("Duration", selection: $duration) {
+                    ForEach(options, id: \.self) { d in Text(label(d)).tag(d) }
+                }
+            }
         }
         .onAppear { if !options.contains(duration) { duration = nearestOption(to: duration) } }
     }

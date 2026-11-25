@@ -100,7 +100,7 @@ public class AppModelProfileTests
         }
 
         model.SetFavorite(Sample.GroupKey, "Group", true).Should().BeFalse();
-        model.Notice.Should().Contain("full");
+        model.Notice.Should().Contain($"The sidebar holds {ProfilePins.Limit} pinned profiles. Unpin one to add ");
         model.Profiles.Should().HaveCount(ProfilePins.Limit);
     }
 

@@ -19,6 +19,7 @@ extension AppModel {
 
     static func kinds(for tab: PanelTab) -> Set<RoleScopeKind> {
         switch tab {
+        case .all: [.entraDirectory, .azureResource, .group]
         case .roles: [.entraDirectory]
         case .azure: [.azureResource]
         case .groups: [.group]
@@ -73,13 +74,13 @@ extension AppModel {
 
     /// While filtering, only tenants with a matching row in the current tab; otherwise all of them.
     func visibleTenants(for identityId: String) -> [TenantContext] {
-        let all = tenants(for: identityId)
+        let all = tenants(for: identityId).filter { scopeTenant == nil || $0.id == scopeTenant }
         guard isFiltering else { return all }
         return all.filter { !roles(for: $0.id, tab: panelTab).isEmpty }
     }
 
     var visibleIdentities: [Identity] {
-        guard isFiltering else { return identities }
+        guard isFiltering || scopeTenant != nil else { return identities }
         return identities.filter { !visibleTenants(for: $0.id).isEmpty }
     }
 
@@ -87,15 +88,35 @@ extension AppModel {
 
     /// The role rows as the list draws them, top to bottom: what the arrow keys walk.
     var navigableRoles: [RoleKey] {
-        visibleIdentities.filter { !collapsedIdentities.contains($0.id) }.flatMap { identity -> [RoleKey] in
+        // Home, a profile and the access packages draw no role rows; a tenant view draws its rows
+        // whatever the sidebar says about the account being collapsed.
+        switch panelContent {
+        case .roleList, .tenant: break
+        default: return []
+        }
+        return visibleIdentities.filter { scopeTenant != nil || !collapsedIdentities.contains($0.id) }.flatMap { identity -> [RoleKey] in
             let tenants = visibleTenants(for: identity.id)
             // A sole tenant is folded into the account row and has no collapse state of its own.
             return tenants.filter { tenants.count == 1 || !collapsedTenants.contains($0.id) }.flatMap { tenant -> [RoleKey] in
-                panelTab == .azure
-                    ? ScopeTree.flatten(azureTree(for: tenant.id), isCollapsed: { isScopeCollapsed(tenant.id, $0) }).compactMap { $0.role?.key }
-                    : roles(for: tenant.id, tab: panelTab).map(\.key)
+                listRows(for: tenant.id)
             }
         }
+    }
+
+    /// One tenant's role rows in display order for the current tab; the All tab stacks the three kinds.
+    func listRows(for tenantKey: TenantKey) -> [RoleKey] {
+        let azure = { ScopeTree.flatten(self.azureTree(for: tenantKey), isCollapsed: { self.isScopeCollapsed(tenantKey, $0) }).compactMap { $0.role?.key } }
+        switch panelTab {
+        case .all: return roles(for: tenantKey, tab: .roles).map(\.key) + azure() + roles(for: tenantKey, tab: .groups).map(\.key)
+        case .azure: return azure()
+        case .roles, .groups: return roles(for: tenantKey, tab: panelTab).map(\.key)
+        }
+    }
+
+    /// The All tab mixes kinds, so a group row says which of its two accesses it is.
+    func groupCaption(_ key: RoleKey) -> String? {
+        guard case .group(_, let access) = key.scope else { return nil }
+        return access == .owner ? "Group ownership" : "Group membership"
     }
 
     /// Moves the highlight by one row. Stepping up off the first row clears it: back to the filter.
@@ -138,17 +159,22 @@ extension AppModel {
         return active.values.count { $0.status == .active && kinds.contains($0.roleKey.scope.kind) }
     }
 
-    /// The "Active now" summary shows only the current tab's kinds; the tab labels carry the other counts.
-    var activeAssignmentsOrdered: [ActiveAssignment] {
-        summaryOrdered(active.values)
+    /// "Active now" lists every kind; the tab labels carry the per-kind counts.
+    var activeAssignmentsOrdered: [ActiveAssignment] { activeAssignments(in: nil) }
+
+    var activeRowsOrdered: [ActiveAssignment] { activeRows(in: nil) }
+
+    /// Every kind in summary order; nil means all tenants.
+    func activeAssignments(in tenant: TenantKey?) -> [ActiveAssignment] {
+        summaryOrdered(active.values, in: tenant)
     }
 
-    /// Rows for the "Active now" section: the ordered active list, then assignments deactivated
-    /// moments ago so their row can show the confirmation before it leaves.
-    var activeRowsOrdered: [ActiveAssignment] {
-        let items = activeAssignmentsOrdered
+    /// The ordered active list, then assignments deactivated moments ago so their row can show
+    /// the confirmation before it leaves.
+    func activeRows(in tenant: TenantKey?) -> [ActiveAssignment] {
+        let items = activeAssignments(in: tenant)
         let lingering = recentlyDeactivated.values.filter { a in !items.contains { $0.roleKey == a.roleKey } }
-        return items + summaryOrdered(lingering)
+        return items + summaryOrdered(lingering, in: tenant)
     }
 
     /// Keeps `assignment`'s row in "Active now" for a moment after its deactivation succeeded.
@@ -164,9 +190,8 @@ extension AppModel {
         }
     }
 
-    private func summaryOrdered(_ assignments: some Sequence<ActiveAssignment>) -> [ActiveAssignment] {
-        let kinds = Self.kinds(for: panelTab)
-        let ordered = ActiveSummary.order(assignments.filter { kinds.contains($0.roleKey.scope.kind) })
+    private func summaryOrdered(_ assignments: some Sequence<ActiveAssignment>, in tenant: TenantKey?) -> [ActiveAssignment] {
+        let ordered = ActiveSummary.order(assignments.filter { tenant == nil || $0.roleKey.tenantKey == tenant })
         guard isFiltering else { return ordered }
         return ordered.filter { a in
             if let r = role(for: a.roleKey) { return matchesFilter(r) }

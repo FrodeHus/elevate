@@ -7,16 +7,16 @@ using Microsoft.UI.Xaml.Controls;
 namespace Elevate.App.Views;
 
 /// <summary>
-/// Shared entry points for running, pinning and deleting a profile, so the chips in the flyout,
+/// Shared entry points for running, pinning and deleting a profile, so the profile rows in the flyout,
 /// the rows of the All list and their menus behave identically. Port of the macOS <c>ProfileActions</c>.
 /// </summary>
 internal static class ProfileActions
 {
     /// <summary>
     /// Runs a profile: silently with the remembered reason and durations when asked and possible,
-    /// otherwise through the run window.
+    /// otherwise in the flyout's main view (<paramref name="inPanel"/>) or the run window.
     /// </summary>
-    public static async Task RunAsync(AppModel model, Guid id, bool silentlyIfPossible)
+    public static async Task RunAsync(AppModel model, Guid id, bool silentlyIfPossible, bool inPanel)
     {
         ArgumentNullException.ThrowIfNull(model);
         if (silentlyIfPossible && await model.QuickRunAsync(id))
@@ -24,12 +24,19 @@ internal static class ProfileActions
             return;
         }
 
+        if (inPanel)
+        {
+            model.ShowProfile(id);
+            return;
+        }
+
         model.RequestRun(id);
         App.Current.OpenRunProfile(id);
     }
 
-    /// <summary>The menu behind a chip, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
-    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root)
+    /// <summary>The menu behind a sidebar profile row, an All-list row and its ⋯ button: run, edit, pin, manage, delete.</summary>
+    /// <param name="beforeRun">Runs before either Run item acts; the All list closes itself with it.</param>
+    public static MenuFlyout Menu(AppModel model, Guid id, XamlRoot root, bool inPanel, Action? beforeRun = null)
     {
         ArgumentNullException.ThrowIfNull(model);
         var menu = new MenuFlyout();
@@ -39,8 +46,8 @@ internal static class ProfileActions
             return menu;
         }
 
-        menu.Items.Add(Item("Run…", () => _ = RunAsync(model, id, silentlyIfPossible: false)));
-        var last = Item("Run with last reason", () => _ = RunAsync(model, id, silentlyIfPossible: true));
+        menu.Items.Add(Item("Run…", () => { beforeRun?.Invoke(); _ = RunAsync(model, id, silentlyIfPossible: false, inPanel); }));
+        var last = Item("Run with last reason", () => { beforeRun?.Invoke(); _ = RunAsync(model, id, silentlyIfPossible: true, inPanel); });
         last.IsEnabled = profile.LastJustification is not null;
         menu.Items.Add(last);
         foreach (var run in model.ProfileRuns(id))

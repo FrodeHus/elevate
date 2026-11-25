@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Elevate.App.Services;
 using Elevate.App.ViewModels;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
@@ -115,6 +116,7 @@ public sealed class RoleRow : PanelItem
     private string? _policyTooltip;
     private bool _requiresApproval;
     private bool _isNew;
+    private bool _isPrivileged;
 
     public string Name { get => _name; set => SetProperty(ref _name, value); }
 
@@ -178,6 +180,10 @@ public sealed class RoleRow : PanelItem
 
     /// <summary>Added since the last discovery: a "new" badge and a faint accent tint until the second panel open.</summary>
     public bool IsNew { get => _isNew; set => SetProperty(ref _isNew, value); }
+
+    public bool IsPrivileged { get => _isPrivileged; set => SetProperty(ref _isPrivileged, value); }
+
+    public Visibility CrownVisibility => IsPrivileged ? Visibility.Visible : Visibility.Collapsed;
 
     private int _depth;
 
@@ -296,6 +302,7 @@ public sealed class RoleRow : PanelItem
         PolicyTooltip = other.PolicyTooltip;
         RequiresApproval = other.RequiresApproval;
         IsNew = other.IsNew;
+        IsPrivileged = other.IsPrivileged;
         Depth = other.Depth;
         OnPropertyChanged(string.Empty);
     }
@@ -474,12 +481,75 @@ public sealed class ApprovalRow(string requestId) : PanelItem
     }
 }
 
+/// <summary>What an <see cref="ActionRow"/> does when pressed.</summary>
+public enum PanelAction { BrowseAll, SearchAllTenants, SelectRoles }
+
+/// <summary>A row that is a button: Browse all roles on Home, "N more in other tenants", the Select roles hint.</summary>
+public sealed class ActionRow(PanelAction action, string text, string? caption) : PanelItem
+{
+    private string _text = text;
+    private string? _caption = caption;
+
+    public override string Key { get; } = "action:" + action;
+
+    public PanelAction Action { get; } = action;
+
+    public string Text { get => _text; set => SetProperty(ref _text, value); }
+
+    public string? Caption { get => _caption; set => SetProperty(ref _caption, value); }
+
+    public Visibility CaptionVisibility => string.IsNullOrEmpty(Caption) ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>What a screen reader says for the button: the text and its caption.</summary>
+    public string AutomationName => string.IsNullOrEmpty(Caption) ? Text : $"{Text}, {Caption}";
+
+    public Visibility BrowseVisibility => Action == PanelAction.BrowseAll ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility LinkVisibility => Action == PanelAction.SearchAllTenants ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility HintVisibility => Action == PanelAction.SelectRoles ? Visibility.Visible : Visibility.Collapsed;
+
+    public void CopyFrom(ActionRow other)
+    {
+        Text = other.Text;
+        Caption = other.Caption;
+        OnPropertyChanged(string.Empty);
+    }
+}
+
+/// <summary>The "Nothing active" card above the role list.</summary>
+public sealed class EmptyCardRow(string title, string body) : PanelItem
+{
+    public override string Key => "empty-card";
+
+    public string Title { get; } = title;
+
+    public string Body { get; } = body;
+}
+
+/// <summary>
+/// The first Active now row when it can be extended, drawn as a card. It wraps the plain row so the
+/// card's Extend and Deactivate buttons share the row handlers (the card's data context is the row).
+/// </summary>
+public sealed class HeroRow(RoleRow role) : PanelItem
+{
+    public override string Key { get; } = "hero:" + role.RoleKey;
+
+    public RoleRow Role { get; } = role;
+}
+
 public enum GroupKind
 {
     Approvals,
     ActiveNow,
     Identity,
     Tenant,
+
+    /// <summary>"Eligible · N" with the All / Entra / Azure / Groups control at its right edge.</summary>
+    Eligible,
+
+    /// <summary>No header: a card or action row that stands on its own.</summary>
+    Plain,
 }
 
 /// <summary>One thing that limits a tenant, or the failure that stopped its discovery or refresh: a short title and the full reason.</summary>
@@ -584,6 +654,14 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
     public string? SignInTooltip { get => _signInTooltip; set => Set(ref _signInTooltip, value); }
 
     private bool _accessPackages;
+    private PanelTab _tab;
+
+    /// <summary>The tab the Eligible bar's control shows.</summary>
+    public PanelTab Tab { get => _tab; set => Set(ref _tab, value); }
+
+    public Visibility StandardHeaderVisibility => Kind is GroupKind.Eligible or GroupKind.Plain ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility EligibleBarVisibility => Kind == GroupKind.Eligible ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>The tenant's token carries the entitlement scope: the header shows the box glyph and the menu the item.</summary>
     public bool AccessPackages { get => _accessPackages; set => Set(ref _accessPackages, value); }
@@ -658,6 +736,7 @@ public sealed class PanelGroup : ObservableCollection<PanelItem>
         SignInEnabled = other.SignInEnabled;
         SignInTooltip = other.SignInTooltip;
         AccessPackages = other.AccessPackages;
+        Tab = other.Tab;
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
     }
 
@@ -682,9 +761,18 @@ public sealed partial class PanelItemTemplateSelector : DataTemplateSelector
 
     public DataTemplate? Scope { get; set; }
 
+    public DataTemplate? Hero { get; set; }
+
+    public DataTemplate? Action { get; set; }
+
+    public DataTemplate? EmptyCard { get; set; }
+
     protected override DataTemplate? SelectTemplateCore(object item) => item switch
     {
         RoleRow => Role,
+        HeroRow => Hero,
+        ActionRow => Action,
+        EmptyCardRow => EmptyCard,
         ApprovalRow => Approval,
         ScopeRow => Scope,
         _ => Note,
@@ -697,62 +785,125 @@ public sealed partial class PanelItemTemplateSelector : DataTemplateSelector
 public static class PanelListBuilder
 {
     /// <summary>The five-minute lock PIM enforces after an activation before it can be deactivated.</summary>
-    public static readonly TimeSpan DeactivationLock = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan DeactivationLock = AppModel.DeactivationLock;
 
     public static IReadOnlyList<PanelGroup> Build(AppModel model, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(model);
         var groups = new List<PanelGroup>();
-
-        var approvals = model.ApprovalsOrdered;
-        if (approvals.Count > 0)
+        TenantKey? scope = model.PanelContent is PanelContent.Tenant t ? t.Key : null;
+        foreach (var block in model.PanelBlocks(now))
         {
-            var group = new PanelGroup("approvals", GroupKind.Approvals)
+            switch (block.Kind)
             {
-                Title = "Approvals",
-                PendingCount = approvals.Count,
-                Expanded = !model.CollapsedApprovals,
-            };
-            if (group.Expanded)
+                case PanelBlockKind.Approvals:
+                    groups.Add(ApprovalsGroup(model, scope, now));
+                    break;
+                case PanelBlockKind.ActiveNow:
+                    groups.Add(ActiveGroup(model, scope, block.Hero, now));
+                    break;
+                case PanelBlockKind.EmptyCard:
+                    groups.Add(Plain("empty-card", new EmptyCardRow("Nothing active", "You hold no elevated access right now.")));
+                    break;
+                case PanelBlockKind.Eligible:
+                    AddEligible(groups, model, scope, block, now);
+                    break;
+                case PanelBlockKind.BrowseAll:
+                    groups.Add(Plain("browse-all", new ActionRow(
+                        PanelAction.BrowseAll, "Browse all roles", $"{block.Count} in {block.Other} {(block.Other == 1 ? "tenant" : "tenants")}")));
+                    break;
+                case PanelBlockKind.SelectRoles:
+                    groups.Add(Plain("select-roles", new ActionRow(
+                        PanelAction.SelectRoles, "Select roles", "Activate the same roles often? Select them and save a profile to run with one click.")));
+                    break;
+                case PanelBlockKind.SearchAllTenants:
+                    groups.Add(Plain("search-all", new ActionRow(PanelAction.SearchAllTenants, $"{block.Count} more in other tenants", null)));
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return groups;
+    }
+
+    private static PanelGroup Plain(string key, PanelItem item)
+    {
+        var group = new PanelGroup(key, GroupKind.Plain);
+        group.Add(item);
+        return group;
+    }
+
+    private static PanelGroup ApprovalsGroup(AppModel model, TenantKey? scope, DateTimeOffset now)
+    {
+        var approvals = model.ApprovalsIn(scope);
+        var group = new PanelGroup("approvals", GroupKind.Approvals)
+        {
+            Title = "Approvals",
+            PendingCount = approvals.Count,
+            Expanded = !model.CollapsedApprovals,
+        };
+        if (group.Expanded)
+        {
+            foreach (var request in approvals)
             {
-                foreach (var request in approvals)
-                {
-                    group.Add(ApprovalRowFor(model, request, now));
-                }
+                group.Add(ApprovalRowFor(model, request, now));
+            }
+        }
+
+        return group;
+    }
+
+    private static PanelGroup ActiveGroup(AppModel model, TenantKey? scope, RoleKey? hero, DateTimeOffset now)
+    {
+        var active = model.ActiveAssignments(scope);
+        var group = new PanelGroup("active-now", GroupKind.ActiveNow)
+        {
+            Title = "Active now",
+            ActiveCount = active.Count,
+            Expanded = !model.CollapsedActive,
+        };
+        if (group.Expanded)
+        {
+            foreach (var assignment in active)
+            {
+                var row = SummaryRow(model, assignment, now);
+                group.Add(hero is { } h && h == assignment.RoleKey ? new HeroRow(row) : row);
+            }
+        }
+
+        return group;
+    }
+
+    /// <summary>
+    /// The Eligible bar and what sits under it. One tenant: its rows go straight under the bar. All
+    /// tenants: the bar is a header on its own and the account and tenant groups follow.
+    /// </summary>
+    private static void AddEligible(List<PanelGroup> groups, AppModel model, TenantKey? scope, PanelBlock block, DateTimeOffset now)
+    {
+        var bar = new PanelGroup("eligible", GroupKind.Eligible) { Title = $"Eligible · {block.Count}", Tab = model.PanelTab };
+        groups.Add(bar);
+        if (scope is { } key)
+        {
+            if (block.NoMatches)
+            {
+                bar.Add(new NoteRow("no-matches", "No matches"));
+            }
+            else if (model.Tenant(key) is { } tenant)
+            {
+                AddTenantRows(model, bar, tenant, now);
             }
 
-            groups.Add(group);
+            return;
         }
 
-        var active = model.ActiveAssignmentsOrdered;
-        if (active.Count > 0)
+        if (block.NoMatches)
         {
-            var group = new PanelGroup("active-now", GroupKind.ActiveNow)
-            {
-                Title = "Active now",
-                ActiveCount = active.Count,
-                Expanded = !model.CollapsedActive,
-            };
-            if (group.Expanded)
-            {
-                foreach (var assignment in active)
-                {
-                    group.Add(SummaryRow(model, assignment, now));
-                }
-            }
-
-            groups.Add(group);
+            groups.Add(Plain("no-matches", new NoteRow("no-matches", "No matches")));
+            return;
         }
 
-        var identities = model.VisibleIdentities;
-        if (identities.Count == 0 && model.IsFiltering)
-        {
-            var none = new PanelGroup("no-matches", GroupKind.Tenant) { Title = string.Empty };
-            none.Add(new NoteRow("no-matches", "No matches"));
-            groups.Add(none);
-        }
-
-        foreach (var identity in identities)
+        foreach (var identity in model.VisibleIdentities)
         {
             var tenants = model.VisibleTenants(identity.Id);
             var expanded = !model.CollapsedIdentities.Contains(identity.Id);
@@ -787,8 +938,6 @@ public static class PanelListBuilder
                 groups.Add(group);
             }
         }
-
-        return groups;
     }
 
     private static PanelGroup IdentityGroup(AppModel model, Identity identity, TenantContext? soleTenant)
@@ -952,6 +1101,23 @@ public static class PanelListBuilder
             return;
         }
 
+        if (model.PanelTab == PanelTab.All)
+        {
+            // The three kinds stacked, Azure as its tree in the middle, as ListRows orders them.
+            foreach (var role in model.RolesFor(tenant.Key, PanelTab.Roles))
+            {
+                group.Add(RoleRowFor(model, role, now));
+            }
+
+            AddScopeTreeRows(model, group, tenant, now);
+            foreach (var role in model.RolesFor(tenant.Key, PanelTab.Groups))
+            {
+                group.Add(RoleRowFor(model, role, now));
+            }
+
+            return;
+        }
+
         foreach (var role in roles)
         {
             group.Add(RoleRowFor(model, role, now));
@@ -1000,12 +1166,14 @@ public static class PanelListBuilder
 
     private static string EmptyText(AppModel model, TenantContext tenant) => (model.PanelTab, tenant.DiscoveryMode) switch
     {
+        (PanelTab.All, DiscoveryMode.ManualRoles) => "No roles configured.",
+        (PanelTab.All, _) => "No eligible roles.",
         (PanelTab.Groups, _) => "No eligible groups.",
         (PanelTab.Azure, DiscoveryMode.ManualRoles) => "No roles configured.",
         (PanelTab.Azure, _) => tenant.AzureUnavailableReason ?? "No eligible Azure resource roles.",
         (PanelTab.Roles, DiscoveryMode.ManualRoles) => "No roles configured.",
         _ => model.EntraViewOnlyReason(tenant.Key) is not null
-            ? "This account supports Azure resource roles only; see the Azure pivot."
+            ? "This account supports Azure resource roles only; see the Azure tab."
             : "No eligible Entra roles.",
     };
 
@@ -1017,8 +1185,11 @@ public static class PanelListBuilder
             Via = role.ViaGroup is { } via ? (via == "group" ? "via group" : $"via {via}") : null,
             IsManual = role.Source == RoleSource.Manual,
             IsNew = model.IsRoleNew(role.Key),
+            IsPrivileged = PrivilegedRoles.IsPrivileged(role),
         };
-        row.Detail = role.Detail;
+        // The All tab mixes kinds, so a group row names its access in its detail line.
+        var caption = model.PanelTab == PanelTab.All ? model.GroupCaption(role.Key) : null;
+        row.Detail = caption is null ? role.Detail : string.IsNullOrEmpty(role.Detail) ? caption : $"{caption} · {role.Detail}";
         row.DetailTooltip = role.Key.Scope is AzureResourceScope azure ? azure.Scope : role.Detail;
         var assignment = model.Assignment(role.Key);
         // The policy notes matter before pressing anything; once something is active or pending the row's status says it.
@@ -1026,7 +1197,7 @@ public static class PanelListBuilder
         row.PolicyTooltip = assignment is null ? PolicyNotes.Explanation(role.Policy) : null;
         row.RequiresApproval = role.Policy.RequiresApproval;
         var viewOnly = role.Key.Scope.Kind == RoleScopeKind.EntraDirectory ? model.EntraViewOnlyReason(role.Key.TenantKey) : null;
-        Fill(model, row, assignment, role.Policy, viewOnly, now, allowActivate: true);
+        Fill(model, row, assignment, viewOnly, now, allowActivate: true);
         return row;
     }
 
@@ -1087,14 +1258,15 @@ public static class PanelListBuilder
         var row = new RoleRow(key, isSummary: true)
         {
             Name = model.SummaryName(key),
+            IsPrivileged = model.IsPrivileged(key),
             Detail = $"{model.Tenant(key.TenantKey)?.DisplayName ?? key.TenantId} · {model.Identity(key.IdentityId)?.Upn ?? key.IdentityId}",
         };
-        Fill(model, row, assignment, model.Role(key)?.Policy ?? RolePolicy.ManualDefault, null, now, allowActivate: false);
+        Fill(model, row, assignment, null, now, allowActivate: false);
         return row;
     }
 
     /// <summary>The time- and status-dependent part of a row; also what the countdown timer recomputes.</summary>
-    public static void Fill(AppModel model, RoleRow row, ActiveAssignment? assignment, RolePolicy policy, string? viewOnlyReason, DateTimeOffset now, bool allowActivate)
+    public static void Fill(AppModel model, RoleRow row, ActiveAssignment? assignment, string? viewOnlyReason, DateTimeOffset now, bool allowActivate)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(row);
@@ -1131,7 +1303,7 @@ public static class PanelListBuilder
                 row.DeactivateTooltip = lockedFor > TimeSpan.Zero
                     ? $"Can be deactivated in {Math.Ceiling(lockedFor.TotalSeconds).ToString(CultureInfo.InvariantCulture)} s (Entra enforces 5 minutes)"
                     : "Deactivate this role now";
-                row.ShowExtend = lockedFor <= TimeSpan.Zero && ExtendWindow.CanExtend(assignment, policy, now);
+                row.ShowExtend = model.CanExtendNow(key, now);
                 row.SelectEnabled = false;
 
                 // PIM calls it active; only a probe can call it usable. Until one does, the row says
@@ -1213,6 +1385,12 @@ public static class PanelListBuilder
                         break;
                     case ScopeRow scope when f is ScopeRow freshScope:
                         scope.CopyFrom(freshScope);
+                        break;
+                    case HeroRow hero when f is HeroRow freshHero:
+                        hero.Role.CopyFrom(freshHero.Role);
+                        break;
+                    case ActionRow action when f is ActionRow freshAction:
+                        action.CopyFrom(freshAction);
                         break;
                     default:
                         break;

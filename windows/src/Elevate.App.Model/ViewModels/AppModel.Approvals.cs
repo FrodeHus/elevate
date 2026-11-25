@@ -67,6 +67,10 @@ public sealed partial class AppModel
         }
     }
 
+    /// <summary>The panel's approvals, narrowed to one tenant; null is every tenant.</summary>
+    public IReadOnlyList<ApprovalRequest> ApprovalsIn(TenantKey? tenant) =>
+        tenant is { } key ? [.. ApprovalsOrdered.Where(r => r.TenantKey == key)] : ApprovalsOrdered;
+
     /// <summary>The tray badge's condition: everything pending, never narrowed by the panel search.</summary>
     public int PendingApprovalCount => AllApprovals.Count();
 

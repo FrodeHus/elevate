@@ -5,7 +5,6 @@ import ElevateCore
 /// account is named once on its own row above; repeating it here read as noise.
 struct TenantHeader: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openWindow) private var openWindow
     let tenant: TenantContext
     let identity: Identity
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -40,12 +39,10 @@ struct TenantHeader: View {
                 // green dots on the rows below already carry the colour.
                 if activeCount > 0 { Text("\(activeCount) active").font(.caption).foregroundStyle(.secondary) }
                 if tenant.accessPackagesAvailable == true {
-                    Button { open(.accessPackages(tenant.id)) } label: {
-                        Image(systemName: "shippingbox").font(.caption).foregroundStyle(.secondary)
-                            .padding(4)
-                            .contentShape(Rectangle())
+                    Button { model.openAccessPackages(tenant.id) } label: {
+                        Image(systemName: "shippingbox")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered).controlSize(.small)
                     .help("Access packages")
                     .accessibilityLabel("Access packages")
                 }
@@ -56,11 +53,6 @@ struct TenantHeader: View {
         }
         .pinnedHeaderChrome()
         .removeTenantConfirmation(tenant, isPresented: $confirmRemove)
-    }
-
-    private func open(_ route: PanelRoute) {
-        openWindow(value: route)
-        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
@@ -91,18 +83,26 @@ struct TenantRoles: View {
                 }
                 .padding(.leading, PanelMetrics.roleInset).padding(.vertical, 6)
             }
-            if model.panelTab == .azure {
-                // The Azure tab reads its scope strings as the hierarchy they are; the tree is
-                // flattened back into rows so it still lives in the panel's one list.
-                ForEach(scopeTreeRows) { entry in
-                    if let role = entry.role {
-                        RoleRow(role: role).padding(.leading, PanelIndent.for(entry.depth))
-                    } else {
-                        ScopeRow(tenant: tenant, node: entry.node, depth: entry.depth)
-                    }
-                }
+            if model.panelTab == .all {
+                ForEach(model.roles(for: tenant.id, tab: .roles)) { role in RoleRow(role: role) }
+                azureTreeRows
+                ForEach(model.roles(for: tenant.id, tab: .groups)) { role in RoleRow(role: role) }
+            } else if model.panelTab == .azure {
+                azureTreeRows
             } else {
                 ForEach(roles) { role in RoleRow(role: role) }
+            }
+        }
+    }
+
+    /// The Azure tab reads its scope strings as the hierarchy they are; the tree is
+    /// flattened back into rows so it still lives in the panel's one list.
+    @ViewBuilder private var azureTreeRows: some View {
+        ForEach(scopeTreeRows) { entry in
+            if let role = entry.role {
+                RoleRow(role: role).padding(.leading, PanelIndent.for(entry.depth))
+            } else {
+                ScopeRow(tenant: tenant, node: entry.node, depth: entry.depth)
             }
         }
     }
@@ -113,6 +113,7 @@ struct TenantRoles: View {
 
     private var emptyText: String {
         switch (model.panelTab, tenant.discoveryMode) {
+        case (.all, _): "No eligible roles or groups."
         case (.groups, _): "No eligible groups."
         case (.azure, .manualRoles): "No roles configured."
         case (.azure, _): tenant.azureUnavailableReason ?? "No eligible Azure resource roles."
@@ -199,10 +200,7 @@ struct TenantMenuItems: View {
     @Binding var confirmRemove: Bool
     var body: some View {
         if tenant.accessPackagesAvailable == true {
-            Button("Access packages…") {
-                openWindow(value: PanelRoute.accessPackages(tenant.id))
-                NSApp.activate(ignoringOtherApps: true)
-            }
+            Button("Access packages…") { model.openAccessPackages(tenant.id) }
         }
         Button("Configure known PIM roles…") {
             openWindow(value: PanelRoute.configureRoles(tenant.id))

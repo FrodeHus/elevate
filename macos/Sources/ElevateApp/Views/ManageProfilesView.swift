@@ -134,7 +134,7 @@ private struct ProfileEditor: View {
                         .onSubmit(commitName)
                         .onChange(of: nameFocused) { _, focused in if !focused { commitName() } }
                 }
-                Button("Run…") { commitName(); ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false) }
+                Button("Run…") { commitName(); ProfileActions.run(profile.id, model: model, openWindow: openWindow, silentlyIfPossible: false, inPanel: false) }
                     .disabled(profile.entries.isEmpty)
             }
             HStack(alignment: .firstTextBaseline, spacing: 18) {
@@ -220,7 +220,7 @@ private struct ProfileEditor: View {
         let policy = role?.policy ?? .manualDefault
         return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.summaryName(for: key)).lineLimit(1)
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key))
                 HStack(spacing: 4) {
                     Text(kindLabel(key.scope.kind))
                     if let detail = role?.detail { Text("·"); Text(detail).lineLimit(1) }
@@ -253,7 +253,7 @@ private struct ProfileEditor: View {
 
     private var pinnedBinding: Binding<Bool> {
         Binding(get: { profile.pinned }, set: { on in
-            pinHint = model.setPinned(id: profile.id, on) ? nil : "Unpin another first: \(ProfilePins.limit) is the most the row holds"
+            pinHint = model.setPinned(id: profile.id, on) ? nil : "Unpin another first: the sidebar holds \(ProfilePins.limit) pinned profiles"
         })
     }
 

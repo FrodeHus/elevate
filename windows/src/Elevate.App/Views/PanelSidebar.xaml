@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Elevate.App.Views.PanelSidebar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 136 px including the 1 px divider: with the 380 px main column the flyout is 516 wide. -->
+    <Grid Width="136" Padding="6,8,5,0" Background="{ThemeResource LayerOnMicaBaseAltFillColorSecondaryBrush}"
+          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <!-- Profiles: fixed on top. -->
+        <StackPanel Grid.Row="0" x:Name="ProfilesPanel" Spacing="2" Margin="0,0,0,8" Visibility="Collapsed" />
+        <!-- Accounts with their tenants: the part that scrolls. -->
+        <ScrollViewer Grid.Row="1" x:Name="TenantsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="TenantsPanel" Spacing="2" Margin="0,0,0,8" />
+        </ScrollViewer>
+        <!-- Add account…: fixed at the bottom. -->
+        <StackPanel Grid.Row="2" x:Name="FooterPanel" />
+    </Grid>
+</UserControl>

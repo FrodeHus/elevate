@@ -141,6 +141,7 @@ public sealed partial class AppModel
 
         State.RemoveProfile(id);
         Persist();
+        ForgetProfile(id);
         // The global shortcut pointed at a profile that no longer exists; drop the binding with it.
         if (Settings.HotKeyProfileId == id)
         {
@@ -150,7 +151,7 @@ public sealed partial class AppModel
     }
 
     /// <summary>
-    /// Profiles shown as chips in the flyout, in list order. Pinned managed profiles come first
+    /// Profiles shown in the flyout's sidebar, in list order. Pinned managed profiles come first
     /// and do not count against <see cref="ProfilePins.Limit"/>: the organization asked for them,
     /// so they never cost the user a pin of their own.
     /// </summary>
@@ -177,7 +178,7 @@ public sealed partial class AppModel
         return true;
     }
 
-    /// <summary>A favorite role is a pinned one-role profile of the user's own, so it runs, syncs and unpins like any other chip.</summary>
+    /// <summary>A favorite role is a pinned one-role profile of the user's own, so it runs, syncs and unpins like any other pinned profile.</summary>
     public bool IsFavorite(RoleKey key) => FavoriteProfile(key) is { Pinned: true };
 
     private ActivationProfile? FavoriteProfile(RoleKey key) =>
@@ -198,7 +199,7 @@ public sealed partial class AppModel
         // Checked before saving, so a full row does not leave an unpinned profile behind.
         if (profile is not { Pinned: true } && !CanPinAnotherProfile)
         {
-            Notice = $"The favorites row is full ({ProfilePins.Limit}). Unpin one to add {name}.";
+            Notice = $"The sidebar holds {ProfilePins.Limit} pinned profiles. Unpin one to add {name}.";
             return false;
         }
 

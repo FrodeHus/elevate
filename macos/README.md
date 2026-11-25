@@ -2,48 +2,60 @@
 
 Elevate is a macOS 26 menu bar app for activating Microsoft Entra PIM roles across several accounts and tenants.
 
-**Tabs.** The panel has three tabs: Entra (directory roles), Azure (resource roles) and Groups (PIM
-for Groups). An "Active now" section pinned above the tabs lists everything active or awaiting
-approval across every account, sorted by soonest expiry, each row with its own countdown and
-Deactivate; it collapses on click and remembers that choice. The search button in the header
-filters the visible rows by name, caption, tenant and account, hiding any account or tenant that has
-no match. Extend appears next to the countdown once a role is within 15 minutes of expiring and
-re-activates it with the remembered reason; when a role expires anyway, a notification offers
-"Activate again". The menu bar icon shows a warning shield when something expires within 5 minutes
-and a clock when a request awaits approval.
+**The panel.** A sidebar on the left is always visible: pinned profiles on top, then "All tenants"
+and every account with its tenants, each tenant row showing its active count (or a warning when its
+roles could not be read) and "Add account…" at the bottom; "PROFILES" and "TENANTS" collapse and
+remember it. The main view on the right shows one of Home, the role list, one tenant, one profile,
+or a tenant's access packages. Home (all tenants selected) lists Approvals and an "Active now"
+section sorted by soonest expiry across every account, each row with its own countdown and
+Deactivate, and a "Browse all roles" row; the first active role inside its last 15 minutes is drawn
+as a card with Extend as its main button, and with nothing active a "Nothing active" card sits above
+the role list. The role list has the Entra (directory roles), Azure (resource roles) and Groups (PIM
+for Groups) kinds, plus "All", in the "Eligible · N" bar, and a filter field that is always shown and
+focused when the panel opens. It filters by name, caption, tenant and account, hiding any account or
+tenant that has no match; on a tenant's own view it filters that tenant and ends with "N more in
+other tenants". Extend appears next to the countdown once a role is within 15 minutes of expiring
+and re-activates it with the remembered reason; when a role expires anyway, a notification offers
+"Activate again". A crown after a role's name marks a privileged role (the Entra roles Microsoft
+flags as privileged, and Azure Owner, Contributor, User Access Administrator and Role Based Access
+Control Administrator). Escape dismisses one thing at a time (request form, access packages, the
+filter, a profile, select mode, browsing) without changing the selected tenant, and closes the
+panel when nothing is left. The menu bar icon shows a warning shield when something expires within
+5 minutes and a clock when a request awaits approval.
 
-**Groups.** The Groups tab lists your PIM for Groups memberships and ownerships; activation, the
+**Groups.** The Groups view lists your PIM for Groups memberships and ownerships; activation, the
 countdown and Deactivate work exactly as they do for roles. Because a group can carry Entra or Azure
-roles, those roles are re-read a few seconds after a group activation so the Entra and Azure tabs
+roles, those roles are re-read a few seconds after a group activation so the Entra and Azure lists
 catch up. Groups need the three `*.AzureADGroup` delegated permissions below, so they are available
 for your own app registration and for a custom app registration that carries them — never for the
 Microsoft first-party Azure CLI or Azure PowerShell apps. A first-party account is never read for
-groups at all; its Groups tab explains that the sign-in method supports Azure resource roles only. A
+groups at all; its Groups view explains that the sign-in method supports Azure resource roles only. A
 tenant where the group read is refused for permissions shows a "Groups off" pill with the reason.
 
 **Profiles.** Select mode turns the rows into checkboxes so you can pick roles and groups across
-every tab and account at once; "Save as profile…" names that set. The row under the tabs holds a
-chip per pinned profile (up to four, never wrapping) and "All N", a searchable list of every
-profile where the star pins or unpins. Clicking a chip opens a confirmation sheet that plans the
-run first: entries already active or awaiting approval are listed as skipped, the rest keep the
-duration you last chose for them and the reason you last gave, and approval-required entries are
-requested and come back as pending. The Profiles window edits a profile in place: rename, pin,
-bind the global shortcut, change the duration each role proposes, remove roles, and "Add roles…"
-picks more from every account and tenant. Profiles are stored with the rest of the app state in
-`state.json`.
+every kind and account at once; "Save as profile…" names that set. The sidebar's Profiles section
+holds a button per pinned profile (up to four) and "All N", a searchable list of every profile where
+the star pins or unpins. Clicking a profile shows it in the panel's main view, which plans the run
+first: entries already active or awaiting approval are listed as skipped, the rest keep the
+duration you last chose for them (a small menu per role) and the reason you last gave, and
+approval-required entries are requested and come back as pending. Closing the panel keeps a draft,
+a run in progress and results you have not seen. The Profiles window edits a profile in place:
+rename, pin, bind the global shortcut, change the duration each role proposes, remove roles, and
+"Add roles…" picks more from every account and tenant. Profiles are stored with the rest of the app
+state in `state.json`.
 
-**Shortcuts.** Option-click on Activate, Extend or a profile chip activates immediately with the
-last reason and duration, skipping the dialog; the dialog still opens when a reason is missing, a
-ticket is required, approval is required (single roles), or a profile's roles have not loaded. A
-notification reports the outcome. "Start at" in the activation dialog and the run sheet schedules
-the activation for a future time; scheduled entries appear in Active now with "starts in …" and a
-Cancel button, and the menu bar shows the clock badge. Settings → Global shortcut: record a key
-combination (at least one of ⌘ ⌃ ⌥) and pick a profile; pressing it runs the profile like
-Option-clicking its chip, or opens the run sheet when input is needed. macOS offers no supported
-way to open a menu bar panel from a shortcut, so the shortcut runs a profile instead.
+**Shortcuts.** Option-click on Activate, Extend or a profile in the sidebar activates immediately
+with the last reason and duration, skipping the dialog; the dialog (or the profile view) still opens
+when a reason is missing, a ticket is required, approval is required (single roles), or a profile's
+roles have not loaded. A notification reports the outcome. "Start at" in the activation dialog and
+the profile view schedules the activation for a future time; scheduled entries appear in Active now
+with "starts in …" and a Cancel button, and the menu bar shows the clock badge. Settings → Global
+shortcut: record a key combination (at least one of ⌘ ⌃ ⌥) and pick a profile; pressing it runs the
+profile like Option-clicking it, or opens the run window when input is needed. macOS offers no
+supported way to open a menu bar panel from a shortcut, so the shortcut runs a profile instead.
 
-**Approvals.** When you are an approver, requests awaiting your decision appear in a pinned
-Approvals section above Active now, across all accounts and tenants: requester, role or group,
+**Approvals.** When you are an approver, requests awaiting your decision appear in an Approvals
+section above Active now on Home (and on the tenant's view), across all accounts and tenants: requester, role or group,
 tenant, requested duration, and the requester's reason on hover. Approve and Deny open a short
 sheet with a justification (required for Deny). A notification announces each new request; the
 menu bar shows a person-with-clock glyph while any are pending. Extend and renew requests (and any
@@ -55,7 +67,7 @@ approvals only. A tenant that refuses the approver read simply shows nothing.
 
 > **Limitation:** Microsoft's Azure CLI and Azure PowerShell apps are not pre-authorised for any of the Graph PIM permissions Elevate needs — `RoleAssignmentSchedule.ReadWrite.Directory` for Entra roles and the `*.AzureADGroup` scopes for PIM for Groups are admin-consent only and are granted to *your* registration, never to Microsoft's. An account added that way **supports Azure resource roles only**: no Entra directory roles and no PIM for Groups memberships are discovered or activated, the account sees Azure resource approvals only, and Elevate does not call the Graph PIM APIs for it at all, so no permission errors appear on refresh. The add-account dialog says so and the account and its tenants carry an "Azure roles only" pill. No other well-known public client with a loopback redirect carries those scopes; there is no client-side workaround, and your own app registration always works once consented.
 
-Elevate can add an account in two ways, chosen per account in "Add account…":
+Elevate can add an account in two ways, chosen per account in "Add account…" at the bottom of the sidebar:
 
 - **Your own Entra app registration** ("Entra app registration"). Uses the client ID from Settings.
   It gives Elevate exactly the permissions you grant it, but each tenant needs an admin to
@@ -165,7 +177,7 @@ they cover Azure resource roles only, so a registration is required for Entra ro
    `msauth.no.reothor.elevate://auth` under the iOS/macOS platform — see
    [Setting up the Entra app registration](../docs/entra-app-registration.md) for the full
    walkthrough (Azure CLI script or portal steps) and the permission list, including the three
-   `*.AzureADGroup` scopes the Groups tab needs.
+   `*.AzureADGroup` scopes the Groups list needs.
 3. Launch Elevate, open Settings (⌘,) from the panel, and paste the application (client) ID.
 
 ## Build and run

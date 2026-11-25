@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using Windows.Foundation;
 
 namespace Elevate.App.Views;
 
@@ -157,16 +158,16 @@ public sealed partial class Pill : ContentControl
 }
 
 /// <summary>
-/// The Entra / Azure / Groups picker, styled like the macOS segmented control: one capsule, the
+/// The All / Entra / Azure / Groups picker, styled like the macOS segmented control: one capsule, the
 /// selected segment filled with the accent. No counts in the labels: the Active now header and the
 /// tenant rows already carry them, and a segment that changes width with its count moves the others.
 /// </summary>
 public sealed partial class SegmentedPivots : ContentControl
 {
-    private static readonly PanelTab[] Tabs = [PanelTab.Roles, PanelTab.Azure, PanelTab.Groups];
+    private static readonly PanelTab[] Tabs = [PanelTab.All, PanelTab.Roles, PanelTab.Azure, PanelTab.Groups];
 
-    private readonly ToggleButton[] _buttons = new ToggleButton[3];
-    private PanelTab _selected = PanelTab.Roles;
+    private readonly ToggleButton[] _buttons = new ToggleButton[Tabs.Length];
+    private PanelTab _selected = PanelTab.All;
     private bool _applying;
 
     public SegmentedPivots()
@@ -221,6 +222,26 @@ public sealed partial class SegmentedPivots : ContentControl
         Apply();
     }
 
+    public static readonly DependencyProperty CompactProperty = DependencyProperty.Register(
+        nameof(Compact), typeof(bool), typeof(SegmentedPivots), new PropertyMetadata(false, (d, _) => ((SegmentedPivots)d).ApplySize()));
+
+    /// <summary>The small variant that sits in the Eligible bar's header row.</summary>
+    public bool Compact
+    {
+        get => (bool)GetValue(CompactProperty);
+        set => SetValue(CompactProperty, value);
+    }
+
+    private void ApplySize()
+    {
+        foreach (var button in _buttons)
+        {
+            button.Height = button.MinHeight = Compact ? 22 : 30;
+            button.FontSize = Compact ? 11 : 13;
+            button.Padding = new Thickness(Compact ? 4 : 6, 0, Compact ? 4 : 6, 0);
+        }
+    }
+
     /// <summary>Raised when the user picks a segment; not when <see cref="Selected"/> is set from code.</summary>
     public event EventHandler<PanelTab>? SelectionChanged;
 
@@ -248,6 +269,75 @@ public sealed partial class SegmentedPivots : ContentControl
         {
             _applying = false;
         }
+    }
+}
+
+/// <summary>
+/// The crown after a privileged role's name, in the warning orange (the caution yellow is close to invisible on
+/// the light theme). A drawn shape rather than a glyph: neither Segoe Fluent Icons nor the emoji font has a
+/// monochrome crown that takes a theme colour.
+/// </summary>
+public sealed partial class PrivilegedCrown : ContentControl
+{
+    public const string Label = "Privileged role";
+
+    public PrivilegedCrown()
+    {
+        Content = new Microsoft.UI.Xaml.Shapes.Polygon
+        {
+            Points = [new(0, 10), new(0, 2.5), new(3.5, 5.5), new(6, 0), new(8.5, 5.5), new(12, 2.5), new(12, 10)],
+            Width = 12,
+            Height = 10,
+            Stretch = Stretch.Fill,
+            Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF7, 0x63, 0x0C)),
+        };
+        Padding = new Thickness(0);
+        IsTabStop = false;
+        VerticalAlignment = VerticalAlignment.Center;
+        ToolTipService.SetToolTip(this, Label);
+        // Just the label: the role's name is read from the text beside it.
+        AutomationProperties.SetName(this, Label);
+    }
+}
+
+/// <summary>
+/// A role name with fixed-size trailing items (the crown, a pill): the first child gets what is left
+/// and trims, the rest keep their size, so a long name never pushes the crown out or past the action button.
+/// </summary>
+public sealed partial class NameLine : Panel
+{
+    public double Spacing { get; set; } = 6;
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (Children.Count == 0)
+        {
+            return new Size(0, 0);
+        }
+
+        double tail = 0, height = 0;
+        foreach (var child in Children.Skip(1).Where(c => c.Visibility == Visibility.Visible))
+        {
+            child.Measure(new Size(double.PositiveInfinity, availableSize.Height));
+            tail += child.DesiredSize.Width + Spacing;
+            height = Math.Max(height, child.DesiredSize.Height);
+        }
+
+        Children[0].Measure(new Size(Math.Max(0, availableSize.Width - tail), availableSize.Height));
+        return new Size(Children[0].DesiredSize.Width + tail, Math.Max(height, Children[0].DesiredSize.Height));
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        var x = 0.0;
+        foreach (var child in Children.Where(c => c.Visibility == Visibility.Visible))
+        {
+            var size = child.DesiredSize;
+            child.Arrange(new Rect(x, (finalSize.Height - size.Height) / 2, size.Width, size.Height));
+            x += size.Width + Spacing;
+        }
+
+        return finalSize;
     }
 }
 
@@ -313,12 +403,25 @@ public static class TenantGroupBox
         return grid;
     }
 
+    /// <summary>A role name that trims, followed by the crown when the role is privileged.</summary>
+    public static NameLine RoleName(string name, bool isPrivileged)
+    {
+        var line = new NameLine { VerticalAlignment = VerticalAlignment.Center };
+        line.Children.Add(new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
+        if (isPrivileged)
+        {
+            line.Children.Add(new PrivilegedCrown());
+        }
+
+        return line;
+    }
+
     /// <summary>The role name with its scope caption underneath (an Azure role's "rg-prod · resource group"), the full ARM path as tooltip.</summary>
-    public static StackPanel NameCell(string name, string? detail, RoleKey key, double opacity = 1)
+    public static StackPanel NameCell(string name, string? detail, RoleKey key, bool isPrivileged = false, double opacity = 1)
     {
         ArgumentNullException.ThrowIfNull(key);
         var cell = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1, Opacity = opacity };
-        cell.Children.Add(new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis });
+        cell.Children.Add(RoleName(name, isPrivileged));
         if (detail is not null)
         {
             var caption = new TextBlock

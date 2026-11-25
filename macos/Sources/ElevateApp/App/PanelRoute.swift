@@ -13,7 +13,6 @@ enum PanelRoute: Codable, Hashable {
     case deactivateProfile(UUID)
     case manageProfiles
     case decide(requestId: String, approve: Bool)
-    case accessPackages(TenantKey)
 }
 
 /// A scheduled "access package expired" notification: the assignment id keys it, so repeated

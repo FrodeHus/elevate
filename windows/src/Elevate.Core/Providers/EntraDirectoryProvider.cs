@@ -21,7 +21,7 @@ public sealed class EntraDirectoryProvider : IPimProvider
 
     // MARK: Wire models
 
-    private sealed record RoleDefinitionRef(string Id, string? DisplayName);
+    private sealed record RoleDefinitionRef(string Id, string? DisplayName, bool? IsPrivileged = null);
 
     private sealed record Schedule(
         string Id,
@@ -78,7 +78,8 @@ public sealed class EntraDirectoryProvider : IPimProvider
             var viaGroup = string.Equals(s.MemberType, "Group", StringComparison.OrdinalIgnoreCase) ? "group" : null;
             roles.Add(new EligibleRole(
                 key, s.RoleDefinition?.DisplayName ?? s.RoleDefinitionId,
-                RoleSource.Discovered, RolePolicy.ManualDefault, ViaGroup: viaGroup));
+                RoleSource.Discovered, RolePolicy.ManualDefault, ViaGroup: viaGroup,
+                IsPrivileged: s.RoleDefinition?.IsPrivileged == true));
         }
 
         return [.. roles.OrderBy(r => r.DisplayName, StringComparer.Ordinal)];

@@ -1,4 +1,5 @@
 using Elevate.App.ViewModels;
+using Elevate.Core.Catalogue;
 using Elevate.Core.Models;
 using Elevate.Core.Support;
 using Microsoft.UI.Xaml;
@@ -138,7 +139,7 @@ internal sealed partial class AddRolesDialog : ContentDialog
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var label = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
-        label.Children.Add(new TextBlock { Text = role.DisplayName, TextTrimming = TextTrimming.CharacterEllipsis });
+        label.Children.Add(TenantGroupBox.RoleName(role.DisplayName, PrivilegedRoles.IsPrivileged(role)));
         if (role.Detail is { } detail)
         {
             label.Children.Add(new TextBlock
@@ -158,7 +159,7 @@ internal sealed partial class AddRolesDialog : ContentDialog
             MinWidth = 0,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, role.DisplayName);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(check, PrivilegedRoles.IsPrivileged(role) ? $"{role.DisplayName}, privileged role" : role.DisplayName);
         if (viewOnly is not null)
         {
             ToolTipService.SetToolTip(check, viewOnly);

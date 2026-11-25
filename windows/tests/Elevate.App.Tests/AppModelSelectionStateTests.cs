@@ -1,0 +1,382 @@
+using Elevate.App.Services;
+using Elevate.App.Tests.Support;
+using Elevate.App.ViewModels;
+using Elevate.Core.Managed;
+using Elevate.Core.Models;
+using Elevate.Core.Storage;
+using FluentAssertions;
+
+namespace Elevate.App.Tests;
+
+public class AppModelSelectionStateTests
+{
+    private static readonly TenantKey One = new("id-1", "tenant-1");
+    private static readonly TenantKey Two = new("id-2", "tenant-2");
+
+    /// <summary>Two accounts with one tenant and one Entra role each.</summary>
+    private static async Task<TestModel> TwoTenantsAsync()
+    {
+        var state = new AppState
+        {
+            Identities = [Sample.Identity("id-1"), Sample.Identity("id-2")],
+            Tenants = [Sample.Tenant("id-1", "tenant-1"), Sample.Tenant("id-2", "tenant-2")],
+        };
+        var test = await TestModel.BootstrappedAsync(state);
+        test.Model.Roles[One] = [Sample.Role(Sample.Key(new EntraDirectoryScope("a", "/"), "id-1", "tenant-1"), "Global Reader")];
+        test.Model.Roles[Two] = [Sample.Role(Sample.Key(new EntraDirectoryScope("b", "/"), "id-2", "tenant-2"), "Billing Admin")];
+
+        // Home shows only while something is active or awaiting approval.
+        var active = test.Model.Roles[One].Single().Key;
+        test.Model.Active[active] = Sample.Assignment(active);
+        return test;
+    }
+
+    [Fact]
+    public async Task DefaultsToAllTenantsAndHome()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+        test.Model.PanelContent.Should().Be(new PanelContent.Home());
+        test.Model.ScopeTenant.Should().BeNull();
+        test.Model.SelectedProfile.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SelectingATenantPersistsAndScopesTheList()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+
+        test.Settings.PanelTenant.Should().Be(One);
+        model.VisibleTenants("id-2").Should().BeEmpty();
+        model.VisibleTenants("id-1").Select(t => t.Key).Should().Equal(One);
+        model.VisibleIdentities.Select(i => i.Id).Should().Equal("id-1");
+        model.PanelContent.Should().Be(new PanelContent.Tenant(One));
+    }
+
+    [Fact]
+    public async Task ARemovedTenantFallsBackToAllTenants()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Tenant(Two));
+        test.Model.State.Tenants.RemoveAll(t => t.Key == Two);
+
+        test.Model.ScopeTenant.Should().BeNull();
+        test.Model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+    }
+
+    [Fact]
+    public async Task AnAccountNeedingSignInFallsBackToAllTenants()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Tenant(Two));
+        test.Model.SignInNeeded.Add("id-2");
+
+        test.Model.ScopeTenant.Should().BeNull();
+        test.Model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+    }
+
+    [Fact]
+    public async Task TypingBrowsingOrSelectModeShowTheRoleList()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.SearchQuery = "read";
+        model.PanelContent.Should().Be(new PanelContent.RoleList());
+        model.SearchQuery = string.Empty;
+        model.Browsing = true;
+        model.PanelContent.Should().Be(new PanelContent.RoleList());
+        model.Browsing = false;
+        model.SelectMode = true;
+        model.PanelContent.Should().Be(new PanelContent.RoleList());
+    }
+
+    [Fact]
+    public async Task SelectingATenantKeepsQueryAndSelection()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.SelectMode = true;
+        model.SearchQuery = "read";
+        var key = model.Roles[One].Single().Key;
+        model.ToggleSelection(key);
+        model.Selection.Should().ContainSingle();
+
+        model.Select(new PanelSelection.Tenant(One));
+        model.Select(new PanelSelection.AllTenants());
+
+        model.SearchQuery.Should().Be("read");
+        model.SelectMode.Should().BeTrue();
+        model.Selection.Should().Contain(key);
+    }
+
+    [Fact]
+    public async Task OtherTenantMatchesAreCountedOnlyWhenScopedAndFiltering()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.SearchQuery = "billing";
+        model.OtherTenantMatchCount.Should().Be(0);
+
+        model.Select(new PanelSelection.Tenant(One));
+        model.RolesFor(One, model.PanelTab).Should().BeEmpty();
+        model.OtherTenantMatchCount.Should().Be(1);
+        model.SearchQuery = "zzz";
+        model.OtherTenantMatchCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SearchAllTenantsKeepsTheQuery()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.SearchQuery = "billing";
+
+        model.SearchAllTenants();
+
+        model.ScopeTenant.Should().BeNull();
+        model.SearchQuery.Should().Be("billing");
+    }
+
+    [Fact]
+    public async Task EscapeStepsBackOnePressAtATimeAndNeverClearsTheTenant()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
+        model.Select(new PanelSelection.Tenant(One));
+        model.Select(new PanelSelection.Profile(profile.Id));
+        model.SearchQuery = "read";
+
+        // The filter box is hidden on a profile, so the profile goes first and the query stays stored.
+        model.HandleEscape().Should().BeTrue();
+        model.SelectedProfile.Should().BeNull();
+        model.SearchQuery.Should().Be("read");
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+
+        model.HandleEscape().Should().BeTrue();
+        model.SearchQuery.Should().BeEmpty();
+
+        model.HandleEscape().Should().BeFalse();
+        model.ScopeTenant.Should().Be(One);
+    }
+
+    [Fact]
+    public async Task LeavingAProfileReturnsToAllTenantsWhenThatIsWhereItWasOpened()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
+        model.Select(new PanelSelection.Profile(profile.Id));
+
+        model.HandleEscape().Should().BeTrue();
+
+        model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+    }
+
+    [Fact]
+    public async Task SelectModeAndBrowsingEachTakeOnePress()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Browsing = true;
+        model.SelectMode = true;
+
+        model.HandleEscape().Should().BeTrue();
+        model.SelectMode.Should().BeFalse();
+        model.Browsing.Should().BeTrue();
+
+        model.HandleEscape().Should().BeTrue();
+        model.Browsing.Should().BeFalse();
+        model.PanelContent.Should().Be(new PanelContent.Home());
+
+        model.HandleEscape().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task BrowsingIsNotDismissedFromATenantView()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.Browsing = true;
+
+        model.HandleEscape().Should().BeFalse();
+
+        model.ScopeTenant.Should().Be(One);
+        model.Browsing.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ATenantViewWithNothingToDismissReturnsFalseAndKeepsTheTenant()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Tenant(One));
+
+        test.Model.HandleEscape().Should().BeFalse();
+
+        test.Model.ScopeTenant.Should().Be(One);
+    }
+
+    private static readonly AccessPackage Package = new("pkg-1", "Finance Reporting Tools");
+
+    [Fact]
+    public async Task AccessPackagesAndTheRequestFormReplaceTheTenantView()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.OpenAccessPackages(One);
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+        model.BeginPackageRequest(Package);
+        model.PanelContent.Should().Be(new PanelContent.RequestPackage(One, Package));
+        model.EndPackageRequest();
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+    }
+
+    [Fact]
+    public async Task EscapeStepsBackFormThenPackagesThenTheRoleListThenReturnsFalse()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.Select(new PanelSelection.Tenant(One));
+        model.OpenAccessPackages(One);
+        model.BeginPackageRequest(Package);
+
+        model.HandleEscape().Should().BeTrue();
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+        model.HandleEscape().Should().BeTrue();
+        model.PanelContent.Should().Be(new PanelContent.Tenant(One));
+        model.HandleEscape().Should().BeFalse();
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(One));
+    }
+
+    [Fact]
+    public async Task SelectingAnythingInTheSidebarLeavesAccessPackages()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        var profile = model.SaveProfile("Ops", [model.Roles[One].Single().Key])!;
+        foreach (PanelSelection target in new PanelSelection[]
+            { new PanelSelection.AllTenants(), new PanelSelection.Tenant(Two), new PanelSelection.Tenant(One), new PanelSelection.Profile(profile.Id) })
+        {
+            model.Select(new PanelSelection.Tenant(One));
+            model.OpenAccessPackages(One);
+            model.BeginPackageRequest(Package);
+            model.Select(target);
+            model.AccessPackagesTenant.Should().BeNull();
+            model.RequestingPackage.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task ChangingTheTenantWithoutSelectDropsStaleAccessPackages()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(One);
+        model.BeginPackageRequest(Package);
+        model.SearchAllTenants();
+        model.AccessPackagesTenant.Should().BeNull();
+        model.RequestingPackage.Should().BeNull();
+
+        model.OpenAccessPackages(One);
+        model.ScopeTenant = null;
+        model.AccessPackagesTenant.Should().BeNull();
+
+        // The next Escape is not swallowed by packages that are no longer shown.
+        model.OpenAccessPackages(One);
+        model.SearchAllTenants();
+        model.Browsing = true;
+        model.HandleEscape();
+        model.Browsing.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OpeningAccessPackagesFromTheAllTenantsListSelectsThatTenant()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(Two);
+        model.PanelSelection.Should().Be(new PanelSelection.Tenant(Two));
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(Two));
+        model.HandleEscape();
+        model.PanelContent.Should().Be(new PanelContent.Tenant(Two));
+    }
+
+    [Fact]
+    public async Task ThePackageTabSurvivesTheFormAndSubmittingShowsRequested()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.OpenAccessPackages(One);
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Available);
+        model.AccessPackagesTab = AccessPackageTab.Assigned;
+        model.BeginPackageRequest(Package);
+        model.EndPackageRequest();
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Assigned);
+
+        model.BeginPackageRequest(Package);
+        model.FinishPackageRequest();
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Requested);
+        model.PanelContent.Should().Be(new PanelContent.AccessPackages(One));
+
+        model.OpenAccessPackages(One);
+        model.AccessPackagesTab.Should().Be(AccessPackageTab.Available);
+    }
+
+    [Fact]
+    public async Task AMissingProfileIsNotASelection()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Profile(Guid.NewGuid()));
+
+        test.Model.PanelSelection.Should().Be(new PanelSelection.AllTenants());
+        test.Model.PanelContent.Should().Be(new PanelContent.Home());
+    }
+
+    [Fact]
+    public async Task PanelTenantRoundTripsThroughSettingsJson()
+    {
+        using var test = await TwoTenantsAsync();
+        test.Model.Select(new PanelSelection.Tenant(Two));
+
+        File.ReadAllText(test.Settings.FilePath).Should().Contain("\"panelTenant\"");
+        new AppSettings(test.Directory, ManagedConfiguration.None).PanelTenant.Should().Be(Two);
+    }
+
+    [Fact]
+    public async Task SidebarSectionsAreExpandedByDefaultAndRemembered()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.ProfilesCollapsed.Should().BeFalse();
+        model.TenantsCollapsed.Should().BeFalse();
+
+        model.ToggleProfilesSection();
+        model.ToggleTenantsSection();
+
+        var reloaded = new AppSettings(test.Directory, ManagedConfiguration.None);
+        reloaded.CollapsedProfiles.Should().BeTrue();
+        reloaded.CollapsedTenants.Should().BeTrue();
+        model.ToggleTenantsSection();
+        new AppSettings(test.Directory, ManagedConfiguration.None).CollapsedTenants.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TenantsNeedAttentionWhenAnAccountNeedsSignInOrATenantFailed()
+    {
+        using var test = await TwoTenantsAsync();
+        var model = test.Model;
+        model.TenantsNeedAttention.Should().BeFalse();
+
+        model.TenantErrors[One] = "boom";
+        model.TenantsNeedAttention.Should().BeTrue();
+
+        model.TenantErrors.Clear();
+        model.SignInNeeded.Add("id-2");
+        model.TenantsNeedAttention.Should().BeTrue();
+    }
+}

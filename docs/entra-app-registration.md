@@ -160,7 +160,7 @@ app; a user cannot consent to it themselves.
 | `PrivilegedAssignmentSchedule.ReadWrite.AzureADGroup` | Microsoft Graph | Activates and deactivates PIM-for-groups membership/ownership. | Yes |
 | `RoleManagementPolicy.Read.AzureADGroup` | Microsoft Graph | Reads each group's PIM policy. | Yes |
 | `user_impersonation` | Azure Service Management | Discovers tenants/subscriptions and reads, activates, and deactivates Azure resource roles. | User-consentable |
-| `EntitlementMgmt-SubjectAccess.ReadWrite` | Microsoft Graph | Lists, requests and cancels the user's own entitlement management access packages, for the Access packages window. | No |
+| `EntitlementMgmt-SubjectAccess.ReadWrite` | Microsoft Graph | Lists, requests and cancels the user's own entitlement management access packages, for access packages. | No |
 
 `EntitlementMgmt-SubjectAccess.ReadWrite` is the one permission a user can consent to
 themselves. Tenants that consented before it was added see one incremental consent prompt on

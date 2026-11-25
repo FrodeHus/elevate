@@ -12,7 +12,7 @@ What the panel's warnings mean and how to get past them.
 Elevate could not read your eligible roles in that tenant, usually because an administrator has
 not yet consented to the Elevate app registration there. Two ways forward:
 
-- **Get consent.** Open the tenant menu (the circled dots on the tenant row) and choose **Open
+- **Get consent.** Open the tenant menu (the **⋯** on the tenant's header, in the role list or on the tenant's own view) and choose **Open
   admin consent link…**. Send the link to a tenant administrator, or open it yourself if you are
   one. After consent, choose **Retry discovery** from the same menu. If you are using the shared
   Elevate app, Settings › Entra app registration also has a **Grant admin consent…** button; that
@@ -49,13 +49,13 @@ menu.
 ## "needs to sign in again"
 
 An orange banner names an account whose saved sign-in is gone: the refresh token expired, was
-revoked, or the keychain item was removed. Click the **Sign in** button on the account row, or
-choose **Sign in again** from its menu. Roles and profiles are kept while the account waits.
+revoked, or the keychain item was removed. Click the **Sign in** button under the account's address in the sidebar, or
+choose **Sign in again** from its menu; the account's tenants are dimmed until it has signed in. Roles and profiles are kept while the account waits.
 
 ## A refresh or discovery failed
 
-A red triangle on a tenant header means the last refresh hit an error. Hover for the message,
-or click for the full list. Typical causes:
+A red triangle on a tenant's header or sidebar row means the last refresh hit an error. Hover for the message;
+click the pill on the tenant's header for the full list. Typical causes:
 
 - No network. The header shows **offline** and Elevate resumes on its own.
 - A step-up sign-in was dismissed. Press the refresh button and complete it.

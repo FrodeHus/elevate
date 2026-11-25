@@ -140,6 +140,7 @@ public sealed partial class AppModel
         if (_fetchedProfileSet is null && _profileFetcher.Cached() is { } cached)
         {
             _fetchedProfileSet = cached;
+            ForgetVanishedProfiles();
             Touch();
         }
 
@@ -170,6 +171,7 @@ public sealed partial class AppModel
                 await ResolveManagedTenantsAsync(ct);
             }
 
+            ForgetVanishedProfiles();
             Touch();
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)

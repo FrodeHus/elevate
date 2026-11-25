@@ -1,0 +1,36 @@
+import Foundation
+import ElevateCore
+
+enum TenantMark: Equatable { case active(Int), error, none }
+
+@MainActor
+extension AppModel {
+    /// Whether the row's Extend button is offered: past Entra's five minute lock, inside the extend
+    /// window, and the role does not need approval.
+    func canExtendNow(_ key: RoleKey, now: Date = .now) -> Bool {
+        guard let a = assignment(for: key), 300 - now.timeIntervalSince(a.startDateTime) <= 0 else { return false }
+        return ExtendWindow.canExtend(a, policy: role(for: key)?.policy ?? .manualDefault, now: now)
+    }
+
+    /// The soonest-expiring active row, when it is the one Extend applies to.
+    var heroAssignment: ActiveAssignment? {
+        activeAssignments(in: nil).first.flatMap { canExtendNow($0.roleKey) ? $0 : nil }
+    }
+
+    var homeIsEmpty: Bool { approvals(in: nil).isEmpty && activeRows(in: nil).isEmpty }
+
+    /// The sidebar's counts: what "Active now" would list, whatever the filter says.
+    var totalActiveCount: Int { ActiveSummary.order(Array(active.values)).count }
+
+    private func hasError(_ key: TenantKey) -> Bool { (tenantErrors[key] ?? tenant(key)?.lastDiscoveryError) != nil }
+
+    /// What a collapsed TENANTS header warns about: an account that must sign in again, or any tenant with an error.
+    var sidebarNeedsAttention: Bool {
+        !signInNeeded.isEmpty || state.tenants.contains { hasError($0.id) }
+    }
+
+    func sidebarMark(for key: TenantKey) -> TenantMark {
+        let n = ActiveSummary.order(Array(active.values)).count { $0.roleKey.tenantKey == key }
+        return n > 0 ? .active(n) : hasError(key) ? .error : .none
+    }
+}

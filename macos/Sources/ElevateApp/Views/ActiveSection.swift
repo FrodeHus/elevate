@@ -1,22 +1,34 @@
 import SwiftUI
 import ElevateCore
 
-/// Pinned "Active now" summary across all accounts and tenants, above the account list.
+/// Pinned "Active now" summary across all accounts and tenants, or one tenant's.
 struct ActiveSection: View {
     @Environment(AppModel.self) private var model
+    var tenant: TenantKey?
+    /// Home draws its first row as the extend card.
+    var showsHero = false
 
     var body: some View {
         // Rows come straight from the model, including ones just deactivated: a view-held copy
         // synced by a task never populated inside the panel's LazyVStack, which does not realise
         // an empty conditional (or a zero-height sibling), so the section stayed hidden.
-        let rows = model.activeRowsOrdered
+        let rows = model.activeRows(in: tenant)
         if !rows.isEmpty {
             Section {
                 if !model.collapsedActive {
-                    ForEach(rows) { a in ActiveRow(assignment: a) }
+                    ForEach(rows) { a in
+                        if showsHero && a.id == rows.first?.id {
+                            // On the clock: the card appears the second Extend applies, not at the next refresh.
+                            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                                if model.canExtendNow(a.roleKey, now: ctx.date) { ActiveHeroCard(assignment: a) } else { ActiveRow(assignment: a) }
+                            }
+                        } else {
+                            ActiveRow(assignment: a)
+                        }
+                    }
                 }
             } header: {
-                ActiveHeader(count: model.activeAssignmentsOrdered.count)
+                ActiveHeader(count: model.activeAssignments(in: tenant).count)
             }
         }
     }
@@ -41,7 +53,7 @@ struct ActiveRow: View {
         HStack(spacing: 8) {
             statusDot
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.summaryName(for: key)).font(.body).lineLimit(1)
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key)).font(.body)
                 Text("\(model.tenant(key.tenantKey)?.displayName ?? key.tenantId) · \(model.identity(key.identityId)?.upn ?? key.identityId)")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
@@ -57,6 +69,33 @@ struct ActiveRow: View {
     private var statusDot: some View {
         RoleStatusIndicator(status: assignment.status, deactivation: model.deactivationProgress[assignment.roleKey],
                             propagating: model.isPropagating(assignment.roleKey))
+    }
+}
+
+/// The soonest-expiring role when Extend applies: the time left up front, Extend as the primary action.
+struct ActiveHeroCard: View {
+    @Environment(AppModel.self) private var model
+    let assignment: ActiveAssignment
+
+    var body: some View {
+        let key = assignment.roleKey
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                RoleNameLabel(model.summaryName(for: key), isPrivileged: model.isPrivileged(key)).font(.body.weight(.semibold))
+                Text("\(model.tenant(key.tenantKey)?.displayName ?? key.tenantId) · \(model.identity(key.identityId)?.upn ?? key.identityId)")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                    Text(assignment.endDateTime.flatMap { Countdown.remaining(until: $0, now: ctx.date) }.map(Countdown.label) ?? "")
+                        .font(.title2.monospacedDigit().weight(.semibold))
+                }
+            }
+            Spacer(minLength: 4)
+            AssignmentControls(key: key, assignment: assignment, policy: model.role(for: key)?.policy ?? .manualDefault,
+                               allowActivate: false, hero: true)
+        }
+        .padding(10)
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.orange, lineWidth: 1.5))
+        .padding(.horizontal, PanelMetrics.headerInset).padding(.vertical, 6)
     }
 }
 

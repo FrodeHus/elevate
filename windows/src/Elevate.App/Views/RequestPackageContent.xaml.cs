@@ -1,4 +1,3 @@
-using Elevate.App.Shell;
 using Elevate.App.ViewModels;
 using Elevate.Core.Models;
 using Elevate.Core.Providers;
@@ -8,40 +7,56 @@ using Microsoft.UI.Xaml.Controls;
 namespace Elevate.App.Views;
 
 /// <summary>
-/// Policy choice plus justification for one package; hands off to My Access when the chosen
-/// policy asks questions Elevate does not collect. Port of the macOS <c>RequestPackageSheet</c>.
+/// Policy choice plus justification for one package, in the flyout's main column; hands off to My
+/// Access when the chosen policy asks questions Elevate does not collect. Port of the macOS
+/// <c>RequestPackageView</c>. Submitting and cancelling go through the model, which returns the panel
+/// to the package list.
 /// </summary>
-public sealed partial class RequestPackageWindow : Window
+public sealed partial class RequestPackageContent : UserControl
 {
-    private readonly AppModel _model;
-    private readonly TenantKey _key;
-    private readonly AccessPackage _package;
-    private readonly Action _onSubmitted;
+    private AppModel _model = null!;
+    private TenantKey _key = new(string.Empty, string.Empty);
+    private AccessPackage _package = new(string.Empty, string.Empty);
+    private bool _bound;
     private IReadOnlyList<PolicyRequirement> _requirements = [];
     private bool _loading = true;
     private bool _submitting;
+    // Bumped by every Bind and Unbind, so a read or submit that finishes after the form was left is dropped.
+    private int _version;
 
-    public RequestPackageWindow(AppModel model, TenantKey key, AccessPackage package, Action onSubmitted)
+    public RequestPackageContent()
     {
         InitializeComponent();
+    }
+
+    /// <summary>Starts a fresh form for this package and reads its policies.</summary>
+    public void Bind(AppModel model, TenantKey key, AccessPackage package)
+    {
+        Unbind();
         _model = model;
         _key = key;
         _package = package;
-        _onSubmitted = onSubmitted;
-        DialogWindows.Configure(this, "Request access package", 440, 300, Root, autoHeight: true);
+        _bound = true;
+        _loading = true;
+        _submitting = false;
+        _requirements = [];
+        Policies.Items.Clear();
+        Justification.Text = string.Empty;
+        LoadError.IsOpen = false;
+        SubmitError.IsOpen = false;
         Heading.Text = $"Request {package.DisplayName}";
-        if (!string.IsNullOrEmpty(package.Description))
-        {
-            Description.Text = package.Description;
-            Description.Visibility = Visibility.Visible;
-        }
-
-        DialogWindows.DefaultButton(Root, PrimaryButton);
+        Description.Text = package.Description ?? string.Empty;
+        Description.Visibility = string.IsNullOrEmpty(package.Description) ? Visibility.Collapsed : Visibility.Visible;
         Update();
-        _ = LoadAsync();
+        _ = LoadAsync(_version);
     }
 
-    public string PackageId => _package.Id;
+    /// <summary>Lets the form go; whatever is still in flight lands nowhere.</summary>
+    public void Unbind()
+    {
+        _version++;
+        _bound = false;
+    }
 
     private PolicyRequirement? Selected =>
         _requirements.Count == 0 ? null
@@ -65,7 +80,12 @@ public sealed partial class RequestPackageWindow : Window
 
     private void Update()
     {
-        Loading.Visibility = _loading ? Visibility.Visible : Visibility.Collapsed;
+        if (!_bound)
+        {
+            return;
+        }
+
+        LoadingRow.Visibility = _loading ? Visibility.Visible : Visibility.Collapsed;
         var loaded = !_loading && !LoadError.IsOpen;
         NoPolicy.Visibility = loaded && _requirements.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         PolicyPane.Visibility = loaded && _requirements.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
@@ -85,12 +105,17 @@ public sealed partial class RequestPackageWindow : Window
         Working.Visibility = _submitting ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(int version)
     {
-        _loading = true;
         try
         {
-            _requirements = await _model.PackageRequirementsAsync(_key, _package.Id);
+            var requirements = await _model.PackageRequirementsAsync(_key, _package.Id);
+            if (version != _version)
+            {
+                return;
+            }
+
+            _requirements = requirements;
             LoadError.IsOpen = false;
             Policies.Items.Clear();
             foreach (var r in _requirements)
@@ -106,14 +131,16 @@ public sealed partial class RequestPackageWindow : Window
         }
         catch (Exception e)
         {
+            if (version != _version)
+            {
+                return;
+            }
+
             LoadError.Message = AppModel.Describe(e);
             LoadError.IsOpen = true;
         }
-        finally
-        {
-            _loading = false;
-        }
 
+        _loading = false;
         Update();
         if (FormPane.Visibility == Visibility.Visible)
         {
@@ -123,9 +150,18 @@ public sealed partial class RequestPackageWindow : Window
 
     private void OnPolicyChanged(object sender, SelectionChangedEventArgs e) => Update();
 
+    /// <summary>For the flyout reopening on the form; the form's own focus waits for the requirements to load.</summary>
+    public void FocusJustification()
+    {
+        if (FormPane.Visibility == Visibility.Visible)
+        {
+            Justification.Focus(FocusState.Programmatic);
+        }
+    }
+
     private void OnJustificationChanged(object sender, TextChangedEventArgs e) => Update();
 
-    private void OnCancel(object sender, RoutedEventArgs e) => Close();
+    private void OnCancel(object sender, RoutedEventArgs e) => _model.EndPackageRequest();
 
     private async void OnPrimary(object sender, RoutedEventArgs e)
     {
@@ -137,7 +173,7 @@ public sealed partial class RequestPackageWindow : Window
         if (selected.RequiresAnswers)
         {
             _ = Windows.System.Launcher.LaunchUriAsync(AccessPackageProvider.MyAccessUrl(_key.TenantId, _package.Id));
-            Close();
+            _model.EndPackageRequest();
             return;
         }
 
@@ -146,26 +182,33 @@ public sealed partial class RequestPackageWindow : Window
             return;
         }
 
+        var version = _version;
         _submitting = true;
         SubmitError.IsOpen = false;
         Update();
         try
         {
             await _model.RequestPackageAsync(_key, _package.Id, _requirements.Count > 1 ? selected.Id : null, Justification.Text.Trim());
-            _onSubmitted();
-            Close();
+            // Left while it was being sent: the request still went through, only the view is gone.
+            if (version == _version)
+            {
+                _model.FinishPackageRequest();
+            }
+
             return;
         }
         catch (Exception ex)
         {
+            if (version != _version)
+            {
+                return;
+            }
+
             SubmitError.Message = AppModel.Describe(ex);
             SubmitError.IsOpen = true;
         }
-        finally
-        {
-            _submitting = false;
-        }
 
+        _submitting = false;
         Update();
     }
 }

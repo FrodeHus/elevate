@@ -218,7 +218,7 @@ public sealed partial class ActivationWindow : Window
 
         // The scope caption for Azure roles; otherwise the kind. The policy's demands live in the status column.
         var caption = $"{item.Role.Detail ?? Kind(item.Role.Key)} · max {DurationPicker.Label(item.Role.Policy.MaximumDuration)}";
-        grid.Children.Add(TenantGroupBox.NameCell(item.Role.DisplayName, caption, item.Role.Key));
+        grid.Children.Add(TenantGroupBox.NameCell(item.Role.DisplayName, caption, item.Role.Key, _model.IsPrivileged(item.Role.Key)));
         Grid.SetColumn(item.Duration, 1);
         item.Duration.VerticalAlignment = VerticalAlignment.Center;
         item.Duration.HorizontalAlignment = HorizontalAlignment.Stretch;

@@ -19,7 +19,7 @@ final class AppModel {
     var active: [RoleKey: ActiveAssignment] = [:]
     var busy: Set<TenantKey> = []
     var tenantErrors: [TenantKey: String] = [:]
-    var progress: [RoleKey: ActivationOutcome.Result] = [:]
+    var progress: [RoleKey: ActivationOutcome.Result] = [:] { didSet { mirrorProgressIntoRunSessions() } }
     var deactivationProgress: [RoleKey: DeactivationPhase] = [:]
     /// Assignments deactivated moments ago, kept so their "Active now" row can confirm in place.
     var recentlyDeactivated: [RoleKey: ActiveAssignment] = [:]
@@ -75,6 +75,27 @@ final class AppModel {
     /// and scopes start open, so nothing is hidden on first sight.
     var collapsedScopes: Set<String> = []
     var selection: Set<RoleKey> = []
+    /// The tenant whose access packages replace its role list in the main view, and the package whose
+    /// request form replaces that list. Never persisted; `select` clears both.
+    var accessPackagesTenant: TenantKey?
+    var requestingPackage: AccessPackage?
+    var openConfirmations = 0
+    var accessPackagesTab = AccessPackageTab.available
+    /// The profile open in the main view. Never persisted.
+    var selectedProfile: UUID? {
+        // Leaving a profile drops its session, unless it is mid-run or its run window still shows it.
+        didSet {
+            if selectedProfile != nil { closeAccessPackages() }
+            if let old = oldValue, old != selectedProfile, runSessions[old]?.running != true, !runWindowsOpen.contains(old) { runSessions[old] = nil }
+        }
+    }
+    /// Profile runs in progress or just finished. Never persisted; lives here so a run survives the panel closing.
+    var runSessions: [UUID: ProfileRunSession] = [:]
+    var panelIsOpen = false
+    /// Profiles whose run window is open: their results are on screen with the panel closed too.
+    var runWindowsOpen: Set<UUID> = []
+    /// True while the user is browsing the full role list rather than the home view. Never persisted.
+    var browsing = false
     var startupError: String?
     /// Transient, dismissible message (failed sign-in, unreadable state file). Never blocks the panel.
     var notice: String?
@@ -111,6 +132,10 @@ final class AppModel {
     /// The profile a chip or list menu asked to delete; the confirmation dialog reads it. Lives
     /// here because the menu and the dialog are on different views.
     var profileToDelete: UUID?
+    /// The account whose sign-out the main column is asking to confirm; set from the account menu in the sidebar or the list.
+    var signOutRequest: String?
+    /// True while the sidebar's All profiles popover is open, so the main column does not also show a pinned profile's delete card.
+    var allProfilesOpen = false
     /// Bumped each time the user asks to run a profile. `WindowGroup(for:)` refocuses an existing
     /// window instead of re-running `.onAppear`, so the Run sheet re-plans on a change here —
     /// and only then, never merely because the window regained focus.
@@ -176,7 +201,7 @@ final class AppModel {
     /// The last document fetched from `ManagedProfilesUrl`, or the cached copy of it. Nil until
     /// a fetch or a cache read has produced one.
     /// Setter internal: filled by `refreshManagedProfiles` in AppModel+ManagedProfiles.
-    var fetchedProfileSet: ManagedProfileSet?
+    var fetchedProfileSet: ManagedProfileSet? { didSet { forgetVanishedProfiles() } }
     /// Why the last fetch failed, as a Settings warning; cleared by the next success.
     /// Setter internal: set by `refreshManagedProfiles` in AppModel+ManagedProfiles.
     var managedProfileFetchWarning: String?
@@ -465,6 +490,9 @@ final class AppModel {
     }
     func role(for key: RoleKey) -> EligibleRole? { roles[key.tenantKey]?.first { $0.key == key } }
     func assignment(for key: RoleKey) -> ActiveAssignment? { active[key] }
+    /// Whether to mark `key`'s role as privileged; a role not loaded (an active row after a restart) falls back to what the ids and the catalogue know.
+    /// "Or", not "else": the service may leave the flag out, and a role cached before the flag existed has it false.
+    func isPrivileged(_ key: RoleKey) -> Bool { role(for: key)?.isPrivileged == true || PrivilegedRoles.isKnownPrivileged(key.scope) }
     func isNewRole(_ key: RoleKey) -> Bool { state.roleTracker(key.tenantKey).isNew(key) }
     func remembered(for key: RoleKey) -> RoleMemory? { state.memory(for: key) }
     func identity(_ id: String) -> Identity? { state.identities.first { $0.id == id } }

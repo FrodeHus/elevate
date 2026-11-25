@@ -212,7 +212,7 @@ extension AppModel {
     /// refresh may already have cleared or moved onto a rekeyed role. `attempted` is the number of
     /// requests the run set out to make, so an empty outcome list can be told apart from having had
     /// nothing to do at all.
-    private func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
+    func notifyOutcome(title: String, outcomes: [ActivationOutcome], attempted: Int) async {
         await notifier.notify(title: title,
                               body: ActivationSummary.body(outcomes: outcomes, attempted: attempted,
                                                            names: summaryName(for:)))
@@ -235,7 +235,7 @@ extension AppModel {
         }
         if let i = roles[tenantKey]?.firstIndex(where: { $0.key == old }), let row = roles[tenantKey]?[i] {
             roles[tenantKey]?[i] = EligibleRole(key: new, displayName: row.displayName, detail: row.detail,
-                                                source: row.source, policy: row.policy)
+                                                source: row.source, policy: row.policy, isPrivileged: row.isPrivileged)
         }
         if let policy = policyCache[old] { policyCache[old] = nil; policyCache[new] = policy }
         if let p = progress[old] { progress[old] = nil; progress[new] = p }

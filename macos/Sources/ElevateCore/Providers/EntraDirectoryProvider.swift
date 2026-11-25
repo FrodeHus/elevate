@@ -11,7 +11,7 @@ public struct EntraDirectoryProvider: PIMProvider {
 
     // MARK: Wire models
 
-    struct RoleDefinitionRef: Decodable { let id: String; let displayName: String? }
+    struct RoleDefinitionRef: Decodable { let id: String; let displayName: String?; let isPrivileged: Bool? }
     struct Schedule: Decodable {
         let id: String
         let roleDefinitionId: String
@@ -49,7 +49,8 @@ public struct EntraDirectoryProvider: PIMProvider {
             let key = RoleKey(identityId: identity.id, tenantId: tenant.tenantId, scope: scope)
             let viaGroup: String? = s.memberType?.caseInsensitiveCompare("Group") == .orderedSame ? "group" : nil
             roles.append(EligibleRole(key: key, displayName: s.roleDefinition?.displayName ?? s.roleDefinitionId,
-                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup))
+                                      source: .discovered, policy: .manualDefault, viaGroup: viaGroup,
+                                      isPrivileged: s.roleDefinition?.isPrivileged ?? false))
         }
         return roles.sorted { $0.displayName < $1.displayName }
     }

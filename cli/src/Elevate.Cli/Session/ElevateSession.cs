@@ -146,6 +146,9 @@ public sealed partial class ElevateSession
 
     public string AccountName(string identityId) => Identity(identityId)?.Upn ?? identityId;
 
+    /// <summary>Whether to mark a role as privileged: the loaded role's flag, else the ids (the one place the CLI asks).</summary>
+    public bool IsPrivileged(RoleKey key) => Role(key) is { } role ? PrivilegedRoles.IsPrivileged(role) : PrivilegedRoles.IsKnown(key.Scope);
+
     /// <summary>The display name for a role key: the loaded role, else a manual entry, else the key's raw scope.</summary>
     public string RoleName(RoleKey key)
     {

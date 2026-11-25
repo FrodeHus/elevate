@@ -39,15 +39,29 @@ public struct EligibleRole: Codable, Hashable, Sendable, Identifiable {
     /// Name of the group that grants this eligibility (or "group" when only the member type is known);
     /// nil for a direct eligibility. Shown as a caption; activation is unaffected.
     public var viaGroup: String?
+    /// Microsoft's privileged classification (Entra) or one of the four privileged Azure roles; false when unknown.
+    public var isPrivileged: Bool
     public var id: RoleKey { key }
 
-    public init(key: RoleKey, displayName: String, detail: String? = nil, source: RoleSource, policy: RolePolicy, viaGroup: String? = nil) {
+    public init(key: RoleKey, displayName: String, detail: String? = nil, source: RoleSource, policy: RolePolicy, viaGroup: String? = nil, isPrivileged: Bool = false) {
+        self.isPrivileged = isPrivileged
         self.key = key
         self.displayName = displayName
         self.detail = detail
         self.source = source
         self.policy = policy
         self.viaGroup = viaGroup
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(RoleKey.self, forKey: .key)
+        displayName = try c.decode(String.self, forKey: .displayName)
+        detail = try c.decodeIfPresent(String.self, forKey: .detail)
+        source = try c.decode(RoleSource.self, forKey: .source)
+        policy = try c.decode(RolePolicy.self, forKey: .policy)
+        viaGroup = try c.decodeIfPresent(String.self, forKey: .viaGroup)
+        isPrivileged = try c.decodeIfPresent(Bool.self, forKey: .isPrivileged) ?? false   // caches written before the crown
     }
 }
 

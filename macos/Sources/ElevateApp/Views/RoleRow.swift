@@ -22,7 +22,7 @@ struct RoleRow: View {
             statusDot
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text(role.displayName).font(.body).lineLimit(1)
+                    RoleNameLabel(role.displayName, isPrivileged: model.isPrivileged(role.key)).font(.body)
                     if model.isNewRole(role.key) {
                         Text("new").font(.caption2.weight(.medium))
                             .padding(.horizontal, 5).padding(.vertical, 1)
@@ -36,6 +36,9 @@ struct RoleRow: View {
                 if let via = role.viaGroup {
                     Text(via == "group" ? "via group" : "via \(via)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         .help("This eligibility is granted through a group; activating it activates the role for you")
+                }
+                if model.panelTab == .all, let caption = model.groupCaption(role.key) {
+                    Text(caption).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if role.source == .manual { Text("manual").font(.caption2).foregroundStyle(.secondary) }
                 if assignment == nil, let notes = PolicyNotes.caption(for: role.policy) {

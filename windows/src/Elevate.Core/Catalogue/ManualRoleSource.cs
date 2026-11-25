@@ -19,7 +19,8 @@ public static class ManualRoleSource
                 r.DisplayName,
                 RoleSource.Manual,
                 RolePolicy.ManualDefault,
-                Detail(r.Scope))),
+                Detail(r.Scope),
+                IsPrivileged: PrivilegedRoles.IsKnown(r.Scope))),
         ];
     }
 

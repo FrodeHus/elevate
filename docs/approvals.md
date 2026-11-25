@@ -8,12 +8,13 @@ requests reach you in Elevate. This guide shows where they appear and how to dec
 
 ## Where requests appear
 
-Requests waiting for your decision are pinned at the top of the panel in an **Approvals**
-section, with a count in the header. Each row names the requester, the role or group, the
-tenant, the requested duration and how long ago it was made. Hover a row to read the
-requester's reason.
+Requests waiting for your decision appear at the top of the panel's **Home** view in an
+**Approvals** section, with a count in the header, above Active now. Select a tenant in the sidebar
+and its own view shows that tenant's requests in the same place. Each row names the requester, the
+role or group, the tenant, the requested duration and how long ago it was made. Hover a row to
+read the requester's reason.
 
-![The Approvals section with a request from Sam Chen for Exchange Administrator, with Approve and Deny buttons](images/tutorials/panel-entra.png)
+![Home with an Approvals section: a request from Sam Chen for Exchange Administrator, with Approve and Deny buttons](images/tutorials/panel-home.png)
 
 Elevate reads pending approvals every time it refreshes: when you open the panel, and every
 minute while anything is active. A request you have not seen before also produces an

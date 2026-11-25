@@ -58,7 +58,7 @@ public sealed partial class SaveProfileWindow : Window
                 var row = new Grid { ColumnSpacing = 10 };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                row.Children.Add(new TextBlock { Text = _model.SummaryName(key), TextTrimming = TextTrimming.CharacterEllipsis });
+                row.Children.Add(TenantGroupBox.RoleName(_model.SummaryName(key), _model.IsPrivileged(key)));
                 var duration = new TextBlock { Text = Countdown.Label(ResolvedDuration(key)), FontSize = 12, Foreground = secondary };
                 Grid.SetColumn(duration, 1);
                 row.Children.Add(duration);

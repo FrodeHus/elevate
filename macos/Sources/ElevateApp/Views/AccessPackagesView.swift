@@ -4,13 +4,9 @@ import ElevateCore
 /// Per-tenant access packages: what can be requested, what is pending, held or declined.
 struct AccessPackagesView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
     let tenantKey: TenantKey
-
-    enum Tab: String, CaseIterable, Identifiable {
-        case available = "Available", requested = "Requested", assigned = "Assigned", declined = "Declined"
-        var id: String { rawValue }
-    }
+    /// Height the panel leaves for this view; it scrolls beyond that.
+    var availableHeight: CGFloat = PanelMetrics.maxHeight
 
     /// One searchable line: a package, a request or an assignment.
     struct Row: Identifiable, Hashable {
@@ -19,16 +15,15 @@ struct AccessPackagesView: View {
         let detail: String?
     }
 
-    @State private var tab: Tab = .available
+    @State private var contentHeight: CGFloat = 0
+    @FocusState private var searchFocused: Bool
     @State private var search = ""
     @State private var packages: [AccessPackage] = []
     @State private var packagesError: String?
-    @State private var loadingPackages = false
-    @State private var requesting: AccessPackage?
+    @State private var loadingPackages = true
     @State private var cancelling: Set<String> = []
     @State private var actionError: String?
 
-    private var tenantName: String { model.tenant(tenantKey)?.displayName ?? tenantKey.tenantId }
     private var snapshot: AccessPackageSnapshot { model.accessPackageSnapshot(tenantKey) ?? AccessPackageSnapshot() }
     private var consentError: String? {
         let pollError = model.accessPackageErrors[tenantKey]
@@ -51,13 +46,29 @@ struct AccessPackagesView: View {
         return "No matches for \u{201C}\(query.trimmingCharacters(in: .whitespacesAndNewlines))\u{201D}."
     }
 
+    private var tab: AccessPackageTab { model.accessPackagesTab }
+
     var body: some View {
+        // Sized from the measured content, as in the role list: a ScrollView reports no ideal height here.
+        ScrollView { page }
+            .frame(height: min(max(contentHeight, 44), max(availableHeight, 44)))
+            .task(id: tenantKey) { await reload() }
+            .onChange(of: model.accessPackagesTab) { _, _ in Task { await model.pollAccessPackages(tenantKey) } }
+            .onAppear { searchFocused = true }
+            // Back from the request form, which this list stays alive under.
+            .onChange(of: model.requestingPackage) { _, package in if package == nil { searchFocused = true } }
+    }
+
+    private var page: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Packages you can request through Entra entitlement management. Approvals and delivery happen in Entra.")
                 .font(.caption).foregroundStyle(.secondary)
-            Picker("", selection: $tab) { ForEach(Tab.allCases) { Text($0.rawValue).tag($0) } }
-                .pickerStyle(.segmented).labelsHidden()
+            Picker("", selection: Binding(get: { model.accessPackagesTab }, set: { model.accessPackagesTab = $0 })) {
+                ForEach(AccessPackageTab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented).labelsHidden()
             TextField("Search packages", text: $search)
+                .focused($searchFocused)
             if let consentError {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Access packages are not permitted in this tenant.", systemImage: "info.circle")
@@ -66,7 +77,6 @@ struct AccessPackagesView: View {
                         Button("Open admin consent link…") { NSWorkspace.shared.open(url) }
                     }
                 }
-                Spacer()
             } else {
                 content
             }
@@ -82,21 +92,10 @@ struct AccessPackagesView: View {
                     .accessibilityLabel("Refresh")
                 Text(updatedCaption).font(.caption).foregroundStyle(.secondary)
                 if loadingPackages || !model.accessPackagesPolling.isDisjoint(with: [tenantKey]) { ProgressView().controlSize(.small) }
-                Spacer()
-                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
         }
-        .padding(16)
-        .frame(width: 560, height: 520)
-        .navigationTitle("Access packages in \(tenantName)")
-        .task(id: tenantKey) { await reload() }
-        .onChange(of: tab) { _, _ in Task { await model.pollAccessPackages(tenantKey) } }
-        .sheet(item: $requesting) { package in
-            RequestPackageSheet(tenantKey: tenantKey, package: package) {
-                tab = .requested
-            }
-            .environment(model)
-        }
+        .padding(12)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
     }
 
     @ViewBuilder private var content: some View {
@@ -117,7 +116,7 @@ struct AccessPackagesView: View {
     }
 
     private var availableList: some View {
-        List {
+        VStack(alignment: .leading, spacing: 0) {
             if let packagesError, consentError == nil {
                 Text(packagesError).font(.caption).foregroundStyle(.red)
             } else if !loadingPackages, let caption = Self.emptyCaption(
@@ -127,6 +126,7 @@ struct AccessPackagesView: View {
                 Text(caption).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(availableRows, id: \.0.id) { row, package in
+                packageRow {
                 HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(package.displayName)
@@ -136,10 +136,10 @@ struct AccessPackagesView: View {
                     if let state = existingState(for: package.id) {
                         stateLabel(state.text, color: state.color)
                     } else {
-                        Button("Request") { requesting = package }.buttonStyle(.borderedProminent).controlSize(.small)
+                        Button("Request") { model.beginPackageRequest(package) }.buttonStyle(.borderedProminent).controlSize(.small)
                     }
                 }
-                .padding(.vertical, 2)
+                }
             }
         }
     }
@@ -161,15 +161,17 @@ struct AccessPackagesView: View {
         let open = snapshot.requests.filter { $0.state.isOpen }.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         let rows = Self.filtered(open.map { Row(id: $0.id, name: $0.packageName, detail: $0.justification) }, query: search)
         let byId = Dictionary(open.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        return List {
+        return VStack(alignment: .leading, spacing: 0) {
             if let caption = Self.emptyCaption(total: open.count, filtered: rows.count, query: search, emptyText: "No requests in progress.") {
                 Text(caption).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(rows) { row in
                 if let r = byId[row.id] {
+                    packageRow {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) { Text(r.packageName); stateLabel(Self.label(r.state), color: Self.color(r.state)) }
+                            Text(r.packageName)
+                            stateLabel(Self.label(r.state), color: Self.color(r.state))
                             Text(Self.requestCaption(r)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }
                         Spacer()
@@ -178,7 +180,7 @@ struct AccessPackagesView: View {
                                 .controlSize(.small).disabled(cancelling.contains(r.id))
                         }
                     }
-                    .padding(.vertical, 2)
+                    }
                 }
             }
         }
@@ -190,27 +192,26 @@ struct AccessPackagesView: View {
         let held = snapshot.assignments.filter { $0.state == .delivered }
         let rows = Self.filtered(held.map { Row(id: $0.id, name: $0.packageName, detail: $0.policyName) }, query: search)
         let byId = Dictionary(held.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        return List {
+        return VStack(alignment: .leading, spacing: 0) {
             if let caption = Self.emptyCaption(total: held.count, filtered: rows.count, query: search, emptyText: "No access packages are assigned to you.") {
                 Text(caption).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(rows) { row in
                 if let a = byId[row.id] {
                     let soon = Self.expiresSoon(a)
+                    packageRow {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(a.packageName)
-                                stateLabel(soon ? "expires soon" : "delivered", color: soon ? .orange : .green)
-                            }
+                            Text(a.packageName)
+                            stateLabel(soon ? "expires soon" : "delivered", color: soon ? .orange : .green)
                             Text(Self.assignmentCaption(a)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         if soon, let package = packages.first(where: { $0.id == a.packageId }) {
-                            Button("Request again") { requesting = package }.controlSize(.small)
+                            Button("Request again") { model.beginPackageRequest(package) }.controlSize(.small)
                         }
                     }
-                    .padding(.vertical, 2)
+                    }
                 }
             }
         }
@@ -222,29 +223,39 @@ struct AccessPackagesView: View {
         let ended = snapshot.requests.filter { $0.state.isDeclined }.sorted { ($0.completedAt ?? $0.createdAt ?? .distantPast) > ($1.completedAt ?? $1.createdAt ?? .distantPast) }
         let rows = Self.filtered(ended.map { Row(id: $0.id, name: $0.packageName, detail: $0.justification) }, query: search)
         let byId = Dictionary(ended.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        return List {
+        return VStack(alignment: .leading, spacing: 0) {
             if let caption = Self.emptyCaption(total: ended.count, filtered: rows.count, query: search, emptyText: "No denied, failed or canceled requests.") {
                 Text(caption).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(rows) { row in
                 if let r = byId[row.id] {
+                    packageRow {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) { Text(r.packageName); stateLabel(Self.label(r.state), color: Self.color(r.state)) }
+                            Text(r.packageName)
+                            stateLabel(Self.label(r.state), color: Self.color(r.state))
                             Text(Self.declinedCaption(r)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }
                         Spacer()
                         if r.state != .canceled, let package = packages.first(where: { $0.id == r.packageId }) {
-                            Button("Request again") { requesting = package }.controlSize(.small)
+                            Button("Request again") { model.beginPackageRequest(package) }.controlSize(.small)
                         }
                     }
-                    .padding(.vertical, 2)
+                    }
                 }
             }
         }
     }
 
     // MARK: Helpers
+
+    /// One row of a list: padded, with a divider under it.
+    private func packageRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content().padding(.vertical, 8)
+            Divider()
+        }
+    }
 
     private func stateLabel(_ text: String, color: Color) -> some View {
         HStack(spacing: 4) {

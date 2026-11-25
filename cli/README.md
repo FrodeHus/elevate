@@ -12,7 +12,7 @@ $ elevate roles --tenant contoso
 │ ID       │ Role                     │ Kind  │ Scope              │ Tenant  │ Policy             │ Status                │
 ├──────────┼──────────────────────────┼───────┼────────────────────┼─────────┼────────────────────┼───────────────────────┤
 │ 3f9a1c2e │ Global Reader            │ Entra │ —                  │ Contoso │ 8 h · MFA          │ eligible              │
-│ b71d0e44 │ Contributor              │ Azure │ Prod · subscription│ Contoso │ 2 h · approval     │ awaiting approval     │
+│ b71d0e44 │ Contributor privileged   │ Azure │ Prod · subscription│ Contoso │ 2 h · approval     │ awaiting approval     │
 │ 9c02aa17 │ Platform Admins (member) │ Group │ member             │ Contoso │ 4 h                │ active 2 h 41 min left│
 ╰──────────┴──────────────────────────┴───────┴────────────────────┴─────────┴────────────────────┴───────────────────────╯
 
@@ -147,8 +147,8 @@ filters leave. This is the scripted form of the panel's subtree checkbox.
 
 | Command | What it does |
 |---|---|
-| `elevate` / `elevate status` | What is active, awaiting approval or scheduled, with time left. |
-| `elevate roles [filter]` | Everything you are eligible for, with policy notes and status. `--active` shows only what is active or pending. |
+| `elevate` / `elevate status` | What is active, awaiting approval or scheduled, with time left. Privileged roles are marked as in `elevate roles`. |
+| `elevate roles [filter]` | Everything you are eligible for, with policy notes and status. `--active` shows only what is active or pending. A role Microsoft classes as privileged (or Azure Owner, Contributor, User Access Administrator, Role Based Access Control Administrator) carries `privileged` after its name; `--json` has an `isPrivileged` boolean on every role. |
 | `elevate watch` | A live countdown table until Ctrl+C; re-reads the service every 60 s (`--interval`). |
 | `elevate activate <role…>` | Activate. Duration and reason default to what was used last for that role, then to the policy; `--duration 2h`, `--reason`, `--ticket`, `--at 14:30` (or `+2h`) and `--wait` override. `--wait` waits for the role to be *usable*, not just reported active: it waits out provisioning, then checks the access is genuinely in effect. A role that is already active is left alone. With no role named, a checklist is offered in a terminal. `--all` takes every role the filters and names match instead of insisting each name picks exactly one, which is how a script activates a whole subtree with `--under` or a glob `--scope`. |
 | `elevate extend <role…>` | Deactivate and re-activate, so the clock starts over. Refused for approval-required roles, which would leave you without the role while the request waits. |
