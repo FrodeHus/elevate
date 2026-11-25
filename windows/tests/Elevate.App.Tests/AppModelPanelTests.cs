@@ -92,6 +92,9 @@ public class AppModelPanelTests
         using var test = await TestModel.BootstrappedAsync();
         test.Model.PanelTab = PanelTab.Groups;
         new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.Groups);
+        // Apps is not written: an older release cannot read it and would reset every setting.
+        test.Model.PanelTab = PanelTab.Apps;
+        new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.All);
     }
 
     [Fact]

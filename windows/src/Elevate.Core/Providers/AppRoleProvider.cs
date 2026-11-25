@@ -62,6 +62,8 @@ public sealed class AppRoleProvider : IPimProvider
     /// <summary>
     /// A tenant without the preview (no licence, or not rolled out) refuses these reads. That is the
     /// normal case, not a fault, so it reads as "no app roles" instead of an error on every refresh.
+    /// Only a refusal counts: a 5xx or an unreadable answer is a failed read and must surface, or a
+    /// passing fault would blank the user's app roles.
     /// </summary>
     private async Task<IReadOnlyList<T>> ListOrEmptyAsync<T>(Identity identity, string tenantId, string path, CancellationToken ct)
     {
@@ -69,7 +71,8 @@ public sealed class AppRoleProvider : IPimProvider
         {
             return await _transport.ListAllAsync<T>(identity, tenantId, _transport.GraphBetaUrl(path), Scopes, ct).ConfigureAwait(false);
         }
-        catch (PimException e) when (e.Kind is PimErrorKind.ConsentRequired or PimErrorKind.Forbidden or PimErrorKind.Unexpected)
+        catch (PimException e) when (e.Kind is PimErrorKind.ConsentRequired or PimErrorKind.Forbidden
+            || (e.Kind == PimErrorKind.Unexpected && e.Status is 400 or 404))
         {
             return [];
         }

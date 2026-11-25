@@ -65,6 +65,13 @@ import Foundation
         #expect(try await p.activeAssignments(identity: identity, tenant: tenant).isEmpty)
     }
 
+    @Test func aServerFaultIsAFailedReadNotAnEmptyOne() async throws {
+        let (p, http) = makeProvider()
+        await http.on("GET", "privilegedAccess/appRole", status: 503, body: Data(#"{"error":{"code":"ServiceUnavailable","message":"Try later"}}"#.utf8))
+        await #expect(throws: PIMError.self) { _ = try await p.eligibleRoles(identity: identity, tenant: tenant) }
+        await #expect(throws: PIMError.self) { _ = try await p.activeAssignments(identity: identity, tenant: tenant) }
+    }
+
     @Test func activatePostsSelfActivateForTheAppRole() async throws {
         let (p, http) = makeProvider()
         await http.on("GET", "eligibilityScheduleInstances/filterByCurrentUser", body: Self.eligible)

@@ -99,7 +99,8 @@ extension AppModel {
         // Every kind this identity can read at all, before any per-refresh restriction.
         var eligibleKinds: [RoleScopeKind] = tenant.azureUnavailableReason == nil ? [.entraDirectory, .azureResource, .group, .appRole] : [.entraDirectory, .group, .appRole]
         if !identity.signInMethod.isPreauthorisedForEntraActivation { eligibleKinds.removeAll { $0 == .entraDirectory || $0 == .group || $0 == .appRole } }
-        if tenant.groupsUnavailableReason != nil { eligibleKinds.removeAll { $0 == .group } }
+        // App roles are read with the group permissions, so a tenant that refused those has neither.
+        if tenant.groupsUnavailableReason != nil { eligibleKinds.removeAll { $0 == .group || $0 == .appRole } }
         // A kinds-restricted refresh reads only these providers.
         var kinds = eligibleKinds
         if let requestedKinds { kinds.removeAll { !requestedKinds.contains($0) } }

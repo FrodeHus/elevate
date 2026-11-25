@@ -80,7 +80,9 @@ public sealed partial class ElevateSession
 
         if (tenant.GroupsUnavailableReason is not null)
         {
+            // App roles are read with the group permissions, so a tenant that refused those has neither.
             eligibleKinds.Remove(RoleScopeKind.Group);
+            eligibleKinds.Remove(RoleScopeKind.AppRole);
         }
 
         var kinds = eligibleKinds.ToList();

@@ -46,6 +46,8 @@ public struct AppRoleProvider: PIMProvider {
 
     /// A tenant without the preview (no licence, or not rolled out) refuses these reads. That is the
     /// normal case, not a fault, so it reads as "no app roles" instead of an error on every refresh.
+    /// Only a refusal counts: a 5xx or an unreadable answer is a failed read and must surface, or a
+    /// passing fault would blank the user's app roles.
     func listOrEmpty<T: Decodable & Sendable>(_ type: T.Type, identity: Identity, tenantId: String, path: String) async throws -> [T] {
         do {
             return try await transport.listAll(type, identity: identity, tenantId: tenantId, url: try url(path), scopes: scopes)
@@ -53,7 +55,7 @@ public struct AppRoleProvider: PIMProvider {
             return []
         } catch PIMError.forbidden {
             return []
-        } catch PIMError.unexpected {
+        } catch PIMError.unexpected(let status, _) where status == 400 || status == 404 {
             return []
         }
     }

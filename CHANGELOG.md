@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the CLI use `--kind apps`. Organization-published profiles name one with `"kind": "appRole"`, an
   `app` and a `role`. Requests for an app role that await your approval show
   under **Approvals** with the rest. Only tenants with the preview show any. No new consent is
-  needed.
+  needed. **Going back to an earlier release afterwards is not supported:** it cannot read a
+  state file that mentions an app role, sets it aside as `state.json.bak` and starts with no
+  accounts.
 - macOS and Windows: **a progress bar for a profile run of three or more roles**, with one segment
   per role and a count such as **2 of 4 activated · 1 failed**. The window for activating several
   selected roles shows it too. In the CLI the results table carries the same count as its

@@ -42,6 +42,23 @@ public class AppModelRefreshTests
         test.Model.RolesFor(Sample.TenantKey, PanelTab.Roles).Should().ContainSingle(r => r.Source == RoleSource.Manual);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AppRolesAreReadUnlessTheTenantRefusedTheGroupPermissions(bool refused)
+    {
+        var http = new StubHttpClient();
+        var tenant = refused ? Sample.Tenant() with { GroupsUnavailableReason = "no consent" } : Sample.Tenant();
+        var state = new AppState { Identities = [Sample.Identity()], Tenants = [tenant] };
+        var tokens = new FakeTokenProvider();
+        tokens.AddIdentity(Sample.Identity());
+        using var test = await TestModel.BootstrappedAsync(state, http: http, online: true, tokens: tokens);
+
+        await test.Model.RefreshAsync(Sample.TenantKey);
+
+        http.RequestsMatching("privilegedAccess/appRole").Any().Should().Be(!refused);
+    }
+
     [Fact]
     public async Task DiscoveredRolesWinOverManualOnesAndGetTheirPolicies()
     {
@@ -53,6 +70,7 @@ public class AppModelRefreshTests
         http.On("GET", "roleManagementPolicyAssignments", Fixtures.Text("entra-policy"));
         http.On("GET", "management.azure.com", """{"value":[]}""");
         http.On("GET", "privilegedAccess/group", """{"value":[]}""");
+        http.On("GET", "privilegedAccess/appRole", """{"value":[]}""");
         var state = new AppState { Identities = [Sample.Identity()], Tenants = [Sample.Tenant()] };
         var tokens = new FakeTokenProvider();
         tokens.AddIdentity(Sample.Identity());

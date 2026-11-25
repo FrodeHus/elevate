@@ -31,6 +31,7 @@ public class AppModelAccessPackageTests
         http.On("GET", "roleAssignmentScheduleRequests", """{"value":[]}""");
         http.On("GET", "management.azure.com", """{"value":[]}""");
         http.On("GET", "privilegedAccess/group", """{"value":[]}""");
+        http.On("GET", "privilegedAccess/appRole", """{"value":[]}""");
         return http;
     }
 

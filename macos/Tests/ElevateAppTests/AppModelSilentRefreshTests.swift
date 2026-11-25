@@ -17,6 +17,19 @@ struct AppModelSilentRefreshTests {
         return state
     }
 
+    @Test func appRolesAreReadUnlessTheTenantRefusedTheGroupPermissions() async {
+        for refused in [false, true] {
+            var state = Self.stateWithTenant()
+            if refused { state.tenants[0].groupsUnavailableReason = "no consent" }
+            let http = StubHTTPClient()
+            let model = await makeModel(state: state, http: http, online: true)
+            await model.refreshAll()
+            let asked = await !http.requests(matching: "privilegedAccess/appRole").isEmpty
+            #expect(asked == !refused)
+            cleanup(model)
+        }
+    }
+
     @Test func backgroundRefreshNeverPromptsWhenSilentAcquisitionFails() async {
         let tokens = FakeTokenProvider()
         await tokens.setSilentError(.interactionRequired)

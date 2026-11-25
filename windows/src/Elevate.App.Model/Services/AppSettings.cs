@@ -167,6 +167,12 @@ public sealed class AppSettings : ObservableObject
     }
 
     /// <summary>The flyout's last-used pivot.</summary>
+    /// <summary>
+    /// What is written for the tab. Apps is left out: releases before app roles cannot parse it,
+    /// fail the whole settings read and then save defaults over the client ID and hot key.
+    /// </summary>
+    private static PanelTab? PersistedTab(PanelTab tab) => tab is PanelTab.All or PanelTab.Apps ? null : tab;
+
     public PanelTab PanelTab
     {
         get => _panelTab;
@@ -425,7 +431,7 @@ public sealed class AppSettings : ObservableObject
     private void Save()
     {
         var model = new FileModel(
-            _clientId, _customClientId, _pinnedClientId, _panelTab == PanelTab.All ? null : _panelTab, _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
+            _clientId, _customClientId, _pinnedClientId, PersistedTab(_panelTab), _collapsedActive, _collapsedApprovals, _lastApprovalJustification,
             _seenApprovalIds.Count == 0 ? null : [.. _seenApprovalIds.Order(StringComparer.Ordinal)],
             _hotKey, _hotKeyProfileId, _lastUpdateCheck, _dismissedUpdateVersion,
             _dismissedTokenHintAccounts.Count == 0 ? null : [.. _dismissedTokenHintAccounts.Order(StringComparer.Ordinal)],

@@ -149,7 +149,9 @@ public sealed partial class AppModel
 
         if (tenant.GroupsUnavailableReason is not null)
         {
+            // App roles are read with the group permissions, so a tenant that refused those has neither.
             eligibleKinds.Remove(RoleScopeKind.Group);
+            eligibleKinds.Remove(RoleScopeKind.AppRole);
         }
 
         // A kinds-restricted refresh reads only these providers.

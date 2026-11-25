@@ -91,6 +91,16 @@ public class AppRoleProviderTests
     }
 
     [Fact]
+    public async Task AServerFault_IsAFailedReadNotAnEmptyOne()
+    {
+        var (provider, http) = MakeProvider();
+        http.On("GET", "privilegedAccess/appRole", """{"error":{"code":"ServiceUnavailable","message":"Try later"}}""", 503);
+
+        await ((Func<Task>)(() => provider.EligibleRolesAsync(TestIdentity, Tenant))).Should().ThrowAsync<PimException>();
+        await ((Func<Task>)(() => provider.ActiveAssignmentsAsync(TestIdentity, Tenant))).Should().ThrowAsync<PimException>();
+    }
+
+    [Fact]
     public async Task Activate_PostsSelfActivateForTheAppRole()
     {
         var (provider, http) = MakeProvider();
