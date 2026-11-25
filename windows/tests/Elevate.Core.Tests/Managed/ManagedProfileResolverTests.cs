@@ -102,6 +102,27 @@ public class ManagedProfileResolverTests
             .Should().Equal(AzureKey, EntraKey("id-1"), EntraKey("id-2"), GroupKey);
     }
 
+    [Theory]
+    [InlineData("insights api", "security manager")]
+    [InlineData("SP-1", "ROLE-SEC")]
+    public void ResolvesAnAppRoleByNamesOrIds(string app, string role)
+    {
+        var appKey = Key("id-1", new AppRoleScope("sp-1", "role-sec"));
+        var eligible = new Dictionary<RoleKey, EligibleRole>
+        {
+            [appKey] = new(appKey, "Security Manager", RoleSource.Discovered, RolePolicy.ManualDefault, Detail: "Insights API"),
+        };
+        var set = ManagedProfileSet.Parse($$"""
+            {"profiles":[{"id":"app","name":"App","roles":[
+              {"kind":"appRole","tenant":"contoso.com","app":"{{app}}","role":"{{role}}"}]}]}
+            """);
+
+        var result = ManagedProfileResolver.Resolve(set, TenantIds, Tenants, eligible);
+
+        result.Warnings.Should().BeEmpty();
+        result.Profiles[0].Entries.Select(e => e.RoleKey).Should().Equal(appKey);
+    }
+
     [Fact]
     public void AcceptsATenantGuidDirectly()
     {

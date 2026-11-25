@@ -72,7 +72,7 @@ struct TenantRoles: View {
             } else if roles.isEmpty {
                 HStack(spacing: 8) {
                     Text(emptyText).font(.caption).foregroundStyle(.secondary)
-                    if tenant.discoveryMode == .manualRoles {
+                    if tenant.discoveryMode == .manualRoles, model.panelTab != .apps {
                         // The fix for "No roles configured." should not hide two clicks away in the menu.
                         Button("Configure…") {
                             openWindow(value: PanelRoute.configureRoles(tenant.id))

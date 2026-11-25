@@ -81,8 +81,10 @@ public enum ManagedProfileResolver {
         case let .group(groupId, accessId):
             guard spec.kind == .group, accessId == spec.access else { return false }
             return same(role.displayName, spec.group) || same(groupId, spec.group)
-        case .appRole:
-            return false   // managed profiles cannot name app roles; the parser refuses the kind
+        case let .appRole(servicePrincipalId, appRoleId):
+            guard spec.kind == .appRole,
+                  same(role.detail ?? "", spec.app) || same(servicePrincipalId, spec.app) else { return false }
+            return same(role.displayName, spec.role) || same(appRoleId, spec.role)
         }
     }
 
@@ -90,7 +92,8 @@ public enum ManagedProfileResolver {
         switch spec.kind {
         case .entraDirectory: .entraDirectory(roleDefinitionId: spec.role ?? "", directoryScopeId: spec.directoryScope)
         case .azureResource: .azureResource(scope: spec.scope ?? "", roleDefinitionId: spec.role ?? "")
-        case .group, .appRole: .group(groupId: spec.group ?? "", accessId: spec.access)   // appRole never parses
+        case .group: .group(groupId: spec.group ?? "", accessId: spec.access)
+        case .appRole: .appRole(servicePrincipalId: spec.app ?? "", appRoleId: spec.role ?? "")
         }
     }
 

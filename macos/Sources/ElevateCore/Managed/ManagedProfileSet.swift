@@ -16,6 +16,7 @@ public struct ManagedProfileSet: Hashable, Sendable {
         /// A tenant id or a verified domain, exactly as configured.
         public var tenant: String
         /// Entra: display name or role template id. Azure: display name or role definition GUID.
+        /// App role: display name or app role id.
         public var role: String?
         /// Azure only: the ARM scope, compared case-insensitively.
         public var scope: String?
@@ -25,12 +26,14 @@ public struct ManagedProfileSet: Hashable, Sendable {
         public var group: String?
         /// Group only; defaults to `.member`.
         public var access: GroupAccess
+        /// App role only: the enterprise application's display name or its service principal object id.
+        public var app: String?
         /// Proposed duration for the entry, capped by the role's policy as usual.
         public var duration: Duration?
 
         public init(kind: RoleScopeKind, tenant: String, role: String? = nil, scope: String? = nil,
                     directoryScope: String = "/", group: String? = nil, access: GroupAccess = .member,
-                    duration: Duration? = nil) {
+                    app: String? = nil, duration: Duration? = nil) {
             self.kind = kind
             self.tenant = tenant
             self.role = role
@@ -38,6 +41,7 @@ public struct ManagedProfileSet: Hashable, Sendable {
             self.directoryScope = directoryScope
             self.group = group
             self.access = access
+            self.app = app
             self.duration = duration
         }
     }
@@ -172,6 +176,7 @@ public struct ManagedProfileSet: Hashable, Sendable {
         let role = string(object["role"])
         let scope = string(object["scope"])
         let group = string(object["group"])
+        let app = string(object["app"])
         switch kind {
         case .entraDirectory:
             guard role?.isEmpty == false else { throw fail("role is required") }
@@ -181,12 +186,13 @@ public struct ManagedProfileSet: Hashable, Sendable {
         case .group:
             guard group?.isEmpty == false else { throw fail("group is required") }
         case .appRole:
-            throw fail("appRole is not supported in managed profiles")
+            guard app?.isEmpty == false else { throw fail("app is required for appRole") }
+            guard role?.isEmpty == false else { throw fail("role is required") }
         }
 
         return Role(kind: kind, tenant: tenant, role: role, scope: scope,
                     directoryScope: string(object["directoryScope"]) ?? "/",
-                    group: group, access: access, duration: duration)
+                    group: group, access: access, app: app, duration: duration)
     }
 
     /// JSON strings only: a number or bool in a string field is a shape error, not a value.

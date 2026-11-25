@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS, Windows and CLI: **PIM for app roles (preview).** App roles you are eligible for on an
   enterprise application are listed, activated, deactivated and added to profiles like any other
   role, with the application's name beside them. The apps have an **Apps** view next to Groups; in
-  the CLI use `--kind apps`. Only tenants with the preview show any. No new consent is needed.
+  the CLI use `--kind apps`. Organization-published profiles name one with `"kind": "appRole"`, an
+  `app` and a `role`. Requests for an app role that await your approval show
+  under **Approvals** with the rest. Only tenants with the preview show any. No new consent is
+  needed.
 - macOS and Windows: **a progress bar for a profile run of three or more roles**, with one segment
   per role and a count such as **2 of 4 activated · 1 failed**. The window for activating several
   selected roles shows it too. In the CLI the results table carries the same count as its

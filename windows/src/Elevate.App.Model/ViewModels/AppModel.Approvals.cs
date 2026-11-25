@@ -28,6 +28,7 @@ public sealed partial class AppModel
     {
         [RoleScopeKind.EntraDirectory] = new EntraApprovalProvider(http, tokens),
         [RoleScopeKind.Group] = new GroupApprovalProvider(http, tokens),
+        [RoleScopeKind.AppRole] = new AppRoleApprovalProvider(http, tokens),
         [RoleScopeKind.AzureResource] = new AzureApprovalProvider(http, tokens),
     };
 

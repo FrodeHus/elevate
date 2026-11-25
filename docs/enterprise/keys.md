@@ -236,11 +236,11 @@ The document is JSON:
   reinstall.
 - `name` is required. `reason` prefills the justification in the profile view and the run window;
   `pinned` (default `false`) shows the profile as a button in the panel's sidebar.
-- `roles[]`: `kind` is `entraDirectory`, `azureResource` or `group`; `tenant`
+- `roles[]`: `kind` is `entraDirectory`, `azureResource`, `group` or `appRole`; `tenant`
   is a tenant id or verified domain; `duration` (optional) is an ISO 8601
   duration such as `PT2H`. `entraDirectory` requires `role`; `azureResource`
   requires `role` and `scope`; `group` requires `group` and takes `access`
-  (`member`, the default, or `owner`).
+  (`member`, the default, or `owner`); `appRole` requires `app` and `role`.
 
 Plist (macOS) — the document as one string:
 

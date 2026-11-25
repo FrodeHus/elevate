@@ -109,4 +109,45 @@ import Foundation
         #expect(try JSONDecoder().decode(RoleScope.self, from: data) == scope)
         #expect(String(decoding: data, as: UTF8.self).contains(#""appRole":{"#))
     }
+
+    // MARK: Approvals
+
+    static let approverRequests = Data(#"""
+    {"value":[{"id":"req-9","approvalId":"appr-9","status":"PendingApproval","action":"selfActivate","principalId":"user-2",
+      "appRoleId":"role-sec","servicePrincipalId":"sp-1","justification":"INC-9","createdDateTime":"2026-11-25T07:04:59Z",
+      "scheduleInfo":{"startDateTime":"2026-11-25T07:05:00Z","expiration":{"type":"afterDuration","duration":"PT2H"}},
+      "appRole":{"id":"role-sec","displayName":"Security Manager","value":"SecurityManager"},
+      "servicePrincipal":{"id":"sp-1","displayName":"Insights API"},
+      "principal":{"@odata.type":"#microsoft.graph.user","displayName":"Sam Chen"}}]}
+    """#.utf8)
+
+    @Test func pendingApprovalsNameTheRoleItsAppAndTheRequester() async throws {
+        let http = StubHTTPClient()
+        let p = AppRoleApprovalProvider(http: http, tokens: FakeTokenProvider())
+        await http.on("GET", "approver", body: Self.approverRequests)
+        let items = try await p.pendingApprovals(identity: identity, tenant: tenant)
+        #expect(items.count == 1)
+        let item = try #require(items.first)
+        #expect(item.kind == .appRole && item.targetName == "Security Manager" && item.scopeCaption == "Insights API")
+        #expect(item.requesterName == "Sam Chen" && item.justification == "INC-9")
+        #expect(item.requestedDuration == .seconds(7200) && item.decisionRef == "appr-9")
+        let url = await http.requests.first!.url.absoluteString
+        #expect(url.contains("/beta/identityGovernance/privilegedAccess/appRole/assignmentScheduleRequests/filterByCurrentUser(on='approver')"))
+    }
+
+    @Test func decideReadsTheStagesAndPatchesTheOneInProgress() async throws {
+        let http = StubHTTPClient()
+        let p = AppRoleApprovalProvider(http: http, tokens: FakeTokenProvider())
+        await http.on("GET", "assignmentApprovals/appr-9", body: Data(#"{"id":"appr-9","stages":[{"id":"s1","status":"Completed"},{"id":"s2","status":"InProgress","assignedToMe":true}]}"#.utf8))
+        await http.on("PATCH", "stages/s2", status: 204, body: Data())
+        let request = ApprovalRequest(id: "req-9", tenantKey: tenant.id, kind: .appRole, action: .activate, targetName: "Security Manager",
+                                      requesterName: "Sam Chen", decisionRef: "appr-9")
+        try await p.decide(request, approve: true, justification: "ok", identity: identity)
+        let get = await http.requests.first { $0.method == "GET" }!
+        #expect(get.url.absoluteString.hasSuffix("/beta/identityGovernance/privilegedAccess/appRole/assignmentApprovals/appr-9?$expand=stages"))
+        let patch = await http.requests.first { $0.method == "PATCH" }!
+        #expect(patch.url.absoluteString.hasSuffix("/assignmentApprovals/appr-9/stages/s2"))
+        let body = try JSONSerialization.jsonObject(with: patch.body!) as! [String: Any]
+        #expect(body["reviewResult"] as? String == "Approve" && body["justification"] as? String == "ok")
+    }
 }

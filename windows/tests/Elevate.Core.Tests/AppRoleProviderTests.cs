@@ -153,4 +153,57 @@ public class AppRoleProviderTests
         JsonSerializer.Serialize<RoleScope>(Scope).Should().Be(json);
         JsonSerializer.Deserialize<RoleScope>(json).Should().Be(Scope);
     }
+
+    // MARK: Approvals
+
+    private const string ApproverRequests = """
+        {"value":[{"id":"req-9","approvalId":"appr-9","status":"PendingApproval","action":"selfActivate","principalId":"user-2",
+          "appRoleId":"role-sec","servicePrincipalId":"sp-1","justification":"INC-9","createdDateTime":"2026-11-25T07:04:59Z",
+          "scheduleInfo":{"startDateTime":"2026-11-25T07:05:00Z","expiration":{"type":"afterDuration","duration":"PT2H"}},
+          "appRole":{"id":"role-sec","displayName":"Security Manager","value":"SecurityManager"},
+          "servicePrincipal":{"id":"sp-1","displayName":"Insights API"},
+          "principal":{"@odata.type":"#microsoft.graph.user","displayName":"Sam Chen"}}]}
+        """;
+
+    [Fact]
+    public async Task PendingApprovals_NameTheRoleItsAppAndTheRequester()
+    {
+        var http = new StubHttpClient();
+        var provider = new AppRoleApprovalProvider(http, new FakeTokenProvider());
+        http.On("GET", "approver", ApproverRequests, 200);
+
+        var items = await provider.PendingApprovalsAsync(TestIdentity, Tenant);
+
+        items.Should().ContainSingle();
+        items[0].Kind.Should().Be(RoleScopeKind.AppRole);
+        items[0].TargetName.Should().Be("Security Manager");
+        items[0].ScopeCaption.Should().Be("Insights API");
+        items[0].RequesterName.Should().Be("Sam Chen");
+        items[0].RequestedDuration.Should().Be(TimeSpan.FromHours(2));
+        items[0].DecisionRef.Should().Be("appr-9");
+        http.Requests[0].Url.AbsoluteUri.Should().Contain(
+            "/beta/identityGovernance/privilegedAccess/appRole/assignmentScheduleRequests/filterByCurrentUser(on='approver')");
+    }
+
+    [Fact]
+    public async Task Decide_ReadsTheStagesAndPatchesTheOneInProgress()
+    {
+        var http = new StubHttpClient();
+        var provider = new AppRoleApprovalProvider(http, new FakeTokenProvider());
+        http.On("GET", "assignmentApprovals/appr-9",
+            """{"id":"appr-9","stages":[{"id":"s1","status":"Completed"},{"id":"s2","status":"InProgress","assignedToMe":true}]}""", 200);
+        http.On("PATCH", "stages/s2", "", 204);
+        var request = new ApprovalRequest("req-9", Tenant.Key, RoleScopeKind.AppRole, ApprovalAction.Activate, "Security Manager", "Sam Chen",
+            decisionRef: "appr-9");
+
+        await provider.DecideAsync(request, approve: true, "ok", TestIdentity);
+
+        http.Requests.First(r => r.Method == "GET").Url.AbsoluteUri.Should().EndWith(
+            "/beta/identityGovernance/privilegedAccess/appRole/assignmentApprovals/appr-9?$expand=stages");
+        var patch = http.Requests.First(r => r.Method == "PATCH");
+        patch.Url.AbsoluteUri.Should().EndWith("/assignmentApprovals/appr-9/stages/s2");
+        var body = JsonNode.Parse(Encoding.UTF8.GetString(patch.Body!))!.AsObject();
+        body["reviewResult"]!.GetValue<string>().Should().Be("Approve");
+        body["justification"]!.GetValue<string>().Should().Be("ok");
+    }
 }

@@ -135,6 +135,21 @@ public class ManagedProfileSetTests
             .Should().Be("profile 'x' role 1: scope is required for azureResource");
 
     [Fact]
+    public void AppRoleRequiresAnAppAndARole()
+    {
+        Invalid(() => ManagedProfileSet.Parse(
+            """{"profiles":[{"id":"x","name":"X","roles":[{"kind":"appRole","tenant":"t","role":"Admin"}]}]}"""))
+            .Should().Be("profile 'x' role 1: app is required for appRole");
+
+        var role = ManagedProfileSet.Parse(
+            """{"profiles":[{"id":"x","name":"X","roles":[{"kind":"appRole","tenant":"t","app":"Insights API","role":"Admin"}]}]}""")
+            .Profiles[0].Roles[0];
+        role.Kind.Should().Be(RoleScopeKind.AppRole);
+        role.App.Should().Be("Insights API");
+        role.Role.Should().Be("Admin");
+    }
+
+    [Fact]
     public void GroupRoleRequiresAGroup()
         => Invalid(() => ManagedProfileSet.Parse(
             """{"profiles":[{"id":"x","name":"X","roles":[{"kind":"group","tenant":"t"}]}]}"""))

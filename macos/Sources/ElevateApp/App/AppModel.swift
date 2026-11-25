@@ -343,6 +343,7 @@ final class AppModel {
     private static func makeApprovalProviders(http: any HTTPClient, tokens: any TokenProviding) -> [RoleScopeKind: any ApprovalProvider] {
         [.entraDirectory: EntraApprovalProvider(http: http, tokens: tokens),
          .group: GroupApprovalProvider(http: http, tokens: tokens),
+         .appRole: AppRoleApprovalProvider(http: http, tokens: tokens),
          .azureResource: AzureApprovalProvider(http: http, tokens: tokens)]
     }
 

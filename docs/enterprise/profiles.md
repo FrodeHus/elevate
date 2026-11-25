@@ -86,6 +86,14 @@ PIM policy as usual. The rest depends on the kind:
   { "kind": "group", "tenant": "contoso.com", "group": "SRE on-call", "access": "owner" }
   ```
 
+- **`appRole`** — a PIM for app roles (preview) role on an enterprise application. `app` is the
+  application's display name or its service principal object id; `role` is the app role's display
+  name or its id.
+
+  ```json
+  { "kind": "appRole", "tenant": "contoso.com", "app": "Insights API", "role": "Security Manager" }
+  ```
+
 The document is validated as a whole, not profile by profile: the first shape error rejects the
 entire set — inline or fetched — and leaves one warning naming the profile and field
 (`ManagedProfiles: …` for the inline document, `ManagedProfilesUrl: …` for a fetched one). For the

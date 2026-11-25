@@ -45,7 +45,7 @@ public sealed partial class ElevateSession
             providers ?? [new EntraDirectoryProvider(http, tokens), new AzureResourceProvider(http, tokens), new GroupProvider(http, tokens), new AppRoleProvider(http, tokens)],
             tokens);
         ApprovalProviders = (approvalProviders
-            ?? [new EntraApprovalProvider(http, tokens), new GroupApprovalProvider(http, tokens), new AzureApprovalProvider(http, tokens)])
+            ?? [new EntraApprovalProvider(http, tokens), new GroupApprovalProvider(http, tokens), new AppRoleApprovalProvider(http, tokens), new AzureApprovalProvider(http, tokens)])
             .DistinctBy(p => p.Kind).ToDictionary(p => p.Kind);
         Discovery = new TenantDiscovery(http, tokens);
         Packages = accessPackages ?? new AccessPackageProvider(http, tokens);
