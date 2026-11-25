@@ -241,7 +241,7 @@ private struct ProfileEditor: View {
     }
 
     private func kindLabel(_ kind: RoleScopeKind) -> String {
-        switch kind { case .entraDirectory: "Entra"; case .azureResource: "Azure"; case .group: "Group" }
+        switch kind { case .entraDirectory: "Entra"; case .azureResource: "Azure"; case .group: "Group"; case .appRole: "App" }
     }
 
     /// What the next run would propose today: the entry's own duration, else memory, else the policy.

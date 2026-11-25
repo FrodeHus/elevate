@@ -133,6 +133,10 @@ public static class ManagedProfileResolver
             spec.Kind == RoleScopeKind.Group
             && group.AccessId == spec.Access
             && (Same(role.DisplayName, spec.Group) || Same(group.GroupId, spec.Group)),
+        AppRoleScope app =>
+            spec.Kind == RoleScopeKind.AppRole
+            && (Same(role.Detail ?? "", spec.App) || Same(app.ServicePrincipalId, spec.App))
+            && (Same(role.DisplayName, spec.Role) || Same(app.AppRoleId, spec.Role)),
         _ => false,
     };
 
@@ -140,6 +144,7 @@ public static class ManagedProfileResolver
     {
         RoleScopeKind.EntraDirectory => new EntraDirectoryScope(spec.Role ?? "", spec.DirectoryScope),
         RoleScopeKind.AzureResource => new AzureResourceScope(spec.Scope ?? "", spec.Role ?? ""),
+        RoleScopeKind.AppRole => new AppRoleScope(spec.App ?? "", spec.Role ?? ""),
         _ => new GroupScope(spec.Group ?? "", spec.Access),
     };
 
@@ -167,7 +172,8 @@ public static class ManagedProfileResolver
     {
         RoleScopeKind.EntraDirectory => "entraDirectory",
         RoleScopeKind.AzureResource => "azureResource",
-        _ => "group",
+        RoleScopeKind.Group => "group",
+        _ => "appRole",
     };
 
     private static string Identifier(RoleScope scope) => scope switch
@@ -175,6 +181,7 @@ public static class ManagedProfileResolver
         EntraDirectoryScope entra => $"{entra.DirectoryScopeId}|{entra.RoleDefinitionId}",
         AzureResourceScope azure => $"{azure.Scope}|{azure.RoleDefinitionId}",
         GroupScope group => $"{group.GroupId}|{(group.AccessId == GroupAccess.Owner ? "owner" : "member")}",
+        AppRoleScope app => $"{app.ServicePrincipalId}|{app.AppRoleId}",
         _ => "",
     };
 

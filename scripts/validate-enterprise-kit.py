@@ -26,7 +26,7 @@ ADMX_NS = "{http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions}"
 PREFERENCE_DOMAIN = "no.reothor.elevate"
 REGISTRY_PATH = r"Software\Policies\Reothor\Elevate"
 SIGN_IN_METHODS = {"ownApp", "azureCLI", "azurePowerShell", "custom"}
-ROLE_KINDS = {"entraDirectory", "azureResource", "group"}
+ROLE_KINDS = {"entraDirectory", "azureResource", "group", "appRole"}
 GROUP_ACCESS = {"member", "owner"}
 LIST_KEYS = ("AllowedSignInMethods", "AllowedTenants", "PinnedTenants")
 # The seven managed configuration keys the spec defines (design §2). keys.md is
@@ -256,6 +256,11 @@ def validate_role(role: object, where: str, errors: Errors) -> None:
             errors.add(f"{where}: scope is required for azureResource")
     if kind == "group" and not text("group"):
         errors.add(f"{where}: group is required")
+    if kind == "appRole":
+        if not text("app"):
+            errors.add(f"{where}: app is required for appRole")
+        if not text("role"):
+            errors.add(f"{where}: role is required")
 
 
 def check_profiles_value(value: object, where: str, errors: Errors) -> None:

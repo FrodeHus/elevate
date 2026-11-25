@@ -72,7 +72,7 @@ struct TenantRoles: View {
             } else if roles.isEmpty {
                 HStack(spacing: 8) {
                     Text(emptyText).font(.caption).foregroundStyle(.secondary)
-                    if tenant.discoveryMode == .manualRoles {
+                    if tenant.discoveryMode == .manualRoles, model.panelTab != .apps {
                         // The fix for "No roles configured." should not hide two clicks away in the menu.
                         Button("Configure…") {
                             openWindow(value: PanelRoute.configureRoles(tenant.id))
@@ -87,6 +87,7 @@ struct TenantRoles: View {
                 ForEach(model.roles(for: tenant.id, tab: .roles)) { role in RoleRow(role: role) }
                 azureTreeRows
                 ForEach(model.roles(for: tenant.id, tab: .groups)) { role in RoleRow(role: role) }
+                ForEach(model.roles(for: tenant.id, tab: .apps)) { role in RoleRow(role: role) }
             } else if model.panelTab == .azure {
                 azureTreeRows
             } else {
@@ -115,6 +116,7 @@ struct TenantRoles: View {
         switch (model.panelTab, tenant.discoveryMode) {
         case (.all, _): "No eligible roles or groups."
         case (.groups, _): "No eligible groups."
+        case (.apps, _): "No eligible app roles."
         case (.azure, .manualRoles): "No roles configured."
         case (.azure, _): tenant.azureUnavailableReason ?? "No eligible Azure resource roles."
         case (.roles, .manualRoles): "No roles configured."

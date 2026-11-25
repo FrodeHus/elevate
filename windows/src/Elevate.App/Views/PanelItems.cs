@@ -1089,7 +1089,7 @@ public static class PanelListBuilder
         }
         else if (roles.Count == 0)
         {
-            var manual = tenant.DiscoveryMode == DiscoveryMode.ManualRoles && model.PanelTab != PanelTab.Groups;
+            var manual = tenant.DiscoveryMode == DiscoveryMode.ManualRoles && model.PanelTab is not (PanelTab.Groups or PanelTab.Apps);
             group.Add(new NoteRow(prefix + "note", EmptyText(model, tenant)) { ConfigureTenant = manual ? tenant.Key : null });
         }
 
@@ -1103,7 +1103,7 @@ public static class PanelListBuilder
 
         if (model.PanelTab == PanelTab.All)
         {
-            // The three kinds stacked, Azure as its tree in the middle, as ListRows orders them.
+            // The kinds stacked, Azure as its tree after Entra, as ListRows orders them.
             foreach (var role in model.RolesFor(tenant.Key, PanelTab.Roles))
             {
                 group.Add(RoleRowFor(model, role, now));
@@ -1111,6 +1111,11 @@ public static class PanelListBuilder
 
             AddScopeTreeRows(model, group, tenant, now);
             foreach (var role in model.RolesFor(tenant.Key, PanelTab.Groups))
+            {
+                group.Add(RoleRowFor(model, role, now));
+            }
+
+            foreach (var role in model.RolesFor(tenant.Key, PanelTab.Apps))
             {
                 group.Add(RoleRowFor(model, role, now));
             }
@@ -1169,6 +1174,7 @@ public static class PanelListBuilder
         (PanelTab.All, DiscoveryMode.ManualRoles) => "No roles configured.",
         (PanelTab.All, _) => "No eligible roles.",
         (PanelTab.Groups, _) => "No eligible groups.",
+        (PanelTab.Apps, _) => "No eligible app roles.",
         (PanelTab.Azure, DiscoveryMode.ManualRoles) => "No roles configured.",
         (PanelTab.Azure, _) => tenant.AzureUnavailableReason ?? "No eligible Azure resource roles.",
         (PanelTab.Roles, DiscoveryMode.ManualRoles) => "No roles configured.",

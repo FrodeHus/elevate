@@ -1,6 +1,6 @@
 # Approving requests
 
-If you are an approver for a role, a group or an Azure resource, other people's activation
+If you are an approver for a role, a group, an app role or an Azure resource, other people's activation
 requests reach you in Elevate. This guide shows where they appear and how to decide them.
 
 > The pictures in this guide are real renders of the app with sample data from a fictional

@@ -25,7 +25,7 @@ public enum PropagationHints {
         switch kind {
         case .entraDirectory: 3 * 60
         case .azureResource: 10 * 60
-        case .group: 2 * 60
+        case .group, .appRole: 2 * 60
         }
     }
 
@@ -34,7 +34,7 @@ public enum PropagationHints {
         switch kind {
         case .entraDirectory: 6 * 60
         case .azureResource: 20 * 60
-        case .group: 6 * 60
+        case .group, .appRole: 6 * 60
         }
     }
 
@@ -58,6 +58,9 @@ public enum PropagationHints {
         case .group:
             "Group membership reaches a token only when that token is issued. Anything already signed in keeps "
                 + "the membership it had at sign-in, so sign out and back in there."
+        case .appRole:
+            "An app role reaches the application only in a token issued after the activation. Anything already "
+                + "signed in there keeps its old token, so sign out of the application and back in."
         }
     }
 }

@@ -41,6 +41,7 @@ internal sealed partial class AddRolesDialog : ContentDialog
         _kinds.Items.Add(new SelectorBarItem { Text = "Entra", Tag = RoleScopeKind.EntraDirectory });
         _kinds.Items.Add(new SelectorBarItem { Text = "Azure", Tag = RoleScopeKind.AzureResource });
         _kinds.Items.Add(new SelectorBarItem { Text = "Groups", Tag = RoleScopeKind.Group });
+        _kinds.Items.Add(new SelectorBarItem { Text = "Apps", Tag = RoleScopeKind.AppRole });
         _kinds.SelectedItem = _kinds.Items[0];
         _kinds.SelectionChanged += (s, _) =>
         {
@@ -195,7 +196,8 @@ internal sealed partial class AddRolesDialog : ContentDialog
         {
             RoleScopeKind.EntraDirectory => "Entra",
             RoleScopeKind.AzureResource => "Azure",
-            _ => "Group",
+            RoleScopeKind.Group => "Group",
+            _ => "App",
         };
         return PolicyNotes.Caption(role.Policy) is { } notes ? $"{kind} · {notes}" : kind;
     }

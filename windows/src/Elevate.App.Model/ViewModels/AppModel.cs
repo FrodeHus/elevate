@@ -269,7 +269,7 @@ public sealed partial class AppModel : ObservableObject, IDisposable
     }
 
     private ActivationCoordinator MakeCoordinator(ITokenProvider tokens) => new(
-        [new EntraDirectoryProvider(Http, tokens), new AzureResourceProvider(Http, tokens), new GroupProvider(Http, tokens)],
+        [new EntraDirectoryProvider(Http, tokens), new AzureResourceProvider(Http, tokens), new GroupProvider(Http, tokens), new AppRoleProvider(Http, tokens)],
         tokens);
 
     /// <summary>

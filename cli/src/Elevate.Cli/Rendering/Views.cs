@@ -37,7 +37,7 @@ public static class Dto
     public sealed record ExportedProfile(string Id, string Name, string? Reason, bool Pinned, IReadOnlyList<ExportedRole> Roles);
 
     public sealed record ExportedRole(
-        string Kind, string Tenant, string? Role, string? Scope, string? DirectoryScope, string? Group, string? Access, string? Duration);
+        string Kind, string Tenant, string? Role, string? Scope, string? DirectoryScope, string? Group, string? Access, string? Duration, string? App = null);
 
     public sealed record PlanItem(string RoleId, string Name, string Tenant, string Account, string Disposition, string Duration);
 
@@ -71,7 +71,8 @@ public static class Views
     {
         RoleScopeKind.EntraDirectory => "entra",
         RoleScopeKind.AzureResource => "azure",
-        _ => "group",
+        RoleScopeKind.Group => "group",
+        _ => "app",
     };
 
     public static string StatusName(AssignmentStatusKind kind) => kind switch
@@ -214,6 +215,8 @@ public static class Views
                 null, null, null, duration),
             GroupScope group => new("group", key.TenantId, null, null, null, name ?? group.GroupId,
                 group.AccessId == GroupAccess.Owner ? "owner" : "member", duration),
+            AppRoleScope app => new("appRole", key.TenantId, name ?? app.AppRoleId, null, null, null, null, duration,
+                session.Role(key)?.Detail ?? app.ServicePrincipalId),
             _ => throw new ArgumentOutOfRangeException(nameof(entry), key.Scope, "unknown role scope kind"),
         };
     }

@@ -141,6 +141,16 @@ import Foundation
         }
     }
 
+    @Test func appRoleRequiresAnAppAndARole() throws {
+        let missingApp = #"{"profiles":[{"id":"x","name":"X","roles":[{"kind":"appRole","tenant":"t","role":"Admin"}]}]}"#
+        #expect(throws: ManagedProfileError.invalid("profile 'x' role 1: app is required for appRole")) {
+            try ManagedProfileSet.parse(missingApp)
+        }
+        let ok = #"{"profiles":[{"id":"x","name":"X","roles":[{"kind":"appRole","tenant":"t","app":"Insights API","role":"Admin"}]}]}"#
+        let role = try #require(try ManagedProfileSet.parse(ok).profiles.first?.roles.first)
+        #expect(role.kind == .appRole && role.app == "Insights API" && role.role == "Admin")
+    }
+
     @Test func groupRoleRequiresAGroup() {
         let json = #"{"profiles":[{"id":"x","name":"X","roles":[{"kind":"group","tenant":"t"}]}]}"#
         #expect(throws: ManagedProfileError.invalid("profile 'x' role 1: group is required")) {

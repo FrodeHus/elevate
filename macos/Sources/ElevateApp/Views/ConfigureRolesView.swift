@@ -113,6 +113,7 @@ struct ConfigureRolesView: View {
             case .entraDirectory(let id, _): selectedEntra.insert(id)
             case .azureResource(let scope, let roleDefinitionId): azure.append(AzureRow(scope: scope, roleName: roleDefinitionId))
             case .group(let gid, let access): groups.append(GroupRow(groupId: gid, displayName: m.displayName, access: access))
+            case .appRole: break   // app roles are discovered, never configured by hand
             }
         }
     }

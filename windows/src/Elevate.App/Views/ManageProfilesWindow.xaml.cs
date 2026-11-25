@@ -342,7 +342,8 @@ public sealed partial class ManageProfilesWindow : Window
             {
                 RoleScopeKind.EntraDirectory => "Entra",
                 RoleScopeKind.AzureResource => "Azure",
-                _ => "Group",
+                RoleScopeKind.Group => "Group",
+                _ => "App",
             },
         };
         if (role?.Detail is { } detail)

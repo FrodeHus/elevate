@@ -167,7 +167,7 @@ that was the last thing you looked at:
 Select **All tenants** and **Browse all roles** (or just start typing in the filter field) for the
 role list, or select one tenant in the sidebar to see only that tenant:
 
-![The role list: the filter field, the Eligible bar with All, Entra, Azure and Groups, and roles grouped by account and tenant](images/tutorials/panel-entra.png)
+![The role list: the filter field, the Eligible bar with All, Entra, Azure, Groups and Apps, and roles grouped by account and tenant](images/tutorials/panel-entra.png)
 
 - The header has two buttons: **select roles** (for activating several at once) and **refresh**.
   The filter field below it already has the keyboard focus when the panel opens (⌘F, or Ctrl+F on

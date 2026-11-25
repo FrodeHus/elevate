@@ -8,6 +8,7 @@ import Foundation
         case .entraDirectory: RoleKey(identityId: "i", tenantId: tenantId, scope: .entraDirectory(roleDefinitionId: n, directoryScopeId: "/"))
         case .azureResource: RoleKey(identityId: "i", tenantId: tenantId, scope: .azureResource(scope: "/subscriptions/s", roleDefinitionId: n))
         case .group: RoleKey(identityId: "i", tenantId: tenantId, scope: .group(groupId: n, accessId: .member))
+        case .appRole: RoleKey(identityId: "i", tenantId: tenantId, scope: .appRole(servicePrincipalId: "sp", appRoleId: n))
         }
     }
 

@@ -56,7 +56,7 @@ public static class PropagationHints
     {
         RoleScopeKind.EntraDirectory => TimeSpan.FromMinutes(3),
         RoleScopeKind.AzureResource => TimeSpan.FromMinutes(10),
-        RoleScopeKind.Group => TimeSpan.FromMinutes(2),
+        RoleScopeKind.Group or RoleScopeKind.AppRole => TimeSpan.FromMinutes(2),
         _ => TimeSpan.FromMinutes(5),
     };
 
@@ -65,7 +65,7 @@ public static class PropagationHints
     {
         RoleScopeKind.EntraDirectory => TimeSpan.FromMinutes(6),
         RoleScopeKind.AzureResource => TimeSpan.FromMinutes(20),
-        RoleScopeKind.Group => TimeSpan.FromMinutes(6),
+        RoleScopeKind.Group or RoleScopeKind.AppRole => TimeSpan.FromMinutes(6),
         _ => TimeSpan.FromMinutes(10),
     };
 
@@ -103,6 +103,9 @@ public static class PropagationHints
         RoleScopeKind.Group =>
             "Group membership reaches a token only when that token is issued. Anything already signed in keeps "
             + "the membership it had at sign-in, so sign out and back in there.",
+        RoleScopeKind.AppRole =>
+            "An app role reaches the application only in a token issued after the activation. Anything already "
+            + "signed in there keeps its old token, so sign out of the application and back in.",
         _ => "Anything already signed in keeps the token it was given before the activation; sign out and back in there.",
     };
 }

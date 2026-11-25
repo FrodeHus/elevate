@@ -33,6 +33,7 @@ public sealed record ManagedProfileSet
     /// <param name="Group">Group only: display name or object id.</param>
     /// <param name="Access">Group only; defaults to <see cref="GroupAccess.Member"/>.</param>
     /// <param name="Duration">Proposed duration for the entry, capped by the role's policy as usual.</param>
+    /// <param name="App">App role only: the enterprise application's display name or its service principal object id.</param>
     public sealed record RoleSpec(
         RoleScopeKind Kind,
         string Tenant,
@@ -41,7 +42,8 @@ public sealed record ManagedProfileSet
         string DirectoryScope = "/",
         string? Group = null,
         GroupAccess Access = GroupAccess.Member,
-        TimeSpan? Duration = null);
+        TimeSpan? Duration = null,
+        string? App = null);
 
     /// <summary>
     /// One published profile. <see cref="Id"/> is the administrator's slug; <see cref="ProfileId"/>
@@ -238,6 +240,7 @@ public sealed record ManagedProfileSet
             "entraDirectory" => RoleScopeKind.EntraDirectory,
             "azureResource" => RoleScopeKind.AzureResource,
             "group" => RoleScopeKind.Group,
+            "appRole" => RoleScopeKind.AppRole,
             _ => throw Fail($"unknown kind '{rawKind}'"),
         };
 
@@ -267,6 +270,7 @@ public sealed record ManagedProfileSet
         var role = Text(element, "role");
         var scope = Text(element, "scope");
         var group = Text(element, "group");
+        var app = Text(element, "app");
         switch (kind)
         {
             case RoleScopeKind.EntraDirectory when string.IsNullOrEmpty(role):
@@ -277,11 +281,15 @@ public sealed record ManagedProfileSet
                 throw Fail("scope is required for azureResource");
             case RoleScopeKind.Group when string.IsNullOrEmpty(group):
                 throw Fail("group is required");
+            case RoleScopeKind.AppRole when string.IsNullOrEmpty(app):
+                throw Fail("app is required for appRole");
+            case RoleScopeKind.AppRole when string.IsNullOrEmpty(role):
+                throw Fail("role is required");
             default:
                 break;
         }
 
-        return new RoleSpec(kind, tenant, role, scope, Text(element, "directoryScope") ?? "/", group, access, duration);
+        return new RoleSpec(kind, tenant, role, scope, Text(element, "directoryScope") ?? "/", group, access, duration, app);
     }
 
     /// <summary>JSON strings only: a number or bool in a string field is a shape error, not a value.</summary>

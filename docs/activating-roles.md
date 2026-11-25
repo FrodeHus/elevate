@@ -92,7 +92,7 @@ the role requires approval or a ticket number, or when there is no remembered re
 ## Activate several at once
 
 Click the **select roles** button in the header (the list-with-ticks icon), tick roles in any
-tenant, on any of the All, Entra, Azure and Groups views, then click **Activate N roles**. Switching
+tenant, on any of the All, Entra, Azure, Groups and Apps views, then click **Activate N roles**. Switching
 tenant or view keeps what you ticked, and the line under the buttons says what is picked:
 
 ![Select mode with three roles ticked across Entra and Azure, and the Activate 3 roles button](images/tutorials/panel-select.png)
@@ -120,14 +120,14 @@ all accounts, with the same controls. A tenant's own view shows that tenant's. W
 active role is inside its last fifteen minutes, Home draws it as a card with the time left in
 larger type and **Extend** as its main button.
 
-## All, Entra, Azure and Groups
+## All, Entra, Azure, Groups and Apps
 
-The control in the **Eligible · N** bar narrows the role list. **All**, the default, shows the three
-kinds together under each tenant: Entra roles first, then the Azure scope tree, then groups.
+The control in the **Eligible · N** bar narrows the role list. **All**, the default, shows every
+kind together under each tenant: Entra roles first, then the Azure scope tree, then groups, then app roles.
 
-![The All view: Entra roles, an Azure subscription with its roles, and a group, per tenant](images/tutorials/panel-all.png)
+![The All view: Entra roles, an Azure subscription with its roles, a group and an app role, per tenant](images/tutorials/panel-all.png)
 
-**Entra**, **Azure** and **Groups** show one kind each. The control narrows the eligible roles
+**Entra**, **Azure**, **Groups** and **Apps** show one kind each. The control narrows the eligible roles
 only; Approvals and Active now keep showing everything.
 
 ![The Azure view with resource roles and their scopes](images/tutorials/panel-azure.png)
@@ -154,6 +154,14 @@ alone cannot say which subscriptions belong to which management group.
 The **Groups** control lists PIM for Groups memberships and ownerships. Activating one makes you a
 member or owner of the group for the duration, which in turn may grant Entra or Azure roles.
 Elevate re-reads your roles shortly after a group activation so those show up too.
+
+![The Apps view with an app role and the application it belongs to](images/tutorials/panel-apps.png)
+
+The **Apps** control lists PIM for app roles (preview): roles an enterprise application defines,
+each shown with the application it belongs to. They appear only in tenants that have the preview.
+An activated app role reaches the application in the next token it is issued, so sign out of the
+application and back in after activating; Elevate cannot see that token and so cannot tell you when
+the role has taken effect. Standing app role assignments are not listed.
 
 ## Searching
 

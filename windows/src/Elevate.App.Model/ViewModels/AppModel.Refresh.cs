@@ -140,16 +140,18 @@ public sealed partial class AppModel
         // Entra reads fail every time: skip that provider outright and keep the account Azure-only.
         // Every kind this identity can read at all, before any per-refresh restriction.
         var eligibleKinds = tenant.AzureUnavailableReason is null
-            ? new List<RoleScopeKind> { RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group }
-            : [RoleScopeKind.EntraDirectory, RoleScopeKind.Group];
+            ? new List<RoleScopeKind> { RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group, RoleScopeKind.AppRole }
+            : [RoleScopeKind.EntraDirectory, RoleScopeKind.Group, RoleScopeKind.AppRole];
         if (!identity.SignInMethod.IsPreauthorisedForEntraActivation)
         {
-            eligibleKinds.RemoveAll(k => k is RoleScopeKind.EntraDirectory or RoleScopeKind.Group);
+            eligibleKinds.RemoveAll(k => k is RoleScopeKind.EntraDirectory or RoleScopeKind.Group or RoleScopeKind.AppRole);
         }
 
         if (tenant.GroupsUnavailableReason is not null)
         {
+            // App roles are read with the group permissions, so a tenant that refused those has neither.
             eligibleKinds.Remove(RoleScopeKind.Group);
+            eligibleKinds.Remove(RoleScopeKind.AppRole);
         }
 
         // A kinds-restricted refresh reads only these providers.
@@ -571,7 +573,8 @@ public sealed partial class AppModel
     {
         RoleScopeKind.EntraDirectory => "Entra",
         RoleScopeKind.AzureResource => "Azure",
-        _ => "Groups",
+        RoleScopeKind.Group => "Groups",
+        _ => "App roles",
     };
 
     /// <summary>

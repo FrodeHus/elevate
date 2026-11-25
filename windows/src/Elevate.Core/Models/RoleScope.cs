@@ -3,7 +3,7 @@ using Elevate.Core;
 
 namespace Elevate.Core.Models;
 
-public enum RoleScopeKind { EntraDirectory, AzureResource, Group }
+public enum RoleScopeKind { EntraDirectory, AzureResource, Group, AppRole }
 
 public enum GroupAccess { Member, Owner }
 
@@ -35,6 +35,12 @@ public sealed record GroupScope(string GroupId, GroupAccess AccessId) : RoleScop
 {
     [JsonIgnore]
     public override RoleScopeKind Kind => RoleScopeKind.Group;
+}
+
+public sealed record AppRoleScope(string ServicePrincipalId, string AppRoleId) : RoleScope
+{
+    [JsonIgnore]
+    public override RoleScopeKind Kind => RoleScopeKind.AppRole;
 }
 
 /// <summary>Identity + tenant + scope: the stable identity of one role a user can hold.</summary>

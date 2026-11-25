@@ -205,6 +205,7 @@ public class AppModelAccountTests
         http.On("GET", "roleAssignmentScheduleRequests", """{"value":[]}""");
         http.On("GET", "management.azure.com", """{"value":[]}""");
         http.On("GET", "privilegedAccess/group", """{"value":[]}""");
+        http.On("GET", "privilegedAccess/appRole", """{"value":[]}""");
         using var test = await TestModel.BootstrappedAsync(http: http);
         var model = test.Model;
 

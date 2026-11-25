@@ -71,16 +71,18 @@ public sealed partial class ElevateSession
         }
 
         var eligibleKinds = tenant.AzureUnavailableReason is null
-            ? new List<RoleScopeKind> { RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group }
-            : [RoleScopeKind.EntraDirectory, RoleScopeKind.Group];
+            ? new List<RoleScopeKind> { RoleScopeKind.EntraDirectory, RoleScopeKind.AzureResource, RoleScopeKind.Group, RoleScopeKind.AppRole }
+            : [RoleScopeKind.EntraDirectory, RoleScopeKind.Group, RoleScopeKind.AppRole];
         if (!identity.SignInMethod.IsPreauthorisedForEntraActivation)
         {
-            eligibleKinds.RemoveAll(k => k is RoleScopeKind.EntraDirectory or RoleScopeKind.Group);
+            eligibleKinds.RemoveAll(k => k is RoleScopeKind.EntraDirectory or RoleScopeKind.Group or RoleScopeKind.AppRole);
         }
 
         if (tenant.GroupsUnavailableReason is not null)
         {
+            // App roles are read with the group permissions, so a tenant that refused those has neither.
             eligibleKinds.Remove(RoleScopeKind.Group);
+            eligibleKinds.Remove(RoleScopeKind.AppRole);
         }
 
         var kinds = eligibleKinds.ToList();
@@ -313,7 +315,8 @@ public sealed partial class ElevateSession
     {
         RoleScopeKind.EntraDirectory => "Entra",
         RoleScopeKind.AzureResource => "Azure",
-        _ => "Groups",
+        RoleScopeKind.Group => "Groups",
+        _ => "App roles",
     };
 
     /// <summary>Reads the cached Graph token's scopes; silent only, null when nothing can be told.</summary>

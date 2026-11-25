@@ -252,7 +252,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{x:Bind Title, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                <views:SegmentedPivots Grid.Column="1" Compact="True" Width="196" Selected="{x:Bind Tab, Mode=OneWay}" SelectionChanged="OnPivotChanged" />
+                <views:SegmentedPivots Grid.Column="1" Compact="True" Width="248" Selected="{x:Bind Tab, Mode=OneWay}" SelectionChanged="OnPivotChanged" />
             </Grid>
             <Grid Visibility="{x:Bind StandardHeaderVisibility, Mode=OneWay}" Padding="10,6,6,6" ColumnSpacing="8" Background="{x:Bind HeaderBrush, Mode=OneWay}"
                   BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,1" MinHeight="40">

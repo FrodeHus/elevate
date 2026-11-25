@@ -286,6 +286,7 @@ public static class TenantCommands
         AzureResourceScope a => a.Scope,
         GroupScope g => g.GroupId + (g.AccessId == GroupAccess.Owner ? " (owner)" : " (member)"),
         EntraDirectoryScope e => e.RoleDefinitionId,
+        AppRoleScope a => a.AppRoleId + " @ " + a.ServicePrincipalId,
         _ => string.Empty,
     };
 }

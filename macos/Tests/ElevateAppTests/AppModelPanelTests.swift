@@ -91,6 +91,17 @@ struct AppModelPanelTests {
         cleanup(model)
     }
 
+    @Test func appRolesHaveTheirOwnTabAndStayOutOfEntra() async {
+        let model = await modelWithOneOfEachKind()
+        let appKey = Sample.key(.appRole(servicePrincipalId: "sp-1", appRoleId: "role-1"))
+        model.roles[Sample.tenantKey, default: []].append(Sample.role(appKey, name: "Security Manager"))
+        #expect(model.roles(for: Sample.tenantKey, tab: .apps).map(\.displayName) == ["Security Manager"])
+        #expect(model.roles(for: Sample.tenantKey, tab: .roles).map(\.displayName) == ["Global Reader"])
+        model.panelTab = .all
+        #expect(model.listRows(for: Sample.tenantKey).last == appKey)
+        cleanup(model)
+    }
+
     @Test func visibleIdentitiesDropsAccountsWithoutAMatchWhileFiltering() async {
         var state = AppState()
         state.identities = [Sample.identity("id-1"), Sample.identity("id-2")]

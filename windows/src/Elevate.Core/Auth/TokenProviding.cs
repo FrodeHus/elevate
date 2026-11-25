@@ -25,6 +25,12 @@ public static class Scopes
         "https://graph.microsoft.com/RoleManagementPolicy.Read.AzureADGroup",
     ];
 
+    /// <summary>PIM for app roles (preview).</summary>
+    // shortcut: the preview accepts the PIM for Groups scopes, which every tenant has already consented
+    // to. Switch to the three *.EntraAppRole scopes (and add them to the registration and the consent
+    // URL) if Graph starts refusing these.
+    public static IReadOnlyList<string> AppRoleAll => GroupAll;
+
     /// <summary>
     /// Delegated Graph permission for self-service entitlement management (access packages).
     /// User-consentable: no admin consent is needed, unlike the PIM scopes above.

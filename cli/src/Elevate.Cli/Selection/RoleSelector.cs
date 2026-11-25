@@ -19,7 +19,8 @@ public sealed record RoleFilter(
         "entra" or "directory" or "entradirectory" => RoleScopeKind.EntraDirectory,
         "azure" or "arm" or "azureresource" => RoleScopeKind.AzureResource,
         "group" or "groups" => RoleScopeKind.Group,
-        var other => throw new CliException($"Unknown kind '{other}'. Use entra, azure or groups.", ExitCodes.Usage),
+        "app" or "apps" or "approle" => RoleScopeKind.AppRole,
+        var other => throw new CliException($"Unknown kind '{other}'. Use entra, azure, groups or apps.", ExitCodes.Usage),
     };
 }
 
@@ -234,7 +235,8 @@ public static class RoleSelector
     {
         RoleScopeKind.EntraDirectory => "Entra",
         RoleScopeKind.AzureResource => "Azure",
-        _ => "Group",
+        RoleScopeKind.Group => "Group",
+        _ => "App",
     };
 
     private static bool Contains(string? text, string term) =>

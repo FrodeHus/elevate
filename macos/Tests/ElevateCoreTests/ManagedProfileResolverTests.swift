@@ -91,6 +91,21 @@ import Foundation
         #expect(result.profiles.first?.entries.map(\.roleKey) == [azureKey, entraKey("id-1"), entraKey("id-2"), groupKey])
     }
 
+    @Test func resolvesAnAppRoleByNamesOrIds() throws {
+        let appKey = key("id-1", .appRole(servicePrincipalId: "sp-1", appRoleId: "role-sec"))
+        let eligible = [appKey: EligibleRole(key: appKey, displayName: "Security Manager", detail: "Insights API",
+                                             source: .discovered, policy: .manualDefault)]
+        for (app, role) in [("insights api", "security manager"), ("SP-1", "ROLE-SEC")] {
+            let set = try ManagedProfileSet.parse("""
+            {"profiles":[{"id":"app","name":"App","roles":[
+              {"kind":"appRole","tenant":"contoso.com","app":"\(app)","role":"\(role)"}]}]}
+            """)
+            let result = ManagedProfileResolver.resolve(set, tenantIds: tenantIds, tenants: tenants, roles: eligible)
+            #expect(result.warnings.isEmpty)
+            #expect(result.profiles.first?.entries.map(\.roleKey) == [appKey])
+        }
+    }
+
     @Test func acceptsATenantGuidDirectly() throws {
         let set = try ManagedProfileSet.parse("""
         {"profiles":[{"id":"guid","name":"Guid","roles":[

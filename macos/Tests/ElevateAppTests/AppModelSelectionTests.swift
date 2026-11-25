@@ -44,7 +44,7 @@ struct AppModelSelectionTests {
 
         model.toggleSelection(Sample.entraKey)
         model.toggleSelection(Sample.azureKey)
-        #expect(model.selectionBreakdown == (0, 0, 1))
+        #expect(model.selectionBreakdown == (0, 0, 1, 0))
         #expect(model.selectionNoun == "group")
         cleanup(model)
     }

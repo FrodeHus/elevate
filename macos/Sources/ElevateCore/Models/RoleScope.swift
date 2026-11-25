@@ -1,7 +1,7 @@
 import Foundation
 
 public enum RoleScopeKind: String, Codable, Hashable, Sendable, CaseIterable {
-    case entraDirectory, azureResource, group
+    case entraDirectory, azureResource, group, appRole
 }
 
 public enum GroupAccess: String, Codable, Hashable, Sendable { case member, owner }
@@ -10,12 +10,14 @@ public enum RoleScope: Codable, Hashable, Sendable {
     case entraDirectory(roleDefinitionId: String, directoryScopeId: String)
     case azureResource(scope: String, roleDefinitionId: String)
     case group(groupId: String, accessId: GroupAccess)
+    case appRole(servicePrincipalId: String, appRoleId: String)
 
     public var kind: RoleScopeKind {
         switch self {
         case .entraDirectory: .entraDirectory
         case .azureResource: .azureResource
         case .group: .group
+        case .appRole: .appRole
         }
     }
 }

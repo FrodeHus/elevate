@@ -92,6 +92,9 @@ public class AppModelPanelTests
         using var test = await TestModel.BootstrappedAsync();
         test.Model.PanelTab = PanelTab.Groups;
         new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.Groups);
+        // Apps is not written: an older release cannot read it and would reset every setting.
+        test.Model.PanelTab = PanelTab.Apps;
+        new AppSettings(test.Directory).PanelTab.Should().Be(PanelTab.All);
     }
 
     [Fact]
@@ -221,12 +224,12 @@ public class AppModelSelectionTests
     {
         using var test = await SelectedModelAsync();
         var model = test.Model;
-        model.SelectionBreakdown.Should().Be((1, 1, 1));
+        model.SelectionBreakdown.Should().Be((1, 1, 1, 0));
         model.SelectionNoun.Should().Be("item");
 
         model.ToggleSelection(Sample.EntraKey);
         model.ToggleSelection(Sample.AzureKey);
-        model.SelectionBreakdown.Should().Be((0, 0, 1));
+        model.SelectionBreakdown.Should().Be((0, 0, 1, 0));
         model.SelectionNoun.Should().Be("group");
     }
 
