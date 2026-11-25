@@ -93,7 +93,11 @@ extension AppModel {
         if runIsOnScreen(id) { runSessions[id]?.resultsSeen = true }
     }
 
-    func panelClosed() { panelIsOpen = false }
+    func panelClosed() {
+        panelIsOpen = false
+        // Every confirmation card lives in the panel; one whose onDisappear was skipped must not keep Escape off.
+        openConfirmations = 0
+    }
 
     /// The reopen rule: results already seen are dropped; a draft stays; otherwise the panel
     /// comes back on a run that is still going or whose results nobody has read.

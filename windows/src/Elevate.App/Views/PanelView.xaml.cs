@@ -491,6 +491,14 @@ public sealed partial class PanelView : UserControl
         }
 
         var now = DateTimeOffset.UtcNow;
+        // The extend card comes and goes with the clock, not only with the next model change.
+        if (_model.PanelContent is PanelContent.Home && !_model.CollapsedActive
+            && _model.HeroAssignment(now)?.RoleKey != _groups.SelectMany(g => g).OfType<HeroRow>().FirstOrDefault()?.Role.RoleKey)
+        {
+            Draw(_model);
+            return;
+        }
+
         foreach (var group in _groups)
         {
             foreach (var item in group)

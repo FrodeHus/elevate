@@ -163,15 +163,15 @@ struct PanelView: View {
                     }
                 }
                 .frame(height: model.usesSharedApp ? 220 : 160)
+            } else if let key = packagesTenant {
+                packages(key)
             } else {
                 switch model.panelContent {
                 case .tenant(let key): RoleListView(tenant: key, availableHeight: listHeight)
                 case .home: HomeView(availableHeight: listHeight)
                 case .profile(let id): ProfilePanelView(profileId: id).frame(maxHeight: listHeight)
-                case .accessPackages(let key): AccessPackagesView(tenantKey: key, availableHeight: listHeight)
-                case .requestPackage(let key, let package):
-                    RequestPackageView(tenantKey: key, package: package, availableHeight: listHeight)
                 case .roleList: RoleListView(tenant: nil, availableHeight: listHeight)
+                case .accessPackages, .requestPackage: EmptyView()   // drawn by `packages` above
                 }
             }
             Spacer(minLength: 0)
@@ -224,6 +224,27 @@ struct PanelView: View {
     private var shownUnpinnedProfile: [ActivationProfile] {
         guard case .profile(let id) = model.panelContent, let p = model.profile(id: id), !p.pinned else { return [] }
         return [p]
+    }
+
+    private var packagesTenant: TenantKey? {
+        switch model.panelContent {
+        case .accessPackages(let key), .requestPackage(let key, _): key
+        default: nil
+        }
+    }
+
+    /// The package list stays alive (collapsed) under the request form, so its search text and the
+    /// packages it loaded are still there when the form closes.
+    @ViewBuilder private func packages(_ key: TenantKey) -> some View {
+        let requesting = model.requestingPackage
+        AccessPackagesView(tenantKey: key, availableHeight: listHeight)
+            .frame(height: requesting == nil ? nil : 0).clipped()
+            .opacity(requesting == nil ? 1 : 0)
+            .disabled(requesting != nil)
+            .accessibilityHidden(requesting != nil)
+        if let requesting {
+            RequestPackageView(tenantKey: key, package: requesting, availableHeight: listHeight).id(requesting.id)
+        }
     }
 
     private var listHeight: CGFloat { max(PanelMetrics.maxHeight - topHeight - bottomHeight, 44) }

@@ -316,4 +316,12 @@ struct AppModelSelectionStateTests {
         #expect(model.signOutRequest == nil && !model.allProfilesOpen)
         cleanup(model)
     }
+
+    @Test func closingThePanelClearsALeftoverConfirmation() async {
+        let model = await makeModel()
+        model.confirmationOpened()
+        model.panelClosed()
+        #expect(!model.confirmationIsOpen)
+        cleanup(model)
+    }
 }

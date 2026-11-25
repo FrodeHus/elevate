@@ -55,6 +55,8 @@ struct AccessPackagesView: View {
             .task(id: tenantKey) { await reload() }
             .onChange(of: model.accessPackagesTab) { _, _ in Task { await model.pollAccessPackages(tenantKey) } }
             .onAppear { searchFocused = true }
+            // Back from the request form, which this list stays alive under.
+            .onChange(of: model.requestingPackage) { _, package in if package == nil { searchFocused = true } }
     }
 
     private var page: some View {

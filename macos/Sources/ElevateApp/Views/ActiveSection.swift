@@ -16,9 +16,15 @@ struct ActiveSection: View {
         if !rows.isEmpty {
             Section {
                 if !model.collapsedActive {
-                    let hero = showsHero ? model.heroAssignment?.roleKey : nil
                     ForEach(rows) { a in
-                        if a.roleKey == hero { ActiveHeroCard(assignment: a) } else { ActiveRow(assignment: a) }
+                        if showsHero && a.id == rows.first?.id {
+                            // On the clock: the card appears the second Extend applies, not at the next refresh.
+                            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                                if model.canExtendNow(a.roleKey, now: ctx.date) { ActiveHeroCard(assignment: a) } else { ActiveRow(assignment: a) }
+                            }
+                        } else {
+                            ActiveRow(assignment: a)
+                        }
                     }
                 }
             } header: {
