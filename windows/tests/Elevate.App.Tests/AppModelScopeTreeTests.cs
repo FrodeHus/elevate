@@ -132,29 +132,29 @@ public class AppModelScopeTreeTests
     }
 
     [Fact]
-    public async Task ASubtreeCheckboxOnlyTakesWhatCanActuallyBeActivated()
+    public async Task ASubtreeCheckboxTakesActiveRolesTooSoTheyCanGoInAProfile()
     {
         using var test = await SeededAsync();
         var model = test.Model;
         var alpha = model.AzureTree(Sample.TenantKey)[0];
         model.Active[alpha.Roles[0].Key] = Sample.Assignment(alpha.Roles[0].Key);
 
-        model.SubtreeKeys(alpha).Should().HaveCount(2);
-        model.ToggleSubtree(alpha).Should().Be(2);
+        model.SubtreeKeys(alpha).Should().HaveCount(3);
+        model.ToggleSubtree(alpha).Should().Be(3);
         model.SubtreeState(alpha).Should().Be(AppModel.SubtreeSelection.All);
     }
 
     [Fact]
-    public async Task ASubtreeWithNothingToTakeReportsNoSelection()
+    public async Task ASelectedActiveRoleIsSkippedByBulkActivation()
     {
         using var test = await SeededAsync();
         var model = test.Model;
-        var bravo = model.AzureTree(Sample.TenantKey)[1];
-        model.Active[bravo.Roles[0].Key] = Sample.Assignment(bravo.Roles[0].Key);
+        var alpha = model.AzureTree(Sample.TenantKey)[0];
+        model.Active[alpha.Roles[0].Key] = Sample.Assignment(alpha.Roles[0].Key);
+        model.ToggleSubtree(alpha);
 
-        model.SubtreeKeys(bravo).Should().BeEmpty();
-        model.SubtreeState(bravo).Should().Be(AppModel.SubtreeSelection.None);
-        model.ToggleSubtree(bravo).Should().Be(0);
+        model.Selection.Should().Contain(alpha.Roles[0].Key);
+        model.SelectionToActivate.Should().HaveCount(2).And.NotContain(alpha.Roles[0].Key);
     }
 
     [Fact]

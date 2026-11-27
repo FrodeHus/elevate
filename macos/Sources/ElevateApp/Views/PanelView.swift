@@ -182,13 +182,16 @@ struct PanelView: View {
                         HStack(spacing: 8) {
                             Button("Save as profile…") { open(.saveProfile(Array(model.selection).sorted { "\($0)" < "\($1)" })) }
                                 .disabled(model.selection.isEmpty)
+                            // Already active (or scheduled, or pending) roles stay selectable for a profile; activation skips them.
+                            let toActivate = model.selectionToActivate
                             Button {
-                                open(.activate(Array(model.selection).sorted { "\($0)" < "\($1)" }))
+                                open(.activate(toActivate))
                             } label: {
-                                Text("Activate \(model.selectionCount) \(model.selectionNoun)\(model.selectionCount == 1 ? "" : "s")").frame(maxWidth: .infinity)
+                                Text("Activate \(toActivate.count) \(model.selectionNoun)\(toActivate.count == 1 ? "" : "s")").frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.selection.isEmpty)
+                            .disabled(toActivate.isEmpty)
+                            .help(toActivate.count < model.selectionCount ? "Roles that are already active are skipped" : "")
                         }
                         if let hint = selectionHint {
                             Text(hint).font(.caption2).foregroundStyle(.secondary).lineLimit(1)

@@ -118,25 +118,26 @@ struct AppModelScopeTreeTests {
         cleanup(model)
     }
 
-    @Test func aSubtreeCheckboxOnlyTakesWhatCanActuallyBeActivated() async {
+    @Test func aSubtreeCheckboxTakesActiveRolesTooSoTheyCanGoInAProfile() async {
         let model = await seeded()
         let alpha = model.azureTree(for: Sample.tenantKey)[0]
         model.active[alpha.roles[0].key] = Sample.assignment(alpha.roles[0].key)
 
-        #expect(model.subtreeKeys(alpha).count == 2)
-        #expect(model.toggleSubtree(alpha) == 2)
+        #expect(model.subtreeKeys(alpha).count == 3)
+        #expect(model.toggleSubtree(alpha) == 3)
         #expect(model.subtreeState(alpha) == .all)
         cleanup(model)
     }
 
-    @Test func aSubtreeWithNothingToTakeReportsNoSelection() async {
+    @Test func aSelectedActiveRoleIsSkippedByBulkActivation() async {
         let model = await seeded()
-        let bravo = model.azureTree(for: Sample.tenantKey)[1]
-        model.active[bravo.roles[0].key] = Sample.assignment(bravo.roles[0].key)
+        let alpha = model.azureTree(for: Sample.tenantKey)[0]
+        model.active[alpha.roles[0].key] = Sample.assignment(alpha.roles[0].key)
+        model.toggleSubtree(alpha)
 
-        #expect(model.subtreeKeys(bravo).isEmpty)
-        #expect(model.subtreeState(bravo) == .none)
-        #expect(model.toggleSubtree(bravo) == 0)
+        #expect(model.selection.contains(alpha.roles[0].key))
+        #expect(model.selectionToActivate.count == 2)
+        #expect(!model.selectionToActivate.contains(alpha.roles[0].key))
         cleanup(model)
     }
 

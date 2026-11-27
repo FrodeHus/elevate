@@ -281,9 +281,9 @@ public sealed partial class AppModel
     public enum SubtreeSelection { None, Some, All }
 
     /// <summary>
-    /// The roles a scope node's checkbox acts on: everything at or below it that can actually be
-    /// activated. A role already active, or view-only, is not something the checkbox can take, so
-    /// it is left out of both the count and the toggle.
+    /// The roles a scope node's checkbox acts on: everything at or below it that can be chosen.
+    /// A view-only role is not something the checkbox can take, so it is left out of both the
+    /// count and the toggle.
     /// </summary>
     public IReadOnlyList<RoleKey> SubtreeKeys(ScopeNode node)
     {
@@ -292,19 +292,21 @@ public sealed partial class AppModel
     }
 
     /// <summary>
-    /// Whether a role's own checkbox would be enabled: activatable, and not already active,
-    /// scheduled or awaiting approval — there is nothing for a bulk activation to do with those.
-    /// A failed one can be chosen again.
+    /// Whether a role's own checkbox would be enabled. An active, scheduled or pending role can be
+    /// chosen too, so it can be saved to a profile; a bulk activation skips it (<see cref="SelectionToActivate"/>).
     /// </summary>
-    public bool CanSelect(RoleKey key)
-    {
-        if (!CanActivate(key))
-        {
-            return false;
-        }
+    public bool CanSelect(RoleKey key) => CanActivate(key);
 
-        return Assignment(key) is not { } assignment || assignment.Status.Kind == AssignmentStatusKind.Failed;
-    }
+    /// <summary>
+    /// The part of the selection a bulk activation acts on: roles already active, scheduled or
+    /// awaiting approval are skipped. A failed one is tried again.
+    /// </summary>
+    public IReadOnlyList<RoleKey> SelectionToActivate =>
+    [
+        .. Selection
+            .Where(key => Assignment(key) is not { } assignment || assignment.Status.Kind == AssignmentStatusKind.Failed)
+            .OrderBy(k => k.ToString(), StringComparer.Ordinal),
+    ];
 
     public SubtreeSelection SubtreeState(ScopeNode node)
     {

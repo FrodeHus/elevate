@@ -16,7 +16,7 @@ struct RoleRow: View {
                 Toggle("", isOn: Binding(get: { model.selection.contains(role.key) }, set: { _ in model.toggleSelection(role.key) }))
                     .labelsHidden()
                     .accessibilityLabel("Select \(role.displayName)")
-                    .disabled(assignment?.status == .active || viewOnlyReason != nil)
+                    .disabled(viewOnlyReason != nil)
                     .help(viewOnlyReason ?? "")
             }
             statusDot

@@ -234,21 +234,25 @@ extension AppModel {
     /// Where a scope node's checkbox stands: nothing under it chosen, some of it, or all of it.
     enum SubtreeSelection { case none, some, all }
 
-    /// The roles a scope node's checkbox acts on: everything at or below it that can actually be
-    /// activated. A role already active, or view-only, is not something the checkbox can take, so
-    /// it is left out of both the count and the toggle.
+    /// The roles a scope node's checkbox acts on: everything at or below it that can be chosen.
+    /// A view-only role is not something the checkbox can take, so it is left out of both the
+    /// count and the toggle.
     func subtreeKeys(_ node: ScopeNode) -> [RoleKey] {
         node.allRoles.map(\.key).filter(canSelect)
     }
 
-    /// Whether a role's own checkbox would be enabled: activatable, and not already active,
-    /// scheduled or awaiting approval — there is nothing for a bulk activation to do with those.
-    /// A failed one can be chosen again.
-    func canSelect(_ key: RoleKey) -> Bool {
-        guard canActivate(key) else { return false }
-        guard let assignment = assignment(for: key) else { return true }
-        if case .failed = assignment.status { return true }
-        return false
+    /// Whether a role's own checkbox would be enabled. An active, scheduled or pending role can be
+    /// chosen too, so it can be saved to a profile; a bulk activation skips it (`selectionToActivate`).
+    func canSelect(_ key: RoleKey) -> Bool { canActivate(key) }
+
+    /// The part of the selection a bulk activation acts on: roles already active, scheduled or
+    /// awaiting approval are skipped. A failed one is tried again.
+    var selectionToActivate: [RoleKey] {
+        selection.filter { key in
+            guard let assignment = assignment(for: key) else { return true }
+            if case .failed = assignment.status { return true }
+            return false
+        }.sorted { "\($0)" < "\($1)" }
     }
 
     func subtreeState(_ node: ScopeNode) -> SubtreeSelection {
