@@ -176,6 +176,11 @@ public sealed partial class PanelView : UserControl
         DrawHeader(model);
         OfflineBar.IsOpen = !model.IsOnline;
         RefreshButton.IsEnabled = model.IsOnline;
+        // The ring takes the icon's place while any tenant is being read, whichever view is showing.
+        var refreshing = model.Busy.Count > 0;
+        RefreshIcon.Visibility = refreshing ? Visibility.Collapsed : Visibility.Visible;
+        RefreshRing.Visibility = refreshing ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(RefreshButton, refreshing ? "Refreshing" : "Refresh");
         SelectToggle.IsChecked = model.SelectMode;
         // Escape can change the query while focus is elsewhere. Never while typing: TextChanged arrives after the
         // text changed, so a redraw in between would write the old query back and lose the keystroke.
@@ -268,8 +273,11 @@ public sealed partial class PanelView : UserControl
             BulkCaption.Text = count == 0
                 ? "Pick the roles to activate together"
                 : $"{count} {noun}{(count == 1 ? "" : "s")} selected · {tenants} tenant{(tenants == 1 ? "" : "s")}";
-            BulkActivate.Content = count == 0 ? "Activate" : $"Activate {count} {noun}{(count == 1 ? "" : "s")}";
-            BulkActivate.IsEnabled = count > 0 && model.IsOnline;
+            // Already active (or scheduled, or pending) roles stay selectable for a profile; activation skips them.
+            var toActivate = model.SelectionToActivate.Count;
+            BulkActivate.Content = count == 0 ? "Activate" : $"Activate {toActivate} {noun}{(toActivate == 1 ? "" : "s")}";
+            BulkActivate.IsEnabled = toActivate > 0 && model.IsOnline;
+            ToolTipService.SetToolTip(BulkActivate, toActivate < count ? "Roles that are already active are skipped" : null);
             BulkProfile.IsEnabled = count > 0;
             var (entra, azure, groups, apps) = model.SelectionBreakdown;
             var parts = new List<string>();
@@ -849,12 +857,12 @@ public sealed partial class PanelView : UserControl
 
     private void OnBulkActivate(object sender, RoutedEventArgs e)
     {
-        if (_model is null || _model.Selection.Count == 0)
+        if (_model is null || _model.SelectionToActivate is not { Count: > 0 } keys)
         {
             return;
         }
 
-        App.Current.OpenActivation((RoleKey[])[.. _model.Selection.OrderBy(k => k.ToString(), StringComparer.Ordinal)]);
+        App.Current.OpenActivation((RoleKey[])[.. keys]);
     }
 
     // MARK: Group actions

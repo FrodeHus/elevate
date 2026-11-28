@@ -97,6 +97,9 @@ tenant or view keeps what you ticked, and the line under the buttons says what i
 
 ![Select mode with three roles ticked across Entra and Azure, and the Activate 3 roles button](images/tutorials/panel-select.png)
 
+A role that is already active can be ticked too, so it can go into a profile; **Activate** skips
+it and counts only the rest.
+
 The sheet groups the roles by account and tenant, with a duration per role and one reason for
 all of them. Progress shows next to each row as Elevate works through them, one tenant at a time.
 

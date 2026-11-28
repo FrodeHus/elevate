@@ -1310,7 +1310,7 @@ public static class PanelListBuilder
                     ? $"Can be deactivated in {Math.Ceiling(lockedFor.TotalSeconds).ToString(CultureInfo.InvariantCulture)} s (Entra enforces 5 minutes)"
                     : "Deactivate this role now";
                 row.ShowExtend = model.CanExtendNow(key, now);
-                row.SelectEnabled = false;
+                row.SelectEnabled = viewOnlyReason is null;
 
                 // PIM calls it active; only a probe can call it usable. Until one does, the row says
                 // so rather than showing the plain green that means "go ahead".
@@ -1328,18 +1328,18 @@ public static class PanelListBuilder
                 row.Status = RowStatus.Scheduled;
                 row.StatusText = $"starts in {Countdown.Until(assignment.StartDateTime, now)}";
                 row.ShowCancel = true;
-                row.SelectEnabled = false;
+                row.SelectEnabled = viewOnlyReason is null;
                 break;
             case AssignmentStatusKind.PendingApproval:
                 row.Status = RowStatus.Pending;
                 row.StatusText = "awaiting approval";
                 row.ShowCancelPending = true;
-                row.SelectEnabled = false;
+                row.SelectEnabled = viewOnlyReason is null;
                 break;
             case AssignmentStatusKind.PendingProvisioning:
                 row.Status = RowStatus.Provisioning;
                 row.StatusText = "provisioning";
-                row.SelectEnabled = false;
+                row.SelectEnabled = viewOnlyReason is null;
                 break;
             case AssignmentStatusKind.Failed:
                 row.Status = RowStatus.Failed;

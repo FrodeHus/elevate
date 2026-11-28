@@ -397,7 +397,10 @@
                 </ToggleButton>
                 <Button x:Name="RefreshButton" Style="{StaticResource SubtleButtonStyle}" Width="32" Height="32" Padding="0"
                         Click="OnRefresh" AutomationProperties.Name="Refresh">
-                    <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                    <Grid>
+                        <FontIcon x:Name="RefreshIcon" Glyph="&#xE72C;" FontSize="14" />
+                        <ProgressRing x:Name="RefreshRing" Width="14" Height="14" IsActive="True" Visibility="Collapsed" />
+                    </Grid>
                 </Button>
             </StackPanel>
         </Grid>
