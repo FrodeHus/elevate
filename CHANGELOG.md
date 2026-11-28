@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- macOS and Windows: the Refresh button shows a spinner while a refresh is running, in every view.
+- macOS and Windows: roles that are already active can be ticked in selection mode, so they can be
+  saved to a profile. **Activate** skips them.
+
 ## [1.12.0] - 2026-11-25
 
 ### Added
@@ -29,12 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - macOS: in the panel, a role's status during a profile run sits at the end of its row, so the
   statuses line up whether or not a role has a scope caption.
-
-### Changed
-
-- macOS and Windows: the Refresh button shows a spinner while a refresh is running, in every view.
-- macOS and Windows: roles that are already active can be ticked in selection mode, so they can be
-  saved to a profile. **Activate** skips them.
 
 ## [1.11.0] - 2026-11-25
 
