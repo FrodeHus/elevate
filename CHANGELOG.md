@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-25
+
 ### Added
 
 - macOS, Windows and CLI: **PIM for app roles (preview).** App roles you are eligible for on an
@@ -947,7 +949,8 @@ activation.
 - Distribution: ad-hoc signed DMG published by the tag-driven release workflow, and a Homebrew
   cask served from this repository as a tap.
 
-[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/FrodeHus/elevate/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/FrodeHus/elevate/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/FrodeHus/elevate/compare/v1.10.2...v1.11.0
 [1.10.2]: https://github.com/FrodeHus/elevate/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/FrodeHus/elevate/compare/v1.10.0...v1.10.1
